@@ -52,11 +52,16 @@ def evaluate(
     *,
     trigger: str,
     session_ids: set[str] | None = None,
+    program_ids: set[str] | None = None,
     include_org: bool = True,
     include_programs: bool = True,
     today: date | None = None,
 ) -> EvaluationRun:
-    """Évalue les contrôles. `session_ids=None` = toutes les sessions (réévaluation complète)."""
+    """Évalue les contrôles. `session_ids=None` = toutes les sessions (réévaluation complète).
+
+    En mode ciblé, les formations évaluées sont celles des sessions ciblées plus `program_ids`
+    (une formation modifiée sans session doit aussi être réévaluée).
+    """
     today = today or date.today()
     run = EvaluationRun(
         version_id=version.id,
@@ -76,8 +81,11 @@ def evaluate(
     ctx = EvalContext(today=today, org=org, evidence=evidence, sessions={s.id: s for s in sessions})
 
     scoped_sessions = sessions if session_ids is None else [s for s in sessions if s.id in session_ids]
-    program_ids = {p.id for p in programs} if session_ids is None else {s.program_id for s in scoped_sessions}
-    scoped_programs = [p for p in programs if p.id in program_ids] if include_programs else []
+    if session_ids is None:
+        wanted_programs = {p.id for p in programs}
+    else:
+        wanted_programs = set(program_ids or ()) | {s.program_id for s in scoped_sessions}
+    scoped_programs = [p for p in programs if p.id in wanted_programs] if include_programs else []
 
     existing = {(r.control_id, r.target_type, r.target_id): r for r in db.scalars(select(ControlResult).where(ControlResult.version_id == version.id))}
     findings = {f.key: f for f in db.scalars(select(Finding))}

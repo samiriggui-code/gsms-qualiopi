@@ -30,6 +30,7 @@ EVENT_NAMES = {
     "partner.updated",
     "document.issued",
     "document.signed",
+    "capa.verification_requested",
     "capa.closed",
 }
 

@@ -11,7 +11,6 @@ from app.core.errors import InvalidStateError, NotFoundError
 from app.events.publish import publish
 from app.qualiopi.capa.models import CapaAction, CapaEvent
 from app.qualiopi.common import next_reference
-from app.qualiopi.engine import refresh_all
 from app.qualiopi.evaluation.models import Finding
 
 TRANSITIONS = {
@@ -74,33 +73,62 @@ def complete(db: Session, capa: CapaAction, note: str, actor: str) -> CapaAction
 def verify(db: Session, capa: CapaAction, actor: str, human_note: str | None = None) -> CapaAction:
     """Vérification d'efficacité.
 
-    Constat issu d'un contrôle : le moteur réévalue ; la CAPA ne se clôt que si le contrôle
-    ne signale plus l'écart. Constat issu d'un audit : vérification humaine motivée.
+    Constat issu d'un contrôle : on demande au moteur de réévaluer le contrôle ; le worker
+    clôt la CAPA seulement si l'écart a disparu (conclude_verification). Un humain ne peut pas
+    clore à la place du moteur.
+    Constat issu d'un audit : vérification humaine motivée, clôture immédiate.
     """
     if capa.status != "A_VERIFIER":
         raise InvalidStateError("La CAPA doit être au statut A_VERIFIER")
     f = db.get(Finding, capa.finding_id)
-    assert f is not None
+    if f is None:
+        raise NotFoundError("Constat introuvable")
     if f.origin == "CONTROLE":
-        refresh_all(db, trigger=f"verification:{capa.reference}")
-        db.refresh(f)
-        if f.status != "RESOLU":
-            capa.verification_result = f"Échec : le contrôle {f.control_key} signale toujours l'écart ({f.readiness}). {f.explanation}"
-            _move(capa, "EN_COURS", actor, capa.verification_result)
-            return capa
-        capa.verification_result = f"Efficace : le contrôle {f.control_key} ne signale plus d'écart."
-    else:
-        if not (human_note or "").strip():
-            raise InvalidStateError("Constat d'audit : une note de vérification humaine est obligatoire")
-        capa.verification_result = f"Vérifié par {actor} : {human_note}"
-        f.status = "RESOLU"
-        f.resolved_at = utcnow()
+        capa.events.append(CapaEvent(kind="VERIFICATION_REQUESTED", detail=f"réévaluation de {f.control_key}", actor=actor))
+        publish(
+            db,
+            "capa.verification_requested",
+            "capa",
+            capa.id,
+            session_id=f.target_id if f.target_type == "SESSION" else None,
+            program_id=f.target_id if f.target_type == "FORMATION" else None,
+            actor_id=None,
+            payload={"finding": f.reference, "actor": actor},
+        )
+        return capa
+    if not (human_note or "").strip():
+        raise InvalidStateError("Constat d'audit : une note de vérification humaine est obligatoire")
+    f.status = "RESOLU"
+    f.resolved_at = utcnow()
+    _close(db, capa, f, actor, f"Vérifié par {actor} : {human_note}")
+    return capa
+
+
+def conclude_verification(db: Session, capa_id: str) -> CapaAction:
+    """Appelé par le worker après la réévaluation. Idempotent."""
+    capa = db.get(CapaAction, capa_id)
+    if capa is None:
+        raise NotFoundError("CAPA introuvable")
+    if capa.status != "A_VERIFIER":
+        return capa
+    f = db.get(Finding, capa.finding_id)
+    assert f is not None
+    requested_by = next((e.actor for e in reversed(capa.events) if e.kind == "VERIFICATION_REQUESTED"), "moteur")
+    if f.status != "RESOLU":
+        capa.verification_result = f"Échec : le contrôle {f.control_key} signale toujours l'écart ({f.readiness}). {f.explanation}"
+        _move(capa, "EN_COURS", "moteur", capa.verification_result)
+        return capa
+    _close(db, capa, f, requested_by, f"Efficace : le contrôle {f.control_key} ne signale plus d'écart.")
+    return capa
+
+
+def _close(db: Session, capa: CapaAction, f: Finding, actor: str, result: str) -> None:
+    capa.verification_result = result
     capa.verified_at = utcnow()
     capa.verified_by = actor
     capa.closed_at = utcnow()
-    _move(capa, "CLOTUREE", actor, capa.verification_result)
+    _move(capa, "CLOTUREE", actor, result)
     publish(db, "capa.closed", "capa", capa.id, payload={"finding": f.reference})
-    return capa
 
 
 def cancel(db: Session, capa: CapaAction, reason: str, actor: str) -> CapaAction:

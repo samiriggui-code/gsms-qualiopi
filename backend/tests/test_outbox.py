@@ -8,6 +8,7 @@ from app.events.models import OutboxEvent
 from app.events.publish import publish
 from app.qualiopi.engine import process_pending
 from app.qualiopi.evaluation.models import ControlResult, EvaluationRun
+from app.qualiopi.evidence.models import Evidence
 from app.training import models as t
 from tests.conftest import TODAY, find_session
 
@@ -61,3 +62,26 @@ def test_evenement_organisme_reevalue_l_organisme(demo: Session) -> None:
     assert result["org"] is True
     r = demo.scalar(select(ControlResult).where(ControlResult.control_key == "I20.disability-referent"))
     assert r.status == "DEMONTRABLE"
+
+
+def test_formation_sans_session_reevaluee(demo: Session) -> None:
+    p = t.Program(code="HOBO", title="Habilitation électrique", objectives=["Travailler hors tension en sécurité"])
+    demo.add(p)
+    demo.flush()
+    publish(demo, "program.created", "program", p.id, program_id=p.id)
+    demo.commit()
+    result = process_pending(demo, today=TODAY)
+    assert result["programs"] == 1 and result["sessions"] == 0
+    r = demo.scalar(select(ControlResult).where(ControlResult.control_key == "I05.objectives", ControlResult.target_id == p.id))
+    assert r is not None and r.status == "DEMONTRABLE"
+
+
+def test_reconciliation_ciblee_ne_retire_rien_hors_perimetre(demo: Session) -> None:
+    before = {e.id: e.status for e in demo.scalars(select(Evidence))}
+    _add_positioning(demo)
+    demo.commit()
+    result = process_pending(demo, today=TODAY)
+    demo.commit()
+    assert result["evidence"]["retired"] == 0 and result["evidence"]["created"] == 1
+    after = {e.id: e.status for e in demo.scalars(select(Evidence))}
+    assert {k: v for k, v in after.items() if k in before} == before
