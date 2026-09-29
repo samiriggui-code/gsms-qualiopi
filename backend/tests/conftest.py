@@ -1,0 +1,78 @@
+"""Tests sur un vrai PostgreSQL.
+
+Une base neuve est créée pour la session de tests, migrée avec Alembic (pas de create_all :
+on teste le schéma réellement déployé), puis vidée entre chaque test.
+
+Variable : TEST_DATABASE_URL = URL d'une base d'administration (par défaut `postgres` en local).
+"""
+
+from __future__ import annotations
+
+import os
+import uuid
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
+
+from app.core import db as core_db
+from app.models import SCHEMAS
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+ADMIN_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/postgres")
+
+
+def alembic_config(url: str) -> Config:
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+    return cfg
+
+
+@pytest.fixture(scope="session")
+def database_url() -> Iterator[str]:
+    name = f"gsms_test_{uuid.uuid4().hex[:10]}"
+    admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
+    with admin.connect() as c:
+        c.execute(text(f'CREATE DATABASE "{name}"'))
+    url = make_url(ADMIN_URL).set(database=name).render_as_string(hide_password=False)
+    try:
+        command.upgrade(alembic_config(url), "head")
+        os.environ["DATABASE_URL"] = url
+        core_db.reset_engine(url)
+        yield url
+    finally:
+        core_db.get_engine().dispose()
+        with admin.connect() as c:
+            c.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+        admin.dispose()
+
+
+def _truncate_all(url: str) -> None:
+    engine = core_db.get_engine()
+    with engine.begin() as c:
+        tables = c.execute(
+            text(
+                "SELECT quote_ident(schemaname) || '.' || quote_ident(tablename) FROM pg_tables "
+                "WHERE schemaname = ANY(:schemas)"
+            ),
+            {"schemas": list(SCHEMAS)},
+        ).scalars().all()
+        if tables:
+            c.execute(text(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE"))
+
+
+@pytest.fixture
+def db(database_url: str) -> Iterator[Session]:
+    _truncate_all(database_url)
+    session = core_db.session_factory()()
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
