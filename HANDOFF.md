@@ -65,7 +65,8 @@ python -m app.worker                   # second terminal
 cd frontend && npm install && GSMS_API_URL=http://127.0.0.1:8000 npm run dev   # :3000
 ```
 
-E-mails en local : Mailpit (`docker compose up -d mailpit`, interface http://localhost:8025). Sur le
+E-mails en local : Mailpit (`docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit`,
+SMTP sur le port 1025 déjà par défaut, interface http://localhost:8025). Sur le
 VPS : un vrai SMTP (`SMTP_*` dans `.env`).
 
 **Vérifications avant chaque commit** (toutes vertes au dernier commit) :
