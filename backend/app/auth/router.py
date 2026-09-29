@@ -1,12 +1,30 @@
-from datetime import datetime
+"""Connexion, comptes et rôles.
+
+Les rôles appartiennent à l'organisme : il attribue les rôles système ou crée ses propres rôles
+en cochant des permissions du catalogue. Règle unique contre l'escalade de droits : on ne donne
+jamais une permission qu'on n'a pas soi-même, et on ne modifie ni son propre compte ni un compte
+plus puissant que le sien.
+"""
+
+import re
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.auth.models import ROLES, User
-from app.auth.security import DB, PERMISSIONS, CurrentUser, create_token, hash_password, require, verify_password
-from fastapi import Depends
+from app.auth.models import CustomRole, User, UserRole
+from app.auth.permissions import CATALOGUE, SYSTEM_ROLES, check_codes
+from app.auth.security import (
+    DB,
+    CurrentUser,
+    UserManager,
+    create_token,
+    forget_permissions,
+    granted_permissions,
+    hash_password,
+    permissions_of,
+    verify_password,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -20,7 +38,8 @@ class UserOut(BaseModel):
     id: str
     email: str
     full_name: str
-    role: str
+    roles: list[str]
+    is_active: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -39,123 +58,176 @@ def login(body: LoginIn, db: DB) -> TokenOut:
     return TokenOut(access_token=create_token(user), user=UserOut.model_validate(user))
 
 
-@router.get("/me", response_model=UserOut)
-def me(user: CurrentUser) -> User:
-    return user
+@router.get("/me")
+def me(user: CurrentUser, db: DB) -> dict:
+    return UserOut.model_validate(user).model_dump() | {"permissions": sorted(permissions_of(db, user))}
+
+
+# ── Rôles ────────────────────────────────────────────────────────────────────────
+
+
+def role_permissions(db, code: str) -> frozenset[str]:  # noqa: ANN001
+    if code in SYSTEM_ROLES:
+        return SYSTEM_ROLES[code][1]
+    role = db.scalar(select(CustomRole).where(CustomRole.code == code))
+    if role is None:
+        raise HTTPException(422, f"Rôle inconnu : {code}")
+    return frozenset(role.permissions)
+
+
+def _no_escalation(db, actor: User, permissions: frozenset[str] | set[str]) -> None:  # noqa: ANN001
+    missing = set(permissions) - granted_permissions(db, actor)
+    if missing:
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            f"Vous ne pouvez pas donner des droits que vous n'avez pas : {', '.join(sorted(missing))}")
+
+
+@router.get("/permissions")
+def list_permissions(_: CurrentUser) -> list[dict]:
+    """Catalogue des permissions (défini par le code)."""
+    return [{"code": p.code, "label": p.label, "feature": p.feature} for p in CATALOGUE]
+
+
+@router.get("/roles")
+def list_roles(db: DB, _: CurrentUser) -> list[dict]:
+    """Rôles système proposés, puis rôles créés par l'organisme."""
+    out = [{"code": c, "label": label, "system": True, "permissions": sorted(perms)} for c, (label, perms) in SYSTEM_ROLES.items()]
+    out += [{"code": r.code, "label": r.label, "description": r.description, "system": False, "permissions": sorted(r.permissions)}
+            for r in db.scalars(select(CustomRole).order_by(CustomRole.label))]
+    return out
+
+
+class RoleIn(BaseModel):
+    code: str
+    label: str
+    description: str | None = None
+    permissions: list[str]
+
+
+@router.post("/roles", status_code=201)
+def create_role(body: RoleIn, db: DB, actor: UserManager) -> dict:
+    if not re.fullmatch(r"[a-z][a-z0-9_]{2,39}", body.code):
+        raise HTTPException(422, "Code de rôle : minuscules, chiffres et _ (3 à 40 caractères)")
+    if body.code in SYSTEM_ROLES or db.scalar(select(CustomRole).where(CustomRole.code == body.code)):
+        raise HTTPException(409, f"Le rôle {body.code} existe déjà")
+    perms = set(body.permissions)
+    check_codes(perms)
+    _no_escalation(db, actor, perms)
+    db.add(CustomRole(code=body.code, label=body.label, description=body.description, permissions=sorted(perms)))
+    db.commit()
+    return {"code": body.code, "permissions": sorted(perms)}
+
+
+class RoleUpdate(BaseModel):
+    label: str | None = None
+    description: str | None = None
+    permissions: list[str] | None = None
+
+
+@router.put("/roles/{code}")
+def update_role(code: str, body: RoleUpdate, db: DB, actor: UserManager) -> dict:
+    if code in SYSTEM_ROLES:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Un rôle système ne se modifie pas : créez un rôle personnalisé")
+    role = db.scalar(select(CustomRole).where(CustomRole.code == code))
+    if role is None:
+        raise HTTPException(404, "Rôle introuvable")
+    _no_escalation(db, actor, set(role.permissions))
+    if body.permissions is not None:
+        perms = set(body.permissions)
+        check_codes(perms)
+        _no_escalation(db, actor, perms)
+        role.permissions = sorted(perms)
+    if body.label is not None:
+        role.label = body.label
+    if body.description is not None:
+        role.description = body.description
+    db.commit()
+    forget_permissions(db)
+    return {"code": role.code, "permissions": role.permissions}
+
+
+@router.delete("/roles/{code}", status_code=204)
+def delete_role(code: str, db: DB, actor: UserManager) -> None:
+    role = db.scalar(select(CustomRole).where(CustomRole.code == code))
+    if role is None:
+        raise HTTPException(404, "Rôle introuvable")
+    if db.scalar(select(UserRole).where(UserRole.role == code).limit(1)):
+        raise HTTPException(409, "Rôle encore attribué : retirez-le d'abord des comptes")
+    _no_escalation(db, actor, set(role.permissions))
+    db.delete(role)
+    db.commit()
+
+
+# ── Comptes ──────────────────────────────────────────────────────────────────────
+
+
+@router.get("/users", response_model=list[UserOut])
+def list_users(db: DB, _: UserManager) -> list[User]:
+    return list(db.scalars(select(User).order_by(User.full_name)))
+
+
+def _guard_target(db, actor: User, target: User) -> None:  # noqa: ANN001
+    if target.id == actor.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Vous ne pouvez pas modifier votre propre compte")
+    _no_escalation(db, actor, granted_permissions(db, target))
+
+
+def _set_roles(db, actor: User, user: User, roles: list[str]) -> None:  # noqa: ANN001
+    wanted = set(roles)
+    for code in wanted:
+        _no_escalation(db, actor, role_permissions(db, code))
+    user.role_links = [link for link in user.role_links if link.role in wanted]
+    have = {link.role for link in user.role_links}
+    user.role_links += [UserRole(role=code) for code in sorted(wanted - have)]
+    forget_permissions(db)
 
 
 class UserCreate(BaseModel):
     email: str
     full_name: str
     password: str
-    role: str = "lecture"
+    roles: list[str] = ["lecture"]
 
 
-@router.post("/users", response_model=UserOut, dependencies=[Depends(require("manage_users"))])
-def create_user(body: UserCreate, db: DB) -> User:
-    if body.role not in ROLES:
-        raise HTTPException(422, f"Rôle inconnu, valeurs possibles : {', '.join(ROLES)}")
-    if len(body.password) < 10:
-        raise HTTPException(422, "Mot de passe : 10 caractères minimum")
-    if db.scalar(select(User).where(User.email == body.email.lower())):
+@router.post("/users", response_model=UserOut)
+def create_user(body: UserCreate, db: DB, actor: UserManager) -> User:
+    if len(body.password) < 12:
+        raise HTTPException(422, "Mot de passe : 12 caractères minimum")
+    if db.scalar(select(User).where(User.email == body.email.lower().strip())):
         raise HTTPException(409, "Email déjà utilisé")
-    user = User(email=body.email.lower().strip(), full_name=body.full_name, password_hash=hash_password(body.password), role=body.role)
+    user = User(email=body.email.lower().strip(), full_name=body.full_name, password_hash=hash_password(body.password))
+    _set_roles(db, actor, user, body.roles)
     db.add(user)
     db.commit()
     return user
 
 
-# --- Administration des comptes ---
-
-ROLE_LABELS = {"admin": "Administrateur", "qualite": "Responsable qualité", "gestion": "Gestion", "lecture": "Lecture seule"}
-PERMISSION_LABELS = {
-    "read": "Consulter les données",
-    "write_training": "Gérer formations, sessions et apprenants",
-    "write_quality": "Gérer la qualité (veille, réclamations, enquêtes…)",
-    "validate_evidence": "Valider ou rejeter les preuves",
-    "manage_referential": "Gérer le référentiel Qualiopi",
-    "manage_users": "Gérer les utilisateurs",
-}
+class RolesIn(BaseModel):
+    roles: list[str]
 
 
-class UserAdminOut(UserOut):
-    is_active: bool
-    created_at: datetime
-
-
-class UserUpdate(BaseModel):
-    full_name: str | None = None
-    role: str | None = None
-    is_active: bool | None = None
-    password: str | None = None
-
-
-@router.get("/permissions")
-def permissions_matrix(_: CurrentUser) -> dict:
-    """Matrice rôles × permissions, telle qu'appliquée côté serveur."""
-    return {
-        "roles": [{"key": r, "label": ROLE_LABELS[r]} for r in ROLES],
-        "permissions": [{"key": p, "label": label} for p, label in PERMISSION_LABELS.items()],
-        "grants": {role: sorted(perms) for role, perms in PERMISSIONS.items()},
-    }
-
-
-@router.get("/users", response_model=list[UserAdminOut], dependencies=[Depends(require("manage_users"))])
-def list_users(db: DB) -> list[User]:
-    return list(db.scalars(select(User).order_by(User.full_name)).all())
-
-
-@router.patch("/users/{user_id}", response_model=UserAdminOut)
-def update_user(user_id: str, body: UserUpdate, db: DB, admin: User = Depends(require("manage_users"))) -> User:
+@router.put("/users/{user_id}/roles", response_model=UserOut)
+def set_user_roles(user_id: str, body: RolesIn, db: DB, actor: UserManager) -> User:
+    """Attribuer les rôles d'un membre de l'équipe (remplace la liste)."""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(404, "Utilisateur introuvable")
-    if body.role is not None:
-        if body.role not in ROLES:
-            raise HTTPException(422, f"Rôle inconnu, valeurs possibles : {', '.join(ROLES)}")
-        if user.id == admin.id and body.role != "admin":
-            raise HTTPException(422, "Vous ne pouvez pas retirer votre propre rôle administrateur")
-        user.role = body.role
-    if body.is_active is not None:
-        if user.id == admin.id and not body.is_active:
-            raise HTTPException(422, "Vous ne pouvez pas désactiver votre propre compte")
-        user.is_active = body.is_active
-    if body.full_name is not None:
-        user.full_name = body.full_name.strip()
-    if body.password:
-        if len(body.password) < 10:
-            raise HTTPException(422, "Mot de passe : 10 caractères minimum")
-        user.password_hash = hash_password(body.password)
+    _guard_target(db, actor, user)
+    _set_roles(db, actor, user, body.roles)
     db.commit()
     return user
 
 
-# --- Compte de l'utilisateur connecté ---
+class ActiveIn(BaseModel):
+    is_active: bool
 
 
-class ProfileUpdate(BaseModel):
-    full_name: str
-
-
-class PasswordChange(BaseModel):
-    current_password: str
-    new_password: str
-
-
-@router.patch("/me", response_model=UserOut)
-def update_me(body: ProfileUpdate, db: DB, user: CurrentUser) -> User:
-    if not body.full_name.strip():
-        raise HTTPException(422, "Le nom est obligatoire")
-    user.full_name = body.full_name.strip()
+@router.put("/users/{user_id}/active", response_model=UserOut)
+def set_user_active(user_id: str, body: ActiveIn, db: DB, actor: UserManager) -> User:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "Utilisateur introuvable")
+    _guard_target(db, actor, user)
+    user.is_active = body.is_active
     db.commit()
     return user
-
-
-@router.post("/me/password", status_code=204)
-def change_password(body: PasswordChange, db: DB, user: CurrentUser) -> None:
-    if not verify_password(body.current_password, user.password_hash):
-        raise HTTPException(422, "Mot de passe actuel incorrect")
-    if len(body.new_password) < 10:
-        raise HTTPException(422, "Mot de passe : 10 caractères minimum")
-    user.password_hash = hash_password(body.new_password)
-    db.commit()

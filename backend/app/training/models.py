@@ -4,10 +4,10 @@ Ces tables ne connaissent pas Qualiopi. Elles produisent les données que le mot
 transforme en preuves potentielles. Schéma PostgreSQL : `formation`.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, new_id
@@ -75,12 +75,25 @@ class Trainer(TimestampMixin, Base):
     email: Mapped[str | None] = mapped_column(String(200))
     is_external: Mapped[bool] = mapped_column(Boolean, default=False)
     specialties: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Compte GSMS du formateur : lui donne accès à ses propres sessions (permission sessions.read_own).
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
 
     qualifications: Mapped[list["TrainerQualification"]] = relationship(back_populates="trainer", cascade="all, delete-orphan")
 
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+
+# Titres réglementés propres aux filières de l'organisme (sûreté, incendie, secourisme, électricité).
+QUALIFICATION_KINDS = {
+    "CARTE_PRO_FORMATEUR_CNAPS": "Carte professionnelle de formateur en sécurité privée (CNAPS, 5 ans)",
+    "SSIAP3": "Diplôme SSIAP 3 (formateur incendie)",
+    "FORMATEUR_SST": "Certificat de formateur SST (INRS)",
+    "HABILITATION_ELECTRIQUE": "Habilitation électrique",
+    "DIPLOME": "Diplôme ou titre professionnel",
+    "AUTRE": "Autre qualification",
+}
 
 
 class TrainerQualification(TimestampMixin, Base):
@@ -91,7 +104,9 @@ class TrainerQualification(TimestampMixin, Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     trainer_id: Mapped[str] = mapped_column(fk("trainer"))
+    kind: Mapped[str] = mapped_column(String(40), default="AUTRE", server_default="AUTRE")  # QUALIFICATION_KINDS
     label: Mapped[str] = mapped_column(String(200))
+    number: Mapped[str | None] = mapped_column(String(60))  # numéro de carte ou de certificat
     obtained_on: Mapped[date | None] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)
     document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
@@ -155,13 +170,31 @@ class TrainingSession(TimestampMixin, Base):
     room: Mapped[str | None] = mapped_column(String(100))
     trainer_id: Mapped[str | None] = mapped_column(ForeignKey("formation.trainer.id", ondelete="SET NULL"))
     capacity: Mapped[int | None] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(20), default="PLANIFIEE")
+    status: Mapped[str] = mapped_column(String(20), default="PLANIFIEE")  # changé seulement par app.training.lifecycle
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
     subcontractor_id: Mapped[str | None] = mapped_column(ForeignKey("formation.subcontractor.id", ondelete="SET NULL"))
 
     program: Mapped[Program] = relationship()
     trainer: Mapped[Trainer | None] = relationship()
     enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="session", cascade="all, delete-orphan")
     attendance_slots: Mapped[list["AttendanceSlot"]] = relationship(back_populates="session", cascade="all, delete-orphan")
+
+    # Lectures prêtes pour l'affichage (listes) : évitent au client de recroiser les identifiants.
+    @property
+    def program_code(self) -> str | None:
+        return self.program.code if self.program else None
+
+    @property
+    def program_title(self) -> str | None:
+        return self.program.title if self.program else None
+
+    @property
+    def trainer_name(self) -> str | None:
+        return self.trainer.full_name if self.trainer else None
+
+    @property
+    def learners_count(self) -> int:
+        return sum(1 for e in self.enrollments if e.status != "ANNULE")
 
 
 ENROLLMENT_STATUSES = ("INSCRIT", "CONFIRME", "ANNULE", "ABANDON", "TERMINE")
@@ -179,6 +212,8 @@ class Enrollment(TimestampMixin, Base):
     funding: Mapped[str | None] = mapped_column(String(60))
     abandoned_on: Mapped[date | None] = mapped_column(Date)
     abandon_reason: Mapped[str | None] = mapped_column(Text)
+    # Lien personnel d'émargement envoyé au stagiaire : seule son empreinte est conservée.
+    sign_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
     session: Mapped[TrainingSession] = relationship(back_populates="enrollments")
     learner: Mapped[Learner] = relationship()
@@ -252,6 +287,7 @@ class Agreement(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20), default="CONVENTION")
     sent_on: Mapped[date | None] = mapped_column(Date)
     signed_on: Mapped[date | None] = mapped_column(Date)
+    signed_by: Mapped[str | None] = mapped_column(String(200))  # signataire côté client (repris du Contract de Frappe)
     document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
 
     enrollment: Mapped[Enrollment] = relationship(back_populates="agreement")
@@ -267,7 +303,12 @@ class AttendanceSlot(TimestampMixin, Base):
     session_id: Mapped[str] = mapped_column(fk("session"))
     day: Mapped[date] = mapped_column(Date)
     period: Mapped[str] = mapped_column(String(10), default="MATIN")  # MATIN | APRES_MIDI
+    start_time: Mapped[time | None] = mapped_column(Time)  # heure locale (réglage attendance.slots)
+    end_time: Mapped[time | None] = mapped_column(Time)
     trainer_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trainer_signed_by: Mapped[str | None] = mapped_column(String(200))
+    # Code du créneau affiché en salle (QR imprimé) : seule son empreinte est conservée.
+    code_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
     session: Mapped[TrainingSession] = relationship(back_populates="attendance_slots")
     signatures: Mapped[list["AttendanceSignature"]] = relationship(back_populates="slot", cascade="all, delete-orphan")
@@ -282,6 +323,11 @@ class AttendanceSignature(TimestampMixin, Base):
     enrollment_id: Mapped[str] = mapped_column(fk("enrollment"))
     present: Mapped[bool] = mapped_column(Boolean, default=True)
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # CODE_CRENEAU (le stagiaire signe avec le code de la salle et son lien personnel),
+    # FORMATEUR (présence ou absence constatée), CORRECTION (après coup, motivée).
+    method: Mapped[str | None] = mapped_column(String(20))
+    recorded_by: Mapped[str | None] = mapped_column(String(200))
+    note: Mapped[str | None] = mapped_column(Text)  # motif d'absence ou de correction
 
     slot: Mapped[AttendanceSlot] = relationship(back_populates="signatures")
     enrollment: Mapped[Enrollment] = relationship(back_populates="signatures")
@@ -420,3 +466,12 @@ class Document(TimestampMixin, Base):
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     signed_by: Mapped[str | None] = mapped_column(String(200))
     indicator_hints: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # Pièce de dossier : FICHIER déposé, ou PAPIER déclaré (l'original est conservé hors GSMS).
+    support: Mapped[str] = mapped_column(String(20), default="FICHIER", server_default="FICHIER")
+    # Grille cochée par la personne qui dépose, figée avec la version (question posée comprise).
+    checklist: Mapped[dict | None] = mapped_column(JSON)
+    checklist_note: Mapped[str | None] = mapped_column(Text)
+    # Pièce d'un dossier (code de config/dossiers) ; entity_type = ORGANISME | FORMATEUR
+    requirement: Mapped[str | None] = mapped_column(String(60), index=True)
+    original_name: Mapped[str | None] = mapped_column(String(250))
+    size_bytes: Mapped[int | None] = mapped_column(Integer)

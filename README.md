@@ -1,72 +1,129 @@
 # GSMS Qualiopi
 
-Application de pilotage Qualiopi pour organisme de formation (FORM'SSI) : backend FastAPI + moteur Qualiopi, front Next.js basé sur le concept CRM de Metronic.
+Application d'un organisme de formation : backend Python (domaine formation + moteur de préparation
+Qualiopi) et front Next.js (espace formation).
+Le moteur transforme les données du quotidien (inscriptions, positionnements, émargements,
+évaluations…) en preuves traçables, les confronte au référentiel national qualité (V9, puis V10 au
+1er novembre 2026) et explique
+chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-> **Statut : en développement.** Le gel lié à l'audit SchoolOps / Mizan / ai-agent-education-platform est levé.
+**Statut : jalons 1 et 1 bis terminés, jalon 2 en cours** — backend : socle de configuration, Formation,
+Émargement, RH, Financement, Parcours du stagiaire, chaîne Qualiopi, actions correctives, relances et questionnaires en ligne (155 tests). Front : premier parcours complet
+(connexion, sessions, détail, parcours des stagiaires, émargement, Qualiopi de la session), testé par
+Playwright sur ordinateur et mobile. Voir [`frontend/README.md`](frontend/README.md).
+
+## Architecture
+
+Un monolithe, un worker, une base.
+
+- `api` (FastAPI) : écrit les données métier et les décisions humaines, publie un événement dans la
+  même transaction (`formation.outbox_event`).
+- `worker` : lit l'outbox (`FOR UPDATE SKIP LOCKED`), réconcilie les preuves et réévalue uniquement
+  le périmètre touché ; passe complète chaque nuit pour le temps qui passe (expirations, délais).
+- PostgreSQL, trois schémas : `iam`, `formation` (domaine), `qualite` (moteur).
+
+| Module | Rôle |
+| --- | --- |
+| `app/training/` | Domaine organisme de formation (25 entités) ; sessions : cycle de vie par transitions (`lifecycle.py`), `TrainingPolicy`, capacités motivées (`GET /api/v1/sessions/{id}/capabilities`), routes sessions et inscriptions |
+| `app/qualiopi/referential/` | Import versionné : texte officiel + couche normative (`v9.yaml`, `v10.yaml`), bascule à la date d'entrée en vigueur |
+| `app/qualiopi/evidence/` | Donnée → preuve : détecteurs, cycle de vie, validation humaine, historique |
+| `app/qualiopi/evaluation/` | 9 contrôles paramétrés, états de préparation, constats, dossier de session |
+| `app/qualiopi/audit/`, `capa/` | Audit interne figé et comparable ; CAPA clôturée seulement si le contrôle passe |
+| `app/events/`, `app/qualiopi/engine.py`, `app/worker.py` | Outbox et réévaluation ciblée |
+| `app/qualiopi/schedule/` + `config/circuits/` | Échéancier : jalons J-15 → J+45 par session, à venir / à échéance / en retard |
+| `app/documents/` + `config/dossiers/` | Dossiers de pièces : dépôt SHA-256 ou pièce papier déclarée, versions, demandes, trames de rédaction ; chaque pièce a une grille cochée au dépôt (exploitable si tous les points sont satisfaits) puis confirmée à la validation |
+| `app/auth/` | Catalogue de permissions `ressource.action` (code), rôles système + rôles créés par l'organisme (base), plusieurs rôles par compte ; on ne donne jamais un droit qu'on n'a pas |
+| `app/attendance/` | Émargement électronique : demi-journées générées depuis les réglages, signature du stagiaire avec le code de salle (QR) + son lien personnel dans la fenêtre horaire, absences constatées et motivées par le formateur, contre-validation qui verrouille ; règle unique « qui est attendu » partagée avec la clôture et le moteur Qualiopi |
+| `app/funding/` + `config/financement/` | Financement (modules activables par dispositif) : dossier par inscription, sources multiples (cofinancement au statut calculé, sur-financement bloqué), cinq rôles séparés (bénéficiaire, financeur, signataire, destinataire de facture, payeur) ; circuits CPF, OPCO, France Travail (AIF), entreprise et reste à charge décrits en YAML versionné, conditions nommées lues dans les données existantes, échéances en jours ouvrés (fériés compris), actions de portail tracées, taux de réalisation depuis l'émargement, règles datées sourcées (participation CPF 100 € puis 150 €) |
+| `app/journey/` + `config/documents_generes/` | Parcours du stagiaire : analyse du besoin, positionnement, convention ou contrat (envoi, signature), convocation, évaluations, fin, abandon ou annulation, attestation, satisfaction à chaud et à froid ; chaque étape a sa politique (permission, portée du formateur, état, conditions) et ses refus motivés ; le moteur **rédige** la convocation (horaires tirés des demi-journées, accessibilité) et l'attestation de fin (objectifs, nature L. 6313-1, durée suivie tirée de l'émargement, résultats des évaluations, L. 6353-1), figées par empreinte SHA-256 et versionnées |
+| `app/relances/` + `config/relances/` + `config/emails/` | Relances et communications (module activable) : calendrier en YAML (convention à signer J-15/J-10/J-7, rappel J-2, récapitulatif formateur J-7, évaluations J+1/J+4, alertes de l'échéancier à échéance ou en retard au responsable du jalon, synthèse qualité du lundi) ; conditions relues avant l'envoi (déjà fait → annulé, avec le motif) ; planification idempotente avec rattrapage limité ; messages externes « à valider » d'abord, internes envoyés directement ; journal complet (destinataire, modèle et version, empreinte, statut, identifiant d'envoi, tentatives, erreur) ; SMTP (Mailpit en local), adresses accentuées comprises ; modèles e-mail Jinja compatibles clients mail |
+| `app/questionnaires/` + `config/questionnaires/` | Questionnaires en ligne, lien personnel signé, sans compte : analyse du besoin et positionnement (J-15/J-10/J-7), satisfaction à chaud (fin, J+2, J+5), à froid (J+45, J+52), entreprise (J+60, J+67). La réponse devient la donnée réelle (analyse du besoin, positionnement, appréciation) sans jamais écraser une saisie, avec les événements habituels pour le moteur Qualiopi ; la relance s'annule dès la réponse. Convocation et attestation transmises par lien signé, fichier vérifié contre son empreinte |
+| `frontend/` | Espace formation (Next.js 16) : identité de l'organisme par tokens, navigation issue de `/bootstrap`, sessions, parcours des stagiaires (matrice d'états datés, panneau, formulaires, documents émis), émargement, Qualiopi de la session ; boutons gouvernés par les décisions du moteur ; tests Playwright ordinateur + mobile avec axe-core et captures |
+| `app/hr/` | Ressources humaines (module activable) : personnel distinct des comptes, contrats, absences (nature seulement), titres des formateurs typés (carte formateur CNAPS, SSIAP 3, formateur SST…) et leurs échéances ; disponibilité et contrat vérifiés à la confirmation d'une session ; un compte relié à une fiche formateur ne voit que ses sessions |
+| `app/platform/` | Socle de configuration : fonctionnalités activables (une fonctionnalité inactive retire ses droits), réglages typés déclarés par chaque domaine, datés et journalisés (`ConfigurationService`), décisions motivées (`Decision`), `GET /api/v1/bootstrap` pour le front |
+| `app/qualiopi/review/` | Revue humaine attestée par indicateur (conclusion, justification, validité) |
+| `app/qualiopi/cycle/` | Cycle de certification : période évaluée pour l'état global et l'échantillon d'audit |
+| `app/core/journal.py` | Journal des modifications métier : qui, quoi, quand, champ par champ |
 
 ## Démarrer en local
 
-Prérequis : PostgreSQL (base `gsms_qualiopi`, `postgres/postgres` par défaut), Python 3.12+, Node 20+.
+Prérequis : Python 3.11+, PostgreSQL 16.
 
 ```bash
-# Backend — http://localhost:8000
 cd backend
-python -m venv .venv
-.venv/Scripts/pip install -r requirements.txt   # Linux/Mac : .venv/bin/pip
-.venv/Scripts/alembic upgrade head
-.venv/Scripts/uvicorn app.main:app --reload --port 8000
-
-# Front — http://localhost:3000
-cd frontend
-npm install --force
-npm run dev
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
+export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+alembic upgrade head
+python -m app.cli create-admin admin@exemple.fr "Administrateur"   # mot de passe demandé
+python -m app.cli seed-demo          # organisme de démo, 15 trous et 8 jalons plantés
+uvicorn app.main:app --reload        # API sur :8000, documentation sur /docs
+python -m app.worker                 # dans un second terminal
 ```
 
-Au premier démarrage, l'API crée un compte admin si la base est vide : `admin@gsms.local` / `admin-gsms` (variables `ADMIN_EMAIL`, `ADMIN_PASSWORD`).
+Front (second terminal) : `cd frontend && npm install && GSMS_API_URL=http://127.0.0.1:8000 npm run dev`
+puis http://localhost:3000.
 
-## Front (`frontend/`)
+Dossier d'audit d'une session (avec son échéancier) : `GET /api/v1/sessions/{id}/dossier`.
+État de préparation global sur le cycle en cours : `GET /api/v1/qualiopi/readiness`.
+Échéances proches ou dépassées : `GET /api/v1/qualiopi/echeances`.
+Chaîne d'un indicateur (critère, exigences, preuves attendues, contrôles, preuves, écarts, actions, historique) :
+`GET /api/v1/qualiopi/indicateurs/{n}` ; vue par critère : `GET /api/v1/qualiopi/criteres`.
+Actions correctives : `POST /api/v1/qualiopi/ecarts/{id}/actions`, puis
+`POST /api/v1/qualiopi/actions/{id}/{demarrer|realiser|verifier|annuler}` ; liste : `GET /api/v1/qualiopi/actions?en_retard=true`.
+Relances (module « relances » à activer) : le worker planifie et envoie toutes les 15 minutes ;
+`GET /api/v1/communications`, `POST /api/v1/communications/{id}/valider|annuler|renvoyer`,
+aperçu exact : `GET /api/v1/communications/{id}/apercu`.
+Public (lien signé, sans compte) : `GET|POST /api/v1/public/questionnaires/{jeton}`, `GET /api/v1/public/documents/{jeton}` ;
+côté front, la page `/q/{jeton}` et le relais `/api/public/…` (`PUBLIC_URL` = adresse du front). En local, Mailpit reçoit tout sur http://localhost:8025.
+Une action issue d'un contrôle n'est jamais close par un humain : « vérifier » demande au moteur de réévaluer,
+et il ne clôt que si l'écart a disparu.
 
-Next.js 16, Tailwind 4, composants ReUI. Layout adapté du **concept CRM de Metronic** (Metronic React Concepts 9.5.0) : barre du haut, sidebar repliable, en-tête de contenu fixe par page.
+## Docker
 
-- `components/ui/` : bibliothèque commune Metronic (tableaux `data-grid`, graphiques, agenda `calendar/`, `kanban`, formulaires, panneaux `sheet`…).
-- `components/layout/` : layout CRM (header, sidebar, `ContentHeader` + `Content` à utiliser dans chaque page).
-- `config/menu.config.ts` : navigation (entrées à plat + sections repliables Formation, Qualiopi, Administration ; champ `new` = raccourci du bouton « Nouveau »).
-- `app/(app)/` : pages de l'application. `[...slug]` affiche une page provisoire pour chaque entrée du menu sans écran dédié.
-- `app/(app)/demo/` : **catalogue de référence**, hors menu (accès direct : `/demo/crm/dashboard`, `/demo/crm/tasks`, `/demo/crm/notes`, `/demo/crm/contacts`, `/demo/crm/companies`, `/demo/crm/company`, `/demo/calendar`, `/demo/kanban`), **à supprimer avant la mise en production**. Contient le CRM complet (dashboard, tasks, notes, contacts, companies, company), l'agenda et le kanban, avec leurs données fictives. Méthode : copier l'écran voulu dans `app/(app)/…`, remplacer les données fictives par un hook branché sur l'API, traduire.
-- `app/(auth)/signin` : connexion, branchée sur `POST /api/v1/auth/login`. En dev, identifiants admin préremplis.
-- Authentification : le JWT de l'API est stocké dans un cookie httpOnly (`/api/auth/login`, `/api/auth/logout`). Les appels à l'API passent par le proxy `/api/backend/...` qui ajoute le Bearer (`lib/api.ts`). `proxy.ts` redirige vers `/signin` sans session.
-- Pas d'inscription ni de réinitialisation de mot de passe : les comptes sont créés par un admin (`POST /api/v1/auth/users`).
+```bash
+cp .env.example .env    # renseigner POSTGRES_PASSWORD et JWT_SECRET (obligatoires)
+docker compose up -d --build
+docker compose exec api python -m app.cli create-admin admin@exemple.fr "Administrateur"
+docker compose exec api python -m app.cli seed-demo
+```
 
-### Autres concepts Metronic (non copiés)
+`APP_ENV=production` (défaut du compose) refuse de démarrer avec un secret faible, un CORS `*`
+ou le mot de passe PostgreSQL par défaut.
 
-Source : `C:/laragon/www/themeforest-…/metronic-v9.5.0/metronic-tailwind-react-concepts/typescript/nextjs/app/`. À piocher au besoin :
+## Tests
 
-| Concept | Intérêt pour l'app |
-| --- | --- |
-| `store-inventory` | Formulaires en panneau latéral (`components/*-form-sheet.tsx`), fiches détail avec onglets et historique d'activité (`components/customers/`), modale de paramètres à onglets (`settings-modal`), upload d'images |
-| `todo` | Listes par échéance/priorité avec cartes de stats (`today/`, `upcoming/`, `priority/`) → suivi des actions correctives |
-| `mail` | Rédaction de message (`components/layouts/mail/components/compose-message.tsx`) → envoi de convocations |
-| `ai`, `real-estate` | Peu utiles (chat IA, carte Leaflet) |
+Les tests tournent sur un vrai PostgreSQL : une base neuve est créée et migrée par Alembic.
 
-Attention : chaque concept a son propre layout, et certains composants « communs » en dépendent (ex. l'agenda importait un bouton du layout Calendar, retiré ici).
+```bash
+export TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+python -m pytest
+ruff check .
+alembic check           # le schéma migré doit correspondre aux modèles
+```
 
-## Backend (`backend/`)
+`tests/test_demo.py` et `tests/test_schedule.py` sont le contrat du moteur : sur la démo, il trouve
+exactement les 15 trous plantés (`PLANTED_GAPS`) et les 8 jalons en retard ou à échéance
+(`PLANTED_MILESTONES`), avec l'apprenant ou la pièce en cause, et rien d'autre.
 
-FastAPI, SQLAlchemy 2, Alembic, PostgreSQL. Trois schémas : `iam`, `formation`, `qualite`. Point d'entrée : `app/main.py`. Routeurs branchés : auth, référentiel (`/api/v1/referentials/active`, `/active/indicators`, `/active/indicators/{n}`, `POST /import`). Au démarrage, le référentiel Qualiopi V9 est importé et activé s'il n'y a aucune version active.
+## Référentiel
 
-| Module | Contenu | État |
+Chaque version est un dossier `backend/referentials/qualiopi/vN/` : `source/` (texte officiel) et
+`normative/vN.yaml` (couche GSMS : applicabilité, preuves attendues, contrôles). Une version dont la
+date d'entrée en vigueur n'est pas atteinte est importée inactive ; la passe de nuit du worker active
+la plus récente version en vigueur.
+
+| Version | En vigueur | Source |
 | --- | --- | --- |
-| `app/training/models.py` | Domaine organisme de formation : organisme, entreprises, apprenants, formateurs, qualifications, programmes, sessions, inscriptions, analyse du besoin, positionnement, convocations, conventions, émargements, évaluations, attestations, satisfaction, réclamations, veille, sous-traitants, partenaires, documents versionnés | Modèles écrits, migrations appliquées |
-| `app/events/` | Outbox PostgreSQL + catalogue d'événements | Écrit |
-| `referentials/qualiopi/v9/` | Source : 32 fichiers de Levier-IA/qualiopi-markdown (Etalab 2.0), commit amont figé. Couche normative : `normative/v9.yaml` (applicabilité, preuves attendues, contrôles) | Écrit, l'import parse et valide les 32 indicateurs |
-| `app/qualiopi/referential/` | Import versionné avec empreintes SHA-256, activation d'une version, routeur de consultation | Fonctionne (écran Qualiopi › Indicateurs) |
-| `app/qualiopi/evidence/` | Detectors données → preuves, statuts DETECTEE / DOCUMENTEE / EXPLOITABLE / VALIDEE / EXPIREE / REJETEE / RETIREE, historique, validation humaine | Écrit, non testé |
-| `app/qualiopi/evaluation/` | Bibliothèque de 9 contrôles paramétrés, runner, constats, dossier d'audit de session | Écrit, non testé |
-| `app/qualiopi/audit/`, `capa/` | Audit figé et comparable, cycle CAPA avec vérification par réévaluation | Écrit, non testé |
-| `app/auth/` | JWT + rôles (admin, qualite, gestion, lecture), routeur branché | Fonctionne (connexion testée depuis le front) |
+| V9 | jusqu'au 31/10/2026 | 32 fichiers de [Levier-IA/qualiopi-markdown](https://github.com/Levier-IA/qualiopi-markdown) (Licence Ouverte Etalab 2.0, commit figé dans `UPSTREAM_COMMIT`), transcription du guide de lecture V9 |
+| V10 | à partir du 01/11/2026 | 33 énoncés de l'annexe du [décret n° 2026-728 du 1er août 2026](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054608509) (Légifrance, référence dans `UPSTREAM_REF`) |
 
-## Manque
+Le guide de lecture V10 n'était pas publié au 29/09/2026 : la couche `v10.yaml` reprend les contrôles
+V9, ajoute ceux des nouvelles exigences (indicateur 12 : violences, harcèlement, discriminations ;
+indicateur 32 : analyse des risques) et marque ce qui est provisoire. Les couches normatives sont
+propres à GSMS et doivent être relues par un responsable qualité face aux textes officiels
+([guide de lecture](https://travail-emploi.gouv.fr/referentiel-national-qualite-guide-de-lecture-qualiopi)),
+seuls à faire foi.
 
-- Backend : routeurs métier (formation, référentiel, preuves, évaluation, audit, CAPA), données de démo, tests.
-- Front : écrans métier (seul Qualiopi › Indicateurs est construit, le reste est en pages provisoires).
-- Docker.
+Code tiers repris : voir `THIRD_PARTY_NOTICES.md`.

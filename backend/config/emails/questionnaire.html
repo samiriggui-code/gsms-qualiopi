@@ -1,0 +1,9 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour{% if destinataire.nom %} {{ destinataire.nom }}{% endif %},</p>
+{% if relance %}<p>Petit rappel : nous n'avons pas encore reçu vos réponses.</p>{% endif %}
+<p>{{ invitation.phrase }}</p>
+{{ m.infos([("Formation", formation), ("Session", session.dates), ("Stagiaire", stagiaire)]) }}
+<p>Le questionnaire prend environ {{ invitation.duree }}. Le lien est personnel : merci de ne pas le transférer.</p>
+{{ m.echeance("le lien est valable jusqu'au " ~ invitation.expire) }}
+{% endblock %}

@@ -11,7 +11,7 @@ Statuts (cycle de vie de la preuve, distinct de la conformité) :
 
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, String, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, new_id, utcnow
@@ -79,6 +79,10 @@ class EvidenceValidation(Base):
     evidence_id: Mapped[str] = mapped_column(ForeignKey("qualite.evidence.id", ondelete="CASCADE"))
     decision: Mapped[str] = mapped_column(String(20))  # VALIDEE | REJETEE
     comment: Mapped[str | None] = mapped_column(Text)
+    # Réponses à la grille de relecture de la pièce, avec la question telle qu'elle était posée.
+    checklist: Mapped[dict | None] = mapped_column(JSON)
+    # La personne qui valide est aussi celle qui a déposé (admis seulement si l'organisme l'autorise).
+    self_validated: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     source_hash: Mapped[str] = mapped_column(String(64))  # l'état exact validé
     by_user_id: Mapped[str] = mapped_column(String(36))
     by_name: Mapped[str] = mapped_column(String(200))

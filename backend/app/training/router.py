@@ -1,311 +1,139 @@
-"""Routeur du domaine formation : sessions (liste, fiche, création) et référentiels utiles aux formulaires."""
+"""API du domaine formation : sessions, cycle de vie, capacités, inscriptions."""
 
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 
-from app.auth.security import DB, Reader, TrainingWriter
-from app.core.errors import ConflictError, InvalidStateError, NotFoundError
-from app.events.publish import publish
-from app.training.models import (
-    SESSION_STATUSES,
-    AttendanceSlot,
-    Company,
-    Document,
-    Enrollment,
-    Organization,
-    Program,
-    Trainer,
-    TrainingSession,
-)
-from app.training.schemas import OrganizationIn, OrganizationOut, SessionIn
+from app.auth.security import DB, AllSessionsReader, SessionsReader, SessionsWriter
+from app.training import models as t
+from app.training import service
+from app.training.access import own_trainer_ids, sees_all, visible_session
+from app.training.policy import TrainingPolicy
+from app.training.schemas import LearnerOut, ProgramOut, SessionOut, TrainerOut
 
 router = APIRouter(prefix="/api/v1", tags=["formation"])
 
 
-# --- Listes de référence (sélecteurs des formulaires) ---
+@router.get("/formations", response_model=list[ProgramOut])
+def list_programs(db: DB, _: SessionsReader) -> list[t.Program]:
+    return list(db.scalars(select(t.Program).order_by(t.Program.code)))
 
 
-class ProgramRef(BaseModel):
-    id: str
-    code: str
-    title: str
-    is_certifying: bool
-    duration_hours: float | None
+@router.get("/formateurs", response_model=list[TrainerOut])
+def list_trainers(db: DB, _: SessionsReader) -> list[t.Trainer]:
+    return list(db.scalars(select(t.Trainer).order_by(t.Trainer.last_name)))
 
 
-class TrainerRef(BaseModel):
-    id: str
-    full_name: str
-    is_external: bool
+@router.get("/stagiaires", response_model=list[LearnerOut])
+def list_learners(db: DB, _: AllSessionsReader) -> list[t.Learner]:
+    return list(db.scalars(select(t.Learner).order_by(t.Learner.last_name)))
 
 
-# --- Sessions ---
+class SessionView(SessionOut):
+    cancel_reason: str | None = None
+    program_code: str | None = None
+    program_title: str | None = None
+    trainer_name: str | None = None
+    learners_count: int = 0
 
 
-class SessionRow(BaseModel):
-    id: str
+@router.get("/sessions", response_model=list[SessionView])
+def list_sessions(db: DB, user: SessionsReader, statut: str | None = None,
+                  du: date | None = None, au: date | None = None) -> list[t.TrainingSession]:
+    q = select(t.TrainingSession).order_by(t.TrainingSession.start_date.desc())
+    if not sees_all(db, user):  # formateur : ses propres sessions
+        q = q.where(t.TrainingSession.trainer_id.in_(own_trainer_ids(db, user)))
+    if statut:
+        q = q.where(t.TrainingSession.status == statut)
+    if du:
+        q = q.where(t.TrainingSession.end_date >= du)
+    if au:
+        q = q.where(t.TrainingSession.start_date <= au)
+    return list(db.scalars(q))
+
+
+class SessionCreate(BaseModel):
     reference: str
-    program: ProgramRef
-    trainer: TrainerRef | None
+    program_id: str
     start_date: date
     end_date: date
-    location: str | None
-    room: str | None
-    capacity: int | None
-    status: str
-    enrolled: int
-    slots_total: int
-    slots_signed: int
-    subcontracted: bool
+    location: str | None = None
+    room: str | None = None
+    trainer_id: str | None = None
+    capacity: int | None = None
 
 
-class EnrollmentRow(BaseModel):
-    id: str
-    learner_id: str
-    learner_name: str
-    learner_email: str | None
-    company_name: str | None
-    status: str
-    funding: str | None
-    needs_analysis_done: bool
-    adaptation_required: bool
-    positioning_done: bool
-    convocation_sent_on: date | None
-    agreement_signed_on: date | None
-    attendance_present: int
-    attendance_total: int
-    assessments: int
-    certificate_issued_on: date | None
-
-
-class SlotRow(BaseModel):
-    id: str
-    day: date
-    period: str
-    trainer_signed_at: datetime | None
-    present: int
-    signed: int
-
-
-class DocumentRow(BaseModel):
-    id: str
-    kind: str
-    title: str
-    version: int
-    status: str
-    created_at: datetime
-    signed_at: datetime | None
-
-
-class SessionDetail(SessionRow):
-    enrollments: list[EnrollmentRow]
-    slots: list[SlotRow]
-    documents: list[DocumentRow]
-
-
-def _program_ref(p: Program) -> ProgramRef:
-    return ProgramRef(
-        id=p.id,
-        code=p.code,
-        title=p.title,
-        is_certifying=p.is_certifying,
-        duration_hours=float(p.duration_hours) if p.duration_hours is not None else None,
-    )
-
-
-def _trainer_ref(t: Trainer | None) -> TrainerRef | None:
-    if t is None:
-        return None
-    return TrainerRef(id=t.id, full_name=f"{t.first_name} {t.last_name}", is_external=t.is_external)
-
-
-def _row(s: TrainingSession, enrolled: int, slots_total: int, slots_signed: int) -> dict:
-    return {
-        "id": s.id,
-        "reference": s.reference,
-        "program": _program_ref(s.program),
-        "trainer": _trainer_ref(s.trainer),
-        "start_date": s.start_date,
-        "end_date": s.end_date,
-        "location": s.location,
-        "room": s.room,
-        "capacity": s.capacity,
-        "status": s.status,
-        "enrolled": enrolled,
-        "slots_total": slots_total,
-        "slots_signed": slots_signed,
-        "subcontracted": s.subcontractor_id is not None,
-    }
-
-
-ACTIVE_ENROLLMENT = ("INSCRIT", "CONFIRME", "TERMINE", "ABANDON")
-
-
-@router.get("/sessions", response_model=list[SessionRow])
-def list_sessions(db: DB, _: Reader):
-    enrolled = dict(
-        db.execute(
-            select(Enrollment.session_id, func.count())
-            .where(Enrollment.status.in_(ACTIVE_ENROLLMENT))
-            .group_by(Enrollment.session_id)
-        ).all()
-    )
-    slots_total = dict(
-        db.execute(select(AttendanceSlot.session_id, func.count()).group_by(AttendanceSlot.session_id)).all()
-    )
-    slots_signed = dict(
-        db.execute(
-            select(AttendanceSlot.session_id, func.count())
-            .where(AttendanceSlot.trainer_signed_at.is_not(None))
-            .group_by(AttendanceSlot.session_id)
-        ).all()
-    )
-    sessions = db.scalars(
-        select(TrainingSession)
-        .options(selectinload(TrainingSession.program), selectinload(TrainingSession.trainer))
-        .order_by(TrainingSession.start_date.desc())
-    ).all()
-    return [_row(s, enrolled.get(s.id, 0), slots_total.get(s.id, 0), slots_signed.get(s.id, 0)) for s in sessions]
-
-
-def _load_session(db, session_id: str) -> TrainingSession:
-    s = db.scalar(
-        select(TrainingSession)
-        .where(TrainingSession.id == session_id)
-        .options(
-            selectinload(TrainingSession.program),
-            selectinload(TrainingSession.trainer),
-            selectinload(TrainingSession.attendance_slots).selectinload(AttendanceSlot.signatures),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.learner),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.needs_analysis),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.positioning),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.convocation),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.agreement),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.assessments),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.certificate),
-            selectinload(TrainingSession.enrollments).selectinload(Enrollment.signatures),
-        )
-    )
-    if s is None:
-        raise NotFoundError("Session introuvable")
+@router.post("/sessions", response_model=SessionView, status_code=201)
+def create_session(body: SessionCreate, db: DB, user: SessionsWriter) -> t.TrainingSession:
+    s = service.create_session(db, body.model_dump(), user)
+    db.commit()
     return s
 
 
-@router.get("/sessions/{session_id}", response_model=SessionDetail)
-def get_session(session_id: str, db: DB, _: Reader):
-    s = _load_session(db, session_id)
-    company_names = dict(db.execute(select(Company.id, Company.name)).all())
-    slots = sorted(s.attendance_slots, key=lambda sl: (sl.day, sl.period != "MATIN"))
-    counted = [e for e in s.enrollments if e.status in ACTIVE_ENROLLMENT]
-
-    enrollments = []
-    for e in sorted(s.enrollments, key=lambda e: (e.learner.last_name, e.learner.first_name)):
-        company_id = e.company_id or e.learner.company_id
-        enrollments.append(
-            EnrollmentRow(
-                id=e.id,
-                learner_id=e.learner_id,
-                learner_name=f"{e.learner.first_name} {e.learner.last_name}",
-                learner_email=e.learner.email,
-                company_name=company_names.get(company_id) if company_id else None,
-                status=e.status,
-                funding=e.funding,
-                needs_analysis_done=bool(e.needs_analysis and e.needs_analysis.completed_on),
-                adaptation_required=bool(e.needs_analysis and e.needs_analysis.adaptation_required),
-                positioning_done=bool(e.positioning and e.positioning.completed_on),
-                convocation_sent_on=e.convocation.sent_on if e.convocation else None,
-                agreement_signed_on=e.agreement.signed_on if e.agreement else None,
-                attendance_present=sum(1 for sig in e.signatures if sig.present and sig.signed_at),
-                attendance_total=len(slots),
-                assessments=len(e.assessments),
-                certificate_issued_on=e.certificate.issued_on if e.certificate else None,
-            )
-        )
-
-    documents = db.scalars(
-        select(Document).where(Document.session_id == s.id).order_by(Document.created_at.desc())
-    ).all()
-
+@router.get("/sessions/{session_id}")
+def get_session(session_id: str, db: DB, user: SessionsReader) -> dict:
+    """La session, ses inscriptions et ce que l'utilisateur peut en faire maintenant."""
+    s = visible_session(db, user, session_id)
     return {
-        **_row(s, len(counted), len(slots), sum(1 for sl in slots if sl.trainer_signed_at)),
-        "enrollments": enrollments,
-        "slots": [
-            SlotRow(
-                id=sl.id,
-                day=sl.day,
-                period=sl.period,
-                trainer_signed_at=sl.trainer_signed_at,
-                present=sum(1 for sig in sl.signatures if sig.present),
-                signed=sum(1 for sig in sl.signatures if sig.signed_at),
-            )
-            for sl in slots
-        ],
-        "documents": [
-            DocumentRow(
-                id=d.id,
-                kind=d.kind,
-                title=d.title,
-                version=d.version,
-                status=d.status,
-                created_at=d.created_at,
-                signed_at=d.signed_at,
-            )
-            for d in documents
-        ],
+        "session": SessionView.model_validate(s).model_dump(mode="json"),
+        "inscriptions": [{"id": e.id, "learner_id": e.learner_id, "stagiaire": f"{e.learner.first_name} {e.learner.last_name}",
+                          "statut": e.status, "financement": e.funding} for e in s.enrollments],
+        "capabilities": TrainingPolicy(db, user).capabilities(s),
     }
 
 
-@router.post("/sessions", response_model=SessionRow, status_code=201)
-def create_session(body: SessionIn, db: DB, user: TrainingWriter):
-    missing = [f for f in ("reference", "program_id", "start_date", "end_date") if getattr(body, f) is None]
-    if missing:
-        raise InvalidStateError(f"Champs obligatoires manquants : {', '.join(missing)}")
-    if body.end_date < body.start_date:
-        raise InvalidStateError("La date de fin précède la date de début")
-    if body.status and body.status not in SESSION_STATUSES:
-        raise InvalidStateError(f"Statut inconnu, valeurs possibles : {', '.join(SESSION_STATUSES)}")
-    if db.scalar(select(TrainingSession.id).where(TrainingSession.reference == body.reference)):
-        raise ConflictError(f"La référence {body.reference} existe déjà")
-    if db.get(Program, body.program_id) is None:
-        raise NotFoundError("Programme introuvable")
-    if body.trainer_id and db.get(Trainer, body.trainer_id) is None:
-        raise NotFoundError("Formateur introuvable")
+@router.get("/sessions/{session_id}/capabilities")
+def session_capabilities(session_id: str, db: DB, user: SessionsReader) -> dict:
+    return TrainingPolicy(db, user).capabilities(visible_session(db, user, session_id))
 
-    s = TrainingSession(**body.model_dump(exclude_none=True), created_by=user.full_name)
-    db.add(s)
-    db.flush()
-    publish(db, "session.created", "session", s.id, session_id=s.id, program_id=s.program_id, actor_id=user.id)
+
+class SessionPatch(BaseModel):
+    reference: str | None = None
+    program_id: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    location: str | None = None
+    room: str | None = None
+    trainer_id: str | None = None
+    capacity: int | None = None
+
+
+@router.patch("/sessions/{session_id}", response_model=SessionView)
+def update_session(session_id: str, body: SessionPatch, db: DB, user: SessionsWriter) -> t.TrainingSession:
+    s = service.update_session(db, service.get_session(db, session_id), body.model_dump(exclude_unset=True), user)
     db.commit()
-    s = _load_session(db, s.id)
-    return _row(s, 0, 0, 0)
+    return s
 
 
-# --- Organisme (fiche unique) ---
-
-
-@router.get("/organization", response_model=OrganizationOut)
-def get_organization(db: DB, _: Reader):
-    org = db.scalar(select(Organization).limit(1))
-    if org is None:
-        raise NotFoundError("Organisme non renseigné")
-    return org
-
-
-@router.patch("/organization", response_model=OrganizationOut)
-def update_organization(body: OrganizationIn, db: DB, user: TrainingWriter):
-    org = db.scalar(select(Organization).limit(1))
-    if org is None:
-        if not body.name:
-            raise InvalidStateError("Le nom de l'organisme est obligatoire")
-        org = Organization(name=body.name, created_by=user.full_name)
-        db.add(org)
-    for key, value in body.model_dump(exclude_unset=True).items():
-        setattr(org, key, value)
-    db.flush()
-    publish(db, "organization.updated", "organization", org.id, actor_id=user.id)
+@router.delete("/sessions/{session_id}", status_code=204)
+def delete_session(session_id: str, db: DB, user: SessionsWriter) -> None:
+    service.delete_session(db, service.get_session(db, session_id), user)
     db.commit()
-    return org
+
+
+class TransitionIn(BaseModel):
+    motif: str | None = None
+
+
+@router.post("/sessions/{session_id}/transitions/{action}", response_model=SessionView)
+def apply_transition(session_id: str, action: str, body: TransitionIn, db: DB, user: SessionsWriter) -> t.TrainingSession:
+    """Actions : confirm, start, finish, close, cancel (motif obligatoire pour cancel)."""
+    s = service.transition(db, service.get_session(db, session_id), action, user, reason=body.motif)
+    db.commit()
+    return s
+
+
+class EnrollIn(BaseModel):
+    learner_id: str
+    company_id: str | None = None
+    financement: str | None = None
+
+
+@router.post("/sessions/{session_id}/inscriptions", status_code=201)
+def enroll(session_id: str, body: EnrollIn, db: DB, user: SessionsWriter) -> dict:
+    e = service.enroll(db, service.get_session(db, session_id), body.learner_id, user,
+                       company_id=body.company_id, funding=body.financement)
+    db.commit()
+    return {"id": e.id, "statut": e.status}

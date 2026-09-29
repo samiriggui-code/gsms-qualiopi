@@ -1,0 +1,9 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour {{ destinataire.nom }},</p>
+<p>Votre formation commence le <strong>{{ session.debut }}</strong>. Voici les informations pratiques.</p>
+{{ m.infos([("Formation", formation), ("Dates", session.dates), ("Lieu", session.lieu), ("Formateur", session.formateur)]) }}
+{% if horaires %}<p style="margin-bottom:4px;"><strong>Horaires</strong></p>{{ m.liste(horaires) }}{% endif %}
+<p>Chaque demi-journée, vous signerez votre présence avec le code affiché dans la salle.</p>
+{% if referent_handicap %}<p>Besoin d'un aménagement ? Contactez notre référent handicap : {{ referent_handicap }}.</p>{% endif %}
+{% endblock %}

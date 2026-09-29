@@ -1,0 +1,91 @@
+# Circuit de session standard : ce qui doit exister, pour qui, à quelle date.
+# Repris du circuit J-15 → J+45 de gsms-school-aps. Chaque jalon attend un type de preuve
+# (mêmes types que le moteur Qualiopi) ; l'échéance se calcule depuis le début ou la fin
+# de la session. Aucun jalon ne crée de constat : c'est l'anticipation, les contrôles
+# Qualiopi restent seuls juges une fois la session exigible.
+#
+#   anchor        start | end
+#   offset_days   jours après l'ancre (négatif = avant)
+#   warn_days     « à échéance » à partir de N jours avant la date
+#   evidence      type de preuve attendu, par apprenant
+#   facts         filtre sur les faits de la preuve (ex. questionnaire à chaud / à froid)
+#   enrollments   statuts d'inscription concernés
+#   owner         rôle qui doit agir
+circuit:
+  code: STANDARD
+  title: Circuit de session standard
+
+milestones:
+  - key: J-15.convention
+    label: Convention signée
+    anchor: start
+    offset_days: -15
+    warn_days: 7
+    evidence: AGREEMENT
+    enrollments: [INSCRIT, CONFIRME, TERMINE]
+    owner: gestion
+  - key: J-10.convocation
+    label: Convocation envoyée
+    anchor: start
+    offset_days: -10
+    warn_days: 5
+    evidence: CONVOCATION
+    enrollments: [INSCRIT, CONFIRME, TERMINE]
+    owner: gestion
+    indicators: [9]
+  - key: J-5.besoin
+    label: Analyse du besoin réalisée
+    anchor: start
+    offset_days: -5
+    warn_days: 5
+    evidence: NEEDS_ANALYSIS
+    enrollments: [INSCRIT, CONFIRME, TERMINE]
+    owner: gestion
+    indicators: [4]
+  - key: J-5.positionnement
+    label: Positionnement réalisé
+    anchor: start
+    offset_days: -5
+    warn_days: 5
+    evidence: POSITIONING
+    enrollments: [INSCRIT, CONFIRME, TERMINE]
+    owner: formateur
+    indicators: [8]
+  - key: J0.emargement
+    label: Émargements des demi-journées réalisées
+    anchor: start
+    offset_days: 1
+    warn_days: 1
+    evidence: ATTENDANCE
+    enrollments: [INSCRIT, CONFIRME, TERMINE]
+    owner: formateur
+    indicators: [12]
+  - key: FIN.satisfaction-chaud
+    label: Satisfaction à chaud recueillie
+    anchor: end
+    offset_days: 3
+    warn_days: 3
+    evidence: SURVEY_RESPONSE
+    facts: { audience: APPRENANT_CHAUD }
+    enrollments: [TERMINE]
+    owner: formateur
+    indicators: [30]
+  - key: FIN.attestation
+    label: Attestation délivrée
+    anchor: end
+    offset_days: 7
+    warn_days: 5
+    evidence: CERTIFICATE
+    enrollments: [TERMINE]
+    owner: gestion
+    indicators: [11]
+  - key: J+45.satisfaction-froid
+    label: Satisfaction à froid recueillie
+    anchor: end
+    offset_days: 45
+    warn_days: 10
+    evidence: SURVEY_RESPONSE
+    facts: { audience: APPRENANT_FROID }
+    enrollments: [TERMINE]
+    owner: qualite
+    indicators: [30]

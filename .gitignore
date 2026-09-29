@@ -2,9 +2,12 @@ __pycache__/
 *.pyc
 .venv/
 .env
+.env.local
 backend/var/
 node_modules/
 .next/
-Research/
 *.tsbuildinfo
-.env.local
+
+# Démos sous licence (Metronic…) : consultation locale uniquement, jamais publiées
+research/
+Research/

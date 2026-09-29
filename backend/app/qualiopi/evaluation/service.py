@@ -10,11 +10,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.db import utcnow
 from app.qualiopi.common import next_reference
+from app.qualiopi.cycle.service import Period
 from app.qualiopi.evaluation.checks import CHECKS, EvalContext, Outcome, Target
 from app.qualiopi.evaluation.models import READINESS_RANK, ControlResult, ControlResultHistory, EvaluationRun, Finding
 from app.qualiopi.evidence.detectors import load_sessions
 from app.qualiopi.evidence.models import Evidence
 from app.qualiopi.referential.models import ControlDefinition, Indicator, ReferentialVersion
+from app.qualiopi.review.service import latest_reviews, review_state
 from app.training import models as t
 
 FINDING_STATES = {"PREUVES_INSUFFISANTES", "A_RISQUE", "NON_EVALUABLE"}
@@ -52,11 +54,16 @@ def evaluate(
     *,
     trigger: str,
     session_ids: set[str] | None = None,
+    program_ids: set[str] | None = None,
     include_org: bool = True,
     include_programs: bool = True,
     today: date | None = None,
 ) -> EvaluationRun:
-    """Évalue les contrôles. `session_ids=None` = toutes les sessions (réévaluation complète)."""
+    """Évalue les contrôles. `session_ids=None` = toutes les sessions (réévaluation complète).
+
+    En mode ciblé, les formations évaluées sont celles des sessions ciblées plus `program_ids`
+    (une formation modifiée sans session doit aussi être réévaluée).
+    """
     today = today or date.today()
     run = EvaluationRun(
         version_id=version.id,
@@ -76,8 +83,11 @@ def evaluate(
     ctx = EvalContext(today=today, org=org, evidence=evidence, sessions={s.id: s for s in sessions})
 
     scoped_sessions = sessions if session_ids is None else [s for s in sessions if s.id in session_ids]
-    program_ids = {p.id for p in programs} if session_ids is None else {s.program_id for s in scoped_sessions}
-    scoped_programs = [p for p in programs if p.id in program_ids] if include_programs else []
+    if session_ids is None:
+        wanted_programs = {p.id for p in programs}
+    else:
+        wanted_programs = set(program_ids or ()) | {s.program_id for s in scoped_sessions}
+    scoped_programs = [p for p in programs if p.id in wanted_programs] if include_programs else []
 
     existing = {(r.control_id, r.target_type, r.target_id): r for r in db.scalars(select(ControlResult).where(ControlResult.version_id == version.id))}
     findings = {f.key: f for f in db.scalars(select(Finding))}
@@ -188,10 +198,44 @@ def worst(statuses: list[str]) -> str:
     return min(statuses, key=lambda s: READINESS_RANK.get(s, 99))
 
 
-def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.TrainingSession | None = None) -> list[dict]:
-    """État par indicateur. Avec `session` : résultats de la session + formation + organisme hérités."""
+def readiness_of(
+    ind: Indicator,
+    rows: list[ControlResult],
+    org: t.Organization | None,
+    programs: list[t.Program],
+    program: t.Program | None = None,
+) -> tuple[str, bool]:
+    """État d'un indicateur à partir de ses résultats. Renvoie (état, automatisé ?).
+
+    Seuls les contrôles actifs comptent : le contrôle « nouvel entrant » ne s'exécute pas
+    pour un organisme établi, il ne doit donc pas rendre l'indicateur « non évaluable ».
+    """
+    applicable, _ = _applicable(ind, org, program, programs)
+    if not applicable:
+        return "NON_APPLICABLE", False
+    active = _controls_for(ind, org)
+    if not active:
+        return "NON_EVALUE", False
+    keys = {c.key for c in active}
+    rows = [r for r in rows if r.control_key in keys]
+    if not rows:
+        return "NON_EVALUABLE", True
+    return worst([r.status for r in rows]), True
+
+
+def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.TrainingSession | None = None,
+                        period: Period | None = None) -> list[dict]:
+    """État par indicateur. Avec `session` : résultats de la session + formation + organisme hérités.
+
+    Avec `period` : seules comptent les sessions qui chevauchent la période (cycle de certification).
+    Les résultats formation et organisme décrivent l'état actuel et comptent toujours.
+    """
     q = select(ControlResult).where(ControlResult.version_id == version.id)
     results = list(db.scalars(q))
+    if period is not None and (period.start or period.end):
+        in_period = {sid for sid, start, end in db.execute(select(t.TrainingSession.id, t.TrainingSession.start_date, t.TrainingSession.end_date))
+                     if period.contains_session(start, end)}
+        results = [r for r in results if r.session_id is None or r.session_id in in_period]
     if session is not None:
         results = [
             r for r in results
@@ -203,20 +247,16 @@ def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.
     org = db.scalar(select(t.Organization))
     programs = list(db.scalars(select(t.Program)))
     out = []
+    program = session.program if session is not None else None
+    reviews = latest_reviews(db, version)
     for ind in version.indicators:
         rows = by_ind.get(ind.number, [])
         counts: dict[str, int] = defaultdict(int)
         for r in rows:
             counts[r.status] += 1
-        if not ind.controls:
-            status = "NON_EVALUE"
-            applicable, _ = _applicable(ind, org, None, programs)
-            if not applicable:
-                status = "NON_APPLICABLE"
-        elif not rows:
-            status = "NON_EVALUABLE"
-        else:
-            status = worst([r.status for r in rows])
+        status, automated = readiness_of(ind, rows, org, programs, program if ind.scope != "ORGANISME" else None)
+        review = review_state(reviews.get(ind.number), bool(ind.human_review) and status != "NON_APPLICABLE")
+        evidence_to_validate = any(r.human_validation_required for r in rows if r.status == "DEMONTRABLE")
         out.append(
             {
                 "number": ind.number,
@@ -225,9 +265,11 @@ def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.
                 "title": ind.title,
                 "status": status,
                 "counts": dict(counts),
-                "human_validation_required": any(r.human_validation_required for r in rows if r.status == "DEMONTRABLE") or not ind.controls,
+                "human_validation_required": evidence_to_validate or review["state"] in ("REQUISE", "EXPIREE", "INSUFFISANTE"),
+                "evidence_to_validate": evidence_to_validate,
+                "revue_humaine": review,
                 "sessions_at_risk": sorted({r.session_id for r in rows if r.session_id and r.status in ("PREUVES_INSUFFISANTES", "A_RISQUE")}),
-                "automated": bool(ind.controls),
+                "automated": automated,
             }
         )
     return out

@@ -1,0 +1,9 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour {{ destinataire.nom }},</p>
+<p>La session <strong>{{ session.reference }}</strong> commence le {{ session.debut }}. Ce qui vous concerne :</p>
+{{ m.infos([("Formation", formation), ("Dates", session.dates), ("Lieu", session.lieu), ("Stagiaires", stagiaires|length ~ " inscrit(s)")]) }}
+{% if stagiaires %}{{ m.liste(stagiaires) }}{% endif %}
+{% if points %}<p style="margin-bottom:4px;"><strong>À traiter avant le démarrage</strong></p>{{ m.liste(points) }}
+{% else %}<p>Aucun point particulier à traiter.</p>{% endif %}
+{% endblock %}

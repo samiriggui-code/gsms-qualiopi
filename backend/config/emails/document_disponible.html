@@ -1,0 +1,7 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour {{ destinataire.nom }},</p>
+<p>{{ document.phrase }}</p>
+{{ m.infos([("Formation", formation), ("Dates", session.dates), ("Lieu", session.lieu)]) }}
+<p>Le document est consultable avec le bouton ci-dessous. Nous vous conseillons de le conserver.</p>
+{% endblock %}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{{ titre }} — {{ stagiaire }}</title>
+<style>
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c1f24; max-width: 760px; margin: 32px auto; padding: 0 24px; line-height: 1.5; font-size: 14px; }
+  header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #1c1f24; padding-bottom: 12px; }
+  header .of { font-weight: 700; font-size: 16px; }
+  header small, footer { color: #555; font-size: 12px; }
+  h1 { font-size: 22px; margin: 28px 0 8px; }
+  h2 { font-size: 15px; margin: 22px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #c9ccd1; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f1f2f4; font-weight: 600; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  footer { margin-top: 36px; border-top: 1px solid #c9ccd1; padding-top: 8px; }
+  .sign { margin-top: 32px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="of">{{ organisme.nom }}</div>
+    <small>{% if organisme.siret %}SIRET {{ organisme.siret }}{% endif %}{% if organisme.nda %} · Déclaration d'activité n° {{ organisme.nda }}{% endif %}</small>
+  </div>
+  <small>{{ reference_document }}</small>
+</header>
+{% block contenu %}{% endblock %}
+<footer>
+  Document émis par GSMS le {{ emis_le }} ({{ reference_document }}, version {{ version }}).
+  L'empreinte SHA-256 de ce fichier est conservée par l'organisme : toute modification du fichier la change.
+</footer>
+</body>
+</html>

@@ -34,4 +34,7 @@ class ForbiddenError(DomainError):
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _domain(_: Request, exc: DomainError):  # noqa: ANN202
-        return JSONResponse(status_code=exc.status_code, content={"error": exc.code, "detail": exc.message})
+        content = {"error": exc.code, "detail": exc.message}
+        if getattr(exc, "details", None):
+            content["details"] = exc.details
+        return JSONResponse(status_code=exc.status_code, content=content)

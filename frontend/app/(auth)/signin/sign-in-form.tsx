@@ -25,7 +25,7 @@ import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 // (ADMIN_EMAIL / ADMIN_PASSWORD). Vides dans un build de production.
 const DEV_CREDENTIALS =
   process.env.NODE_ENV === 'development'
-    ? { email: 'admin@gsms.local', password: 'admin-gsms' }
+    ? { email: 'admin@gsms.local', password: 'admin-gsms-2026' }
     : { email: '', password: '' };
 
 export function SignInForm() {

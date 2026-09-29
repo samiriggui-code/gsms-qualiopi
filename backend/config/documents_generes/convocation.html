@@ -1,0 +1,40 @@
+{% extends "_base.html" %}
+{% block contenu %}
+<h1>Convocation</h1>
+<p>{{ stagiaire }},</p>
+<p>Nous avons le plaisir de vous confirmer votre participation à la formation suivante.</p>
+
+<h2>Formation</h2>
+<table>
+  <tr><th>Intitulé</th><td>{{ formation.intitule }} ({{ formation.code }})</td></tr>
+  <tr><th>Session</th><td>{{ session.reference }}</td></tr>
+  <tr><th>Dates</th><td>du {{ session.debut }} au {{ session.fin }}</td></tr>
+  {% if formation.duree %}<tr><th>Durée</th><td>{{ formation.duree }} heures</td></tr>{% endif %}
+  <tr><th>Lieu</th><td>{{ session.lieu }}{% if session.salle %}, {{ session.salle }}{% endif %}</td></tr>
+  {% if session.formateur %}<tr><th>Formateur</th><td>{{ session.formateur }}</td></tr>{% endif %}
+</table>
+
+<h2>Horaires</h2>
+<table>
+  <tr><th>Jour</th><th>Horaires</th></tr>
+  {% for j in horaires %}<tr><td>{{ j.jour }}</td><td>{{ j.plages }}</td></tr>{% endfor %}
+</table>
+
+{% if formation.prerequis %}
+<h2>Prérequis</h2>
+<ul>{% for p in formation.prerequis %}<li>{{ p }}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Émargement</h2>
+<p>Chaque demi-journée, vous signerez votre présence : un code est affiché dans la salle ; votre lien personnel vous est transmis séparément.</p>
+
+<h2>Accessibilité</h2>
+{% if organisme.referent_handicap %}
+<p>Si vous avez besoin d'un aménagement (situation de handicap, contrainte particulière), contactez notre référent handicap :
+{{ organisme.referent_handicap }}{% if organisme.referent_handicap_email %} ({{ organisme.referent_handicap_email }}){% endif %}.</p>
+{% else %}
+<p>Si vous avez besoin d'un aménagement (situation de handicap, contrainte particulière), contactez l'organisme avant le début de la formation.</p>
+{% endif %}
+
+<p class="sign">Pour {{ organisme.nom }}</p>
+{% endblock %}

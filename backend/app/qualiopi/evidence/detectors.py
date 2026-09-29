@@ -13,6 +13,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.attendance.policy import expected_on
 from app.qualiopi.capa.models import CapaAction
 from app.training import models as t
 
@@ -185,6 +186,25 @@ def detect_session(s: t.TrainingSession, today: date) -> Iterator[EvidenceSpec]:
                 **{**eb, "produced_by": pos.created_by},
             )
 
+        ag = e.agreement
+        if ag is not None and (ag.sent_on or ag.signed_on):
+            issues = []
+            if not ag.signed_on:
+                issues.append("convention envoyée, non signée")
+            elif not ag.signed_by:
+                issues.append("signataire non renseigné")
+            yield EvidenceSpec(
+                evidence_type="AGREEMENT",
+                label=f"{ag.kind.title()} — {who}",
+                source_table="formation.agreement",
+                source_id=ag.id,
+                produced_on=ag.signed_on or ag.sent_on,
+                document_id=ag.document_id,
+                facts={"kind": ag.kind, "signed_on": _iso(ag.signed_on), "signed_by": ag.signed_by},
+                form_issues=issues,
+                **{**eb, "produced_by": ag.created_by},
+            )
+
         conv = e.convocation
         if conv is not None and conv.sent_on is not None:
             yield EvidenceSpec(
@@ -198,18 +218,22 @@ def detect_session(s: t.TrainingSession, today: date) -> Iterator[EvidenceSpec]:
                 **{**eb, "produced_by": conv.created_by},
             )
 
-        if past_slots:
-            signed = sum(
-                1 for sig in e.signatures if sig.present and sig.signed_at is not None and sig.slot.day <= today
-            )
+        # Après un abandon, les demi-journées suivantes ne sont plus attendues (règle de l'émargement).
+        due_slots = [sl for sl in past_slots if expected_on(sl, e)]
+        if due_slots:
+            due_ids = {sl.id for sl in due_slots}
+            signed = sum(1 for sig in e.signatures if sig.present and sig.signed_at is not None and sig.slot_id in due_ids)
+            # Une absence constatée (motif noté) tient la feuille autant qu'une signature.
+            absent = sum(1 for sig in e.signatures if sig.present is False and sig.slot_id in due_ids)
+            done = signed + absent
             yield EvidenceSpec(
                 evidence_type="ATTENDANCE",
                 label=f"Émargements — {who}",
                 source_table="formation.enrollment",
                 source_id=e.id,
-                produced_on=max(sl.day for sl in past_slots),
-                facts={"signed": signed, "expected": len(past_slots)},
-                form_issues=[] if signed >= len(past_slots) else [f"{len(past_slots) - signed} demi-journée(s) non émargée(s)"],
+                produced_on=max(sl.day for sl in due_slots),
+                facts={"signed": signed, "absent": absent, "recorded": done, "expected": len(due_slots)},
+                form_issues=[] if done >= len(due_slots) else [f"{len(due_slots) - done} demi-journée(s) non émargée(s)"],
                 **eb,
             )
 
@@ -399,8 +423,11 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
             facts={"verified": capa.verified_at is not None},
         )
     for d in db.scalars(select(t.Document).where(t.Document.status != "REMPLACE")):
-        if not d.indicator_hints:
+        if d.requirement:
+            yield _dossier_piece(d)
             continue
+        if not d.indicator_hints or d.entity_type == "INSCRIPTION":
+            continue  # document d'un stagiaire : porté par sa preuve (convocation, attestation)
         yield EvidenceSpec(
             evidence_type="PROCEDURE" if d.kind == "PROCEDURE" else "DOCUMENT",
             label=f"{d.title} (v{d.version})",
@@ -417,6 +444,39 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
         )
 
 
+def _dossier_piece(d: t.Document) -> EvidenceSpec:
+    """Pièce d'un dossier (config/dossiers) : preuve du type et des indicateurs du modèle."""
+    from datetime import timedelta
+
+    from app.documents.dossier import find_item
+
+    item = find_item(d.entity_type, d.requirement)
+    deposited = d.created_at.date() if d.created_at else None
+    valid_until = deposited + timedelta(days=item.validity_days) if (deposited and item.validity_days) else None
+    # Le moteur ne lit pas le PDF : il lit la grille cochée au dépôt.
+    issues: list[str] = []
+    if item.grille and not d.checklist:
+        issues.append("grille de dépôt non renseignée")
+    elif d.checklist:
+        issues += [f"{code} non satisfait : {a['question']}" for code, a in d.checklist.items() if a["reponse"] == "NON"]
+    return EvidenceSpec(
+        evidence_type=item.evidence,
+        label=f"{item.label} (v{d.version})",
+        scope="FORMATEUR" if d.entity_type == "FORMATEUR" else "ORGANISME",
+        source_table="formation.document",
+        source_id=d.id,
+        trainer_id=d.entity_id if d.entity_type == "FORMATEUR" else None,
+        produced_on=deposited,
+        produced_by=d.created_by,
+        valid_until=valid_until,
+        document_id=d.id,
+        facts={"requirement": d.requirement, "subject": d.entity_type, "subject_id": d.entity_id, "version": d.version,
+               "support": d.support, "author_id": d.author_id},
+        declared_indicators=list(item.indicators),
+        form_issues=issues,
+    )
+
+
 def load_sessions(db: Session, session_id: str | None = None) -> list[t.TrainingSession]:
     q = select(t.TrainingSession).options(
         selectinload(t.TrainingSession.attendance_slots),
@@ -424,6 +484,7 @@ def load_sessions(db: Session, session_id: str | None = None) -> list[t.Training
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.needs_analysis),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.positioning),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.convocation),
+        selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.agreement),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.assessments),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.certificate),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.signatures).selectinload(t.AttendanceSignature.slot),

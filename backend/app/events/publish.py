@@ -4,6 +4,9 @@ from app.events.models import OutboxEvent
 
 # Catalogue des événements métier émis par le domaine formation.
 EVENT_NAMES = {
+    "settings.changed",
+    "feature.changed",
+    "funding.source_changed",
     "organization.updated",
     "program.created",
     "program.updated",
@@ -17,6 +20,7 @@ EVENT_NAMES = {
     "convocation.sent",
     "agreement.signed",
     "attendance.signed",
+    "attendance.slot_validated",
     "assessment.completed",
     "certificate.issued",
     "survey.completed",
@@ -30,6 +34,7 @@ EVENT_NAMES = {
     "partner.updated",
     "document.issued",
     "document.signed",
+    "capa.verification_requested",
     "capa.closed",
 }
 

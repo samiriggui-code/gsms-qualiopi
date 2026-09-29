@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +11,8 @@ from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.detectors import load_sessions
 from app.qualiopi.evidence.models import Evidence
 from app.qualiopi.referential.models import ReferentialVersion
+from app.qualiopi.schedule.models import MilestoneStatus
+from app.qualiopi.schedule.service import milestone_view
 from app.training import models as t
 
 
@@ -20,8 +20,7 @@ def _line(label: str, done: int, total: int, applicable: bool = True) -> dict:
     return {"label": label, "done": done, "total": total, "applicable": applicable, "complete": applicable and total > 0 and done >= total}
 
 
-def session_dossier(db: Session, version: ReferentialVersion, session_id: str, today: date | None = None) -> dict:
-    today = today or date.today()
+def session_dossier(db: Session, version: ReferentialVersion, session_id: str) -> dict:
     found = load_sessions(db, session_id)
     if not found:
         raise NotFoundError("Session introuvable")
@@ -32,9 +31,11 @@ def session_dossier(db: Session, version: ReferentialVersion, session_id: str, t
     n = len(active)
     started = s.status in ("EN_COURS", "TERMINEE", "CLOTUREE")
     ended = s.status in ("TERMINEE", "CLOTUREE")
-    past_slots = [sl for sl in s.attendance_slots if sl.day <= today]
-    expected_sigs = len(past_slots) * n
-    signed = sum(1 for e in active for sig in e.signatures if sig.present and sig.signed_at and sig.slot.day <= today)
+    session_evidence = list(db.scalars(select(Evidence).where(Evidence.session_id == s.id, Evidence.status != "RETIREE")))
+    # Même source que le contrôle I12 : les preuves d'émargement (abandons comptés jusqu'à leur date).
+    attendance = [e for e in session_evidence if e.evidence_type == "ATTENDANCE"]
+    signed = sum(int(e.facts.get("recorded", e.facts.get("signed", 0))) for e in attendance)  # absences constatées comprises
+    expected_sigs = sum(int(e.facts.get("expected", 0)) for e in attendance)
     surveys = list(db.scalars(select(t.SatisfactionSurvey).where(t.SatisfactionSurvey.session_id == s.id)))
     hot = {sv.enrollment_id for sv in surveys if sv.audience == "APPRENANT_CHAUD" and sv.answered_on}
 
@@ -57,9 +58,9 @@ def session_dossier(db: Session, version: ReferentialVersion, session_id: str, t
     ]
     ev_ids = {i for r in results for i in r.evidence_ids}
     evidence = {e.id: e for e in db.scalars(select(Evidence).where(Evidence.id.in_(ev_ids)))} if ev_ids else {}
-    session_evidence = list(db.scalars(select(Evidence).where(Evidence.session_id == s.id)))
     if s.trainer_id:
-        session_evidence += list(db.scalars(select(Evidence).where(Evidence.trainer_id == s.trainer_id, Evidence.scope == "FORMATEUR")))
+        session_evidence += list(db.scalars(select(Evidence).where(
+            Evidence.trainer_id == s.trainer_id, Evidence.scope == "FORMATEUR", Evidence.status != "RETIREE")))
 
     missing_items = sum(len(r.missing) for r in results if r.status in ("PREUVES_INSUFFISANTES", "A_RISQUE"))
     summary = {
@@ -112,6 +113,10 @@ def session_dossier(db: Session, version: ReferentialVersion, session_id: str, t
             "learners": n,
         },
         "checklist": checklist,
+        "echeancier": [
+            milestone_view(m)
+            for m in db.scalars(select(MilestoneStatus).where(MilestoneStatus.session_id == s.id).order_by(MilestoneStatus.due_on, MilestoneStatus.key))
+        ],
         "summary": summary,
         "indicators": indicators,
         "findings": [

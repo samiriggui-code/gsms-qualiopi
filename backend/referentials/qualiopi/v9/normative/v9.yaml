@@ -184,7 +184,7 @@ indicators:
       - key: I12.dropouts
         label: Chaque abandon est suivi et motivé
         check: per_enrollment_evidence
-        params: { evidence_type: DROPOUT_FOLLOWUP, enrollment_statuses: [ABANDON], session_statuses: [EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 1.0 }
+        params: { evidence_type: DROPOUT_FOLLOWUP, enrollment_statuses: [ABANDON], session_statuses: [EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 1.0, none_means_not_applicable: true }
         severity: mineure
         remediation: Documenter le suivi et le motif de chaque abandon.
   13:
@@ -230,23 +230,34 @@ indicators:
   18:
     title: Coordination des différents intervenants
     scope: ORGANISME
-    human_review: Revue humaine (organigramme, réunions pédagogiques).
+    # Liaison par le dossier de pièces (indicateurs déclarés par pièce), pas par type.
+    human_review: Vérifier que la coordination est réelle (contenu des comptes rendus, rôles connus des intervenants).
+    controls:
+      - key: I18.coordination-documents
+        label: Organigramme et compte rendu de réunion pédagogique déposés depuis moins d'un an
+        check: required_documents
+        params: { dossier: ORGANISME, items: [ORGANIGRAMME, CR_REUNION_PEDAGOGIQUE] }
+        severity: majeure
+        remediation: Déposer les pièces manquantes dans le dossier qualité de l'organisme.
   19:
     title: Ressources pédagogiques mises à disposition
     scope: ORGANISME
-    human_review: Revue humaine (supports, plateformes).
+    # Liaison par le dossier de pièces (indicateurs déclarés par pièce), pas par type.
+    human_review: Vérifier que les ressources sont réellement accessibles aux bénéficiaires.
+    controls:
+      - key: I19.resources-documents
+        label: Inventaire des ressources pédagogiques déposé depuis moins d'un an
+        check: required_documents
+        params: { dossier: ORGANISME, items: [CATALOGUE_RESSOURCES] }
+        severity: majeure
+        remediation: Déposer l'inventaire des ressources et supports pédagogiques.
   20:
     title: Référent handicap, mobilité, conseil de perfectionnement
     scope: ORGANISME
-    expected_evidence: [DISABILITY_REFERENT]
-    human_review: Vérifier que le référent est connu des apprenants.
-    controls:
-      - key: I20.disability-referent
-        label: Référent handicap désigné
-        check: org_evidence
-        params: { evidence_type: DISABILITY_REFERENT, min_count: 1 }
-        severity: majeure
-        remediation: Désigner un référent handicap dans les paramètres de l'organisme.
+    # Indicateur spécifique : seule la colonne apprentissage (L. 6313-1, 4°) est cochée dans l'annexe.
+    # Le référent handicap d'un organisme non CFA se prouve à l'indicateur 26.
+    applicability: { action_categories: [APPRENTISSAGE] }
+    human_review: Revue humaine (spécifique CFA).
   21:
     title: Compétences des intervenants
     scope: SESSION
@@ -311,8 +322,14 @@ indicators:
     title: Mobilisation de l'expertise et du réseau handicap
     scope: ORGANISME
     expected_evidence: [DISABILITY_REFERENT, HANDICAP_PARTNER]
-    human_review: Vérifier la mobilisation effective du réseau pour les cas rencontrés.
+    human_review: Vérifier la mobilisation effective du réseau pour les cas rencontrés et que le référent est connu des apprenants.
     controls:
+      - key: I26.disability-referent
+        label: Référent handicap désigné
+        check: org_evidence
+        params: { evidence_type: DISABILITY_REFERENT, min_count: 1 }
+        severity: majeure
+        remediation: Désigner un référent handicap dans les paramètres de l'organisme.
       - key: I26.handicap-network
         label: Au moins un partenaire du réseau handicap identifié
         check: org_evidence

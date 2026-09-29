@@ -55,9 +55,9 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
               </a>
             </div>
           </div>
-          {user && (
+          {user && user.roles.length > 0 && (
             <Badge variant="primary" appearance="light" size="sm">
-              {ROLE_LABELS[user.role]}
+              {ROLE_LABELS[user.roles[0]] ?? user.roles[0]}
             </Badge>
           )}
         </div>
@@ -94,7 +94,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
-        {user?.role === 'admin' && (
+        {user?.permissions.includes('users.manage') && (
           <DropdownMenuItem asChild>
             <Link
               href="/administration/utilisateurs"

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from app.qualiopi.evidence.models import USABLE_STATUSES, Evidence
+from app.qualiopi.labels import evidence_label
 from app.training import models as t
 
 
@@ -83,7 +84,7 @@ def check_per_enrollment_evidence(ctx: EvalContext, target: Target, params: dict
     if statuses and s.status not in statuses:
         return Outcome(
             "NON_APPLICABLE",
-            expected=f"preuve {etype} par apprenant",
+            expected=f"preuve « {evidence_label(etype)} » par apprenant",
             observed=f"session au statut {s.status}",
             explanation=f"Pas encore exigible : la session {s.reference} est au statut {s.status}.",
         )
@@ -98,10 +99,18 @@ def check_per_enrollment_evidence(ctx: EvalContext, target: Target, params: dict
                 observed="aucun besoin d'adaptation déclaré",
                 explanation="Aucun apprenant de la session n'a déclaré de besoin d'adaptation.",
             )
+    if not rows and params.get("none_means_not_applicable"):
+        # Ex. suivi des abandons : aucune personne concernée est la bonne situation, pas un manque de données.
+        return Outcome(
+            "NON_APPLICABLE",
+            expected=f"preuve « {evidence_label(etype)} » pour chaque apprenant ({', '.join(enrollment_statuses)})",
+            observed="0 apprenant concerné",
+            explanation=f"Aucun apprenant au statut {', '.join(enrollment_statuses)} dans la session {s.reference}.",
+        )
     if not rows:
         return Outcome(
             "NON_EVALUABLE",
-            expected=f"preuve {etype} pour chaque apprenant ({', '.join(enrollment_statuses)})",
+            expected=f"preuve « {evidence_label(etype)} » pour chaque apprenant ({', '.join(enrollment_statuses)})",
             observed="0 apprenant concerné",
             explanation="Aucun apprenant concerné : impossible de conclure. Le moteur ne déclare pas démontrable sans données.",
         )
@@ -122,9 +131,9 @@ def check_per_enrollment_evidence(ctx: EvalContext, target: Target, params: dict
             issues = sorted({i for e in found for i in e.form_issues}) or [f"preuve au statut {found[0].status}"]
             missing.append({"who": enr.learner.full_name, "enrollment_id": enr.id, "reason": "; ".join(issues), "evidence": [e.reference for e in found]})
         else:
-            missing.append({"who": enr.learner.full_name, "enrollment_id": enr.id, "reason": f"aucune preuve {etype}"})
+            missing.append({"who": enr.learner.full_name, "enrollment_id": enr.id, "reason": f"aucune preuve « {evidence_label(etype)} »"})
     ratio = ok / len(rows)
-    expected = f"{len(rows)}/{len(rows)} apprenants avec une preuve {etype} exploitable"
+    expected = f"{len(rows)}/{len(rows)} apprenants avec une preuve « {evidence_label(etype)} » exploitable"
     observed = f"{ok}/{len(rows)}"
     refs = ", ".join(e.reference for e in analysed[:12]) or "aucune"
     if ok == len(rows):
@@ -148,14 +157,14 @@ def check_session_evidence(ctx: EvalContext, target: Target, params: dict) -> Ou
     assert s is not None
     etype = params["evidence_type"]
     if params.get("session_statuses") and s.status not in params["session_statuses"]:
-        return Outcome("NON_APPLICABLE", f"preuve {etype}", f"session {s.status}", f"Pas encore exigible (session {s.status}).")
+        return Outcome("NON_APPLICABLE", f"preuve « {evidence_label(etype)} »", f"session {s.status}", f"Pas encore exigible (session {s.status}).")
     rows = [e for e in ctx.of_type(etype) if e.session_id == s.id]
     good = [e for e in rows if usable(e)]
     if good:
-        return Outcome("DEMONTRABLE", f"preuve {etype} exploitable", f"{len(good)} preuve(s)",
+        return Outcome("DEMONTRABLE", f"preuve « {evidence_label(etype)} » exploitable", f"{len(good)} preuve(s)",
                        f"Preuve(s) {', '.join(e.reference for e in good)} exploitable(s).", [e.id for e in rows], [], _needs_human(good))
-    reason = "; ".join(sorted({i for e in rows for i in e.form_issues})) or f"aucune preuve {etype}"
-    return Outcome("PREUVES_INSUFFISANTES", f"preuve {etype} exploitable", "0 exploitable",
+    reason = "; ".join(sorted({i for e in rows for i in e.form_issues})) or f"aucune preuve « {evidence_label(etype)} »"
+    return Outcome("PREUVES_INSUFFISANTES", f"preuve « {evidence_label(etype)} » exploitable", "0 exploitable",
                    f"Session {s.reference} : {reason}.", [e.id for e in rows], [{"who": s.reference, "reason": reason}], True)
 
 
@@ -168,7 +177,7 @@ def check_attendance_tracking(ctx: EvalContext, target: Target, params: dict) ->
     if not rows:
         return Outcome("PREUVES_INSUFFISANTES", "feuilles d'émargement des demi-journées réalisées", "aucune demi-journée émargée",
                        f"Aucune feuille d'émargement pour la session {s.reference}.", [], [{"who": s.reference, "reason": "aucun créneau d'émargement"}], True)
-    signed = sum(int(e.facts.get("signed", 0)) for e in rows)
+    signed = sum(int(e.facts.get("recorded", e.facts.get("signed", 0))) for e in rows)
     expected_total = sum(int(e.facts.get("expected", 0)) for e in rows)
     ratio = signed / expected_total if expected_total else 0
     threshold = float(params.get("min_signed_ratio", 0.9))
@@ -191,12 +200,12 @@ def check_program_evidence(ctx: EvalContext, target: Target, params: dict) -> Ou
     etype = params["evidence_type"]
     rows = [e for e in ctx.of_type(etype) if e.program_id == p.id and e.scope == "FORMATION"]
     if not rows:
-        return Outcome("PREUVES_INSUFFISANTES", f"preuve {etype} pour {p.code}", "absente",
-                       f"Formation {p.code} : aucune donnée pour {etype}.", [], [{"who": p.code, "reason": f"aucune preuve {etype}"}], True)
+        return Outcome("PREUVES_INSUFFISANTES", f"preuve « {evidence_label(etype)} » pour {p.code}", "absente",
+                       f"Formation {p.code} : aucune donnée pour « {evidence_label(etype)} ».", [], [{"who": p.code, "reason": f"aucune preuve « {evidence_label(etype)} »"}], True)
     good = [e for e in rows if usable(e)]
     if not good:
         reason = "; ".join(sorted({i for e in rows for i in e.form_issues}))
-        return Outcome("PREUVES_INSUFFISANTES", f"preuve {etype} exploitable", "non exploitable",
+        return Outcome("PREUVES_INSUFFISANTES", f"preuve « {evidence_label(etype)} » exploitable", "non exploitable",
                        f"Formation {p.code} : {reason}.", [e.id for e in rows], [{"who": p.code, "reason": reason}], True)
     max_age = params.get("max_age_days")
     if max_age:
@@ -206,7 +215,7 @@ def check_program_evidence(ctx: EvalContext, target: Target, params: dict) -> Ou
             return Outcome("A_RISQUE", f"relue depuis moins de {max_age} jours", f"dernière relecture : {age}",
                            f"Formation {p.code} : information à relire (dernière relecture {age}).", [e.id for e in rows],
                            [{"who": p.code, "reason": "relecture trop ancienne"}], True)
-    return Outcome("DEMONTRABLE", f"preuve {etype} exploitable", f"{len(good)} preuve(s)",
+    return Outcome("DEMONTRABLE", f"preuve « {evidence_label(etype)} » exploitable", f"{len(good)} preuve(s)",
                    f"Formation {p.code} : {', '.join(e.reference for e in good)} exploitable(s).", [e.id for e in rows], [], _needs_human(good))
 
 
@@ -218,7 +227,7 @@ def check_org_evidence(ctx: EvalContext, target: Target, params: dict) -> Outcom
     good = [e for e in rows if usable(e) and (horizon is None or (e.produced_on and e.produced_on >= horizon))]
     min_count = int(params.get("min_count", 1))
     period = f" sur les {within} derniers jours" if within else ""
-    expected = f"≥ {min_count} preuve(s) {etype} exploitable(s){period}"
+    expected = f"≥ {min_count} preuve(s) « {evidence_label(etype)} » exploitable(s){period}"
     observed = f"{len(good)} exploitable(s) sur {len(rows)} détectée(s)"
     if len(good) >= min_count:
         return Outcome("DEMONTRABLE", expected, observed,
@@ -226,9 +235,9 @@ def check_org_evidence(ctx: EvalContext, target: Target, params: dict) -> Outcom
     reasons = sorted({i for e in rows for i in e.form_issues})
     stale = [e for e in rows if usable(e) and horizon and e.produced_on and e.produced_on < horizon]
     if stale or (rows and not reasons):
-        explanation = f"{len(rows)} preuve(s) {etype}, mais aucune récente{period}."
+        explanation = f"{len(rows)} preuve(s) « {evidence_label(etype)} », mais aucune récente{period}."
         return Outcome("A_RISQUE", expected, observed, explanation, [e.id for e in rows], [{"who": "organisme", "reason": "preuve trop ancienne"}], True)
-    reason = "; ".join(reasons) if reasons else f"aucune preuve {etype}"
+    reason = "; ".join(reasons) if reasons else f"aucune preuve « {evidence_label(etype)} »"
     return Outcome("PREUVES_INSUFFISANTES", expected, observed, f"Organisme : {reason}.", [e.id for e in rows], [{"who": "organisme", "reason": reason}], True)
 
 
@@ -321,6 +330,34 @@ def check_procedure_documented(ctx: EvalContext, target: Target, params: dict) -
                    f"Nouvel entrant : déposer la procédure décrivant le processus de l'indicateur {n}.", [e.id for e in rows], [{"who": "organisme", "reason": "procédure absente"}], True)
 
 
+def check_required_documents(ctx: EvalContext, target: Target, params: dict) -> Outcome:
+    """Pièces requises du dossier organisme : présentes, exploitables et non expirées."""
+    items: list[str] = params["items"]
+    rows = [e for e in ctx.evidence if e.source_table == "formation.document" and e.status != "RETIREE"
+            and e.facts.get("subject") == params.get("dossier", "ORGANISME")]
+    by_item: dict[str, list[Evidence]] = defaultdict(list)
+    for e in rows:
+        by_item[e.facts.get("requirement")].append(e)
+    good, missing = [], []
+    for code in items:
+        found = by_item.get(code, [])
+        ok = [e for e in found if usable(e)]
+        if ok:
+            good.extend(ok)
+        else:
+            reason = "pièce expirée" if any(e.status == "EXPIREE" for e in found) else (
+                "pièce rejetée" if any(e.status == "REJETEE" for e in found) else "pièce non déposée")
+            missing.append({"who": code, "reason": reason})
+    expected = f"pièces {', '.join(items)} déposées et valides"
+    observed = f"{len(items) - len(missing)}/{len(items)}"
+    if not missing:
+        return Outcome("DEMONTRABLE", expected, observed, f"Pièces : {', '.join(e.reference for e in good)}.",
+                       [e.id for e in good], [], _needs_human(good))
+    return Outcome("PREUVES_INSUFFISANTES", expected, observed,
+                   "À déposer : " + ", ".join(f"{m['who']} ({m['reason']})" for m in missing) + ".",
+                   [e.id for e in good], missing, True)
+
+
 CHECKS: dict[str, Callable[[EvalContext, Target, dict], Outcome]] = {
     "per_enrollment_evidence": check_per_enrollment_evidence,
     "session_evidence": check_session_evidence,
@@ -331,4 +368,5 @@ CHECKS: dict[str, Callable[[EvalContext, Target, dict], Outcome]] = {
     "subcontractors": check_subcontractors,
     "complaints": check_complaints,
     "procedure_documented": check_procedure_documented,
+    "required_documents": check_required_documents,
 }

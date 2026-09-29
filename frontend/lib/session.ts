@@ -13,13 +13,17 @@ export interface SessionUser {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'qualite' | 'gestion' | 'lecture';
+  roles: string[];
+  is_active: boolean;
+  // Permissions effectives calculées par l'API (backend/app/auth/permissions.py)
+  permissions: string[];
 }
 
-export const ROLE_LABELS: Record<SessionUser['role'], string> = {
-  admin: 'Administrateur',
+export const ROLE_LABELS: Record<string, string> = {
+  admin: 'Direction',
   qualite: 'Responsable qualité',
   gestion: 'Gestion',
+  formateur: 'Formateur',
   lecture: 'Lecture seule',
 };
 

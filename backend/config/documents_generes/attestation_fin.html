@@ -1,0 +1,37 @@
+{% extends "_base.html" %}
+{% block contenu %}
+<h1>Attestation de fin de formation</h1>
+<p>{{ organisme.nom }} atteste que <strong>{{ stagiaire }}</strong>{{ ", salarié(e) de " ~ entreprise ~ "," if entreprise else "" }} a suivi l'action de formation ci-dessous.</p>
+
+<h2>Action suivie</h2>
+<table>
+  <tr><th>Intitulé</th><td>{{ formation.intitule }} ({{ formation.code }})</td></tr>
+  <tr><th>Nature de l'action</th><td>{{ formation.nature }}</td></tr>
+  <tr><th>Session</th><td>{{ session.reference }}, du {{ session.debut }} au {{ session.fin }}, {{ session.lieu }}</td></tr>
+</table>
+
+<h2>Objectifs</h2>
+<ul>{% for o in formation.objectifs %}<li>{{ o }}</li>{% else %}<li>Voir le programme de la formation.</li>{% endfor %}</ul>
+
+<h2>Durée</h2>
+<table>
+  {% if formation.duree %}<tr><th>Durée prévue au programme</th><td class="num">{{ formation.duree }} h</td></tr>{% endif %}
+  <tr><th>Demi-journées suivies</th><td class="num">{{ assiduite.suivies }} sur {{ assiduite.prevues }}</td></tr>
+  {% if assiduite.heures_suivies is not none %}<tr><th>Heures suivies (émargement)</th><td class="num">{{ assiduite.heures_suivies }} h sur {{ assiduite.heures_prevues }} h</td></tr>{% endif %}
+  {% if abandon %}<tr><th>Fin anticipée</th><td>le {{ abandon.date }}</td></tr>{% endif %}
+</table>
+
+<h2>Résultats de l'évaluation des acquis</h2>
+{% if evaluations %}
+<table>
+  <tr><th>Évaluation</th><th>Date</th><th class="num">Note</th><th>Résultat</th></tr>
+  {% for ev in evaluations %}
+  <tr><td>{{ ev.intitule }} ({{ ev.nature }})</td><td>{{ ev.date }}</td><td class="num">{{ ev.note or "—" }}</td><td>{{ ev.resultat }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Aucune évaluation des acquis enregistrée.</p>
+{% endif %}
+
+<p class="sign">Fait le {{ emis_le }}, pour {{ organisme.nom }}.</p>
+{% endblock %}
