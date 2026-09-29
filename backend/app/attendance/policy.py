@@ -17,6 +17,7 @@ from app.platform.decisions import ALLOW, Decision, deny
 from app.platform.features import is_enabled
 from app.platform.settings import ConfigurationService
 from app.training import models as t
+from app.training.access import can_see
 
 SLOT_ACTIONS = ("code", "record", "validate")
 RECORDABLE_SESSION_STATES = ("EN_COURS", "TERMINEE")
@@ -77,6 +78,8 @@ class AttendancePolicy:
         if self.user is not None and "attendance.write" not in permissions_of(self.db, self.user):
             return deny("PERMISSION_MISSING", "Permission « attendance.write » requise")
         s = slot.session
+        if not can_see(self.db, self.user, s):
+            return deny("NOT_YOUR_SESSION", "Vous n'intervenez pas sur cette session")
         if slot.trainer_signed_at:
             return deny("SLOT_VALIDATED", "Demi-journée contre-validée : elle ne se modifie plus")
         if s.status not in RECORDABLE_SESSION_STATES:

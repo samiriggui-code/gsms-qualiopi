@@ -32,6 +32,14 @@ def _last_morning(demo: Session, reference: str, actor):  # noqa: ANN001, ANN202
     return s, slot
 
 
+def _formateur_de(demo: Session, reference: str):  # noqa: ANN202
+    """Compte formateur relié à la fiche du formateur de la session (il ne voit que ses sessions)."""
+    user, headers = make_user(demo, "formateur", email=f"formateur-{reference.lower()}@test.local")
+    find_session(demo, reference).trainer.user_id = user.id
+    demo.commit()
+    return user, headers
+
+
 def _code(exc: pytest.ExceptionInfo) -> str:
     return exc.value.code
 
@@ -46,7 +54,7 @@ def test_planifier_les_demi_journees_selon_les_reglages(demo: Session) -> None:
 
 
 def test_parcours_complet_signature_constat_contre_validation(demo: Session) -> None:
-    trainer, _ = make_user(demo, "formateur")
+    trainer, _ = _formateur_de(demo, "SST-2026-02")
     s, slot = _last_morning(demo, "SST-2026-02", trainer)
     during = _at(slot.day, 9, 5)
     first, second, *others = [e for e in s.enrollments if e.status != "ANNULE"]
@@ -88,7 +96,7 @@ def test_parcours_complet_signature_constat_contre_validation(demo: Session) -> 
 
 
 def test_absence_constatee_tient_la_feuille_pour_qualiopi(demo: Session) -> None:
-    trainer, _ = make_user(demo, "formateur")
+    trainer, _ = _formateur_de(demo, "SSIAP1-2026-01")
     s = find_session(demo, "SSIAP1-2026-01")  # trou planté : une demi-journée non signée par Chloé Blanc
     chloe = next(e for e in s.enrollments if e.learner.first_name == "Chloé")
     slot = next(sl for sl in s.attendance_slots for sig in sl.signatures if sig.enrollment_id == chloe.id and not sig.signed_at)
@@ -102,7 +110,7 @@ def test_absence_constatee_tient_la_feuille_pour_qualiopi(demo: Session) -> None
 
 
 def test_api_roles_et_route_publique(client, demo: Session) -> None:  # noqa: ANN001
-    _, hf = make_user(demo, "formateur")
+    _, hf = _formateur_de(demo, "SST-2026-02")
     _, hl = make_user(demo, "lecture")
     s = find_session(demo, "SST-2026-02")
     assert client.post(f"/api/v1/sessions/{s.id}/creneaux", headers=hf).status_code == 200
@@ -118,7 +126,7 @@ def test_api_roles_et_route_publique(client, demo: Session) -> None:  # noqa: AN
 
 def test_desactiver_l_emargement_retire_le_droit(client, demo: Session) -> None:  # noqa: ANN001
     _, hq = make_user(demo, "admin")
-    _, hf = make_user(demo, "formateur")
+    _, hf = _formateur_de(demo, "SST-2026-02")
     s = find_session(demo, "SST-2026-02")
     assert client.put("/api/v1/features/attendance", json={"enabled": False}, headers=hq).status_code == 200
     assert client.post(f"/api/v1/sessions/{s.id}/creneaux", headers=hf).status_code == 403

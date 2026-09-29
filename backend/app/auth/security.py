@@ -22,21 +22,26 @@ FEATURE_OF = {p.code: p.feature for p in CATALOGUE}
 _bearer = HTTPBearer(auto_error=False)
 
 
+def granted_permissions(db: Session, user: User) -> frozenset[str]:
+    """Permissions accordées par les rôles, que leur module soit actif ou non (règle anti-escalade)."""
+    perms: set[str] = set()
+    custom = [r for r in user.roles if r not in SYSTEM_ROLES]
+    for r in user.roles:
+        if r in SYSTEM_ROLES:
+            perms |= SYSTEM_ROLES[r][1]
+    if custom:
+        for role in db.scalars(select(CustomRole).where(CustomRole.code.in_(custom))):
+            perms |= set(role.permissions) & CODES
+    return frozenset(perms)
+
+
 def permissions_of(db: Session, user: User) -> frozenset[str]:
     """Permissions d'un compte : union de ses rôles (système ou personnalisés). Mise en cache sur la session."""
     cache: dict = db.info.setdefault("permissions", {})
     if user.id not in cache:
-        perms: set[str] = set()
-        custom = [r for r in user.roles if r not in SYSTEM_ROLES]
-        for r in user.roles:
-            if r in SYSTEM_ROLES:
-                perms |= SYSTEM_ROLES[r][1]
-        if custom:
-            for role in db.scalars(select(CustomRole).where(CustomRole.code.in_(custom))):
-                perms |= set(role.permissions) & CODES
         # Une fonctionnalité désactivée retire ses permissions à tout le monde.
         on = enabled_features(db)
-        cache[user.id] = frozenset(p for p in perms if FEATURE_OF[p] in on)
+        cache[user.id] = frozenset(p for p in granted_permissions(db, user) if FEATURE_OF[p] in on)
     return cache[user.id]
 
 
@@ -78,6 +83,20 @@ def current_user(
     return user
 
 
+def require_any(*permissions: str):
+    """Au moins une des permissions (ex. toutes les sessions OU ses propres sessions)."""
+    unknown = set(permissions) - CODES
+    if unknown:
+        raise ValueError(f"permissions inconnues du catalogue : {unknown}")
+
+    def _dep(user: Annotated[User, Depends(current_user)], db: Annotated[Session, Depends(get_db)]) -> User:
+        if not set(permissions) & permissions_of(db, user):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, f"Permission requise : {' ou '.join(permissions)}")
+        return user
+
+    return _dep
+
+
 def require(permission: str):
     if permission not in CODES:
         raise ValueError(f"permission inconnue du catalogue : {permission}")
@@ -92,7 +111,11 @@ def require(permission: str):
 
 CurrentUser = Annotated[User, Depends(current_user)]
 DB = Annotated[Session, Depends(get_db)]
-SessionsReader = Annotated[User, Depends(require("sessions.read"))]
+SessionsReader = Annotated[User, Depends(require_any("sessions.read", "sessions.read_own"))]
+AllSessionsReader = Annotated[User, Depends(require("sessions.read"))]
+StaffReader = Annotated[User, Depends(require("staff.read"))]
+StaffWriter = Annotated[User, Depends(require("staff.write"))]
+TrainersWriter = Annotated[User, Depends(require("trainers.write"))]
 SessionsWriter = Annotated[User, Depends(require("sessions.write"))]
 AttendanceWriter = Annotated[User, Depends(require("attendance.write"))]
 QualityReader = Annotated[User, Depends(require("quality.read"))]

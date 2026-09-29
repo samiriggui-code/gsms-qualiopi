@@ -11,6 +11,7 @@ from app.core.db import get_engine
 from app.core.errors import install_error_handlers
 from app.core.journal_api import router as journal_router
 from app.documents.router import router as documents_router
+from app.hr.router import router as hr_router
 from app.platform.router import router as platform_router
 from app.qualiopi.router import router as qualiopi_router
 from app.training.router import router as training_router
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(platform_router)
     app.include_router(training_router)
     app.include_router(attendance_router)
+    app.include_router(hr_router)
 
     @app.get("/health", tags=["system"])
     def health() -> dict:

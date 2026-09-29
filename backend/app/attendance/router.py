@@ -10,7 +10,7 @@ from app.auth.security import DB, AttendanceWriter, SessionsReader
 from app.core.errors import NotFoundError
 from app.core.journal import set_actor
 from app.training import models as t
-from app.training.service import get_session
+from app.training.access import visible_session
 
 router = APIRouter(prefix="/api/v1", tags=["émargement"])
 
@@ -18,14 +18,14 @@ router = APIRouter(prefix="/api/v1", tags=["émargement"])
 @router.post("/sessions/{session_id}/creneaux")
 def plan(session_id: str, db: DB, user: AttendanceWriter) -> dict:
     """Prépare les demi-journées de la session selon les réglages (jours, horaires)."""
-    created = service.plan_slots(db, get_session(db, session_id), user)
+    created = service.plan_slots(db, visible_session(db, user, session_id), user)
     db.commit()
     return {"crees": created}
 
 
 @router.get("/sessions/{session_id}/emargement")
 def attendance_sheet(session_id: str, db: DB, user: SessionsReader) -> dict:
-    return service.sheet(db, get_session(db, session_id), user)
+    return service.sheet(db, visible_session(db, user, session_id), user)
 
 
 @router.post("/creneaux/{slot_id}/code")
@@ -42,6 +42,7 @@ def personal_link(enrollment_id: str, db: DB, user: AttendanceWriter) -> dict:
     e = db.get(t.Enrollment, enrollment_id)
     if e is None:
         raise NotFoundError("Inscription introuvable")
+    visible_session(db, user, e.session_id)
     token = service.issue_personal_link(db, e, user)
     db.commit()
     return {"jeton": token, "lien": f"{service.SIGN_PATH}?jeton={token}"}

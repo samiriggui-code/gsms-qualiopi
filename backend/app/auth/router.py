@@ -20,6 +20,7 @@ from app.auth.security import (
     UserManager,
     create_token,
     forget_permissions,
+    granted_permissions,
     hash_password,
     permissions_of,
     verify_password,
@@ -75,7 +76,7 @@ def role_permissions(db, code: str) -> frozenset[str]:  # noqa: ANN001
 
 
 def _no_escalation(db, actor: User, permissions: frozenset[str] | set[str]) -> None:  # noqa: ANN001
-    missing = set(permissions) - permissions_of(db, actor)
+    missing = set(permissions) - granted_permissions(db, actor)
     if missing:
         raise HTTPException(status.HTTP_403_FORBIDDEN,
                             f"Vous ne pouvez pas donner des droits que vous n'avez pas : {', '.join(sorted(missing))}")
@@ -168,7 +169,7 @@ def list_users(db: DB, _: UserManager) -> list[User]:
 def _guard_target(db, actor: User, target: User) -> None:  # noqa: ANN001
     if target.id == actor.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Vous ne pouvez pas modifier votre propre compte")
-    _no_escalation(db, actor, permissions_of(db, target))
+    _no_escalation(db, actor, granted_permissions(db, target))
 
 
 def _set_roles(db, actor: User, user: User, roles: list[str]) -> None:  # noqa: ANN001

@@ -21,7 +21,8 @@ class Permission:
 
 
 CATALOGUE: tuple[Permission, ...] = (
-    Permission("sessions.read", "Consulter formations, sessions et inscriptions", "training"),
+    Permission("sessions.read", "Consulter toutes les formations, sessions et inscriptions", "training"),
+    Permission("sessions.read_own", "Consulter ses propres sessions (formateur relié à son compte)", "training"),
     Permission("sessions.write", "Créer et modifier formations, sessions et inscriptions", "training"),
     Permission("trainers.write", "Gérer les formateurs et déposer leurs pièces", "training"),
     Permission("attendance.write", "Organiser l'émargement, constater présences et absences, contre-valider", "attendance"),
@@ -29,6 +30,8 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("quality.write", "Déposer les pièces de l'organisme, réévaluer, gérer les cycles", "qualiopi"),
     Permission("evidence.validate", "Valider ou rejeter des preuves, attester les revues d'indicateurs", "qualiopi"),
     Permission("referential.manage", "Importer une version du référentiel", "qualiopi"),
+    Permission("staff.read", "Consulter le personnel, les contrats et les absences", "hr"),
+    Permission("staff.write", "Gérer le personnel, les contrats et les absences", "hr"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
     Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
     Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
@@ -48,8 +51,11 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
         "sessions.read", "sessions.write", "trainers.write", "attendance.write", "quality.read", "journal.read",
     })),
-    "formateur": ("Formateur : consulte les sessions, tient et contre-valide l'émargement",
-                  frozenset({"sessions.read", "attendance.write"})),
+    "formateur": ("Formateur : ses propres sessions, tient et contre-valide leur émargement",
+                  frozenset({"sessions.read_own", "attendance.write"})),
+    "rh": ("Ressources humaines : personnel, contrats, absences, titres des formateurs", frozenset({
+        "sessions.read", "trainers.write", "staff.read", "staff.write", "journal.read",
+    })),
     "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read"})),
 }
 

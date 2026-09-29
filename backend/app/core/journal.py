@@ -22,7 +22,7 @@ DEFAULT_ACTOR = "système"
 IGNORED_FIELDS = {"created_at", "updated_at", "created_by"}
 MASKED_FIELDS = {"password_hash"}
 # Tables écrites par des humains en dehors du schéma `formation` (le moteur a son propre historique).
-JOURNALED_OUTSIDE_FORMATION = {"iam.user", "iam.user_role", "iam.role", "config.feature_state", "config.setting_value", "qualite.capa_action", "qualite.audit", "qualite.audit_item", "qualite.indicator_review", "qualite.certification_cycle"}
+JOURNALED_OUTSIDE_FORMATION = {"iam.user", "iam.user_role", "iam.role", "config.feature_state", "config.setting_value", "rh.staff_member", "rh.staff_contract", "rh.staff_absence", "qualite.capa_action", "qualite.audit", "qualite.audit_item", "qualite.indicator_review", "qualite.certification_cycle"}
 NOT_JOURNALED = {"formation.outbox_event", "formation.change_log"}
 
 

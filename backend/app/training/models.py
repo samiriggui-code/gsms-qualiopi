@@ -75,12 +75,25 @@ class Trainer(TimestampMixin, Base):
     email: Mapped[str | None] = mapped_column(String(200))
     is_external: Mapped[bool] = mapped_column(Boolean, default=False)
     specialties: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Compte GSMS du formateur : lui donne accès à ses propres sessions (permission sessions.read_own).
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
 
     qualifications: Mapped[list["TrainerQualification"]] = relationship(back_populates="trainer", cascade="all, delete-orphan")
 
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+
+# Titres réglementés propres aux filières de l'organisme (sûreté, incendie, secourisme, électricité).
+QUALIFICATION_KINDS = {
+    "CARTE_PRO_FORMATEUR_CNAPS": "Carte professionnelle de formateur en sécurité privée (CNAPS, 5 ans)",
+    "SSIAP3": "Diplôme SSIAP 3 (formateur incendie)",
+    "FORMATEUR_SST": "Certificat de formateur SST (INRS)",
+    "HABILITATION_ELECTRIQUE": "Habilitation électrique",
+    "DIPLOME": "Diplôme ou titre professionnel",
+    "AUTRE": "Autre qualification",
+}
 
 
 class TrainerQualification(TimestampMixin, Base):
@@ -91,7 +104,9 @@ class TrainerQualification(TimestampMixin, Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     trainer_id: Mapped[str] = mapped_column(fk("trainer"))
+    kind: Mapped[str] = mapped_column(String(40), default="AUTRE", server_default="AUTRE")  # QUALIFICATION_KINDS
     label: Mapped[str] = mapped_column(String(200))
+    number: Mapped[str | None] = mapped_column(String(60))  # numéro de carte ou de certificat
     obtained_on: Mapped[date | None] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)
     document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))

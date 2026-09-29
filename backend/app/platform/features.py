@@ -33,7 +33,7 @@ FEATURES: dict[str, Feature] = {f.code: f for f in (
     Feature("training", "Formations, sessions et inscriptions", True),
     Feature("qualiopi", "Moteur de préparation Qualiopi et dossiers de pièces", True, ("training",)),
     Feature("attendance", "Émargement électronique", True, ("training",)),
-    Feature("hr", "Ressources humaines", False, built=False),
+    Feature("hr", "Ressources humaines", False),
     Feature("funding", "Financement des formations", False, ("training",), built=False),
     Feature("funding.cpf", "CPF (EDOF)", False, ("funding",), built=False),
     Feature("funding.opco", "OPCO", False, ("funding",), built=False),

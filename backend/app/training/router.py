@@ -6,9 +6,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.auth.security import DB, SessionsReader, SessionsWriter
+from app.auth.security import DB, AllSessionsReader, SessionsReader, SessionsWriter
 from app.training import models as t
 from app.training import service
+from app.training.access import own_trainer_ids, sees_all, visible_session
 from app.training.policy import TrainingPolicy
 from app.training.schemas import LearnerOut, ProgramOut, SessionOut, TrainerOut
 
@@ -26,7 +27,7 @@ def list_trainers(db: DB, _: SessionsReader) -> list[t.Trainer]:
 
 
 @router.get("/stagiaires", response_model=list[LearnerOut])
-def list_learners(db: DB, _: SessionsReader) -> list[t.Learner]:
+def list_learners(db: DB, _: AllSessionsReader) -> list[t.Learner]:
     return list(db.scalars(select(t.Learner).order_by(t.Learner.last_name)))
 
 
@@ -35,9 +36,11 @@ class SessionView(SessionOut):
 
 
 @router.get("/sessions", response_model=list[SessionView])
-def list_sessions(db: DB, _: SessionsReader, statut: str | None = None,
+def list_sessions(db: DB, user: SessionsReader, statut: str | None = None,
                   du: date | None = None, au: date | None = None) -> list[t.TrainingSession]:
     q = select(t.TrainingSession).order_by(t.TrainingSession.start_date.desc())
+    if not sees_all(db, user):  # formateur : ses propres sessions
+        q = q.where(t.TrainingSession.trainer_id.in_(own_trainer_ids(db, user)))
     if statut:
         q = q.where(t.TrainingSession.status == statut)
     if du:
@@ -68,7 +71,7 @@ def create_session(body: SessionCreate, db: DB, user: SessionsWriter) -> t.Train
 @router.get("/sessions/{session_id}")
 def get_session(session_id: str, db: DB, user: SessionsReader) -> dict:
     """La session, ses inscriptions et ce que l'utilisateur peut en faire maintenant."""
-    s = service.get_session(db, session_id)
+    s = visible_session(db, user, session_id)
     return {
         "session": SessionView.model_validate(s).model_dump(mode="json"),
         "inscriptions": [{"id": e.id, "learner_id": e.learner_id, "stagiaire": f"{e.learner.first_name} {e.learner.last_name}",
@@ -79,7 +82,7 @@ def get_session(session_id: str, db: DB, user: SessionsReader) -> dict:
 
 @router.get("/sessions/{session_id}/capabilities")
 def session_capabilities(session_id: str, db: DB, user: SessionsReader) -> dict:
-    return TrainingPolicy(db, user).capabilities(service.get_session(db, session_id))
+    return TrainingPolicy(db, user).capabilities(visible_session(db, user, session_id))
 
 
 class SessionPatch(BaseModel):

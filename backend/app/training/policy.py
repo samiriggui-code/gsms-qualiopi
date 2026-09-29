@@ -10,12 +10,15 @@ from __future__ import annotations
 
 from datetime import date
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.attendance.policy import expected_enrollments, recorded, signature_of
 from app.auth.models import User
 from app.auth.security import permissions_of
+from app.hr.models import StaffMember
 from app.platform.decisions import ALLOW, Decision, deny
+from app.platform.features import is_enabled
 from app.platform.settings import ConfigurationService
 from app.training import models as t
 from app.training.lifecycle import ENROLLABLE_STATES, FROZEN_ONCE_STARTED, LOCKED_STATES, STARTED_STATES, TRANSITIONS
@@ -87,6 +90,21 @@ class TrainingPolicy:
         missing = [label for ok, label in ((s.trainer_id, "formateur"), (s.location, "lieu")) if not ok]
         if missing:
             return deny("SESSION_INCOMPLETE", f"À renseigner avant confirmation : {', '.join(missing)}", missing)
+        return self._trainer_available(s)
+
+    def _trainer_available(self, s: t.TrainingSession) -> Decision:
+        """Avec le module RH : le formateur n'est pas absent et son contrat couvre la session."""
+        if not is_enabled(self.db, "hr") or not s.trainer_id:
+            return ALLOW
+        staff = self.db.scalar(select(StaffMember).where(StaffMember.trainer_id == s.trainer_id))
+        if staff is None:
+            return ALLOW  # formateur sans fiche RH (intervenant extérieur ponctuel)
+        absences = [a for a in staff.absences if a.overlaps(s.start_date, s.end_date)]
+        if absences:
+            return deny("TRAINER_UNAVAILABLE", f"{staff.full_name} est absent pendant la session",
+                        [{"du": a.start_date.isoformat(), "au": a.end_date.isoformat(), "nature": a.kind} for a in absences])
+        if staff.contracts and not any(c.covers(s.start_date, s.end_date) for c in staff.contracts):
+            return deny("TRAINER_NO_CONTRACT", f"Aucun contrat de {staff.full_name} ne couvre les dates de la session")
         return ALLOW
 
     def _can_start(self, s: t.TrainingSession) -> Decision:
