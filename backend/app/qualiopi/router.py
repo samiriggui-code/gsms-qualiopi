@@ -13,8 +13,11 @@ from app.core.errors import NotFoundError
 from app.qualiopi.engine import refresh_all
 from app.qualiopi.evaluation.report import session_dossier
 from app.qualiopi.evaluation.service import indicator_readiness
+from app.qualiopi.evidence.models import Evidence, EvidenceIndicatorLink
 from app.qualiopi.evidence.service import validate
 from app.qualiopi.referential.importer import active_version, import_referential
+from app.qualiopi.review.models import IndicatorReview
+from app.qualiopi.review.service import record_review
 from app.qualiopi.schedule.models import MilestoneStatus
 from app.qualiopi.schedule.service import milestone_view
 from app.training import models as t
@@ -113,3 +116,35 @@ def upcoming(db: DB, _: Reader, days: int = Query(15, ge=0, le=365), owner: str 
     if owner:
         q = q.where(MilestoneStatus.owner == owner)
     return [{"session": ref, "session_id": m.session_id, **milestone_view(m)} for m, ref in db.execute(q)]
+
+
+class ReviewIn(BaseModel):
+    conclusion: str  # SATISFAISANT | A_AMELIORER | INSUFFISANT
+    comment: str
+    valid_months: int = 12
+    severity: str = "mineure"  # si INSUFFISANT
+
+
+@router.post("/qualiopi/indicateurs/{number}/revues")
+def review_indicator(number: int, body: ReviewIn, db: DB, user: EvidenceValidator) -> dict:
+    """Revue humaine attestée : l'état calculé et les preuves consultées sont figés avec elle."""
+    version = active_version(db)
+    current = next((i for i in indicator_readiness(db, version) if i["number"] == number), None)
+    if current is None:
+        raise NotFoundError(f"Indicateur {number} inconnu")
+    evidence = db.scalars(select(Evidence.reference).join(EvidenceIndicatorLink).where(
+        EvidenceIndicatorLink.indicator_number == number, EvidenceIndicatorLink.version_id == version.id,
+        Evidence.status.in_(("EXPLOITABLE", "VALIDEE")))).all()
+    review = record_review(db, version, number, conclusion=body.conclusion, comment=body.comment,
+                           engine_status=current["status"], evidence_refs=list(evidence), user_id=user.id,
+                           user_name=user.full_name, valid_months=body.valid_months, severity=body.severity)
+    db.commit()
+    return {"id": review.id, "valid_until": review.valid_until.isoformat(), "finding_id": review.finding_id,
+            "evidence_refs": review.evidence_refs}
+
+
+@router.get("/qualiopi/indicateurs/{number}/revues")
+def list_reviews(number: int, db: DB, _: Reader) -> list[dict]:
+    rows = db.scalars(select(IndicatorReview).where(IndicatorReview.indicator_number == number).order_by(IndicatorReview.reviewed_at.desc()))
+    return [{"conclusion": r.conclusion, "comment": r.comment, "by": r.reviewed_by, "at": r.reviewed_at.isoformat(),
+             "valid_until": r.valid_until.isoformat(), "engine_status": r.engine_status, "evidence_refs": r.evidence_refs} for r in rows]

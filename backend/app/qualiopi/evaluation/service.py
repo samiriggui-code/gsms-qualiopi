@@ -15,6 +15,7 @@ from app.qualiopi.evaluation.models import READINESS_RANK, ControlResult, Contro
 from app.qualiopi.evidence.detectors import load_sessions
 from app.qualiopi.evidence.models import Evidence
 from app.qualiopi.referential.models import ControlDefinition, Indicator, ReferentialVersion
+from app.qualiopi.review.service import latest_reviews, review_state
 from app.training import models as t
 
 FINDING_STATES = {"PREUVES_INSUFFISANTES", "A_RISQUE", "NON_EVALUABLE"}
@@ -237,12 +238,15 @@ def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.
     programs = list(db.scalars(select(t.Program)))
     out = []
     program = session.program if session is not None else None
+    reviews = latest_reviews(db, version)
     for ind in version.indicators:
         rows = by_ind.get(ind.number, [])
         counts: dict[str, int] = defaultdict(int)
         for r in rows:
             counts[r.status] += 1
         status, automated = readiness_of(ind, rows, org, programs, program if ind.scope != "ORGANISME" else None)
+        review = review_state(reviews.get(ind.number), bool(ind.human_review) and status != "NON_APPLICABLE")
+        evidence_to_validate = any(r.human_validation_required for r in rows if r.status == "DEMONTRABLE")
         out.append(
             {
                 "number": ind.number,
@@ -251,7 +255,9 @@ def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.
                 "title": ind.title,
                 "status": status,
                 "counts": dict(counts),
-                "human_validation_required": any(r.human_validation_required for r in rows if r.status == "DEMONTRABLE") or (not automated and status != "NON_APPLICABLE"),
+                "human_validation_required": evidence_to_validate or review["state"] in ("REQUISE", "EXPIREE", "INSUFFISANTE"),
+                "evidence_to_validate": evidence_to_validate,
+                "revue_humaine": review,
                 "sessions_at_risk": sorted({r.session_id for r in rows if r.session_id and r.status in ("PREUVES_INSUFFISANTES", "A_RISQUE")}),
                 "automated": automated,
             }

@@ -10,6 +10,7 @@ from app.qualiopi.capa import models as _capa  # noqa: F401
 from app.qualiopi.evaluation import models as _evaluation  # noqa: F401
 from app.qualiopi.evidence import models as _evidence  # noqa: F401
 from app.qualiopi.referential import models as _referential  # noqa: F401
+from app.qualiopi.review import models as _review  # noqa: F401
 from app.qualiopi.schedule import models as _schedule  # noqa: F401
 from app.training import models as _training  # noqa: F401
 
