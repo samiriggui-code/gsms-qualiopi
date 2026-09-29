@@ -6,7 +6,7 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 1er novembre 2026) et explique
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-**Statut : jalons 1 et 1 bis terminés, jalon 2 en cours (socle de configuration fait)** — socle exécutable et prouvé (API, moteur, démo, 108 tests, Docker, CI)
+**Statut : jalons 1 et 1 bis terminés, jalon 2 en cours (socle de configuration et domaine Formation faits)** — socle exécutable et prouvé (API, moteur, démo, 115 tests, Docker, CI)
 et les cinq briques manquantes du moteur. Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
 
 ## Architecture
@@ -21,7 +21,7 @@ Un monolithe, un worker, une base.
 
 | Module | Rôle |
 | --- | --- |
-| `app/training/` | Domaine organisme de formation (25 entités) |
+| `app/training/` | Domaine organisme de formation (25 entités) ; sessions : cycle de vie par transitions (`lifecycle.py`), `TrainingPolicy`, capacités motivées (`GET /api/v1/sessions/{id}/capabilities`), routes sessions et inscriptions |
 | `app/qualiopi/referential/` | Import versionné : texte officiel + couche normative (`v9.yaml`, `v10.yaml`), bascule à la date d'entrée en vigueur |
 | `app/qualiopi/evidence/` | Donnée → preuve : détecteurs, cycle de vie, validation humaine, historique |
 | `app/qualiopi/evaluation/` | 9 contrôles paramétrés, états de préparation, constats, dossier de session |

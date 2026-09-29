@@ -155,7 +155,8 @@ class TrainingSession(TimestampMixin, Base):
     room: Mapped[str | None] = mapped_column(String(100))
     trainer_id: Mapped[str | None] = mapped_column(ForeignKey("formation.trainer.id", ondelete="SET NULL"))
     capacity: Mapped[int | None] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(20), default="PLANIFIEE")
+    status: Mapped[str] = mapped_column(String(20), default="PLANIFIEE")  # changé seulement par app.training.lifecycle
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
     subcontractor_id: Mapped[str | None] = mapped_column(ForeignKey("formation.subcontractor.id", ondelete="SET NULL"))
 
     program: Mapped[Program] = relationship()

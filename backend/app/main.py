@@ -12,6 +12,7 @@ from app.core.journal_api import router as journal_router
 from app.documents.router import router as documents_router
 from app.platform.router import router as platform_router
 from app.qualiopi.router import router as qualiopi_router
+from app.training.router import router as training_router
 
 
 def create_app() -> FastAPI:
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(journal_router)
     app.include_router(documents_router)
     app.include_router(platform_router)
+    app.include_router(training_router)
 
     @app.get("/health", tags=["system"])
     def health() -> dict:

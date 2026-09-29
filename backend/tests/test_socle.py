@@ -80,7 +80,7 @@ def test_desactiver_qualiopi_retire_ses_droits(client, db: Session) -> None:  # 
     nav = [n["key"] for n in client.get("/api/v1/bootstrap", headers=headers).json()["navigation"]]
     assert "qualite" not in nav and "parametres" in nav
     domains = {v["domain"] for v in client.get("/api/v1/settings", headers=headers).json()}
-    assert domains == {"general"}, "les réglages qualité disparaissent avec le module"
+    assert "quality" not in domains and "general" in domains, "les réglages qualité disparaissent avec le module"
 
 
 # ── Rôles personnalisés et démarrage ────────────────────────────────────────────

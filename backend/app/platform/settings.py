@@ -46,9 +46,10 @@ class SettingDef:
 def _registry() -> dict[str, SettingDef]:
     from app.platform.general import SETTINGS as general
     from app.qualiopi.settings import SETTINGS as quality
+    from app.training.settings import SETTINGS as training
 
     out: dict[str, SettingDef] = {}
-    for d in (*general, *quality):
+    for d in (*general, *training, *quality):
         if d.key in out:
             raise ValueError(f"réglage déclaré deux fois : {d.key}")
         d.adapter().validate_python(d.default)
