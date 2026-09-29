@@ -5,3 +5,6 @@ __pycache__/
 backend/var/
 node_modules/
 .next/
+
+# Démos sous licence (Metronic…) : consultation locale uniquement, jamais publiées
+research/
