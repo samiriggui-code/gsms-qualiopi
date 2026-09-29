@@ -111,11 +111,11 @@ def _before_flush(session: Session, flush_context, instances) -> None:  # noqa: 
     actor = actor_of(session)
     pending: list[tuple[object, str, dict]] = []
     for obj in list(session.new):
-        if _table(obj) is None:
-            continue
-        # Traçabilité « qui a produit » : created_by se remplit tout seul.
+        # Traçabilité « qui a produit » : created_by se remplit tout seul, journalisé ou non.
         if hasattr(obj, "created_by") and getattr(obj, "created_by", None) is None:
             obj.created_by = actor
+        if _table(obj) is None:
+            continue
         pending.append((obj, "CREATION", {}))
     for obj in list(session.dirty):
         if _table(obj) is None or not session.is_modified(obj, include_collections=False):

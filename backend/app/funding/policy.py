@@ -44,8 +44,9 @@ def case_status(case: FundingCase) -> dict:
         status = "FUNDED"
     else:
         status = "OVERFUNDED"
-    return {"statut": status, "cout": str(case.cost_eur), "accorde": str(granted), "regle": str(paid),
-            "reste_a_financer": str(max(case.cost_eur - granted, Decimal(0)))}
+    cent = Decimal("0.01")
+    return {"statut": status, "cout": str(case.cost_eur), "accorde": str(granted.quantize(cent)), "regle": str(paid.quantize(cent)),
+            "reste_a_financer": str(max(case.cost_eur - granted, Decimal(0)).quantize(cent))}
 
 
 class FundingPolicy:

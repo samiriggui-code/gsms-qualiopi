@@ -25,6 +25,14 @@ from app.training.lifecycle import ENROLLABLE_STATES, FROZEN_ONCE_STARTED, LOCKE
 
 ACTIONS = ("edit", "delete", "enroll", *TRANSITIONS)
 FINAL_ENROLLMENT = ("TERMINE", "ABANDON", "ANNULE")
+CLOSE_LABELS = {  # (singulier, pluriel)
+    "INSCRIPTION_OUVERTE": ("inscription à finaliser", "inscriptions à finaliser"),
+    "AUCUN_CRENEAU": ("session sans demi-journée d'émargement", "sessions sans demi-journée d'émargement"),
+    "EMARGEMENT_MANQUANT": ("émargement manquant", "émargements manquants"),
+    "VALIDATION_FORMATEUR_MANQUANTE": ("demi-journée non contre-validée par le formateur",
+                                       "demi-journées non contre-validées par le formateur"),
+    "ATTESTATION_MANQUANTE": ("attestation de fin manquante", "attestations de fin manquantes"),
+}
 
 
 def _fmt(d: date) -> str:
@@ -147,7 +155,7 @@ class TrainingPolicy:
             counts: dict[str, int] = {}
             for d in details:
                 counts[d["type"]] = counts.get(d["type"], 0) + 1
-            summary = ", ".join(f"{n} {k.lower().replace('_', ' ')}" for k, n in counts.items())
+            summary = ", ".join(f"{n} {CLOSE_LABELS[k][0 if n == 1 else 1]}" for k, n in counts.items())
             return deny("CLOSE_REQUIREMENTS_MISSING", f"Clôture impossible : {summary}", details)
         return ALLOW
 
