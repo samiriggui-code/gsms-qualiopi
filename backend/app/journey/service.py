@@ -6,7 +6,7 @@ données et recalcule preuves, contrôles et échéancier.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from app.events.publish import publish
 from app.journey import documents
 from app.journey.policy import ACTIONS, OPEN, JourneyPolicy, missing_attendance, presences, survey_of
 from app.platform.decisions import enforce
+from app.qualiopi.schedule.service import due_date, load_circuit
 from app.training import models as t
 
 ASSESSMENT_KINDS = ("FORMATIVE", "SOMMATIVE", "EXAMEN")
@@ -233,6 +234,45 @@ def _d(value: date | None) -> str | None:
     return value.isoformat() if value else None
 
 
+# Étape du parcours → jalon du circuit (mêmes échéances que l'échéancier Qualiopi).
+STEP_MILESTONES = {
+    "convention": "J-15.convention", "convocation": "J-10.convocation", "analyse_besoin": "J-5.besoin",
+    "positionnement": "J-5.positionnement", "satisfaction_chaud": "FIN.satisfaction-chaud",
+    "attestation": "FIN.attestation", "satisfaction_froid": "J+45.satisfaction-froid",
+}
+
+
+def _timing(step: dict, e: t.Enrollment, today: date) -> dict:
+    """État d'une étape pour ce stagiaire : FAIT, A_VENIR, A_ECHEANCE, EN_RETARD ou SANS_OBJET."""
+    s = e.session
+    if step["fait"]:
+        return {"etat": "FAIT", "echeance": None}
+    if e.status == "ANNULE":
+        return {"etat": "SANS_OBJET", "echeance": None}
+    if step["etape"] == "emargement":
+        if missing_attendance(e, today - timedelta(days=1)):
+            return {"etat": "EN_RETARD", "echeance": None}
+        return {"etat": "A_ECHEANCE" if step["manque"] else "A_VENIR", "echeance": None}
+    milestones = {m.key: m for m in load_circuit().milestones}
+    m = milestones.get(STEP_MILESTONES.get(step["etape"], ""))
+    if m is not None:
+        # Encore en formation : les étapes de fin (attestation, satisfaction) le concerneront.
+        if e.status not in m.enrollments and not (e.status in OPEN and "TERMINE" in m.enrollments):
+            return {"etat": "SANS_OBJET", "echeance": None}
+        due, warn = due_date(m, s), m.warn_days
+    else:  # évaluations : avant la fin de la session
+        if e.status == "ABANDON":
+            return {"etat": "SANS_OBJET", "echeance": None}
+        due, warn = s.end_date, 1
+    if today > due:
+        state = "EN_RETARD"
+    elif today >= due - timedelta(days=warn):
+        state = "A_ECHEANCE"
+    else:
+        state = "A_VENIR"
+    return {"etat": state, "echeance": due.isoformat()}
+
+
 def journey_view(db: Session, e: t.Enrollment, user: User | None, today: date | None = None) -> dict:
     """Où en est le stagiaire, étape par étape, ce qui est possible maintenant, et les documents émis."""
     today = today or date.today()
@@ -263,6 +303,8 @@ def journey_view(db: Session, e: t.Enrollment, user: User | None, today: date | 
         {"etape": "satisfaction_froid", "fait": bool(froid and froid.answered_on), "le": _d(froid.answered_on) if froid else None,
          "detail": f"{froid.score}/5" if froid and froid.score is not None else None},
     ]
+    for step in steps:
+        step.update(_timing(step, e, today))
     return {
         "inscription": e.id, "stagiaire": e.learner.full_name, "session": s.reference, "statut": e.status,
         "abandon": {"le": _d(e.abandoned_on), "motif": e.abandon_reason} if e.status in ("ABANDON", "ANNULE") else None,
@@ -280,6 +322,7 @@ def session_journey(db: Session, s: t.TrainingSession, user: User | None, today:
         v = journey_view(db, e, user, today)
         rows.append({"inscription": e.id, "stagiaire": v["stagiaire"], "statut": v["statut"],
                      "etapes": {st["etape"]: st["fait"] for st in v["etapes"]},
+                     "etats": {st["etape"]: st["etat"] for st in v["etapes"]},
                      "possible": [a for a, d in v["capabilities"].items() if d["allowed"]]})
     return {"session": s.reference, "statut": s.status, "stagiaires": rows,
             "etapes": [a for a in ("analyse_besoin", "positionnement", "convention", "convocation", "emargement",

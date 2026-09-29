@@ -179,6 +179,23 @@ class TrainingSession(TimestampMixin, Base):
     enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="session", cascade="all, delete-orphan")
     attendance_slots: Mapped[list["AttendanceSlot"]] = relationship(back_populates="session", cascade="all, delete-orphan")
 
+    # Lectures prêtes pour l'affichage (listes) : évitent au client de recroiser les identifiants.
+    @property
+    def program_code(self) -> str | None:
+        return self.program.code if self.program else None
+
+    @property
+    def program_title(self) -> str | None:
+        return self.program.title if self.program else None
+
+    @property
+    def trainer_name(self) -> str | None:
+        return self.trainer.full_name if self.trainer else None
+
+    @property
+    def learners_count(self) -> int:
+        return sum(1 for e in self.enrollments if e.status != "ANNULE")
+
 
 ENROLLMENT_STATUSES = ("INSCRIT", "CONFIRME", "ANNULE", "ABANDON", "TERMINE")
 

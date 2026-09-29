@@ -33,6 +33,10 @@ def list_learners(db: DB, _: AllSessionsReader) -> list[t.Learner]:
 
 class SessionView(SessionOut):
     cancel_reason: str | None = None
+    program_code: str | None = None
+    program_title: str | None = None
+    trainer_name: str | None = None
+    learners_count: int = 0
 
 
 @router.get("/sessions", response_model=list[SessionView])

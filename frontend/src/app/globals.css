@@ -1,0 +1,152 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/*
+ * Fondation GSMS — tokens.
+ * --brand est l'identité de l'organisme (réglage general.brand_color, posé au chargement par
+ * BrandStyle) ; tout le reste est la base commune GSMS. Les couleurs d'état ont un sens métier
+ * fixe dans toute l'application : jamais de couleur « pour faire joli ».
+ */
+:root {
+  --brand: #0369a1;
+  --brand-fg: #ffffff;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --fg: #111827;
+  --fg-muted: #4b5563;
+  --fg-subtle: #6b7280;
+  --border: #e3e6eb;
+  --border-strong: #cfd4dc;
+  --ring: color-mix(in oklab, var(--brand) 70%, white);
+
+  /* États (texte / fond doux) */
+  --ok: #047857;
+  --ok-bg: #e7f6ef;
+  --warn: #a15c07;
+  --warn-bg: #fdf3e2;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --info: #1d5fa8;
+  --info-bg: #e8f0fb;
+  --neutral: #4b5563;
+  --neutral-bg: #eef0f3;
+
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-panel: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-overlay: 0 12px 32px rgb(16 24 40 / 0.16);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --brand-fg: #ffffff;
+    --bg: #0e1116;
+    --surface: #151a21;
+    --surface-2: #1c222b;
+    --fg: #e8ebf0;
+    --fg-muted: #a8b0bc;
+    --fg-subtle: #8a93a0;
+    --border: #262d38;
+    --border-strong: #353e4b;
+    --ok: #4ccf9a;
+    --ok-bg: #0f2a20;
+    --warn: #f0b156;
+    --warn-bg: #2d2210;
+    --danger: #f5877d;
+    --danger-bg: #331614;
+    --info: #86b6f0;
+    --info-bg: #13233a;
+    --neutral: #a8b0bc;
+    --neutral-bg: #222932;
+    --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --brand-fg: #ffffff;
+  --bg: #0e1116;
+  --surface: #151a21;
+  --surface-2: #1c222b;
+  --fg: #e8ebf0;
+  --fg-muted: #a8b0bc;
+  --fg-subtle: #8a93a0;
+  --border: #262d38;
+  --border-strong: #353e4b;
+  --ok: #4ccf9a;
+  --ok-bg: #0f2a20;
+  --warn: #f0b156;
+  --warn-bg: #2d2210;
+  --danger: #f5877d;
+  --danger-bg: #331614;
+  --info: #86b6f0;
+  --info-bg: #13233a;
+  --neutral: #a8b0bc;
+  --neutral-bg: #222932;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-neutral: var(--neutral);
+  --color-neutral-bg: var(--neutral-bg);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+  --shadow-panel: var(--shadow-panel);
+  --shadow-overlay: var(--shadow-overlay);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

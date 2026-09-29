@@ -1,13 +1,16 @@
 # GSMS Qualiopi
 
-Backend Python d'un organisme de formation : domaine formation + moteur de préparation Qualiopi.
+Application d'un organisme de formation : backend Python (domaine formation + moteur de préparation
+Qualiopi) et front Next.js (espace formation).
 Le moteur transforme les données du quotidien (inscriptions, positionnements, émargements,
 évaluations…) en preuves traçables, les confronte au référentiel national qualité (V9, puis V10 au
 1er novembre 2026) et explique
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-**Statut : jalons 1 et 1 bis terminés, jalon 2 en cours (socle de configuration, Formation, Émargement, RH, Financement et Parcours du stagiaire faits)** — socle exécutable et prouvé (API, moteur, démo, 132 tests, Docker, CI)
-et les cinq briques manquantes du moteur. Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
+**Statut : jalons 1 et 1 bis terminés, jalon 2 en cours** — backend : socle de configuration, Formation,
+Émargement, RH, Financement, Parcours du stagiaire (139 tests). Front : premier parcours complet
+(connexion, sessions, détail, parcours des stagiaires, émargement, Qualiopi de la session), testé par
+Playwright sur ordinateur et mobile. Voir [`frontend/README.md`](frontend/README.md).
 
 ## Architecture
 
@@ -33,6 +36,7 @@ Un monolithe, un worker, une base.
 | `app/attendance/` | Émargement électronique : demi-journées générées depuis les réglages, signature du stagiaire avec le code de salle (QR) + son lien personnel dans la fenêtre horaire, absences constatées et motivées par le formateur, contre-validation qui verrouille ; règle unique « qui est attendu » partagée avec la clôture et le moteur Qualiopi |
 | `app/funding/` + `config/financement/` | Financement (modules activables par dispositif) : dossier par inscription, sources multiples (cofinancement au statut calculé, sur-financement bloqué), cinq rôles séparés (bénéficiaire, financeur, signataire, destinataire de facture, payeur) ; circuits CPF, OPCO, France Travail (AIF), entreprise et reste à charge décrits en YAML versionné, conditions nommées lues dans les données existantes, échéances en jours ouvrés (fériés compris), actions de portail tracées, taux de réalisation depuis l'émargement, règles datées sourcées (participation CPF 100 € puis 150 €) |
 | `app/journey/` + `config/documents_generes/` | Parcours du stagiaire : analyse du besoin, positionnement, convention ou contrat (envoi, signature), convocation, évaluations, fin, abandon ou annulation, attestation, satisfaction à chaud et à froid ; chaque étape a sa politique (permission, portée du formateur, état, conditions) et ses refus motivés ; le moteur **rédige** la convocation (horaires tirés des demi-journées, accessibilité) et l'attestation de fin (objectifs, nature L. 6313-1, durée suivie tirée de l'émargement, résultats des évaluations, L. 6353-1), figées par empreinte SHA-256 et versionnées |
+| `frontend/` | Espace formation (Next.js 16) : identité de l'organisme par tokens, navigation issue de `/bootstrap`, sessions, parcours des stagiaires (matrice d'états datés, panneau, formulaires, documents émis), émargement, Qualiopi de la session ; boutons gouvernés par les décisions du moteur ; tests Playwright ordinateur + mobile avec axe-core et captures |
 | `app/hr/` | Ressources humaines (module activable) : personnel distinct des comptes, contrats, absences (nature seulement), titres des formateurs typés (carte formateur CNAPS, SSIAP 3, formateur SST…) et leurs échéances ; disponibilité et contrat vérifiés à la confirmation d'une session ; un compte relié à une fiche formateur ne voit que ses sessions |
 | `app/platform/` | Socle de configuration : fonctionnalités activables (une fonctionnalité inactive retire ses droits), réglages typés déclarés par chaque domaine, datés et journalisés (`ConfigurationService`), décisions motivées (`Decision`), `GET /api/v1/bootstrap` pour le front |
 | `app/qualiopi/review/` | Revue humaine attestée par indicateur (conclusion, justification, validité) |
@@ -55,6 +59,9 @@ python -m app.cli seed-demo          # organisme de démo, 15 trous et 8 jalons 
 uvicorn app.main:app --reload        # API sur :8000, documentation sur /docs
 python -m app.worker                 # dans un second terminal
 ```
+
+Front (second terminal) : `cd frontend && npm install && GSMS_API_URL=http://127.0.0.1:8000 npm run dev`
+puis http://localhost:3000.
 
 Dossier d'audit d'une session (avec son échéancier) : `GET /api/v1/sessions/{id}/dossier`.
 État de préparation global sur le cycle en cours : `GET /api/v1/qualiopi/readiness`.

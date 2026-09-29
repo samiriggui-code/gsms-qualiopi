@@ -35,11 +35,14 @@ def bootstrap(user: CurrentUser, db: DB) -> dict:
     perms = permissions_of(db, user)
     features = enabled_features(db)
     org = db.scalar(select(t.Organization))
+    config = ConfigurationService(db)
     return {
         "user": {"id": user.id, "email": user.email, "full_name": user.full_name, "roles": user.roles},
         "permissions": sorted(perms),
         "features": sorted(features),
-        "organization": {"id": org.id, "name": org.name} if org else None,
+        "organization": {"id": org.id, "name": org.name,
+                         "short_name": config.get("general.brand_short_name") or org.name,
+                         "brand_color": config.get("general.brand_color")} if org else None,
         "navigation": [{"key": k, "label": label} for k, label, f, p in NAVIGATION if f in features and p in perms],
     }
 

@@ -172,3 +172,26 @@ def test_satisfaction_a_chaud_et_a_froid(demo: Session) -> None:
         service.apply(demo, first, "satisfaction_chaud", {"note": 7}, user)
     out = service.apply(demo, first, "satisfaction_chaud", {"note": "4.5", "commentaire": "Très concret"}, user)
     assert out["satisfaction"] == {"public": "APPRENANT_CHAUD", "note": "4.5"}
+
+
+def test_etat_des_etapes_et_affichage(client, demo: Session) -> None:  # noqa: ANN001
+    """Ce que le front affiche sans rien calculer : état daté de chaque étape, demi-journées à venir, identité."""
+    _, h = make_user(demo, "gestion")
+    s = find_session(demo, "SST-2026-02")  # en cours, se termine demain
+    matrix = client.get(f"/api/v1/sessions/{s.id}/parcours", headers=h).json()
+    louis = next(r for r in matrix["stagiaires"] if r["stagiaire"] == "Louis Morin")
+    assert louis["etats"]["analyse_besoin"] == "EN_RETARD", "trou I04 de la démo : échéance J-5 dépassée"
+    assert louis["etats"]["attestation"] == "A_VENIR", "encore en formation : à venir, pas « sans objet »"
+    assert louis["etats"]["convention"] == "FAIT"
+    step = next(x for x in client.get(_url(_learner(demo, "SST-2026-02", "Louis")), headers=h).json()["etapes"]
+                if x["etape"] == "attestation")
+    assert step["echeance"] == (s.end_date + timedelta(days=7)).isoformat()
+
+    sheet = client.get(f"/api/v1/sessions/{s.id}/emargement", headers=h).json()
+    futures = [c["etat"] for sl in sheet["demi_journees"] if sl["jour"] > TODAY.isoformat() for c in sl["presences"]]
+    assert futures and set(futures) == {"A_VENIR"}, "demain n'est pas un manque"
+
+    row = next(x for x in client.get("/api/v1/sessions", headers=h).json() if x["id"] == s.id)
+    assert (row["program_code"], row["trainer_name"], row["learners_count"]) == ("SST", "Julie Martin", 3)
+    org = client.get("/api/v1/bootstrap", headers=h).json()["organization"]
+    assert org["brand_color"] == "#0369a1" and org["short_name"]

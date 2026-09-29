@@ -161,7 +161,7 @@ def sheet(db: Session, s: t.TrainingSession, actor: User, now: datetime | None =
             if e not in expected:
                 state = "NON_ATTENDU"
             elif not recorded(sig):
-                state = "MANQUANT"
+                state = "A_VENIR" if sl.day > policy.today else "MANQUANT"
             else:
                 state = "PRESENT" if sig.present else "ABSENT"
             cells.append({"enrollment_id": e.id, "stagiaire": f"{e.learner.first_name} {e.learner.last_name}", "etat": state,

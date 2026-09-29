@@ -76,7 +76,8 @@ def assess(m: MilestoneDef, s: t.TrainingSession, evidence: list[Evidence], toda
     missing = [{"who": e.learner.full_name, "enrollment_id": e.id} for e in people if e.id not in done_ids]
     done = len(people) - len(missing)
     if not people:
-        status, why = "SANS_OBJET", f"Aucun apprenant au statut {', '.join(m.enrollments)}."
+        status, why = "SANS_OBJET", ("Aucun apprenant n'a encore terminé la formation." if m.enrollments == ["TERMINE"]
+                                     else "Aucun apprenant concerné.")
     elif not missing:
         status, why = "FAIT", f"{done}/{len(people)} : fait."
     elif today > due:
