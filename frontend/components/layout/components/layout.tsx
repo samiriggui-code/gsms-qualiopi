@@ -15,7 +15,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       'flex grow h-screen flex-col',
       '[--header-height:40px]',
       '[--content-header-height:54px]',
-      '[--sidebar-width:250px] [--sidebar-width-collapsed:52px] [--sidebar-header-height:54px] [--sidebar-footer-height:45px] [--sidebar-footer-collapsed-height:90px]',
+      '[--sidebar-width:250px] [--sidebar-width-collapsed:52px] [--sidebar-header-height:54px] [--sidebar-footer-height:0px] [--sidebar-footer-collapsed-height:0px]',
     ),
     ...(sidebarCollapse === true && { 'data-sidebar-collapsed': true }),
   };
