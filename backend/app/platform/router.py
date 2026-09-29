@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/v1", tags=["socle"])
 # Entrées de navigation : visibles si la fonctionnalité est active ET la permission détenue.
 NAVIGATION = (
     ("sessions", "Sessions", "training", "sessions.read"),
+    ("emargement", "Émargement", "attendance", "attendance.write"),
     ("qualite", "Qualité", "qualiopi", "quality.read"),
     ("dossiers", "Dossiers de pièces", "qualiopi", "quality.read"),
     ("journal", "Journal", "core", "journal.read"),

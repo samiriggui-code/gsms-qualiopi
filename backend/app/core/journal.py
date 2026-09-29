@@ -10,7 +10,7 @@ session de la requête, la CLI et le worker posent le leur. Sans auteur explicit
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from sqlalchemy import JSON, BigInteger, DateTime, Identity, String, event, inspect
@@ -60,7 +60,7 @@ def _table(obj: object) -> str | None:
 
 
 def _json(value: object) -> object:
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, (datetime, date, time)):
         return value.isoformat()
     if isinstance(value, Decimal):
         return str(value)

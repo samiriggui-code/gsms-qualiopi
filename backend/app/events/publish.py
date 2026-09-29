@@ -19,6 +19,7 @@ EVENT_NAMES = {
     "convocation.sent",
     "agreement.signed",
     "attendance.signed",
+    "attendance.slot_validated",
     "assessment.completed",
     "certificate.issued",
     "survey.completed",

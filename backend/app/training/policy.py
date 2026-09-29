@@ -12,6 +12,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.attendance.policy import expected_enrollments, recorded, signature_of
 from app.auth.models import User
 from app.auth.security import permissions_of
 from app.platform.decisions import ALLOW, Decision, deny
@@ -114,9 +115,8 @@ class TrainingPolicy:
         if not slots:
             details.append({"type": "AUCUN_CRENEAU", "message": "aucune demi-journée d'émargement"})
         for sl in slots:
-            signed = {sig.enrollment_id for sig in sl.signatures if sig.signed_at or sig.present is False}
-            for e in s.enrollments:
-                if e.status == "ANNULE" or (e.abandoned_on and sl.day >= e.abandoned_on) or e.id in signed:
+            for e in expected_enrollments(sl):
+                if recorded(signature_of(sl, e.id)):
                     continue
                 details.append({"type": "EMARGEMENT_MANQUANT", "creneau": f"{sl.day.isoformat()} {sl.period}", "stagiaire": _name(e)})
             if self.config.get("training.close_requires_trainer_validation", at=s.end_date) and not sl.trainer_signed_at:

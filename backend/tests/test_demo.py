@@ -63,8 +63,9 @@ def test_explication_nomme_l_apprenant_manquant(demo: Session) -> None:
 def test_emargement_abandon_compte_jusqu_a_sa_date(demo: Session) -> None:
     s = _session(demo, "SSIAP1-2026-01")
     r = demo.scalar(select(ControlResult).where(ControlResult.control_key == "I12.attendance", ControlResult.target_id == s.id))
-    # 12 × 10 demi-journées + 4 pour l'abandon (jusqu'au 2e jour) ; 2 signatures manquent.
-    assert r.observed == "122/124 signatures (98%)"
+    # 12 × 10 demi-journées + 3 pour l'abandon (parti le 2e jour à midi : l'après-midi n'est plus
+    # attendue) ; seule la demi-journée de Chloé Blanc manque.
+    assert r.observed == "122/123 signatures (99%)"
 
 
 def test_abandon_absent_n_est_pas_un_trou(demo: Session) -> None:
@@ -113,7 +114,7 @@ def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN
     body = r.json()
     lines = {line["label"]: line for line in body["checklist"]}
     assert (lines["Positionnements"]["done"], lines["Positionnements"]["total"]) == (11, 12)
-    assert (lines["Émargements"]["done"], lines["Émargements"]["total"]) == (122, 124)
+    assert (lines["Émargements"]["done"], lines["Émargements"]["total"]) == (122, 123)
     assert (lines["Satisfaction à chaud"]["done"], lines["Satisfaction à chaud"]["total"]) == (10, 12)
     by_number = {i["number"]: i for i in body["indicators"]}
     assert by_number[8]["status"] == "A_RISQUE"

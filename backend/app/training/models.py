@@ -4,10 +4,10 @@ Ces tables ne connaissent pas Qualiopi. Elles produisent les données que le mot
 transforme en preuves potentielles. Schéma PostgreSQL : `formation`.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, new_id
@@ -180,6 +180,8 @@ class Enrollment(TimestampMixin, Base):
     funding: Mapped[str | None] = mapped_column(String(60))
     abandoned_on: Mapped[date | None] = mapped_column(Date)
     abandon_reason: Mapped[str | None] = mapped_column(Text)
+    # Lien personnel d'émargement envoyé au stagiaire : seule son empreinte est conservée.
+    sign_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
     session: Mapped[TrainingSession] = relationship(back_populates="enrollments")
     learner: Mapped[Learner] = relationship()
@@ -269,7 +271,12 @@ class AttendanceSlot(TimestampMixin, Base):
     session_id: Mapped[str] = mapped_column(fk("session"))
     day: Mapped[date] = mapped_column(Date)
     period: Mapped[str] = mapped_column(String(10), default="MATIN")  # MATIN | APRES_MIDI
+    start_time: Mapped[time | None] = mapped_column(Time)  # heure locale (réglage attendance.slots)
+    end_time: Mapped[time | None] = mapped_column(Time)
     trainer_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trainer_signed_by: Mapped[str | None] = mapped_column(String(200))
+    # Code du créneau affiché en salle (QR imprimé) : seule son empreinte est conservée.
+    code_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
     session: Mapped[TrainingSession] = relationship(back_populates="attendance_slots")
     signatures: Mapped[list["AttendanceSignature"]] = relationship(back_populates="slot", cascade="all, delete-orphan")
@@ -284,6 +291,11 @@ class AttendanceSignature(TimestampMixin, Base):
     enrollment_id: Mapped[str] = mapped_column(fk("enrollment"))
     present: Mapped[bool] = mapped_column(Boolean, default=True)
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # CODE_CRENEAU (le stagiaire signe avec le code de la salle et son lien personnel),
+    # FORMATEUR (présence ou absence constatée), CORRECTION (après coup, motivée).
+    method: Mapped[str | None] = mapped_column(String(20))
+    recorded_by: Mapped[str | None] = mapped_column(String(200))
+    note: Mapped[str | None] = mapped_column(Text)  # motif d'absence ou de correction
 
     slot: Mapped[AttendanceSlot] = relationship(back_populates="signatures")
     enrollment: Mapped[Enrollment] = relationship(back_populates="signatures")

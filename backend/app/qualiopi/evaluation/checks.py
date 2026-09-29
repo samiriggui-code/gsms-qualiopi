@@ -176,7 +176,7 @@ def check_attendance_tracking(ctx: EvalContext, target: Target, params: dict) ->
     if not rows:
         return Outcome("PREUVES_INSUFFISANTES", "feuilles d'émargement des demi-journées réalisées", "aucune demi-journée émargée",
                        f"Aucune feuille d'émargement pour la session {s.reference}.", [], [{"who": s.reference, "reason": "aucun créneau d'émargement"}], True)
-    signed = sum(int(e.facts.get("signed", 0)) for e in rows)
+    signed = sum(int(e.facts.get("recorded", e.facts.get("signed", 0))) for e in rows)
     expected_total = sum(int(e.facts.get("expected", 0)) for e in rows)
     ratio = signed / expected_total if expected_total else 0
     threshold = float(params.get("min_signed_ratio", 0.9))

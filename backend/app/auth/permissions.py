@@ -24,6 +24,7 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("sessions.read", "Consulter formations, sessions et inscriptions", "training"),
     Permission("sessions.write", "Créer et modifier formations, sessions et inscriptions", "training"),
     Permission("trainers.write", "Gérer les formateurs et déposer leurs pièces", "training"),
+    Permission("attendance.write", "Organiser l'émargement, constater présences et absences, contre-valider", "attendance"),
     Permission("quality.read", "Consulter l'état Qualiopi, les dossiers de pièces et les audits", "qualiopi"),
     Permission("quality.write", "Déposer les pièces de l'organisme, réévaluer, gérer les cycles", "qualiopi"),
     Permission("evidence.validate", "Valider ou rejeter des preuves, attester les revues d'indicateurs", "qualiopi"),
@@ -45,9 +46,10 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
         "sessions.read", "quality.read", "quality.write", "journal.read",
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
-        "sessions.read", "sessions.write", "trainers.write", "quality.read", "journal.read",
+        "sessions.read", "sessions.write", "trainers.write", "attendance.write", "quality.read", "journal.read",
     })),
-    "formateur": ("Formateur : consulte les sessions", frozenset({"sessions.read"})),
+    "formateur": ("Formateur : consulte les sessions, tient et contre-valide l'émargement",
+                  frozenset({"sessions.read", "attendance.write"})),
     "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read"})),
 }
 

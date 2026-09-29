@@ -34,7 +34,7 @@ def session_dossier(db: Session, version: ReferentialVersion, session_id: str) -
     session_evidence = list(db.scalars(select(Evidence).where(Evidence.session_id == s.id, Evidence.status != "RETIREE")))
     # Même source que le contrôle I12 : les preuves d'émargement (abandons comptés jusqu'à leur date).
     attendance = [e for e in session_evidence if e.evidence_type == "ATTENDANCE"]
-    signed = sum(int(e.facts.get("signed", 0)) for e in attendance)
+    signed = sum(int(e.facts.get("recorded", e.facts.get("signed", 0))) for e in attendance)  # absences constatées comprises
     expected_sigs = sum(int(e.facts.get("expected", 0)) for e in attendance)
     surveys = list(db.scalars(select(t.SatisfactionSurvey).where(t.SatisfactionSurvey.session_id == s.id)))
     hot = {sv.enrollment_id for sv in surveys if sv.audience == "APPRENANT_CHAUD" and sv.answered_on}

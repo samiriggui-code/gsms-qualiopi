@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.attendance.router import router as attendance_router
 from app.auth.router import router as auth_router
 from app.core.config import get_settings
 from app.core.db import get_engine
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_router)
     app.include_router(platform_router)
     app.include_router(training_router)
+    app.include_router(attendance_router)
 
     @app.get("/health", tags=["system"])
     def health() -> dict:
