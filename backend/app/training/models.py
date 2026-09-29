@@ -421,3 +421,7 @@ class Document(TimestampMixin, Base):
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     signed_by: Mapped[str | None] = mapped_column(String(200))
     indicator_hints: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # Pièce d'un dossier (code de config/dossiers) ; entity_type = ORGANISME | FORMATEUR
+    requirement: Mapped[str | None] = mapped_column(String(60), index=True)
+    original_name: Mapped[str | None] = mapped_column(String(250))
+    size_bytes: Mapped[int | None] = mapped_column(Integer)

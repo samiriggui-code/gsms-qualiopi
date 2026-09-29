@@ -38,6 +38,12 @@ def test_un_constat_par_trou(demo: Session) -> None:
     assert demo.scalar(select(func.count()).select_from(Finding)) == len(PLANTED_GAPS)
 
 
+def test_i18_i19_verifies_par_le_dossier_de_pieces(demo: Session) -> None:
+    rows = {i["number"]: i for i in indicator_readiness(demo, demo.info["version"])}
+    assert rows[19]["status"] == "DEMONTRABLE" and rows[19]["automated"]
+    assert rows[18]["status"] == "PREUVES_INSUFFISANTES"
+
+
 def test_reevaluation_idempotente(demo: Session) -> None:
     stats = refresh_all(demo, trigger="test", today=TODAY)
     demo.commit()
@@ -73,7 +79,7 @@ def test_etats_des_indicateurs_sans_controle_actif(demo: Session) -> None:
     for n in (13, 14, 15, 29):
         assert rows[n]["status"] == "NON_APPLICABLE", n
     # Revue humaine seule : jamais « non évaluable ».
-    for n in (18, 19, 28):
+    for n in (28,):
         assert rows[n]["status"] == "NON_EVALUE" and rows[n]["human_validation_required"], n
     assert not any(i["status"] == "NON_EVALUABLE" for i in rows.values())
 

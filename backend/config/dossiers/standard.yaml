@@ -1,0 +1,48 @@
+# Dossiers de pièces attendues (idée reprise de gsms-school-aps : DocumentRequirementTemplate).
+# Une pièce déposée devient une preuve du moteur, reliée aux indicateurs listés.
+#
+#   subject        ORGANISME | FORMATEUR | FORMATION
+#   evidence       type de preuve produit quand la pièce est déposée
+#   indicators     indicateurs Qualiopi que la pièce sert
+#   validity_days  durée de validité après dépôt (absent = sans expiration)
+#   required       false = pièce utile mais non bloquante
+dossiers:
+  ORGANISME:
+    label: Dossier qualité de l'organisme
+    items:
+      - code: ORGANIGRAMME
+        label: Organigramme et rôles pédagogiques
+        evidence: ORG_DOCUMENT
+        indicators: [18]
+        validity_days: 365
+      - code: CR_REUNION_PEDAGOGIQUE
+        label: Compte rendu de réunion pédagogique
+        evidence: ORG_DOCUMENT
+        indicators: [18]
+        validity_days: 365
+      - code: CATALOGUE_RESSOURCES
+        label: Inventaire des ressources et supports pédagogiques
+        evidence: ORG_DOCUMENT
+        indicators: [19]
+        validity_days: 365
+      - code: PROCEDURE_RECLAMATIONS
+        label: Procédure de traitement des réclamations
+        evidence: PROCEDURE
+        indicators: [31]
+      - code: REGLEMENT_INTERIEUR
+        label: Règlement intérieur applicable aux stagiaires
+        evidence: ORG_DOCUMENT
+        indicators: [9]
+  FORMATEUR:
+    label: Dossier formateur
+    items:
+      - code: CV
+        label: Curriculum vitae à jour
+        evidence: TRAINER_DOCUMENT
+        indicators: [21]
+        validity_days: 730
+      - code: CHARTE_FORMATEUR
+        label: Charte ou contrat d'intervention signé
+        evidence: TRAINER_DOCUMENT
+        indicators: [21]
+        required: false

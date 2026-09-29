@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError
 from app.core.journal import set_actor
+from app.documents.service import upload
 from app.training import models as t
 
 ACTOR = "démo"
@@ -50,6 +51,7 @@ PLANTED_GAPS = (
     Gap("I10.adaptations", "SST-2026-02", "PREUVES_INSUFFISANTES", "adaptation demandée, non traitée"),
     Gap("I12.attendance", "SSIAP1-2026-01", "A_RISQUE", "une demi-journée non signée par Chloé Blanc"),
     Gap("I12.dropouts", "SSIAP1-2026-01", "PREUVES_INSUFFISANTES", "abandon sans motif"),
+    Gap("I18.coordination-documents", "organisme", "PREUVES_INSUFFISANTES", "compte rendu de réunion pédagogique non déposé"),
     Gap("I20.disability-referent", "organisme", "PREUVES_INSUFFISANTES", "référent handicap sans coordonnées"),
     Gap("I21.trainer-qualification", "SST-2026-02", "PREUVES_INSUFFISANTES", "qualification du formateur expirée avant le début"),
     Gap("I24.watch-jobs", "organisme", "PREUVES_INSUFFISANTES", "veille métiers notée mais non exploitée"),
@@ -100,6 +102,11 @@ def _doc(db: Session, kind: str, title: str, **kw) -> t.Document:  # noqa: ANN00
     return doc
 
 
+def _pdf(title: str) -> bytes:
+    """PDF minimal et valide (démo uniquement)."""
+    return f"%PDF-1.4\n% GSMS démo : {title}\n%%EOF\n".encode()
+
+
 def _slots(db: Session, s: t.TrainingSession, days: list[date]) -> list[t.AttendanceSlot]:
     slots = []
     for d in days:
@@ -134,10 +141,16 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     def d(days: int) -> date:
         return today + timedelta(days=days)
 
-    db.add(t.Organization(
+    org = t.Organization(
         name="Organisme de démonstration", nda_number="00 00 00000 00", siret="00000000000000",
         action_categories=["AF"], disability_referent_name="Nadia Roux", created_by=ACTOR,
-    ))  # trou : référent handicap sans e-mail (I20)
+    )  # trou : référent handicap sans e-mail (I20)
+    db.add(org)
+    db.flush()
+    # Dossier qualité : organigramme et inventaire déposés ; trou I18 : pas de compte rendu de réunion pédagogique.
+    for code in ("ORGANIGRAMME", "CATALOGUE_RESSOURCES"):
+        upload(db, subject="ORGANISME", subject_id=org.id, requirement=code, content=_pdf(code),
+               filename=f"{code.lower()}.pdf", mime="application/pdf")
     db.add(t.PartnerNetwork(kind="HANDICAP", name="Réseau handicap du département", last_contact_on=d(-60), created_by=ACTOR))
     db.add(t.WatchItem(domain="LEGALE", title="Réforme du financement de la formation", noted_on=d(-45),
                        exploitation="Conditions générales mises à jour", exploited_on=d(-30), created_by=ACTOR))
@@ -181,6 +194,8 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     db.add(t.TrainerQualification(trainer_id=julie.id, label="Formatrice SST", obtained_on=d(-800), valid_until=d(-10),
                                   document_id=_doc(db, "JUSTIFICATIF", "Certificat formatrice SST — J. Martin").id,
                                   created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
+    upload(db, subject="FORMATEUR", subject_id=karim.id, requirement="CV", content=_pdf("CV K. Benali"),
+           filename="cv-karim-benali.pdf", mime="application/pdf")
     db.add(t.StaffDevelopmentAction(trainer_id=karim.id, label="Recyclage pédagogique", planned_on=d(-120),
                                     completed_on=d(-100), created_by=ACTOR))
 

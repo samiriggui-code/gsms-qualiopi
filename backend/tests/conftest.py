@@ -9,6 +9,7 @@ Variable : TEST_DATABASE_URL = URL d'une base d'administration (par défaut `pos
 from __future__ import annotations
 
 import os
+import tempfile
 import uuid
 from collections.abc import Iterator
 from datetime import date
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from app.auth.models import User
 
 os.environ.setdefault("JWT_SECRET", "secret-de-test-assez-long-pour-hs256-0123456789")
+os.environ.setdefault("DOCUMENTS_DIR", tempfile.mkdtemp(prefix="gsms-docs-"))
 
 from app.core import db as core_db  # noqa: E402
 from app.models import SCHEMAS  # noqa: E402

@@ -30,6 +30,7 @@ KNOWN_CHECKS = {
     "subcontractors",
     "complaints",
     "procedure_documented",
+    "required_documents",
 }
 
 

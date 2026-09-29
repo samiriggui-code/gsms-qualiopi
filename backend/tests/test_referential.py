@@ -22,7 +22,7 @@ def test_parse_32_indicateurs_7_criteres() -> None:
     assert parsed.upstream_ref and len(parsed.upstream_ref) == 40
     # Les 7 indicateurs sans contrôle automatique sont signalés, pas masqués.
     sans_controle = sorted(int(w[1:3]) for w in parsed.warnings)
-    assert sans_controle == [13, 14, 15, 18, 19, 28, 29]
+    assert sans_controle == [13, 14, 15, 28, 29]
 
 
 def test_import_en_base_puis_reimport_idempotent(db: Session) -> None:

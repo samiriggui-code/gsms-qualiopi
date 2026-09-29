@@ -420,6 +420,9 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
             facts={"verified": capa.verified_at is not None},
         )
     for d in db.scalars(select(t.Document).where(t.Document.status != "REMPLACE")):
+        if d.requirement:
+            yield _dossier_piece(d)
+            continue
         if not d.indicator_hints:
             continue
         yield EvidenceSpec(
@@ -436,6 +439,31 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
             declared_indicators=list(d.indicator_hints),
             form_issues=[] if d.status in ("EMIS", "SIGNE") else ["document au statut brouillon"],
         )
+
+
+def _dossier_piece(d: t.Document) -> EvidenceSpec:
+    """Pièce d'un dossier (config/dossiers) : preuve du type et des indicateurs du modèle."""
+    from datetime import timedelta
+
+    from app.documents.dossier import find_item
+
+    item = find_item(d.entity_type, d.requirement)
+    deposited = d.created_at.date() if d.created_at else None
+    valid_until = deposited + timedelta(days=item.validity_days) if (deposited and item.validity_days) else None
+    return EvidenceSpec(
+        evidence_type=item.evidence,
+        label=f"{item.label} (v{d.version})",
+        scope="FORMATEUR" if d.entity_type == "FORMATEUR" else "ORGANISME",
+        source_table="formation.document",
+        source_id=d.id,
+        trainer_id=d.entity_id if d.entity_type == "FORMATEUR" else None,
+        produced_on=deposited,
+        produced_by=d.created_by,
+        valid_until=valid_until,
+        document_id=d.id,
+        facts={"requirement": d.requirement, "subject": d.entity_type, "subject_id": d.entity_id, "version": d.version},
+        declared_indicators=list(item.indicators),
+    )
 
 
 def load_sessions(db: Session, session_id: str | None = None) -> list[t.TrainingSession]:

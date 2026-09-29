@@ -329,6 +329,34 @@ def check_procedure_documented(ctx: EvalContext, target: Target, params: dict) -
                    f"Nouvel entrant : déposer la procédure décrivant le processus de l'indicateur {n}.", [e.id for e in rows], [{"who": "organisme", "reason": "procédure absente"}], True)
 
 
+def check_required_documents(ctx: EvalContext, target: Target, params: dict) -> Outcome:
+    """Pièces requises du dossier organisme : présentes, exploitables et non expirées."""
+    items: list[str] = params["items"]
+    rows = [e for e in ctx.evidence if e.source_table == "formation.document" and e.status != "RETIREE"
+            and e.facts.get("subject") == params.get("dossier", "ORGANISME")]
+    by_item: dict[str, list[Evidence]] = defaultdict(list)
+    for e in rows:
+        by_item[e.facts.get("requirement")].append(e)
+    good, missing = [], []
+    for code in items:
+        found = by_item.get(code, [])
+        ok = [e for e in found if usable(e)]
+        if ok:
+            good.extend(ok)
+        else:
+            reason = "pièce expirée" if any(e.status == "EXPIREE" for e in found) else (
+                "pièce rejetée" if any(e.status == "REJETEE" for e in found) else "pièce non déposée")
+            missing.append({"who": code, "reason": reason})
+    expected = f"pièces {', '.join(items)} déposées et valides"
+    observed = f"{len(items) - len(missing)}/{len(items)}"
+    if not missing:
+        return Outcome("DEMONTRABLE", expected, observed, f"Pièces : {', '.join(e.reference for e in good)}.",
+                       [e.id for e in good], [], _needs_human(good))
+    return Outcome("PREUVES_INSUFFISANTES", expected, observed,
+                   "À déposer : " + ", ".join(f"{m['who']} ({m['reason']})" for m in missing) + ".",
+                   [e.id for e in good], missing, True)
+
+
 CHECKS: dict[str, Callable[[EvalContext, Target, dict], Outcome]] = {
     "per_enrollment_evidence": check_per_enrollment_evidence,
     "session_evidence": check_session_evidence,
@@ -339,4 +367,5 @@ CHECKS: dict[str, Callable[[EvalContext, Target, dict], Outcome]] = {
     "subcontractors": check_subcontractors,
     "complaints": check_complaints,
     "procedure_documented": check_procedure_documented,
+    "required_documents": check_required_documents,
 }

@@ -230,11 +230,27 @@ indicators:
   18:
     title: Coordination des différents intervenants
     scope: ORGANISME
-    human_review: Revue humaine (organigramme, réunions pédagogiques).
+    # Liaison par le dossier de pièces (indicateurs déclarés par pièce), pas par type.
+    human_review: Vérifier que la coordination est réelle (contenu des comptes rendus, rôles connus des intervenants).
+    controls:
+      - key: I18.coordination-documents
+        label: Organigramme et compte rendu de réunion pédagogique déposés depuis moins d'un an
+        check: required_documents
+        params: { dossier: ORGANISME, items: [ORGANIGRAMME, CR_REUNION_PEDAGOGIQUE] }
+        severity: majeure
+        remediation: Déposer les pièces manquantes dans le dossier qualité de l'organisme.
   19:
     title: Ressources pédagogiques mises à disposition
     scope: ORGANISME
-    human_review: Revue humaine (supports, plateformes).
+    # Liaison par le dossier de pièces (indicateurs déclarés par pièce), pas par type.
+    human_review: Vérifier que les ressources sont réellement accessibles aux bénéficiaires.
+    controls:
+      - key: I19.resources-documents
+        label: Inventaire des ressources pédagogiques déposé depuis moins d'un an
+        check: required_documents
+        params: { dossier: ORGANISME, items: [CATALOGUE_RESSOURCES] }
+        severity: majeure
+        remediation: Déposer l'inventaire des ressources et supports pédagogiques.
   20:
     title: Référent handicap, mobilité, conseil de perfectionnement
     scope: ORGANISME
