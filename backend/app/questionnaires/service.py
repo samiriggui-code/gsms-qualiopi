@@ -61,9 +61,17 @@ def _invitation(db: Session, token: str, today: date) -> Invitation:
     return inv
 
 
-def _values(db: Session, e: t.Enrollment) -> dict[str, str]:
-    prereq = [p for p in (e.session.program.prerequisites or []) if p.strip().lower() != "aucun"]
-    return {"prerequis": ", ".join(prereq) if prereq else "aucun prérequis particulier", "stagiaire": e.learner.full_name}
+def _prerequisites(e: t.Enrollment) -> list[str]:
+    return [p for p in (e.session.program.prerequisites or []) if p.strip().lower() != "aucun"]
+
+
+def _values(e: t.Enrollment) -> dict[str, str]:
+    return {"prerequis": ", ".join(_prerequisites(e)), "stagiaire": e.learner.full_name}
+
+
+def _skip(e: t.Enrollment) -> frozenset[str]:
+    """Sans prérequis, la question n'a pas de sens : elle n'est pas posée."""
+    return frozenset() if _prerequisites(e) else frozenset({"prerequis"})
 
 
 def public_view(db: Session, token: str, today: date | None = None) -> dict:
@@ -80,7 +88,7 @@ def public_view(db: Session, token: str, today: date | None = None) -> dict:
         "formation": s.program.title,
         "session": {"reference": s.reference, "debut": s.start_date.isoformat(), "fin": s.end_date.isoformat()},
         "pour": e.learner.first_name if inv.respondent == "STAGIAIRE" else None,
-        "questionnaire": definitions.personalised(q, _values(db, e)),
+        "questionnaire": definitions.personalised(q, _values(e), _skip(e)),
         "expire_le": inv.expires_on.isoformat(),
     }
 
@@ -93,8 +101,8 @@ def submit(db: Session, token: str, answers: dict, today: date | None = None) ->
     today = today or date.today()
     inv = _invitation(db, token, today)
     q = definitions.load(inv.kind)
-    clean = definitions.check(q, answers or {})
     e = db.get(t.Enrollment, inv.enrollment_id)
+    clean = definitions.check(q, answers or {}, _skip(e))
     s = e.session
     who = f"{e.learner.full_name} (questionnaire en ligne)" if inv.respondent == "STAGIAIRE" else "Entreprise (questionnaire en ligne)"
     set_actor(db, who)
@@ -116,7 +124,7 @@ def submit(db: Session, token: str, answers: dict, today: date | None = None) ->
             pos.completed_on = today
             pos.method = "Questionnaire en ligne (auto-positionnement)"
             pos.level = f"{clean['niveau']}/5 (auto-évaluation), expérience : {clean['experience']}"
-            pos.prerequisites_met = clean["prerequis"]
+            pos.prerequisites_met = clean.get("prerequis", True)  # sans prérequis : rien à remplir
             e.positioning = pos
             db.flush()
             publish(db, "positioning.completed", "positioning", pos.id, **base)

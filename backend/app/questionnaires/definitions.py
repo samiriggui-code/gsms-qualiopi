@@ -51,7 +51,7 @@ def load(code: str) -> Questionnaire:
     raise KeyError(code)
 
 
-def personalised(q: Questionnaire, values: dict[str, str]) -> dict:
+def personalised(q: Questionnaire, values: dict[str, str], skip: frozenset[str] = frozenset()) -> dict:
     """Le questionnaire tel qu'affiché (prérequis de la formation, nom du stagiaire…)."""
     def fill(text: str) -> str:
         for k, v in values.items():
@@ -60,16 +60,16 @@ def personalised(q: Questionnaire, values: dict[str, str]) -> dict:
 
     return {
         "code": q.code, "version": q.version, "titre": q.titre, "introduction": fill(q.introduction),
-        "questions": [x.model_dump(exclude_none=True) | {"libelle": fill(x.libelle)} for x in q.questions],
+        "questions": [x.model_dump(exclude_none=True) | {"libelle": fill(x.libelle)} for x in q.questions if x.id not in skip],
     }
 
 
-def check(q: Questionnaire, answers: dict) -> dict:
+def check(q: Questionnaire, answers: dict, skip: frozenset[str] = frozenset()) -> dict:
     """Réponses nettoyées, ou refus précis (champ par champ)."""
     clean: dict = {}
     errors: dict[str, str] = {}
     for x in q.questions:
-        if x.si and any(answers.get(k) != v for k, v in x.si.items()):
+        if x.id in skip or x.si and any(answers.get(k) != v for k, v in x.si.items()):
             continue  # question non affichée
         v = answers.get(x.id)
         if v in (None, "") or (isinstance(v, str) and not v.strip()):

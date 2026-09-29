@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { E2E_JWT_SECRET } from "./e2e/env";
+
 // Tests de bout en bout sur la vraie API GSMS et une base de démo neuve (e2e/seed_e2e.py).
 // Prérequis : PostgreSQL local et l'environnement Python du backend (requirements-dev.txt).
 const API_PORT = 8100;
@@ -7,7 +9,7 @@ const WEB_PORT = 3100;
 const python = process.env.GSMS_PYTHON ?? "python3";
 const backendEnv = {
   DATABASE_URL: process.env.GSMS_E2E_DATABASE_URL ?? "postgresql+psycopg://postgres:postgres@localhost:5432/gsms_e2e",
-  JWT_SECRET: "secret-e2e-assez-long-pour-hs256-0123456789-abcdef",
+  JWT_SECRET: E2E_JWT_SECRET,
   DOCUMENTS_DIR: "/tmp/gsms-e2e-documents",
   APP_ENV: "development",
   CORS_ORIGINS: `http://localhost:${WEB_PORT}`,

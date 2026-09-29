@@ -51,8 +51,7 @@ def test_besoin_et_positionnement_par_le_stagiaire(client, demo: Session) -> Non
     assert r.status_code == 200, r.text
     view = r.json()
     assert view["pour"] == "Éric" and view["session"]["reference"] == "SST-2026-04"
-    prereq = next(q for q in view["questionnaire"]["questions"] if q["id"] == "prerequis")
-    assert "{prerequis}" not in prereq["libelle"]
+    assert "prerequis" not in {q["id"] for q in view["questionnaire"]["questions"]}, "SST : aucun prérequis, rien à demander"
     inv = demo.scalar(select(Invitation).where(Invitation.kind == "BESOIN_POSITIONNEMENT",
                                                Invitation.enrollment_id == eric.enrollment_id))
     demo.refresh(inv)
@@ -141,3 +140,14 @@ def test_convocation_transmise_par_lien_signe(client, demo: Session, outbox) -> 
     plan(demo, s.start_date - timedelta(days=5))
     demo.commit()
     assert len(_messages(demo, "document.convocation")) == 1, "transmise une fois : pas de relance"
+
+
+def test_prerequis_de_la_formation_demandes_quand_il_y_en_a(demo: Session) -> None:
+    e = find_session(demo, "SSIAP1-2026-03").enrollments[0]
+    inv = service.get_or_create(demo, e, "BESOIN_POSITIONNEMENT", find_session(demo, "SSIAP1-2026-03").start_date)
+    view = service.public_view(demo, service.link(inv).rsplit("/", 1)[1], today=inv.created_at.date())
+    [q] = [x for x in view["questionnaire"]["questions"] if x["id"] == "prerequis"]
+    assert q["libelle"] == ("Remplissez-vous les prérequis de la formation : Aptitude médicale, "
+                            "Secourisme SST ou PSC1 en cours de validité ?")
+    service.submit(demo, service.link(inv).rsplit("/", 1)[1], BESOIN | {"prerequis": False}, today=inv.created_at.date())
+    assert e.positioning.prerequisites_met is False
