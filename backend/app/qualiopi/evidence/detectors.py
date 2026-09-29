@@ -426,8 +426,8 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
         if d.requirement:
             yield _dossier_piece(d)
             continue
-        if not d.indicator_hints:
-            continue
+        if not d.indicator_hints or d.entity_type == "INSCRIPTION":
+            continue  # document d'un stagiaire : porté par sa preuve (convocation, attestation)
         yield EvidenceSpec(
             evidence_type="PROCEDURE" if d.kind == "PROCEDURE" else "DOCUMENT",
             label=f"{d.title} (v{d.version})",

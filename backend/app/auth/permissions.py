@@ -24,6 +24,8 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("sessions.read", "Consulter toutes les formations, sessions et inscriptions", "training"),
     Permission("sessions.read_own", "Consulter ses propres sessions (formateur relié à son compte)", "training"),
     Permission("sessions.write", "Créer et modifier formations, sessions et inscriptions", "training"),
+    Permission("enrollments.write", "Mener le parcours des stagiaires : convention, convocation, statut, attestation", "training"),
+    Permission("learners.assess", "Positionner et évaluer les stagiaires, recueillir leur satisfaction", "training"),
     Permission("trainers.write", "Gérer les formateurs et déposer leurs pièces", "training"),
     Permission("attendance.write", "Organiser l'émargement, constater présences et absences, contre-valider", "attendance"),
     Permission("quality.read", "Consulter l'état Qualiopi, les dossiers de pièces et les audits", "qualiopi"),
@@ -51,13 +53,13 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
         "sessions.read", "quality.read", "quality.write", "journal.read",
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
-        "sessions.read", "sessions.write", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read",
+        "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read",
     })),
     "financement": ("Financement : dossiers CPF, OPCO, France Travail, entreprises", frozenset({
         "sessions.read", "funding.read", "funding.write", "journal.read",
     })),
-    "formateur": ("Formateur : ses propres sessions, tient et contre-valide leur émargement",
-                  frozenset({"sessions.read_own", "attendance.write"})),
+    "formateur": ("Formateur : ses propres sessions, émargement, positionnement, évaluations, satisfaction à chaud",
+                  frozenset({"sessions.read_own", "attendance.write", "learners.assess"})),
     "rh": ("Ressources humaines : personnel, contrats, absences, titres des formateurs", frozenset({
         "sessions.read", "trainers.write", "staff.read", "staff.write", "journal.read",
     })),
