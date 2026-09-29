@@ -79,6 +79,8 @@ class EvidenceValidation(Base):
     evidence_id: Mapped[str] = mapped_column(ForeignKey("qualite.evidence.id", ondelete="CASCADE"))
     decision: Mapped[str] = mapped_column(String(20))  # VALIDEE | REJETEE
     comment: Mapped[str | None] = mapped_column(Text)
+    # Réponses à la grille de relecture de la pièce, avec la question telle qu'elle était posée.
+    checklist: Mapped[dict | None] = mapped_column(JSON)
     source_hash: Mapped[str] = mapped_column(String(64))  # l'état exact validé
     by_user_id: Mapped[str] = mapped_column(String(36))
     by_name: Mapped[str] = mapped_column(String(200))

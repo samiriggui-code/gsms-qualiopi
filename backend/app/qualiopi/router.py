@@ -98,11 +98,12 @@ def get_session_dossier(session_id: str, db: DB, _: Reader) -> dict:
 class ValidationIn(BaseModel):
     decision: str  # VALIDEE | REJETEE
     comment: str | None = None
+    checklist: dict[str, str] | None = None  # code du point → OUI | NON | SANS_OBJET
 
 
 @router.post("/evidence/{evidence_id}/validation")
 def validate_evidence(evidence_id: str, body: ValidationIn, db: DB, user: EvidenceValidator) -> dict:
-    ev = validate(db, evidence_id, body.decision, body.comment, user.id, user.full_name)
+    ev = validate(db, evidence_id, body.decision, body.comment, user.id, user.full_name, checklist=body.checklist)
     db.commit()
     return {"id": ev.id, "reference": ev.reference, "status": ev.status}
 

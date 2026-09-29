@@ -11,6 +11,7 @@ from app.auth.models import User
 from app.auth.security import DB, PERMISSIONS, CurrentUser, Reader
 from app.core.errors import NotFoundError
 from app.documents import storage
+from app.documents.dossier import modele_text
 from app.documents.service import dossier_status, request_document, upload
 from app.training import models as t
 
@@ -35,6 +36,13 @@ async def upload_piece(subject: str, subject_id: str, requirement: str, db: DB, 
                  filename=file.filename or requirement, mime=file.content_type or "", actor_id=user.id)
     db.commit()
     return {"id": doc.id, "version": doc.version, "sha256": doc.sha256, "size": doc.size_bytes}
+
+
+@router.get("/dossiers/{subject}/modeles/{requirement}")
+def download_modele(subject: str, requirement: str, _: Reader) -> Response:
+    """Trame de rédaction de la pièce (Markdown), à compléter puis à déposer."""
+    return Response(modele_text(subject, requirement), media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{requirement}.md"'})
 
 
 @router.get("/dossiers/{subject}/{subject_id}")

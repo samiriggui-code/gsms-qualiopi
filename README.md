@@ -6,7 +6,7 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 1er novembre 2026) et explique
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-**Statut : jalons 1 et 1 bis terminés** — socle exécutable et prouvé (API, moteur, démo, 85 tests, Docker, CI)
+**Statut : jalons 1 et 1 bis terminés** — socle exécutable et prouvé (API, moteur, démo, 91 tests, Docker, CI)
 et les cinq briques manquantes du moteur. Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
 
 ## Architecture
@@ -28,7 +28,7 @@ Un monolithe, un worker, une base.
 | `app/qualiopi/audit/`, `capa/` | Audit interne figé et comparable ; CAPA clôturée seulement si le contrôle passe |
 | `app/events/`, `app/qualiopi/engine.py`, `app/worker.py` | Outbox et réévaluation ciblée |
 | `app/qualiopi/schedule/` + `config/circuits/` | Échéancier : jalons J-15 → J+45 par session, à venir / à échéance / en retard |
-| `app/documents/` + `config/dossiers/` | Dossiers de pièces : dépôt SHA-256, versions, demandes ; une pièce devient une preuve |
+| `app/documents/` + `config/dossiers/` | Dossiers de pièces : dépôt SHA-256, versions, demandes, trames de rédaction et grilles de relecture ; une pièce devient une preuve, validée seulement si sa grille est satisfaite |
 | `app/qualiopi/review/` | Revue humaine attestée par indicateur (conclusion, justification, validité) |
 | `app/qualiopi/cycle/` | Cycle de certification : période évaluée pour l'état global et l'échantillon d'audit |
 | `app/core/journal.py` | Journal des modifications métier : qui, quoi, quand, champ par champ |

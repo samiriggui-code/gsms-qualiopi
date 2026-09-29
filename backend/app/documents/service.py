@@ -113,6 +113,7 @@ def dossier_status(db: Session, subject: str, subject_id: str, today: date | Non
             state = {"VALIDEE": "VALIDEE", "REJETEE": "REJETEE", "EXPIREE": "EXPIREE"}.get(ev.status, "RECUE")
         items.append({
             "code": item.code, "label": item.label, "required": item.required, "indicators": item.indicators, "state": state,
+            "modele": bool(item.modele), "grille": [g.model_dump() for g in item.grille],
             "document": {"id": doc.id, "version": doc.version, "sha256": doc.sha256, "name": doc.original_name,
                          "uploaded_at": doc.created_at.isoformat(), "by": doc.created_by} if doc else None,
             "evidence": {"reference": ev.reference, "status": ev.status, "valid_until": ev.valid_until.isoformat() if ev.valid_until else None} if ev else None,

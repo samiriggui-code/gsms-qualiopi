@@ -269,7 +269,58 @@ def _sync_links(ev: Evidence, spec: EvidenceSpec, index: dict[str, list[int]], v
             ev.links.remove(link)
 
 
-def validate(db: Session, evidence_id: str, decision: str, comment: str | None, user_id: str, user_name: str) -> Evidence:
+ANSWERS = ("OUI", "NON", "SANS_OBJET")
+
+
+def _grid_of(ev: Evidence) -> list:
+    """Grille de relecture de la pièce de dossier dont vient la preuve (vide sinon)."""
+    from app.documents.dossier import find_item
+
+    requirement, subject = ev.facts.get("requirement"), ev.facts.get("subject")
+    if ev.source_table != "formation.document" or not requirement or not subject:
+        return []
+    try:
+        return find_item(subject, requirement).grille
+    except NotFoundError:  # pièce retirée de la configuration : plus de grille à appliquer
+        return []
+
+
+def _check_grid(grid: list, checklist: dict[str, str] | None, decision: str, comment: str | None) -> dict | None:
+    if not grid:
+        if checklist:
+            raise InvalidStateError("Cette preuve n'a pas de grille de relecture")
+        return None
+    if checklist is None:
+        if decision == "VALIDEE":
+            raise InvalidStateError("Répondez à la grille de relecture avant de valider")
+        return None
+    codes = {g.code for g in grid}
+    unknown = set(checklist) - codes
+    if unknown:
+        raise InvalidStateError(f"Points inconnus : {', '.join(sorted(unknown))}")
+    missing = [g.code for g in grid if g.code not in checklist]
+    if missing:
+        raise InvalidStateError(f"Points sans réponse : {', '.join(missing)}")
+    bad = {c: a for c, a in checklist.items() if a not in ANSWERS}
+    if bad:
+        raise InvalidStateError(f"Réponse attendue : {', '.join(ANSWERS)}")
+    for g in grid:
+        answer = checklist[g.code]
+        if answer == "SANS_OBJET" and g.exigence == "REFERENTIEL":
+            raise InvalidStateError(f"{g.code} vient de l'énoncé officiel : il ne peut pas être sans objet")
+        if answer == "SANS_OBJET" and not (comment or "").strip():
+            raise InvalidStateError("Un point sans objet doit être motivé dans le commentaire")
+    if decision == "VALIDEE":
+        refused = [g.code for g in grid if checklist[g.code] == "NON"]
+        if refused:
+            raise InvalidStateError(f"Pièce non validable, points non satisfaits : {', '.join(refused)}")
+    return {g.code: {"reponse": checklist[g.code], "question": g.question, "exigence": g.exigence} for g in grid}
+
+
+def validate(db: Session, evidence_id: str, decision: str, comment: str | None, user_id: str, user_name: str,
+             checklist: dict[str, str] | None = None) -> Evidence:
+    """Décision humaine sur une preuve. Une pièce qui a une grille ne se valide que si chaque
+    point est satisfait ; les réponses sont conservées avec la décision."""
     ev = db.get(Evidence, evidence_id)
     if ev is None:
         raise NotFoundError("Preuve introuvable")
@@ -279,9 +330,11 @@ def validate(db: Session, evidence_id: str, decision: str, comment: str | None, 
         raise InvalidStateError("Un motif est obligatoire pour rejeter une preuve")
     if decision == "VALIDEE" and ev.status not in ("EXPLOITABLE", "DOCUMENTEE", "VALIDEE"):
         raise InvalidStateError(f"Une preuve au statut {ev.status} ne peut pas être validée : corrigez d'abord la donnée source")
+    answers = _check_grid(_grid_of(ev), checklist, decision, comment)
     before = ev.status
     ev.status = decision
-    db.add(EvidenceValidation(evidence_id=ev.id, decision=decision, comment=comment, source_hash=ev.source_hash, by_user_id=user_id, by_name=user_name))
+    db.add(EvidenceValidation(evidence_id=ev.id, decision=decision, comment=comment, checklist=answers,
+                              source_hash=ev.source_hash, by_user_id=user_id, by_name=user_name))
     ev.history.append(EvidenceEvent(kind="VALIDATED" if decision == "VALIDEE" else "REJECTED", from_status=before, to_status=decision, detail=comment, actor=user_name))
     db.flush()
     return ev

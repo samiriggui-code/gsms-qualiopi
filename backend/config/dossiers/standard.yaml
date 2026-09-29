@@ -6,6 +6,10 @@
 #   indicators     indicateurs Qualiopi que la pièce sert
 #   validity_days  durée de validité après dépôt (absent = sans expiration)
 #   required       false = pièce utile mais non bloquante
+#   modele         trame de rédaction (config/dossiers/modeles/), téléchargeable depuis le dossier
+#   grille         points vérifiés par la personne qui valide la preuve. `exigence: REFERENTIEL` =
+#                  tiré de l'énoncé officiel, ne peut pas être déclaré sans objet ; `GSMS` = bonne
+#                  pratique de l'organisme, peut l'être avec un motif.
 dossiers:
   ORGANISME:
     label: Dossier qualité de l'organisme
@@ -37,11 +41,63 @@ dossiers:
         label: Procédure de prévention et de traitement des violences, du harcèlement et des discriminations
         evidence: PROCEDURE
         indicators: [12]
+        modele: PROCEDURE_VIOLENCES_DISCRIMINATIONS.md
+        grille:
+          - code: SITUATIONS
+            question: Couvre les violences, dont les violences sexistes et sexuelles, le harcèlement et les discriminations
+            exigence: REFERENTIEL
+            source: Indicateur 12 V10, énoncé
+          - code: CADRE_FORMATION
+            question: S'applique aux bénéficiaires dans le cadre de leur formation (salle, plateau, examen, distance, entreprise)
+            exigence: REFERENTIEL
+            source: Indicateur 12 V10, énoncé
+          - code: PREVENTION
+            question: Décrit des mesures de prévention concrètes (information, sensibilisation, points de vigilance)
+            exigence: REFERENTIEL
+            source: Indicateur 12 V10, énoncé
+          - code: TRAITEMENT
+            question: Décrit le traitement d'une situation signalée (étapes, responsables, délais)
+            exigence: REFERENTIEL
+            source: Indicateur 12 V10, énoncé
+          - code: SIGNALEMENT
+            question: Donne des canaux de signalement identifiés, accessibles et confidentiels
+            exigence: GSMS
+            source: Bonne pratique GSMS (un traitement suppose un signalement)
+          - code: INFORMATION
+            question: Prévoit l'information des stagiaires (livret, règlement intérieur, affichage)
+            exigence: GSMS
+            source: Bonne pratique GSMS
+          - code: VERSION
+            question: Est datée, versionnée et porte le nom de son responsable
+            exigence: GSMS
+            source: Bonne pratique GSMS
       - code: ANALYSE_RISQUES_QUALITE
         label: Analyse des risques sur la qualité des formations
         evidence: ORG_DOCUMENT
         indicators: [32]
         validity_days: 365
+        modele: ANALYSE_RISQUES_QUALITE.md
+        grille:
+          - code: RISQUES_QUALITE
+            question: Identifie des risques portant sur la qualité des formations délivrées
+            exigence: REFERENTIEL
+            source: Indicateur 32 V10, énoncé
+          - code: APPRECIATIONS_RECLAMATIONS
+            question: S'appuie sur l'analyse des appréciations et des réclamations
+            exigence: REFERENTIEL
+            source: Indicateur 32 V10, énoncé
+          - code: COUVERTURE
+            question: Couvre les filières réellement délivrées par l'organisme
+            exigence: GSMS
+            source: Bonne pratique GSMS
+          - code: COTATION
+            question: Chaque risque est coté selon une méthode expliquée
+            exigence: GSMS
+            source: Bonne pratique GSMS
+          - code: MESURES
+            question: Les risques au-dessus du seuil ont une mesure, un responsable et une échéance
+            exigence: GSMS
+            source: Bonne pratique GSMS
   FORMATEUR:
     label: Dossier formateur
     items:
