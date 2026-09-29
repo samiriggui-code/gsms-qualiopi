@@ -16,11 +16,12 @@ from app.training.models import (
     Company,
     Document,
     Enrollment,
+    Organization,
     Program,
     Trainer,
     TrainingSession,
 )
-from app.training.schemas import SessionIn
+from app.training.schemas import OrganizationIn, OrganizationOut, SessionIn
 
 router = APIRouter(prefix="/api/v1", tags=["formation"])
 
@@ -40,27 +41,6 @@ class TrainerRef(BaseModel):
     id: str
     full_name: str
     is_external: bool
-
-
-@router.get("/programs", response_model=list[ProgramRef])
-def list_programs(db: DB, _: Reader):
-    programs = db.scalars(select(Program).order_by(Program.title)).all()
-    return [
-        ProgramRef(
-            id=p.id,
-            code=p.code,
-            title=p.title,
-            is_certifying=p.is_certifying,
-            duration_hours=float(p.duration_hours) if p.duration_hours is not None else None,
-        )
-        for p in programs
-    ]
-
-
-@router.get("/trainers", response_model=list[TrainerRef])
-def list_trainers(db: DB, _: Reader):
-    trainers = db.scalars(select(Trainer).order_by(Trainer.last_name, Trainer.first_name)).all()
-    return [TrainerRef(id=t.id, full_name=f"{t.first_name} {t.last_name}", is_external=t.is_external) for t in trainers]
 
 
 # --- Sessions ---
@@ -302,3 +282,30 @@ def create_session(body: SessionIn, db: DB, user: TrainingWriter):
     db.commit()
     s = _load_session(db, s.id)
     return _row(s, 0, 0, 0)
+
+
+# --- Organisme (fiche unique) ---
+
+
+@router.get("/organization", response_model=OrganizationOut)
+def get_organization(db: DB, _: Reader):
+    org = db.scalar(select(Organization).limit(1))
+    if org is None:
+        raise NotFoundError("Organisme non renseigné")
+    return org
+
+
+@router.patch("/organization", response_model=OrganizationOut)
+def update_organization(body: OrganizationIn, db: DB, user: TrainingWriter):
+    org = db.scalar(select(Organization).limit(1))
+    if org is None:
+        if not body.name:
+            raise InvalidStateError("Le nom de l'organisme est obligatoire")
+        org = Organization(name=body.name, created_by=user.full_name)
+        db.add(org)
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(org, key, value)
+    db.flush()
+    publish(db, "organization.updated", "organization", org.id, actor_id=user.id)
+    db.commit()
+    return org

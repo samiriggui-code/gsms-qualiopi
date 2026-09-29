@@ -14,6 +14,7 @@ from app.core.errors import install_error_handlers
 from app.qualiopi.referential.importer import import_referential
 from app.qualiopi.referential.models import ReferentialVersion
 from app.qualiopi.referential.router import router as referential_router
+from app.training.resources import ROUTERS as training_resources
 from app.training.router import router as training_router
 
 
@@ -64,6 +65,8 @@ install_error_handlers(app)
 app.include_router(auth_router)
 app.include_router(referential_router)
 app.include_router(training_router)
+for resource_router in training_resources:
+    app.include_router(resource_router)
 
 
 @app.get("/api/health")
