@@ -44,7 +44,7 @@ export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
 export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 alembic upgrade head
 python -m app.cli create-admin admin@exemple.fr "Administrateur"   # mot de passe demandé
-python -m app.cli seed-demo          # organisme de démo, 14 trous plantés
+python -m app.cli seed-demo          # organisme de démo, 15 trous et 8 jalons plantés
 uvicorn app.main:app --reload        # API sur :8000, documentation sur /docs
 python -m app.worker                 # dans un second terminal
 ```
