@@ -87,9 +87,9 @@ def test_nouvelle_version_de_la_piece_remet_la_validation_a_zero(demo: Session) 
 
 
 def test_pas_de_grille_pas_de_reponses(demo: Session) -> None:
-    ev = demo.scalar(select(Evidence).where(Evidence.source_table == "formation.document",
+    ev = demo.scalar(select(Evidence).where(Evidence.source_table == "formation.program",
                                             Evidence.status.in_(("EXPLOITABLE", "DOCUMENTEE"))))
-    assert ev is not None and ev.facts["requirement"] != VIOLENCES
+    assert ev is not None, "une preuve issue d'une fiche formation n'a pas de grille"
     with pytest.raises(InvalidStateError, match="pas de grille"):
         _validate(demo, ev, checklist={"X": "OUI"})
     _validate(demo, ev)

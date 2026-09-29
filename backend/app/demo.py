@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError
 from app.core.journal import set_actor
+from app.documents.dossier import find_item
 from app.documents.service import upload
 from app.training import models as t
 
@@ -102,6 +103,11 @@ def _doc(db: Session, kind: str, title: str, **kw) -> t.Document:  # noqa: ANN00
     return doc
 
 
+def _grid_yes(subject: str, code: str, sans_objet: tuple[str, ...] = ()) -> dict[str, str]:
+    """Grille de dépôt entièrement satisfaite (points listés : sans objet)."""
+    return {g.code: ("SANS_OBJET" if g.code in sans_objet else "OUI") for g in find_item(subject, code).grille}
+
+
 def _pdf(title: str) -> bytes:
     """PDF minimal et valide (démo uniquement)."""
     return f"%PDF-1.4\n% GSMS démo : {title}\n%%EOF\n".encode()
@@ -148,9 +154,13 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     db.add(org)
     db.flush()
     # Dossier qualité : organigramme et inventaire déposés ; trou I18 : pas de compte rendu de réunion pédagogique.
-    for code in ("ORGANIGRAMME", "CATALOGUE_RESSOURCES"):
-        upload(db, subject="ORGANISME", subject_id=org.id, requirement=code, content=_pdf(code),
-               filename=f"{code.lower()}.pdf", mime="application/pdf")
+    # Chaque pièce est déposée avec sa grille cochée, comme le ferait l'assistant qualité.
+    upload(db, subject="ORGANISME", subject_id=org.id, requirement="ORGANIGRAMME", content=_pdf("ORGANIGRAMME"),
+           filename="organigramme.pdf", mime="application/pdf", checklist=_grid_yes("ORGANISME", "ORGANIGRAMME"))
+    upload(db, subject="ORGANISME", subject_id=org.id, requirement="CATALOGUE_RESSOURCES", content=_pdf("CATALOGUE_RESSOURCES"),
+           filename="catalogue_ressources.pdf", mime="application/pdf",
+           checklist=_grid_yes("ORGANISME", "CATALOGUE_RESSOURCES", sans_objet=("DISTANCE",)),
+           note="Aucun module à distance au catalogue.")
     db.add(t.PartnerNetwork(kind="HANDICAP", name="Réseau handicap du département", last_contact_on=d(-60), created_by=ACTOR))
     db.add(t.WatchItem(domain="LEGALE", title="Réforme du financement de la formation", noted_on=d(-45),
                        exploitation="Conditions générales mises à jour", exploited_on=d(-30), created_by=ACTOR))
@@ -195,7 +205,9 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
                                   document_id=_doc(db, "JUSTIFICATIF", "Certificat formatrice SST — J. Martin").id,
                                   created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
     upload(db, subject="FORMATEUR", subject_id=karim.id, requirement="CV", content=_pdf("CV K. Benali"),
-           filename="cv-karim-benali.pdf", mime="application/pdf")
+           filename="cv-karim-benali.pdf", mime="application/pdf",
+           checklist=_grid_yes("FORMATEUR", "CV", sans_objet=("CARTE_FORMATEUR_CNAPS",)),
+           note="Formateur incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
     db.add(t.StaffDevelopmentAction(trainer_id=karim.id, label="Recyclage pédagogique", planned_on=d(-120),
                                     completed_on=d(-100), created_by=ACTOR))
 

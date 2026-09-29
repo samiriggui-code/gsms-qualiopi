@@ -1,9 +1,10 @@
 """API des dossiers de pièces."""
 
+import json
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -12,7 +13,7 @@ from app.auth.security import DB, PERMISSIONS, CurrentUser, Reader
 from app.core.errors import NotFoundError
 from app.documents import storage
 from app.documents.dossier import modele_text
-from app.documents.service import dossier_status, request_document, upload
+from app.documents.service import declare_paper, dossier_status, request_document, upload
 from app.training import models as t
 
 router = APIRouter(prefix="/api/v1", tags=["dossiers"])
@@ -29,13 +30,37 @@ def _require_for(user: User, subject: str) -> None:
 
 @router.post("/dossiers/{subject}/{subject_id}/pieces/{requirement}")
 async def upload_piece(subject: str, subject_id: str, requirement: str, db: DB, user: CurrentUser,
-                       file: Annotated[UploadFile, File()]) -> dict:
+                       file: Annotated[UploadFile, File()],
+                       grille: Annotated[str | None, Form(description='JSON {"POINT": "OUI" | "NON" | "SANS_OBJET"}')] = None,
+                       note: Annotated[str | None, Form()] = None) -> dict:
+    """Dépôt d'un fichier. `grille` : les points de la pièce cochés par la personne qui dépose."""
     _require_for(user, subject)
+    try:
+        checklist = json.loads(grille) if grille else None
+    except json.JSONDecodeError:
+        raise HTTPException(422, "grille : JSON invalide") from None
     content = await file.read(storage.MAX_BYTES + 1)
     doc = upload(db, subject=subject, subject_id=subject_id, requirement=requirement, content=content,
-                 filename=file.filename or requirement, mime=file.content_type or "", actor_id=user.id)
+                 filename=file.filename or requirement, mime=file.content_type or "", actor_id=user.id,
+                 checklist=checklist, note=note)
     db.commit()
     return {"id": doc.id, "version": doc.version, "sha256": doc.sha256, "size": doc.size_bytes}
+
+
+class PaperIn(BaseModel):
+    grille: dict[str, str]
+    lieu: str  # où l'original papier est conservé
+    note: str | None = None
+
+
+@router.post("/dossiers/{subject}/{subject_id}/pieces/{requirement}/papier")
+def declare_paper_piece(subject: str, subject_id: str, requirement: str, body: PaperIn, db: DB, user: CurrentUser) -> dict:
+    """Pièce conservée sur papier : on déclare où elle est et on coche sa grille."""
+    _require_for(user, subject)
+    doc = declare_paper(db, subject=subject, subject_id=subject_id, requirement=requirement, checklist=body.grille,
+                        location=body.lieu, note=body.note, actor_id=user.id)
+    db.commit()
+    return {"id": doc.id, "version": doc.version, "support": doc.support, "sha256": doc.sha256}
 
 
 @router.get("/dossiers/{subject}/modeles/{requirement}")

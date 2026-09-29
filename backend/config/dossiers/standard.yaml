@@ -19,24 +19,102 @@ dossiers:
         evidence: ORG_DOCUMENT
         indicators: [18]
         validity_days: 365
+        grille:
+          - code: INTERVENANTS
+            question: Identifie les intervenants internes et externes (pédagogiques, administratifs, logistiques, commerciaux)
+            exigence: REFERENTIEL
+            source: Indicateur 18, énoncé
+          - code: ROLES
+            question: Précise le rôle et le contact de chacun, dont les référents (pédagogique, handicap)
+            exigence: GSMS
+            source: Bonne pratique GSMS
+          - code: VERSION
+            question: Est daté et à jour des arrivées et départs
+            exigence: GSMS
+            source: Bonne pratique GSMS
       - code: CR_REUNION_PEDAGOGIQUE
         label: Compte rendu de réunion pédagogique
         evidence: ORG_DOCUMENT
         indicators: [18]
         validity_days: 365
+        grille:
+          - code: COORDINATION
+            question: Montre que les intervenants sont réunis et coordonnés (participants, sujets traités)
+            exigence: REFERENTIEL
+            source: Indicateur 18, énoncé
+          - code: DECISIONS
+            question: Consigne les décisions et qui les porte
+            exigence: GSMS
+            source: Bonne pratique GSMS
+          - code: DATE
+            question: Est daté et liste les présents
+            exigence: GSMS
+            source: Bonne pratique GSMS
       - code: CATALOGUE_RESSOURCES
         label: Inventaire des ressources et supports pédagogiques
         evidence: ORG_DOCUMENT
         indicators: [19]
         validity_days: 365
+        grille:
+          - code: RESSOURCES
+            question: Recense les ressources pédagogiques mises à disposition des bénéficiaires, par formation
+            exigence: REFERENTIEL
+            source: Indicateur 19, énoncé
+          - code: APPROPRIATION
+            question: Indique comment les bénéficiaires y accèdent et se les approprient
+            exigence: REFERENTIEL
+            source: Indicateur 19, énoncé
+          - code: DISTANCE
+            question: Décrit comment l'organisme vérifie l'effectivité du suivi des modules à distance
+            exigence: REFERENTIEL
+            source: Indicateur 19 V10, énoncé
+            condition: si des modules sont réalisés à distance
       - code: PROCEDURE_RECLAMATIONS
         label: Procédure de traitement des réclamations
         evidence: PROCEDURE
         indicators: [31]
+        grille:
+          - code: DIFFICULTES
+            question: Traite les difficultés rencontrées par les parties prenantes
+            exigence: REFERENTIEL
+            source: Indicateur 31, énoncé
+          - code: RECLAMATIONS
+            question: Traite les réclamations exprimées par les parties prenantes
+            exigence: REFERENTIEL
+            source: Indicateur 31, énoncé
+          - code: ALEAS
+            question: Traite les aléas survenus en cours de prestation
+            exigence: REFERENTIEL
+            source: Indicateur 31, énoncé
+          - code: DELAI
+            question: Fixe un délai de réponse (le moteur contrôle 15 jours)
+            exigence: GSMS
+            source: Bonne pratique GSMS, contrôle I31.complaints
+          - code: CANAUX
+            question: Indique comment déposer une réclamation
+            exigence: GSMS
+            source: Bonne pratique GSMS
       - code: REGLEMENT_INTERIEUR
         label: Règlement intérieur applicable aux stagiaires
         evidence: ORG_DOCUMENT
         indicators: [9]
+        grille:
+          - code: CONDITIONS
+            question: Informe les stagiaires sur les conditions de déroulement de la formation
+            exigence: REFERENTIEL
+            source: Indicateur 9, énoncé
+          - code: DISCIPLINE
+            question: Fixe les règles disciplinaires et les sanctions, sans amende ni sanction pécuniaire
+            exigence: REGLEMENTAIRE
+            source: Code du travail, R. 6352-1 et R. 6352-3 et suivants
+          - code: SANTE_SECURITE
+            question: Précise les règles de santé et de sécurité, y compris sur plateau technique
+            exigence: GSMS
+            source: Bonne pratique GSMS (à confirmer sur le Code du travail)
+          - code: VERSION
+            question: Est daté et remis ou mis à disposition avant l'inscription définitive
+            exigence: REGLEMENTAIRE
+            source: Code du travail, L. 6353-8
       - code: PROCEDURE_VIOLENCES_DISCRIMINATIONS
         label: Procédure de prévention et de traitement des violences, du harcèlement et des discriminations
         evidence: PROCEDURE
@@ -106,8 +184,31 @@ dossiers:
         evidence: TRAINER_DOCUMENT
         indicators: [21]
         validity_days: 730
+        grille:
+          - code: COMPETENCES
+            question: Montre des compétences adaptées aux formations que le formateur anime
+            exigence: REFERENTIEL
+            source: Indicateur 21, énoncé
+          - code: CARTE_FORMATEUR_CNAPS
+            question: Mentionne la carte professionnelle de formateur CNAPS en cours de validité
+            exigence: REGLEMENTAIRE
+            source: Code de la sécurité intérieure, R. 625-23 à R. 625-26
+            condition: si le formateur anime des formations aux activités privées de sécurité
+          - code: TITRES_METIER
+            question: Mentionne les titres exigés pour ses formations (formateur SST certifié, SSIAP 3…) avec leurs dates
+            exigence: GSMS
+            source: Bonne pratique GSMS (exigences des certificateurs à vérifier)
       - code: CHARTE_FORMATEUR
         label: Charte ou contrat d'intervention signé
         evidence: TRAINER_DOCUMENT
         indicators: [21]
         required: false
+        grille:
+          - code: ENGAGEMENTS
+            question: Précise les engagements du formateur (qualité, référentiel, confidentialité)
+            exigence: GSMS
+            source: Bonne pratique GSMS
+          - code: SIGNATURE
+            question: Est signé par le formateur et l'organisme
+            exigence: GSMS
+            source: Bonne pratique GSMS

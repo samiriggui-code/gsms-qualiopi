@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.demo import _grid_yes
 from app.documents import storage
 from app.documents.service import dossier_status, request_document, upload
 from app.qualiopi.engine import process_pending
@@ -46,7 +47,7 @@ def test_piece_deposee_devient_preuve_et_ferme_le_trou_i18(demo: Session) -> Non
     org = _org(demo)
     assert demo.scalar(select(ControlResult).where(ControlResult.control_key == "I18.coordination-documents")).status == "PREUVES_INSUFFISANTES"
     upload(demo, subject="ORGANISME", subject_id=org.id, requirement="CR_REUNION_PEDAGOGIQUE", content=PDF,
-           filename="cr.pdf", mime="application/pdf")
+           filename="cr.pdf", mime="application/pdf", checklist=_grid_yes("ORGANISME", "CR_REUNION_PEDAGOGIQUE"))
     demo.commit()
     process_pending(demo, today=TODAY)
     demo.commit()

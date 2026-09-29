@@ -16,12 +16,21 @@ from app.core.journal import set_actor
 
 _bearer = HTTPBearer(auto_error=False)
 
-# Qui peut faire quoi. Le front ne fait que refléter ces règles.
+# Qui peut faire quoi. Le front ne fait que refléter ces règles. L'organisme attribue ces rôles
+# à son personnel (admin ou responsable qualité) ; seul un admin peut nommer un admin.
 PERMISSIONS: dict[str, set[str]] = {
     "admin": {"read", "write_training", "write_quality", "validate_evidence", "manage_referential", "manage_users"},
-    "qualite": {"read", "write_quality", "validate_evidence", "manage_referential"},
+    "qualite": {"read", "write_quality", "validate_evidence", "manage_referential", "manage_users"},
+    "assistant_qualite": {"read", "write_quality"},
     "gestion": {"read", "write_training"},
     "lecture": {"read"},
+}
+ROLE_LABELS: dict[str, str] = {
+    "admin": "Direction : tous les droits, nomme les administrateurs",
+    "qualite": "Responsable qualité : dépose, valide les preuves, gère le référentiel et l'équipe",
+    "assistant_qualite": "Assistant qualité : dépose les pièces et coche leur grille, ne valide pas",
+    "gestion": "Gestion des formations : sessions, inscriptions, dossiers formateurs",
+    "lecture": "Lecture seule",
 }
 
 
@@ -78,4 +87,5 @@ TrainingWriter = Annotated[User, Depends(require("write_training"))]
 QualityWriter = Annotated[User, Depends(require("write_quality"))]
 EvidenceValidator = Annotated[User, Depends(require("validate_evidence"))]
 ReferentialManager = Annotated[User, Depends(require("manage_referential"))]
+UserManager = Annotated[User, Depends(require("manage_users"))]
 DB = Annotated[Session, Depends(get_db)]

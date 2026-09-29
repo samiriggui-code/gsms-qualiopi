@@ -7,7 +7,7 @@ transforme en preuves potentielles. Schéma PostgreSQL : `formation`.
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, new_id
@@ -33,6 +33,8 @@ class Organization(TimestampMixin, Base):
     # VAE, APPRENTISSAGE. Détermine l'applicabilité des indicateurs.
     action_categories: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["AF"])
     is_new_entrant: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Politique de l'organisme : la personne qui dépose une pièce peut-elle aussi la valider ?
+    allow_self_validation: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     disability_referent_name: Mapped[str | None] = mapped_column(String(200))
     disability_referent_email: Mapped[str | None] = mapped_column(String(200))
     mobility_referent_name: Mapped[str | None] = mapped_column(String(200))
@@ -421,6 +423,11 @@ class Document(TimestampMixin, Base):
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     signed_by: Mapped[str | None] = mapped_column(String(200))
     indicator_hints: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # Pièce de dossier : FICHIER déposé, ou PAPIER déclaré (l'original est conservé hors GSMS).
+    support: Mapped[str] = mapped_column(String(20), default="FICHIER", server_default="FICHIER")
+    # Grille cochée par la personne qui dépose, figée avec la version (question posée comprise).
+    checklist: Mapped[dict | None] = mapped_column(JSON)
+    checklist_note: Mapped[str | None] = mapped_column(Text)
     # Pièce d'un dossier (code de config/dossiers) ; entity_type = ORGANISME | FORMATEUR
     requirement: Mapped[str | None] = mapped_column(String(60), index=True)
     original_name: Mapped[str | None] = mapped_column(String(250))

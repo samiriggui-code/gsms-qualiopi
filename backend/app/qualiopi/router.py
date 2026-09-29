@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 
-from app.auth.security import DB, EvidenceValidator, QualityWriter, Reader, ReferentialManager
+from app.auth.security import DB, EvidenceValidator, QualityWriter, Reader, ReferentialManager, UserManager
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
 from app.qualiopi.cycle.models import CertificationCycle
@@ -106,6 +106,24 @@ def validate_evidence(evidence_id: str, body: ValidationIn, db: DB, user: Eviden
     ev = validate(db, evidence_id, body.decision, body.comment, user.id, user.full_name, checklist=body.checklist)
     db.commit()
     return {"id": ev.id, "reference": ev.reference, "status": ev.status}
+
+
+class SelfValidationIn(BaseModel):
+    autorisee: bool
+
+
+@router.put("/qualiopi/parametres/auto-validation")
+def set_self_validation(body: SelfValidationIn, db: DB, _: UserManager) -> dict:
+    """Politique de l'organisme : la personne qui dépose une pièce peut-elle aussi la valider ?
+
+    Désactivée par défaut. Activée (petite équipe), chaque auto-validation reste signalée.
+    """
+    org = db.scalar(select(t.Organization))
+    if org is None:
+        raise NotFoundError("Organisme introuvable")
+    org.allow_self_validation = body.autorisee
+    db.commit()
+    return {"auto_validation_autorisee": org.allow_self_validation}
 
 
 @router.get("/qualiopi/echeances")

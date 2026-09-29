@@ -5,6 +5,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.demo import _grid_yes
 from app.documents.service import upload
 from app.qualiopi.evaluation.models import ControlResult
 from app.qualiopi.evaluation.service import evaluate, indicator_readiness
@@ -79,6 +80,7 @@ def test_demo_evaluee_en_v10(demo: Session) -> None:
 def test_procedure_violences_deposee_rend_l_exigence_demontrable(demo: Session) -> None:
     org = demo.scalar(select(t.Organization))
     upload(demo, subject="ORGANISME", subject_id=org.id, requirement="PROCEDURE_VIOLENCES_DISCRIMINATIONS",
-           content=PDF, filename="procedure.pdf", mime="application/pdf")
+           content=PDF, filename="procedure.pdf", mime="application/pdf",
+           checklist=_grid_yes("ORGANISME", "PROCEDURE_VIOLENCES_DISCRIMINATIONS"))
     v10 = _evaluate_v10(demo)
     assert _result(demo, v10, "I12.violence-prevention").status == "DEMONTRABLE"

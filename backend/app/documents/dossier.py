@@ -9,21 +9,27 @@ import yaml
 from pydantic import BaseModel, Field
 
 from app.core.config import BACKEND_DIR
-from app.core.errors import NotFoundError
+from app.core.errors import InvalidStateError, NotFoundError
 
 DOSSIERS_DIR = BACKEND_DIR / "config" / "dossiers"
 MODELES_DIR = DOSSIERS_DIR / "modeles"
 SUBJECTS = ("ORGANISME", "FORMATEUR")
-EXIGENCES = ("REFERENTIEL", "GSMS")
+EXIGENCES = ("REFERENTIEL", "REGLEMENTAIRE", "GSMS")
+ANSWERS = ("OUI", "NON", "SANS_OBJET")
 
 
 class GridPoint(BaseModel):
-    """Point vérifié par la personne qui valide la pièce."""
+    """Point coché au dépôt de la pièce, puis confirmé par la personne qui la valide."""
 
     code: str
     question: str
-    exigence: str  # REFERENTIEL (énoncé officiel) | GSMS (bonne pratique)
+    exigence: str  # REFERENTIEL (énoncé Qualiopi) | REGLEMENTAIRE (autre texte) | GSMS (bonne pratique)
     source: str
+    condition: str | None = None  # point officiel qui ne s'applique que dans ce cas (« si modules à distance »)
+
+    @property
+    def may_be_not_applicable(self) -> bool:
+        return self.exigence == "GSMS" or self.condition is not None
 
 
 class RequirementItem(BaseModel):
@@ -79,3 +85,29 @@ def modele_text(subject: str, code: str) -> str:
     if not item.modele:
         raise NotFoundError(f"Pas de modèle de rédaction pour {code}")
     return (MODELES_DIR / item.modele).read_text(encoding="utf-8")
+
+
+def check_answers(grid: list[GridPoint], checklist: dict[str, str], note: str | None) -> tuple[dict, list[GridPoint]]:
+    """Contrôle les réponses à une grille. Renvoie (réponses figées avec leur question, points NON).
+
+    Tous les points doivent avoir une réponse OUI, NON ou SANS_OBJET. « Sans objet » n'est admis que
+    pour un point GSMS ou un point officiel conditionnel, et doit être motivé.
+    """
+    codes = {g.code for g in grid}
+    unknown = set(checklist) - codes
+    if unknown:
+        raise InvalidStateError(f"Points inconnus : {', '.join(sorted(unknown))}")
+    missing = [g.code for g in grid if g.code not in checklist]
+    if missing:
+        raise InvalidStateError(f"Points sans réponse : {', '.join(missing)}")
+    if any(a not in ANSWERS for a in checklist.values()):
+        raise InvalidStateError(f"Réponse attendue : {', '.join(ANSWERS)}")
+    for g in grid:
+        if checklist[g.code] != "SANS_OBJET":
+            continue
+        if not g.may_be_not_applicable:
+            raise InvalidStateError(f"{g.code} vient de l'énoncé officiel : il ne peut pas être sans objet")
+        if not (note or "").strip():
+            raise InvalidStateError("Un point sans objet doit être motivé dans le commentaire")
+    frozen = {g.code: {"reponse": checklist[g.code], "question": g.question, "exigence": g.exigence} for g in grid}
+    return frozen, [g for g in grid if checklist[g.code] == "NON"]

@@ -450,6 +450,12 @@ def _dossier_piece(d: t.Document) -> EvidenceSpec:
     item = find_item(d.entity_type, d.requirement)
     deposited = d.created_at.date() if d.created_at else None
     valid_until = deposited + timedelta(days=item.validity_days) if (deposited and item.validity_days) else None
+    # Le moteur ne lit pas le PDF : il lit la grille cochée au dépôt.
+    issues: list[str] = []
+    if item.grille and not d.checklist:
+        issues.append("grille de dépôt non renseignée")
+    elif d.checklist:
+        issues += [f"{code} non satisfait : {a['question']}" for code, a in d.checklist.items() if a["reponse"] == "NON"]
     return EvidenceSpec(
         evidence_type=item.evidence,
         label=f"{item.label} (v{d.version})",
@@ -461,8 +467,10 @@ def _dossier_piece(d: t.Document) -> EvidenceSpec:
         produced_by=d.created_by,
         valid_until=valid_until,
         document_id=d.id,
-        facts={"requirement": d.requirement, "subject": d.entity_type, "subject_id": d.entity_id, "version": d.version},
+        facts={"requirement": d.requirement, "subject": d.entity_type, "subject_id": d.entity_id, "version": d.version,
+               "support": d.support, "author_id": d.author_id},
         declared_indicators=list(item.indicators),
+        form_issues=issues,
     )
 
 
