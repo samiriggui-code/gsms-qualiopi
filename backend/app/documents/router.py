@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.auth.models import User
-from app.auth.security import DB, PERMISSIONS, CurrentUser, Reader
+from app.auth.security import DB, CurrentUser, QualityReader, permissions_of
 from app.core.errors import NotFoundError
 from app.documents import storage
 from app.documents.dossier import modele_text
@@ -19,12 +19,12 @@ from app.training import models as t
 router = APIRouter(prefix="/api/v1", tags=["dossiers"])
 
 # Qui peut déposer ou demander une pièce, selon le dossier.
-WRITE_PERMISSION = {"ORGANISME": "write_quality", "FORMATEUR": "write_training"}
+WRITE_PERMISSION = {"ORGANISME": "quality.write", "FORMATEUR": "trainers.write"}
 
 
-def _require_for(user: User, subject: str) -> None:
+def _require_for(db, user: User, subject: str) -> None:  # noqa: ANN001
     perm = WRITE_PERMISSION.get(subject)
-    if perm is None or perm not in PERMISSIONS.get(user.role, set()):
+    if perm is None or perm not in permissions_of(db, user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, f"Permission « {perm or 'inconnue'} » requise pour ce dossier")
 
 
@@ -34,7 +34,7 @@ async def upload_piece(subject: str, subject_id: str, requirement: str, db: DB, 
                        grille: Annotated[str | None, Form(description='JSON {"POINT": "OUI" | "NON" | "SANS_OBJET"}')] = None,
                        note: Annotated[str | None, Form()] = None) -> dict:
     """Dépôt d'un fichier. `grille` : les points de la pièce cochés par la personne qui dépose."""
-    _require_for(user, subject)
+    _require_for(db, user, subject)
     try:
         checklist = json.loads(grille) if grille else None
     except json.JSONDecodeError:
@@ -56,7 +56,7 @@ class PaperIn(BaseModel):
 @router.post("/dossiers/{subject}/{subject_id}/pieces/{requirement}/papier")
 def declare_paper_piece(subject: str, subject_id: str, requirement: str, body: PaperIn, db: DB, user: CurrentUser) -> dict:
     """Pièce conservée sur papier : on déclare où elle est et on coche sa grille."""
-    _require_for(user, subject)
+    _require_for(db, user, subject)
     doc = declare_paper(db, subject=subject, subject_id=subject_id, requirement=requirement, checklist=body.grille,
                         location=body.lieu, note=body.note, actor_id=user.id)
     db.commit()
@@ -64,19 +64,19 @@ def declare_paper_piece(subject: str, subject_id: str, requirement: str, body: P
 
 
 @router.get("/dossiers/{subject}/modeles/{requirement}")
-def download_modele(subject: str, requirement: str, _: Reader) -> Response:
+def download_modele(subject: str, requirement: str, _: QualityReader) -> Response:
     """Trame de rédaction de la pièce (Markdown), à compléter puis à déposer."""
     return Response(modele_text(subject, requirement), media_type="text/markdown; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{requirement}.md"'})
 
 
 @router.get("/dossiers/{subject}/{subject_id}")
-def get_dossier(subject: str, subject_id: str, db: DB, _: Reader) -> dict:
+def get_dossier(subject: str, subject_id: str, db: DB, _: QualityReader) -> dict:
     return dossier_status(db, subject, subject_id)
 
 
 @router.get("/documents/{document_id}/contenu")
-def download(document_id: str, db: DB, _: Reader) -> Response:
+def download(document_id: str, db: DB, _: QualityReader) -> Response:
     doc = db.get(t.Document, document_id)
     if doc is None or not doc.storage_path:
         raise NotFoundError("Document introuvable")
@@ -94,7 +94,7 @@ class RequestIn(BaseModel):
 
 @router.post("/dossiers/{subject}/{subject_id}/demandes/{requirement}")
 def ask_piece(subject: str, subject_id: str, requirement: str, body: RequestIn, db: DB, user: CurrentUser) -> dict:
-    _require_for(user, subject)
+    _require_for(db, user, subject)
     req = request_document(db, subject=subject, subject_id=subject_id, requirement=requirement,
                            requested_from=body.requested_from, due_on=body.due_on, message=body.message)
     db.commit()

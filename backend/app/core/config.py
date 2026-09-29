@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     referentials_dir: Path = BACKEND_DIR / "referentials"
     documents_dir: Path = BACKEND_DIR / "var" / "documents"
+    # Fonctionnalités rendues disponibles par le déploiement ou l'abonnement (« * » = toutes).
+    features_available: str = "*"
 
     @property
     def cors_origin_list(self) -> list[str]:

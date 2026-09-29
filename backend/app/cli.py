@@ -12,7 +12,7 @@ import sys
 
 from sqlalchemy import select
 
-from app.auth.models import User
+from app.auth.models import User, UserRole
 from app.auth.security import hash_password
 from app.core.config import get_settings
 from app.core.db import session_factory
@@ -32,7 +32,9 @@ def create_admin(email: str, full_name: str) -> None:
         email = email.lower().strip()
         if db.scalar(select(User).where(User.email == email)):
             sys.exit(f"{email} existe déjà")
-        db.add(User(email=email, full_name=full_name, password_hash=hash_password(password), role="admin", created_by="cli"))
+        user = User(email=email, full_name=full_name, password_hash=hash_password(password), created_by="cli")
+        user.role_links.append(UserRole(role="admin", created_by="cli"))
+        db.add(user)
         db.commit()
     print(f"Administrateur créé : {email}")
 

@@ -5,6 +5,7 @@ from app.core import journal as _journal  # noqa: F401
 from app.core.db import Base
 from app.documents import models as _documents  # noqa: F401
 from app.events import models as _events  # noqa: F401
+from app.platform import models as _platform  # noqa: F401
 from app.qualiopi.audit import models as _audit  # noqa: F401
 from app.qualiopi.capa import models as _capa  # noqa: F401
 from app.qualiopi.cycle import models as _cycle  # noqa: F401
@@ -15,5 +16,5 @@ from app.qualiopi.review import models as _review  # noqa: F401
 from app.qualiopi.schedule import models as _schedule  # noqa: F401
 from app.training import models as _training  # noqa: F401
 
-SCHEMAS = ("iam", "formation", "qualite")
+SCHEMAS = ("iam", "config", "formation", "qualite")
 metadata = Base.metadata

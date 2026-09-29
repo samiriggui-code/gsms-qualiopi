@@ -36,6 +36,9 @@ ORG_EVENTS = {
 }
 
 
+PLATFORM_EVENTS = {"settings.changed", "feature.changed"}
+
+
 def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None) -> dict:
     """Réconciliation complète + réévaluation de tout (passe nocturne, bouton « tout réévaluer »).
 
@@ -62,6 +65,8 @@ def scope_of(db: Session, events: list[OutboxEvent]) -> Scope:
     trainer_ids: set[str] = set()
     organization = False
     for ev in events:
+        if ev.name in PLATFORM_EVENTS:
+            continue  # un réglage ou une fonctionnalité ne change aucune preuve : pas de réévaluation
         if ev.session_id:
             session_ids.add(ev.session_id)
         # Un événement de session porte son program_id pour contexte : ce n'est pas un changement de formation.

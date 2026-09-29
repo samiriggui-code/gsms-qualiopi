@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 
-from app.auth.security import DB, EvidenceValidator, QualityWriter, Reader, ReferentialManager, UserManager
+from app.auth.security import DB, EvidenceValidator, QualityReader, QualityWriter, ReferentialManager
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
 from app.qualiopi.cycle.models import CertificationCycle
@@ -64,7 +64,7 @@ def import_version(body: ImportIn, db: DB, user: ReferentialManager) -> dict:
 
 
 @router.get("/referentials/active")
-def get_active(db: DB, _: Reader) -> dict:
+def get_active(db: DB, _: QualityReader) -> dict:
     return _version_view(active_version(db))
 
 
@@ -77,7 +77,7 @@ def evaluate_all(db: DB, user: QualityWriter) -> dict:
 
 
 @router.get("/qualiopi/readiness")
-def readiness(db: DB, _: Reader, du: date | None = None, au: date | None = None) -> dict:
+def readiness(db: DB, _: QualityReader, du: date | None = None, au: date | None = None) -> dict:
     """État global sur la période : `du`/`au`, sinon le cycle de certification en cours, sinon toute l'activité."""
     version = active_version(db)
     period = resolve_period(db, du, au)
@@ -91,7 +91,7 @@ def readiness(db: DB, _: Reader, du: date | None = None, au: date | None = None)
 
 
 @router.get("/sessions/{session_id}/dossier")
-def get_session_dossier(session_id: str, db: DB, _: Reader) -> dict:
+def get_session_dossier(session_id: str, db: DB, _: QualityReader) -> dict:
     return session_dossier(db, active_version(db), session_id)
 
 
@@ -108,26 +108,8 @@ def validate_evidence(evidence_id: str, body: ValidationIn, db: DB, user: Eviden
     return {"id": ev.id, "reference": ev.reference, "status": ev.status}
 
 
-class SelfValidationIn(BaseModel):
-    autorisee: bool
-
-
-@router.put("/qualiopi/parametres/auto-validation")
-def set_self_validation(body: SelfValidationIn, db: DB, _: UserManager) -> dict:
-    """Politique de l'organisme : la personne qui dépose une pièce peut-elle aussi la valider ?
-
-    Désactivée par défaut. Activée (petite équipe), chaque auto-validation reste signalée.
-    """
-    org = db.scalar(select(t.Organization))
-    if org is None:
-        raise NotFoundError("Organisme introuvable")
-    org.allow_self_validation = body.autorisee
-    db.commit()
-    return {"auto_validation_autorisee": org.allow_self_validation}
-
-
 @router.get("/qualiopi/echeances")
-def upcoming(db: DB, _: Reader, days: int = Query(15, ge=0, le=365), owner: str | None = None) -> list[dict]:
+def upcoming(db: DB, _: QualityReader, days: int = Query(15, ge=0, le=365), owner: str | None = None) -> list[dict]:
     """Jalons en retard, ou non faits dont l'échéance tombe dans les `days` prochains jours."""
     horizon = date.today() + timedelta(days=days)
     q = (
@@ -168,7 +150,7 @@ def review_indicator(number: int, body: ReviewIn, db: DB, user: EvidenceValidato
 
 
 @router.get("/qualiopi/indicateurs/{number}/revues")
-def list_reviews(number: int, db: DB, _: Reader) -> list[dict]:
+def list_reviews(number: int, db: DB, _: QualityReader) -> list[dict]:
     rows = db.scalars(select(IndicatorReview).where(IndicatorReview.indicator_number == number).order_by(IndicatorReview.reviewed_at.desc()))
     return [{"conclusion": r.conclusion, "comment": r.comment, "by": r.reviewed_by, "at": r.reviewed_at.isoformat(),
              "valid_until": r.valid_until.isoformat(), "engine_status": r.engine_status, "evidence_refs": r.evidence_refs} for r in rows]
@@ -192,7 +174,7 @@ def add_cycle(body: CycleIn, db: DB, _: QualityWriter) -> dict:
 
 
 @router.get("/qualiopi/cycles")
-def list_cycles(db: DB, _: Reader) -> list[dict]:
+def list_cycles(db: DB, _: QualityReader) -> list[dict]:
     rows = db.scalars(select(CertificationCycle).order_by(CertificationCycle.period_start.desc()))
     return [{"id": c.id, "label": c.label, "kind": c.kind, "period_start": c.period_start.isoformat(),
              "period_end": c.period_end.isoformat() if c.period_end else None,

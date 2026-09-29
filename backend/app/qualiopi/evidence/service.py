@@ -11,6 +11,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import InvalidStateError, NotFoundError
+from app.platform.decisions import enforce
 from app.qualiopi.common import next_reference
 from app.qualiopi.evidence.detectors import (
     EvidenceSpec,
@@ -322,10 +323,9 @@ def validate(db: Session, evidence_id: str, decision: str, comment: str | None, 
     answers = _check_grid(_grid_of(ev), checklist, decision, comment)
     self_validated = _deposited_by(db, ev) == user_id
     if self_validated and decision == "VALIDEE":
-        org = db.scalar(select(t.Organization))
-        if org is None or not org.allow_self_validation:
-            raise InvalidStateError("Vous avez déposé cette pièce : un autre membre de l'équipe doit la valider "
-                                    "(l'organisme n'autorise pas l'auto-validation)")
+        from app.qualiopi.policy import QualityPolicy
+
+        enforce(QualityPolicy(db).can_validate_own_piece())
     before = ev.status
     ev.status = decision
     db.add(EvidenceValidation(evidence_id=ev.id, decision=decision, comment=comment, checklist=answers,

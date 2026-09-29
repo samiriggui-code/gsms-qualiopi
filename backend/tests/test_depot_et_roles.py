@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.errors import InvalidStateError
 from app.demo import _grid_yes
 from app.documents.service import declare_paper, dossier_status, upload
+from app.platform.decisions import PolicyDenied
+from app.platform.settings import ConfigurationService
 from app.qualiopi.engine import refresh_all
 from app.qualiopi.evidence.models import Evidence, EvidenceValidation
 from app.qualiopi.evidence.service import validate
@@ -80,10 +82,11 @@ def test_piece_papier_declaree(demo: Session) -> None:
 def test_le_deposant_ne_valide_pas_sa_piece_sauf_si_l_organisme_l_autorise(demo: Session) -> None:
     grid = _grid_yes("ORGANISME", RECLAMATIONS)
     ev = _deposit(demo, grid, actor_id="u-assistant")
-    with pytest.raises(InvalidStateError, match="un autre membre"):
+    with pytest.raises(PolicyDenied, match="un autre membre") as refus:
         validate(demo, ev.id, "VALIDEE", None, "u-assistant", "Assistante", checklist=grid)
+    assert refus.value.code == "SELF_VALIDATION_FORBIDDEN"
 
-    _org(demo).allow_self_validation = True
+    ConfigurationService(demo).set("quality.allow_self_validation", True, reason="Équipe de deux personnes")
     validate(demo, ev.id, "VALIDEE", None, "u-assistant", "Assistante", checklist=grid)
     demo.commit()
     saved = demo.scalar(select(EvidenceValidation).where(EvidenceValidation.evidence_id == ev.id))
@@ -104,9 +107,9 @@ def test_un_autre_membre_valide_normalement(demo: Session) -> None:
 
 def test_catalogue_des_roles(client, db: Session) -> None:  # noqa: ANN001
     _, headers = make_user(db, "lecture")
-    roles = {r["role"]: r for r in client.get("/api/v1/auth/roles", headers=headers).json()}
-    assert "validate_evidence" not in roles["assistant_qualite"]["permissions"]
-    assert "write_quality" in roles["assistant_qualite"]["permissions"]
+    roles = {r["code"]: r for r in client.get("/api/v1/auth/roles", headers=headers).json()}
+    assert "evidence.validate" not in roles["assistant_qualite"]["permissions"]
+    assert "quality.write" in roles["assistant_qualite"]["permissions"]
 
 
 def test_le_responsable_qualite_attribue_les_roles(client, db: Session) -> None:  # noqa: ANN001
@@ -114,13 +117,16 @@ def test_le_responsable_qualite_attribue_les_roles(client, db: Session) -> None:
     staff, _ = make_user(db, "lecture", email="staff@test.local")
     admin, ha = make_user(db, "admin")
 
-    r = client.patch(f"/api/v1/auth/users/{staff.id}", json={"role": "assistant_qualite"}, headers=hq)
-    assert r.status_code == 200 and r.json()["role"] == "assistant_qualite"
-    assert client.patch(f"/api/v1/auth/users/{staff.id}", json={"role": "admin"}, headers=hq).status_code == 403
-    assert client.patch(f"/api/v1/auth/users/{admin.id}", json={"is_active": False}, headers=hq).status_code == 403
-    assert client.patch(f"/api/v1/auth/users/{qualite.id}", json={"role": "admin"}, headers=hq).status_code == 403
-    assert client.patch(f"/api/v1/auth/users/{staff.id}", json={"role": "chef"}, headers=hq).status_code == 422
-    assert client.patch(f"/api/v1/auth/users/{staff.id}", json={"role": "admin"}, headers=ha).status_code == 200
+    r = client.put(f"/api/v1/auth/users/{staff.id}/roles", json={"roles": ["assistant_qualite", "lecture"]}, headers=hq)
+    assert r.status_code == 200 and r.json()["roles"] == ["assistant_qualite", "lecture"]
+    r = client.put(f"/api/v1/auth/users/{staff.id}/roles", json={"roles": ["gestion"]}, headers=hq)
+    assert r.status_code == 403 and "sessions.write" in r.json()["detail"], "la qualité n'a pas les droits de gestion"
+    # Anti-escalade : on ne donne pas des droits qu'on n'a pas, on ne touche pas plus puissant que soi.
+    assert client.put(f"/api/v1/auth/users/{staff.id}/roles", json={"roles": ["admin"]}, headers=hq).status_code == 403
+    assert client.put(f"/api/v1/auth/users/{admin.id}/active", json={"is_active": False}, headers=hq).status_code == 403
+    assert client.put(f"/api/v1/auth/users/{qualite.id}/roles", json={"roles": ["admin"]}, headers=hq).status_code == 403
+    assert client.put(f"/api/v1/auth/users/{staff.id}/roles", json={"roles": ["chef"]}, headers=hq).status_code == 422
+    assert client.put(f"/api/v1/auth/users/{staff.id}/roles", json={"roles": ["admin"]}, headers=ha).status_code == 200
     _, hl = make_user(db, "lecture", email="lecteur@test.local")
     assert client.get("/api/v1/auth/users", headers=hl).status_code == 403
 
@@ -143,7 +149,9 @@ def test_assistant_depose_avec_grille_mais_ne_valide_pas(client, demo: Session) 
 
 def test_parametre_auto_validation(client, demo: Session) -> None:  # noqa: ANN001
     _, hq = make_user(demo, "qualite")
-    r = client.put("/api/v1/qualiopi/parametres/auto-validation", json={"autorisee": True}, headers=hq)
-    assert r.json() == {"auto_validation_autorisee": True}
+    url = "/api/v1/settings/quality.allow_self_validation"
+    assert client.put(url, json={"value": True}, headers=hq).status_code == 422, "réglage réglementaire : motif exigé"
+    r = client.put(url, json={"value": True, "reason": "Équipe de deux personnes"}, headers=hq)
+    assert r.status_code == 200 and r.json()["value"] is True
     _, hg = make_user(demo, "gestion")
-    assert client.put("/api/v1/qualiopi/parametres/auto-validation", json={"autorisee": False}, headers=hg).status_code == 403
+    assert client.put(url, json={"value": False, "reason": "x"}, headers=hg).status_code == 403

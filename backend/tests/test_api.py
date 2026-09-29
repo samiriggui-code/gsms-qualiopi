@@ -15,7 +15,7 @@ def test_login_et_me(client, db: Session) -> None:  # noqa: ANN001
     assert ok.status_code == 200
     token = ok.json()["access_token"]
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
-    assert me.json()["role"] == "qualite"
+    assert me.json()["roles"] == ["qualite"] and "evidence.validate" in me.json()["permissions"]
 
 
 def test_sans_jeton_401(client) -> None:  # noqa: ANN001

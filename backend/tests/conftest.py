@@ -104,10 +104,11 @@ def client(db: Session) -> Iterator["TestClient"]:
 
 def make_user(db: Session, role: str, email: str | None = None) -> tuple["User", dict]:
     """Crée un utilisateur et renvoie les en-têtes d'authentification."""
-    from app.auth.models import User
+    from app.auth.models import User, UserRole
     from app.auth.security import create_token, hash_password
 
-    user = User(email=email or f"{role}@test.local", full_name=f"Test {role}", password_hash=hash_password("mot-de-passe-test"), role=role)
+    user = User(email=email or f"{role}@test.local", full_name=f"Test {role}", password_hash=hash_password("mot-de-passe-test"))
+    user.role_links.append(UserRole(role=role))
     db.add(user)
     db.commit()
     return user, {"Authorization": f"Bearer {create_token(user)}"}

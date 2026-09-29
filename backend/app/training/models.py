@@ -7,7 +7,7 @@ transforme en preuves potentielles. Schéma PostgreSQL : `formation`.
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, false
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, new_id
@@ -33,8 +33,6 @@ class Organization(TimestampMixin, Base):
     # VAE, APPRENTISSAGE. Détermine l'applicabilité des indicateurs.
     action_categories: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["AF"])
     is_new_entrant: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Politique de l'organisme : la personne qui dépose une pièce peut-elle aussi la valider ?
-    allow_self_validation: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     disability_referent_name: Mapped[str | None] = mapped_column(String(200))
     disability_referent_email: Mapped[str | None] = mapped_column(String(200))
     mobility_referent_name: Mapped[str | None] = mapped_column(String(200))

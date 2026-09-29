@@ -6,7 +6,7 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 1er novembre 2026) et explique
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-**Statut : jalons 1 et 1 bis terminés** — socle exécutable et prouvé (API, moteur, démo, 101 tests, Docker, CI)
+**Statut : jalons 1 et 1 bis terminés, jalon 2 en cours (socle de configuration fait)** — socle exécutable et prouvé (API, moteur, démo, 108 tests, Docker, CI)
 et les cinq briques manquantes du moteur. Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
 
 ## Architecture
@@ -29,7 +29,8 @@ Un monolithe, un worker, une base.
 | `app/events/`, `app/qualiopi/engine.py`, `app/worker.py` | Outbox et réévaluation ciblée |
 | `app/qualiopi/schedule/` + `config/circuits/` | Échéancier : jalons J-15 → J+45 par session, à venir / à échéance / en retard |
 | `app/documents/` + `config/dossiers/` | Dossiers de pièces : dépôt SHA-256 ou pièce papier déclarée, versions, demandes, trames de rédaction ; chaque pièce a une grille cochée au dépôt (exploitable si tous les points sont satisfaits) puis confirmée à la validation |
-| `app/auth/` | Rôles attribués par l'organisme à son personnel (admin, qualité, assistant qualité, gestion, lecture) ; le déposant ne valide pas sa propre pièce sauf si l'organisme l'autorise |
+| `app/auth/` | Catalogue de permissions `ressource.action` (code), rôles système + rôles créés par l'organisme (base), plusieurs rôles par compte ; on ne donne jamais un droit qu'on n'a pas |
+| `app/platform/` | Socle de configuration : fonctionnalités activables (une fonctionnalité inactive retire ses droits), réglages typés déclarés par chaque domaine, datés et journalisés (`ConfigurationService`), décisions motivées (`Decision`), `GET /api/v1/bootstrap` pour le front |
 | `app/qualiopi/review/` | Revue humaine attestée par indicateur (conclusion, justification, validité) |
 | `app/qualiopi/cycle/` | Cycle de certification : période évaluée pour l'état global et l'échantillon d'audit |
 | `app/core/journal.py` | Journal des modifications métier : qui, quoi, quand, champ par champ |

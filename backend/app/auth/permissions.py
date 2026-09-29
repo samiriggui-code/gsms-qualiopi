@@ -1,0 +1,60 @@
+"""Catalogue des permissions et rôles système.
+
+Le catalogue est défini par le code : c'est la seule liste qu'un développeur fait évoluer.
+Les rôles, eux, appartiennent à l'organisme : rôles système proposés ici (non modifiables) et
+rôles personnalisés créés en base en cochant des permissions du catalogue.
+
+Une permission répond à « cette personne peut-elle faire ce type d'action ? ». Le contexte
+(état de l'objet, réglages, auteur de la pièce…) relève des politiques de chaque domaine.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Permission:
+    code: str
+    label: str
+    feature: str  # fonctionnalité qui apporte la permission (registre des fonctionnalités)
+
+
+CATALOGUE: tuple[Permission, ...] = (
+    Permission("sessions.read", "Consulter formations, sessions et inscriptions", "training"),
+    Permission("sessions.write", "Créer et modifier formations, sessions et inscriptions", "training"),
+    Permission("trainers.write", "Gérer les formateurs et déposer leurs pièces", "training"),
+    Permission("quality.read", "Consulter l'état Qualiopi, les dossiers de pièces et les audits", "qualiopi"),
+    Permission("quality.write", "Déposer les pièces de l'organisme, réévaluer, gérer les cycles", "qualiopi"),
+    Permission("evidence.validate", "Valider ou rejeter des preuves, attester les revues d'indicateurs", "qualiopi"),
+    Permission("referential.manage", "Importer une version du référentiel", "qualiopi"),
+    Permission("journal.read", "Consulter le journal des modifications", "core"),
+    Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
+    Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
+)
+CODES = frozenset(p.code for p in CATALOGUE)
+
+# Rôles proposés à tout organisme. Un organisme peut en créer d'autres (table iam.role).
+SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
+    "admin": ("Direction : tous les droits", CODES),
+    "qualite": ("Responsable qualité : dépose, valide, gère le référentiel, l'équipe et les réglages", frozenset({
+        "sessions.read", "quality.read", "quality.write", "evidence.validate", "referential.manage",
+        "journal.read", "users.manage", "settings.manage",
+    })),
+    "assistant_qualite": ("Assistant qualité : dépose les pièces et coche leur grille, ne valide pas", frozenset({
+        "sessions.read", "quality.read", "quality.write", "journal.read",
+    })),
+    "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
+        "sessions.read", "sessions.write", "trainers.write", "quality.read", "journal.read",
+    })),
+    "formateur": ("Formateur : consulte les sessions", frozenset({"sessions.read"})),
+    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read"})),
+}
+
+
+def check_codes(codes: set[str] | frozenset[str]) -> None:
+    from app.core.errors import InvalidStateError
+
+    unknown = set(codes) - CODES
+    if unknown:
+        raise InvalidStateError(f"Permissions inconnues : {', '.join(sorted(unknown))}")

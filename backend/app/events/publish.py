@@ -4,6 +4,8 @@ from app.events.models import OutboxEvent
 
 # Catalogue des événements métier émis par le domaine formation.
 EVENT_NAMES = {
+    "settings.changed",
+    "feature.changed",
     "organization.updated",
     "program.created",
     "program.updated",
