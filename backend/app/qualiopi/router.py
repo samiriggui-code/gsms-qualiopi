@@ -9,10 +9,16 @@ from sqlalchemy import or_, select
 
 from app.auth.security import DB, EvidenceValidator, QualityReader, QualityWriter, ReferentialManager
 from app.core.config import get_settings
-from app.core.errors import NotFoundError
+from app.core.errors import InvalidStateError, NotFoundError
+from app.platform.decisions import enforce
+from app.qualiopi.capa import service as capa_service
+from app.qualiopi.capa.models import CapaAction
+from app.qualiopi.capa.policy import CapaPolicy, is_late
+from app.qualiopi.chain import capa_view, criteria_overview, indicator_chain
 from app.qualiopi.cycle.models import CertificationCycle
 from app.qualiopi.cycle.service import create_cycle, resolve_period
 from app.qualiopi.engine import refresh_all
+from app.qualiopi.evaluation.models import Finding
 from app.qualiopi.evaluation.report import session_dossier
 from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.models import Evidence, EvidenceIndicatorLink
@@ -179,3 +185,97 @@ def list_cycles(db: DB, _: QualityReader) -> list[dict]:
     return [{"id": c.id, "label": c.label, "kind": c.kind, "period_start": c.period_start.isoformat(),
              "period_end": c.period_end.isoformat() if c.period_end else None,
              "audit_on": c.audit_on.isoformat() if c.audit_on else None, "certifier": c.certifier} for c in rows]
+
+
+# ── Chaîne d'un indicateur et actions correctives ────────────────────────────────
+
+
+@router.get("/qualiopi/criteres")
+def criteria(db: DB, _: QualityReader) -> list[dict]:
+    """Les critères et leurs indicateurs, avec l'état calculé et le nombre d'écarts ouverts."""
+    return criteria_overview(db, active_version(db))
+
+
+@router.get("/qualiopi/indicateurs/{number}")
+def indicator(number: int, db: DB, user: QualityReader) -> dict:
+    """Exigences, preuves attendues, contrôles, preuves disponibles, écarts, actions, historique."""
+    return indicator_chain(db, active_version(db), number, user)
+
+
+@router.get("/qualiopi/actions")
+def list_actions(db: DB, user: QualityReader, statut: str | None = None, en_retard: bool = False) -> list[dict]:
+    policy = CapaPolicy(db, user)
+    q = select(CapaAction).order_by(CapaAction.due_on)
+    if statut:
+        q = q.where(CapaAction.status == statut)
+    rows = [a for a in db.scalars(q) if not en_retard or is_late(a, policy.today)]
+    findings = {f.id: f for f in db.scalars(select(Finding).where(Finding.id.in_([a.finding_id for a in rows])))} if rows else {}
+    return [capa_view(a, findings.get(a.finding_id), policy) for a in rows]
+
+
+def _capa(db, capa_id: str) -> CapaAction:  # noqa: ANN001
+    capa = db.get(CapaAction, capa_id)
+    if capa is None:
+        raise NotFoundError("Action corrective introuvable")
+    return capa
+
+
+@router.get("/qualiopi/actions/{capa_id}")
+def get_action(capa_id: str, db: DB, user: QualityReader) -> dict:
+    capa = _capa(db, capa_id)
+    return capa_view(capa, db.get(Finding, capa.finding_id), CapaPolicy(db, user))
+
+
+class CapaIn(BaseModel):
+    titre: str
+    plan: str
+    responsable: str
+    echeance: date
+    cause: str | None = None
+    type: str = "CORRECTIVE"
+
+
+@router.post("/qualiopi/ecarts/{finding_id}/actions", status_code=201)
+def open_action(finding_id: str, body: CapaIn, db: DB, user: QualityReader) -> dict:
+    """Ouvre une action corrective sur un écart (le constat passe « en traitement »)."""
+    finding = db.get(Finding, finding_id)
+    if finding is None:
+        raise NotFoundError("Écart introuvable")
+    policy = CapaPolicy(db, user)
+    enforce(policy.can_open(finding))
+    if body.type not in ("CORRECTIVE", "PREVENTIVE"):
+        raise InvalidStateError("Type : CORRECTIVE ou PREVENTIVE")
+    for label, value in (("l'intitulé", body.titre), ("le plan d'action", body.plan), ("le responsable", body.responsable)):
+        if not value.strip():
+            raise InvalidStateError(f"Indiquez {label}")
+    if body.echeance < policy.today:
+        raise InvalidStateError("L'échéance ne peut pas être dans le passé")
+    capa = capa_service.create_capa(db, finding.id, title=body.titre.strip(), action_plan=body.plan.strip(),
+                                    owner_name=body.responsable.strip(), due_on=body.echeance,
+                                    root_cause=(body.cause or "").strip() or None, kind=body.type, actor=user.full_name)
+    db.commit()
+    return capa_view(capa, finding, policy)
+
+
+class CapaStepIn(BaseModel):
+    note: str | None = None
+    motif: str | None = None
+
+
+@router.post("/qualiopi/actions/{capa_id}/{action}")
+def act_on_action(capa_id: str, action: str, body: CapaStepIn, db: DB, user: QualityReader) -> dict:
+    capa = _capa(db, capa_id)
+    policy = CapaPolicy(db, user)
+    enforce(policy.decide(capa, action))
+    actor = user.full_name
+    if action == "demarrer":
+        capa_service.start(db, capa, actor)
+    elif action == "realiser":
+        capa_service.complete(db, capa, body.note or "", actor)
+    elif action == "verifier":
+        capa_service.verify(db, capa, actor, body.note)
+    else:
+        capa_service.cancel(db, capa, body.motif or "", actor)
+    db.commit()
+    db.refresh(capa)
+    return capa_view(capa, db.get(Finding, capa.finding_id), policy)

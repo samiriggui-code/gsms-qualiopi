@@ -8,7 +8,7 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
 **Statut : jalons 1 et 1 bis terminés, jalon 2 en cours** — backend : socle de configuration, Formation,
-Émargement, RH, Financement, Parcours du stagiaire (139 tests). Front : premier parcours complet
+Émargement, RH, Financement, Parcours du stagiaire, chaîne Qualiopi et actions correctives (142 tests). Front : premier parcours complet
 (connexion, sessions, détail, parcours des stagiaires, émargement, Qualiopi de la session), testé par
 Playwright sur ordinateur et mobile. Voir [`frontend/README.md`](frontend/README.md).
 
@@ -66,6 +66,12 @@ puis http://localhost:3000.
 Dossier d'audit d'une session (avec son échéancier) : `GET /api/v1/sessions/{id}/dossier`.
 État de préparation global sur le cycle en cours : `GET /api/v1/qualiopi/readiness`.
 Échéances proches ou dépassées : `GET /api/v1/qualiopi/echeances`.
+Chaîne d'un indicateur (critère, exigences, preuves attendues, contrôles, preuves, écarts, actions, historique) :
+`GET /api/v1/qualiopi/indicateurs/{n}` ; vue par critère : `GET /api/v1/qualiopi/criteres`.
+Actions correctives : `POST /api/v1/qualiopi/ecarts/{id}/actions`, puis
+`POST /api/v1/qualiopi/actions/{id}/{demarrer|realiser|verifier|annuler}` ; liste : `GET /api/v1/qualiopi/actions?en_retard=true`.
+Une action issue d'un contrôle n'est jamais close par un humain : « vérifier » demande au moteur de réévaluer,
+et il ne clôt que si l'écart a disparu.
 
 ## Docker
 
