@@ -20,8 +20,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from app.core import db as core_db
-from app.models import SCHEMAS
+os.environ.setdefault("JWT_SECRET", "secret-de-test-assez-long-pour-hs256-0123456789")
+
+from app.core import db as core_db  # noqa: E402
+from app.models import SCHEMAS  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ADMIN_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/postgres")
@@ -76,3 +78,27 @@ def db(database_url: str) -> Iterator[Session]:
     finally:
         session.rollback()
         session.close()
+
+
+# ── API ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def client(db: Session) -> Iterator["TestClient"]:
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    with TestClient(create_app()) as c:
+        yield c
+
+
+def make_user(db: Session, role: str, email: str | None = None) -> tuple["User", dict]:
+    """Crée un utilisateur et renvoie les en-têtes d'authentification."""
+    from app.auth.models import User
+    from app.auth.security import create_token, hash_password
+
+    user = User(email=email or f"{role}@test.local", full_name=f"Test {role}", password_hash=hash_password("mot-de-passe-test"), role=role)
+    db.add(user)
+    db.commit()
+    return user, {"Authorization": f"Bearer {create_token(user)}"}

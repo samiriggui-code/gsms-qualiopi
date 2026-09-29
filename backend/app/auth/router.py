@@ -53,8 +53,8 @@ class UserCreate(BaseModel):
 def create_user(body: UserCreate, db: DB) -> User:
     if body.role not in ROLES:
         raise HTTPException(422, f"Rôle inconnu, valeurs possibles : {', '.join(ROLES)}")
-    if len(body.password) < 10:
-        raise HTTPException(422, "Mot de passe : 10 caractères minimum")
+    if len(body.password) < 12:
+        raise HTTPException(422, "Mot de passe : 12 caractères minimum")
     if db.scalar(select(User).where(User.email == body.email.lower())):
         raise HTTPException(409, "Email déjà utilisé")
     user = User(email=body.email.lower().strip(), full_name=body.full_name, password_hash=hash_password(body.password), role=body.role)
