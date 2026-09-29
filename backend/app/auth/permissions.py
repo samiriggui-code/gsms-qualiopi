@@ -30,6 +30,8 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("quality.write", "Déposer les pièces de l'organisme, réévaluer, gérer les cycles", "qualiopi"),
     Permission("evidence.validate", "Valider ou rejeter des preuves, attester les revues d'indicateurs", "qualiopi"),
     Permission("referential.manage", "Importer une version du référentiel", "qualiopi"),
+    Permission("funding.read", "Consulter les dossiers de financement et leurs échéances", "funding"),
+    Permission("funding.write", "Gérer les dossiers de financement (sources, actions, montants)", "funding"),
     Permission("staff.read", "Consulter le personnel, les contrats et les absences", "hr"),
     Permission("staff.write", "Gérer le personnel, les contrats et les absences", "hr"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
@@ -49,7 +51,10 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
         "sessions.read", "quality.read", "quality.write", "journal.read",
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
-        "sessions.read", "sessions.write", "trainers.write", "attendance.write", "quality.read", "journal.read",
+        "sessions.read", "sessions.write", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read",
+    })),
+    "financement": ("Financement : dossiers CPF, OPCO, France Travail, entreprises", frozenset({
+        "sessions.read", "funding.read", "funding.write", "journal.read",
     })),
     "formateur": ("Formateur : ses propres sessions, tient et contre-valide leur émargement",
                   frozenset({"sessions.read_own", "attendance.write"})),

@@ -6,6 +6,7 @@ from app.events.models import OutboxEvent
 EVENT_NAMES = {
     "settings.changed",
     "feature.changed",
+    "funding.source_changed",
     "organization.updated",
     "program.created",
     "program.updated",

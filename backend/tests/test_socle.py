@@ -66,7 +66,9 @@ def test_fonctionnalites_par_defaut_et_dependances(db: Session) -> None:
     on = enabled_features(db)
     assert {"core", "training", "qualiopi"} <= on and "funding" not in on
     with pytest.raises(InvalidStateError, match="pas encore disponible"):
-        set_feature(db, "funding", True)
+        set_feature(db, "signature", True)
+    with pytest.raises(InvalidStateError, match="Activez d'abord"):
+        set_feature(db, "funding.cpf", True)
     with pytest.raises(InvalidStateError, match="Désactivez d'abord"):
         set_feature(db, "training", False)
 

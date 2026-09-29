@@ -1,0 +1,18 @@
+# Règles datées : la valeur applicable est celle en vigueur à la date du fait générateur.
+# Chaque entrée cite sa source. Une nouvelle valeur = une nouvelle ligne, jamais une édition.
+
+cpf.participation_titulaire_eur:
+  description: Participation obligatoire du titulaire, payée à la Caisse des Dépôts (jamais à l'organisme)
+  values:
+    - {from: 2024-05-02, value: 100, source: "Décret n° 2024-394 du 29 avril 2024"}
+    - {from: 2026-04-01, value: 150, source: "Décret n° 2026-234 du 30 mars 2026"}
+
+personnel.delai_retractation_jours:
+  description: Délai de rétractation du stagiaire après signature du contrat de formation
+  values:
+    - {from: 2008-05-01, value: 10, source: "Code du travail, L. 6353-5"}
+
+personnel.acompte_max_pourcent:
+  description: Part maximale du prix exigible à l'issue du délai de rétractation
+  values:
+    - {from: 2008-05-01, value: 30, source: "Code du travail, L. 6353-6"}

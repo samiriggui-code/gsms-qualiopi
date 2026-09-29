@@ -36,7 +36,7 @@ ORG_EVENTS = {
 }
 
 
-PLATFORM_EVENTS = {"settings.changed", "feature.changed"}
+PLATFORM_EVENTS = {"settings.changed", "feature.changed", "funding.source_changed"}
 
 
 def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None) -> dict:

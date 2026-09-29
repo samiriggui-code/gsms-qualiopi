@@ -19,6 +19,7 @@ NAVIGATION = (
     ("sessions", "Sessions", "training", "sessions.read"),
     ("mes_sessions", "Mes sessions", "training", "sessions.read_own"),
     ("emargement", "Émargement", "attendance", "attendance.write"),
+    ("financement", "Financement", "funding", "funding.read"),
     ("personnel", "Personnel", "hr", "staff.read"),
     ("qualite", "Qualité", "qualiopi", "quality.read"),
     ("dossiers", "Dossiers de pièces", "qualiopi", "quality.read"),

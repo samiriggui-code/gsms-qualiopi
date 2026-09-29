@@ -1,0 +1,117 @@
+# Circuits de financement, un par dispositif. Choix GSMS relus face aux sources officielles
+# (voir l'audit « Financement ») ; un circuit modifié = une nouvelle version de ce fichier.
+#
+#   feature      fonctionnalité qui active le dispositif
+#   payer        qui règle par défaut : FINANCEUR | ENTREPRISE | STAGIAIRE
+#   prorata      le montant facturable suit le taux de réalisation (émargements)
+#   states       états du circuit ; `final` = plus d'action possible
+#   actions      from → to ; `requires` = conditions nommées (app/funding/conditions.py) ;
+#                `due` = échéance en jours ouvrés après le début ou la fin de la session ;
+#                `portal` = l'action se fait AUSSI sur un portail externe (saisie humaine, tracée ici)
+#   pieces       pièces du dossier financeur, lues dans les données existantes (jamais recopiées)
+
+version: "2026-09-29"
+
+schemes:
+  # Délais EDOF de 3 jours ouvrés : guide EDOF « Saisie et utilisation » (déc. 2025) pour l'entrée,
+  # page d'aide EDOF « sortie et service fait » pour la sortie et le service fait.
+  CPF:
+    label: Compte personnel de formation (Mon Compte Formation, EDOF)
+    feature: funding.cpf
+    provider: Caisse des Dépôts
+    payer: FINANCEUR
+    prorata: true
+    initial: DEMANDE_RECUE
+    final: [PAYE, REFUSEE, ANNULEE]
+    states: [DEMANDE_RECUE, ACCEPTEE, ENTREE_DECLAREE, SORTIE_DECLAREE, SERVICE_FAIT, PAYE, REFUSEE, ANNULEE]
+    actions:
+      accepter: {from: [DEMANDE_RECUE], to: ACCEPTEE, requires: [external_ref, amount_granted], portal: EDOF,
+                 label: "Accepter la demande (n° de dossier EDOF, montant)"}
+      declarer_entree: {from: [ACCEPTEE], to: ENTREE_DECLAREE, requires: [session_started, learner_present_once], portal: EDOF,
+                        due: {after: session_start, business_days: 3}, label: "Déclarer l'entrée en formation"}
+      declarer_sortie: {from: [ENTREE_DECLAREE], to: SORTIE_DECLAREE, requires: [enrollment_finished], portal: EDOF,
+                        due: {after: session_end, business_days: 3}, label: "Déclarer la sortie de formation"}
+      declarer_service_fait: {from: [SORTIE_DECLAREE], to: SERVICE_FAIT, requires: [attendance_complete], portal: EDOF,
+                              due: {after: session_end, business_days: 3}, label: "Déclarer le service fait"}
+      enregistrer_paiement: {from: [SERVICE_FAIT], to: PAYE, requires: [amount_paid], label: "Enregistrer le paiement de la CDC"}
+      refuser: {from: [DEMANDE_RECUE], to: REFUSEE, reason: true, label: "Refuser la demande"}
+      annuler: {from: [DEMANDE_RECUE, ACCEPTEE], to: ANNULEE, reason: true, label: "Annuler"}
+    pieces: [programme, emargements, attestation_fin]
+
+  OPCO:
+    label: OPCO — plan de développement des compétences
+    feature: funding.opco
+    payer: FINANCEUR
+    prorata: false
+    initial: A_DEPOSER
+    final: [PAYEE, REFUSEE, ANNULEE]
+    states: [A_DEPOSER, DEPOSEE, ACCORDEE, REALISEE, FACTUREE, PAYEE, REFUSEE, ANNULEE]
+    actions:
+      # Délai de dépôt : valeur GSMS par défaut, propre à chaque OPCO, à ajuster (non vérifiée).
+      deposer: {from: [A_DEPOSER], to: DEPOSEE, requires: [agreement_signed], portal: "portail de l'OPCO",
+                due: {before: session_start, business_days: 10}, label: "Déposer la demande de prise en charge"}
+      accorder: {from: [DEPOSEE], to: ACCORDEE, requires: [external_ref, amount_granted], label: "Enregistrer l'accord (n°, montant)"}
+      constater_realisation: {from: [ACCORDEE], to: REALISEE, requires: [enrollment_finished, attendance_complete, certificate_issued],
+                              label: "Constater la réalisation"}
+      facturer: {from: [REALISEE], to: FACTUREE, requires: [invoice_ref], portal: "portail de l'OPCO",
+                 due: {after: session_end, business_days: 10}, label: "Facturer (pièces de règlement jointes)"}
+      enregistrer_paiement: {from: [FACTUREE], to: PAYEE, requires: [amount_paid], label: "Enregistrer le paiement"}
+      refuser: {from: [DEPOSEE], to: REFUSEE, reason: true, label: "Refus de l'OPCO"}
+      annuler: {from: [A_DEPOSER, DEPOSEE, ACCORDEE], to: ANNULEE, reason: true, label: "Annuler"}
+    pieces: [programme, convention, emargements, attestation_fin, facture]
+
+  FRANCE_TRAVAIL:
+    label: France Travail — aide individuelle à la formation (AIF)
+    feature: funding.france_travail
+    provider: France Travail
+    payer: FINANCEUR
+    prorata: false
+    initial: DEVIS_A_SAISIR
+    final: [PAYEE, REFUSEE, ANNULEE]
+    states: [DEVIS_A_SAISIR, DEVIS_SAISI, VALIDEE, EN_FORMATION, TERMINEE, FACTUREE, PAYEE, REFUSEE, ANNULEE]
+    actions:
+      # Délai de saisie du devis : valeur GSMS par défaut, à confirmer avec France Travail (non vérifiée).
+      saisir_devis: {from: [DEVIS_A_SAISIR], to: DEVIS_SAISI, portal: Kairos,
+                     due: {before: session_start, business_days: 15}, label: "Saisir le devis sur Kairos"}
+      valider: {from: [DEVIS_SAISI], to: VALIDEE, requires: [external_ref, amount_granted],
+                label: "Devis validé par le conseiller et le demandeur d'emploi"}
+      declarer_entree: {from: [VALIDEE], to: EN_FORMATION, requires: [session_started, learner_present_once], portal: Kairos,
+                        due: {after: session_start, business_days: 3}, label: "Attestation d'entrée en stage (AES)"}
+      declarer_fin: {from: [EN_FORMATION], to: TERMINEE, requires: [enrollment_finished], portal: Kairos, label: "Fin de formation"}
+      facturer: {from: [TERMINEE], to: FACTUREE, requires: [invoice_ref, certificate_issued], label: "Facturer"}
+      enregistrer_paiement: {from: [FACTUREE], to: PAYEE, requires: [amount_paid], label: "Enregistrer le paiement"}
+      refuser: {from: [DEVIS_SAISI], to: REFUSEE, reason: true, label: "Devis refusé"}
+      annuler: {from: [DEVIS_A_SAISIR, DEVIS_SAISI, VALIDEE], to: ANNULEE, reason: true, label: "Annuler"}
+    pieces: [programme, emargements, attestation_fin, facture]
+
+  ENTREPRISE:
+    label: Entreprise (financement direct)
+    feature: funding
+    payer: ENTREPRISE
+    prorata: false
+    initial: DEVIS
+    final: [PAYEE, ANNULEE]
+    states: [DEVIS, CONVENTION_SIGNEE, REALISEE, FACTUREE, PAYEE, ANNULEE]
+    actions:
+      signer: {from: [DEVIS], to: CONVENTION_SIGNEE, requires: [agreement_signed, amount_granted], label: "Convention signée (montant convenu)"}
+      constater_realisation: {from: [CONVENTION_SIGNEE], to: REALISEE, requires: [enrollment_finished, attendance_complete],
+                              label: "Constater la réalisation"}
+      facturer: {from: [REALISEE], to: FACTUREE, requires: [invoice_ref], due: {after: session_end, business_days: 5}, label: "Facturer"}
+      enregistrer_paiement: {from: [FACTUREE], to: PAYEE, requires: [amount_paid], label: "Enregistrer le paiement"}
+      annuler: {from: [DEVIS, CONVENTION_SIGNEE], to: ANNULEE, reason: true, label: "Annuler"}
+    pieces: [programme, convention, emargements, attestation_fin, facture]
+
+  PERSONNEL:
+    label: Reste à charge du stagiaire (contrat de formation)
+    feature: funding
+    payer: STAGIAIRE
+    prorata: false
+    initial: CONTRAT
+    final: [PAYE, ANNULE]
+    states: [CONTRAT, CONTRAT_SIGNE, PAYE, ANNULE]
+    actions:
+      signer: {from: [CONTRAT], to: CONTRAT_SIGNE, requires: [agreement_signed, amount_granted], label: "Contrat signé (montant)"}
+      # Rétractation de 10 jours et 30 % maximum encaissés ensuite (code du travail, L. 6353-5 et L. 6353-6).
+      enregistrer_paiement: {from: [CONTRAT_SIGNE], to: PAYE, requires: [retraction_elapsed, amount_paid], label: "Enregistrer le paiement"}
+      annuler: {from: [CONTRAT, CONTRAT_SIGNE], to: ANNULE, reason: true, label: "Annuler (rétractation ou abandon)"}
+    pieces: [programme, contrat, emargements, attestation_fin]
