@@ -1,0 +1,388 @@
+# Couche normative Qualiopi V9 — écrite par l'organisme, relue par le responsable qualité.
+#
+# Ce fichier ne recopie pas le guide : le texte officiel vient de ../source (qualiopi-markdown,
+# Etalab 2.0). Ici on déclare, pour chaque indicateur :
+#   scope             ORGANISME | FORMATION | SESSION (où l'indicateur s'évalue)
+#   applicability     conditions d'application (catégories d'action, certifiant)
+#   expected_evidence types de preuve qui servent l'indicateur (liaison automatique)
+#   human_review      ce qu'un humain doit juger, même quand les contrôles passent
+#   controls          contrôles déterministes (clé `check` = bibliothèque Python)
+#
+# Une nouvelle version du référentiel = un nouveau dossier (v10/) avec sa source et ce fichier.
+
+referential:
+  code: QUALIOPI
+  version: V9
+  title: Référentiel national qualité — guide de lecture V9
+  effective_from: 2024-01-08
+  source_label: "Guide de lecture du Référentiel national qualité — V9 du 8 janvier 2024, DGEFP, Ministère du Travail. Texte via Levier-IA/qualiopi-markdown (Licence Ouverte Etalab 2.0)."
+  source_url: https://travail-emploi.gouv.fr/referentiel-national-qualite-guide-de-lecture-qualiopi
+
+criteria:
+  1: Conditions d'information du public sur les prestations proposées
+  2: Identification précise des objectifs et adaptation des prestations lors de leur conception
+  3: Adaptation aux publics des modalités d'accueil, d'accompagnement, de suivi et d'évaluation
+  4: Adéquation des moyens pédagogiques, techniques et d'encadrement
+  5: Qualification et développement des connaissances et compétences des personnels
+  6: Inscription et investissement du prestataire dans son environnement professionnel
+  7: Recueil et prise en compte des appréciations et des réclamations
+
+indicators:
+  1:
+    title: Information publique détaillée et vérifiable sur les prestations
+    scope: FORMATION
+    expected_evidence: [PUBLIC_INFO]
+    human_review: Vérifier que l'information est réellement publiée (site, catalogue) et accessible.
+    controls:
+      - key: I01.public-info
+        label: Fiche formation complète et relue depuis moins d'un an
+        check: program_evidence
+        params: { evidence_type: PUBLIC_INFO, max_age_days: 365 }
+        severity: majeure
+        guide_section: Énoncé
+        remediation: Compléter les rubriques manquantes de la fiche formation et dater la relecture.
+  2:
+    title: Indicateurs de résultats adaptés
+    scope: FORMATION
+    expected_evidence: [RESULTS_PUBLISHED]
+    human_review: Contrôler la cohérence des taux publiés avec les résultats réels.
+    controls:
+      - key: I02.results
+        label: Taux de satisfaction ou de réussite renseigné
+        check: program_evidence
+        params: { evidence_type: RESULTS_PUBLISHED }
+        severity: mineure
+        remediation: Calculer et publier les indicateurs de résultats de la formation.
+  3:
+    title: Taux d'obtention des certifications, blocs, équivalences, débouchés
+    scope: FORMATION
+    applicability: { certifying_only: true }
+    expected_evidence: [CERTIFICATION_RESULTS]
+    human_review: Vérifier la publication des passerelles, blocs et débouchés.
+    controls:
+      - key: I03.certification-results
+        label: Taux d'obtention renseigné pour la formation certifiante
+        check: program_evidence
+        params: { evidence_type: CERTIFICATION_RESULTS }
+        severity: majeure
+        remediation: Renseigner le taux d'obtention de la certification préparée.
+  4:
+    title: Analyse du besoin du bénéficiaire
+    scope: SESSION
+    expected_evidence: [NEEDS_ANALYSIS]
+    human_review: Juger la qualité de l'analyse (échantillon de dossiers).
+    controls:
+      - key: I04.needs-analysis
+        label: Analyse du besoin réalisée pour chaque apprenant
+        check: per_enrollment_evidence
+        params: { evidence_type: NEEDS_ANALYSIS, session_statuses: [CONFIRMEE, EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 0.8 }
+        severity: majeure
+        remediation: Réaliser et enregistrer l'analyse du besoin des apprenants listés.
+  5:
+    title: Objectifs opérationnels et évaluables
+    scope: FORMATION
+    expected_evidence: [OBJECTIVES]
+    human_review: Vérifier que les objectifs sont opérationnels et évaluables.
+    controls:
+      - key: I05.objectives
+        label: Objectifs de la formation formalisés
+        check: program_evidence
+        params: { evidence_type: OBJECTIVES }
+        severity: majeure
+        remediation: Formaliser au moins un objectif opérationnel et évaluable.
+  6:
+    title: Contenus et modalités de mise en œuvre
+    scope: FORMATION
+    expected_evidence: [CONTENT]
+    human_review: Vérifier l'adéquation des contenus aux objectifs.
+    controls:
+      - key: I06.content
+        label: Contenu et méthodes pédagogiques décrits
+        check: program_evidence
+        params: { evidence_type: CONTENT }
+        severity: majeure
+        remediation: Décrire le contenu et les méthodes mobilisées.
+  7:
+    title: Adéquation des contenus aux exigences de la certification
+    scope: FORMATION
+    applicability: { certifying_only: true }
+    expected_evidence: [CERTIFICATION_ALIGNMENT]
+    human_review: Comparer le programme au référentiel RNCP/RS.
+    controls:
+      - key: I07.certification-alignment
+        label: Correspondance programme / référentiel de certification documentée
+        check: program_evidence
+        params: { evidence_type: CERTIFICATION_ALIGNMENT }
+        severity: majeure
+        remediation: Documenter la correspondance entre modules et blocs de compétences.
+  8:
+    title: Positionnement et évaluation des acquis à l'entrée
+    scope: SESSION
+    expected_evidence: [POSITIONING]
+    human_review: Vérifier la pertinence de l'outil de positionnement.
+    controls:
+      - key: I08.positioning-before-start
+        label: Positionnement réalisé avant le démarrage pour chaque apprenant
+        check: per_enrollment_evidence
+        params: { evidence_type: POSITIONING, session_statuses: [CONFIRMEE, EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 0.8 }
+        severity: mineure
+        remediation: Réaliser et enregistrer le positionnement des apprenants listés avant le démarrage.
+  9:
+    title: Information sur les conditions de déroulement
+    scope: SESSION
+    expected_evidence: [CONVOCATION]
+    human_review: Vérifier le contenu de la convocation (horaires, lieu, règlement, accessibilité).
+    controls:
+      - key: I09.convocations
+        label: Convocation envoyée avant le démarrage à chaque apprenant
+        check: per_enrollment_evidence
+        params: { evidence_type: CONVOCATION, session_statuses: [CONFIRMEE, EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 0.9 }
+        severity: majeure
+        remediation: Envoyer les convocations manquantes et en conserver la trace datée.
+  10:
+    title: Adaptation de la prestation, de l'accompagnement et du suivi
+    scope: SESSION
+    expected_evidence: [ADAPTATION]
+    human_review: Juger la pertinence des adaptations mises en œuvre.
+    controls:
+      - key: I10.adaptations
+        label: Adaptations demandées traitées pour chaque apprenant concerné
+        check: per_enrollment_evidence
+        params: { evidence_type: ADAPTATION, only_if: needs_adaptation, session_statuses: [CONFIRMEE, EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 1.0 }
+        severity: majeure
+        remediation: Statuer sur les adaptations en attente et tracer leur mise en œuvre.
+  11:
+    title: Évaluation de l'atteinte des objectifs
+    scope: SESSION
+    expected_evidence: [ASSESSMENT, CERTIFICATE]
+    human_review: Vérifier que les évaluations mesurent bien les objectifs.
+    controls:
+      - key: I11.assessments
+        label: Au moins une évaluation par apprenant
+        check: per_enrollment_evidence
+        params: { evidence_type: ASSESSMENT, session_statuses: [TERMINEE, CLOTUREE], warning_ratio: 0.8 }
+        severity: majeure
+        remediation: Enregistrer les évaluations des apprenants listés.
+      - key: I11.certificates
+        label: Attestation de fin de formation remise à chaque apprenant ayant terminé
+        check: per_enrollment_evidence
+        params: { evidence_type: CERTIFICATE, session_statuses: [TERMINEE, CLOTUREE], enrollment_statuses: [TERMINE], warning_ratio: 0.9 }
+        severity: mineure
+        remediation: Émettre les attestations manquantes.
+  12:
+    title: Engagement des bénéficiaires et prévention des ruptures de parcours
+    scope: SESSION
+    expected_evidence: [ATTENDANCE, DROPOUT_FOLLOWUP]
+    human_review: Vérifier les mesures d'accompagnement en cas de difficulté.
+    controls:
+      - key: I12.attendance
+        label: Émargement tenu sur les demi-journées réalisées
+        check: attendance_tracking
+        params: { min_signed_ratio: 0.9, session_statuses: [EN_COURS, TERMINEE, CLOTUREE] }
+        severity: majeure
+        remediation: Compléter les feuilles d'émargement manquantes.
+      - key: I12.dropouts
+        label: Chaque abandon est suivi et motivé
+        check: per_enrollment_evidence
+        params: { evidence_type: DROPOUT_FOLLOWUP, enrollment_statuses: [ABANDON], session_statuses: [EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 1.0 }
+        severity: mineure
+        remediation: Documenter le suivi et le motif de chaque abandon.
+  13:
+    title: Coordination des acteurs de l'alternance
+    scope: ORGANISME
+    applicability: { action_categories: [APPRENTISSAGE] }
+    human_review: Revue humaine (spécifique CFA).
+  14:
+    title: Accompagnement socio-professionnel, éducatif et relatif à l'exercice de la citoyenneté
+    scope: ORGANISME
+    applicability: { action_categories: [APPRENTISSAGE] }
+    human_review: Revue humaine (spécifique CFA).
+  15:
+    title: Droits et devoirs de l'apprenti
+    scope: ORGANISME
+    applicability: { action_categories: [APPRENTISSAGE] }
+    human_review: Revue humaine (spécifique CFA).
+  16:
+    title: Présentation à la certification
+    scope: SESSION
+    applicability: { certifying_only: true }
+    expected_evidence: [EXAM_PRESENTATION]
+    human_review: Vérifier le respect des modalités du certificateur.
+    controls:
+      - key: I16.exam-presentation
+        label: Présentation à l'examen tracée pour chaque apprenant ayant terminé
+        check: per_enrollment_evidence
+        params: { evidence_type: EXAM_PRESENTATION, session_statuses: [TERMINEE, CLOTUREE], enrollment_statuses: [TERMINE], warning_ratio: 0.9 }
+        severity: majeure
+        remediation: Enregistrer la présentation à l'examen des apprenants listés.
+  17:
+    title: Moyens humains et techniques adaptés
+    scope: SESSION
+    expected_evidence: [SESSION_RESOURCES]
+    human_review: Vérifier l'adéquation des locaux et équipements au public.
+    controls:
+      - key: I17.resources
+        label: Formateur et lieu affectés à la session
+        check: session_evidence
+        params: { evidence_type: SESSION_RESOURCES, session_statuses: [CONFIRMEE, EN_COURS, TERMINEE, CLOTUREE] }
+        severity: majeure
+        remediation: Affecter un formateur et un lieu à la session.
+  18:
+    title: Coordination des différents intervenants
+    scope: ORGANISME
+    human_review: Revue humaine (organigramme, réunions pédagogiques).
+  19:
+    title: Ressources pédagogiques mises à disposition
+    scope: ORGANISME
+    human_review: Revue humaine (supports, plateformes).
+  20:
+    title: Référent handicap, mobilité, conseil de perfectionnement
+    scope: ORGANISME
+    expected_evidence: [DISABILITY_REFERENT]
+    human_review: Vérifier que le référent est connu des apprenants.
+    controls:
+      - key: I20.disability-referent
+        label: Référent handicap désigné
+        check: org_evidence
+        params: { evidence_type: DISABILITY_REFERENT, min_count: 1 }
+        severity: majeure
+        remediation: Désigner un référent handicap dans les paramètres de l'organisme.
+  21:
+    title: Compétences des intervenants
+    scope: SESSION
+    expected_evidence: [TRAINER_QUALIFICATION]
+    human_review: Vérifier l'adéquation des compétences au contenu enseigné.
+    controls:
+      - key: I21.trainer-qualification
+        label: Formateur de la session avec une qualification valide à la date de début
+        check: trainer_qualification
+        params: { expiring_days: 60, session_statuses: [CONFIRMEE, EN_COURS, TERMINEE, CLOTUREE] }
+        severity: majeure
+        remediation: Enregistrer ou renouveler la qualification du formateur.
+  22:
+    title: Développement des compétences des salariés
+    scope: ORGANISME
+    expected_evidence: [STAFF_DEVELOPMENT]
+    human_review: Vérifier le plan de développement des compétences.
+    controls:
+      - key: I22.staff-development
+        label: Au moins une action de développement réalisée sur 24 mois
+        check: org_evidence
+        params: { evidence_type: STAFF_DEVELOPMENT, min_count: 1, within_days: 730 }
+        severity: majeure
+        remediation: Planifier et réaliser une action de développement des compétences.
+  23:
+    title: Veille légale et réglementaire
+    scope: ORGANISME
+    expected_evidence: [WATCH]
+    human_review: Vérifier l'exploitation réelle de la veille.
+    controls:
+      - key: I23.watch-legal
+        label: Veille légale exploitée sur 12 mois
+        check: org_evidence
+        params: { evidence_type: WATCH, facts: { domain: LEGALE }, min_count: 1, within_days: 365 }
+        severity: majeure
+        remediation: Tracer une veille légale et son exploitation.
+  24:
+    title: Veille emplois, métiers et compétences
+    scope: ORGANISME
+    expected_evidence: [WATCH]
+    human_review: Vérifier l'exploitation réelle de la veille.
+    controls:
+      - key: I24.watch-jobs
+        label: Veille métiers exploitée sur 12 mois
+        check: org_evidence
+        params: { evidence_type: WATCH, facts: { domain: METIERS }, min_count: 1, within_days: 365 }
+        severity: majeure
+        remediation: Tracer une veille métiers et son exploitation.
+  25:
+    title: Veille innovations pédagogiques et technologiques
+    scope: ORGANISME
+    expected_evidence: [WATCH]
+    human_review: Vérifier l'exploitation réelle de la veille.
+    controls:
+      - key: I25.watch-pedagogy
+        label: Veille pédagogique exploitée sur 12 mois
+        check: org_evidence
+        params: { evidence_type: WATCH, facts: { domain: PEDAGOGIQUE }, min_count: 1, within_days: 365 }
+        severity: majeure
+        remediation: Tracer une veille pédagogique et son exploitation.
+  26:
+    title: Mobilisation de l'expertise et du réseau handicap
+    scope: ORGANISME
+    expected_evidence: [DISABILITY_REFERENT, HANDICAP_PARTNER]
+    human_review: Vérifier la mobilisation effective du réseau pour les cas rencontrés.
+    controls:
+      - key: I26.handicap-network
+        label: Au moins un partenaire du réseau handicap identifié
+        check: org_evidence
+        params: { evidence_type: HANDICAP_PARTNER, min_count: 1 }
+        severity: majeure
+        remediation: Identifier les partenaires handicap mobilisables (Agefiph, Cap emploi, MDPH…).
+  27:
+    title: Sous-traitance et portage salarial
+    scope: ORGANISME
+    expected_evidence: [SUBCONTRACTOR]
+    human_review: Vérifier le contenu des contrats de sous-traitance.
+    controls:
+      - key: I27.subcontractors
+        label: Chaque sous-traitant a un contrat signé et une vérification de conformité
+        check: subcontractors
+        params: {}
+        severity: majeure
+        remediation: Faire signer le contrat et vérifier la conformité du sous-traitant.
+  28:
+    title: Partenaires socio-économiques (formation en situation de travail)
+    scope: ORGANISME
+    expected_evidence: [SOCIO_PARTNER]
+    human_review: Revue humaine (applicable si formation en situation de travail).
+  29:
+    title: Insertion professionnelle ou poursuite d'études par l'apprentissage
+    scope: ORGANISME
+    applicability: { action_categories: [APPRENTISSAGE] }
+    human_review: Revue humaine (spécifique CFA).
+  30:
+    title: Recueil des appréciations des parties prenantes
+    scope: SESSION
+    expected_evidence: [SURVEY_RESPONSE]
+    human_review: Vérifier l'analyse des appréciations.
+    controls:
+      - key: I30.learner-surveys
+        label: Appréciation à chaud recueillie auprès des apprenants
+        check: per_enrollment_evidence
+        params: { evidence_type: SURVEY_RESPONSE, facts: { audience: APPRENANT_CHAUD }, session_statuses: [TERMINEE, CLOTUREE], enrollment_statuses: [TERMINE], warning_ratio: 0.6 }
+        severity: majeure
+        remediation: Relancer les questionnaires de satisfaction non complétés.
+  31:
+    title: Traitement des difficultés, réclamations et aléas
+    scope: ORGANISME
+    expected_evidence: [COMPLAINT_HANDLING]
+    human_review: Vérifier la procédure de traitement et l'analyse des réclamations.
+    controls:
+      - key: I31.complaints
+        label: Chaque réclamation reçoit une réponse dans le délai
+        check: complaints
+        params: { max_response_days: 15 }
+        severity: majeure
+        remediation: Répondre aux réclamations en attente et tracer la réponse.
+  32:
+    title: Mesures d'amélioration continue
+    scope: ORGANISME
+    expected_evidence: [IMPROVEMENT_ACTION]
+    human_review: Vérifier le lien entre appréciations, réclamations et actions.
+    controls:
+      - key: I32.improvement
+        label: Au moins une action d'amélioration clôturée sur 12 mois
+        check: org_evidence
+        params: { evidence_type: IMPROVEMENT_ACTION, min_count: 1, within_days: 365 }
+        severity: majeure
+        remediation: Clôturer une action d'amélioration avec vérification d'efficacité.
+
+# Nouveaux entrants (guide V9, p. 3) : pour les indicateurs marqués `nouveaux_entrants: oui`
+# dans la source, l'audit initial vérifie la formalisation du processus. Le moteur remplace
+# alors les contrôles par ce contrôle générique.
+new_entrant_control:
+  check: procedure_documented
+  label: Processus formalisé (nouvel entrant)
+  severity: majeure
+  remediation: Rédiger et déposer la procédure décrivant le processus pour cet indicateur.
