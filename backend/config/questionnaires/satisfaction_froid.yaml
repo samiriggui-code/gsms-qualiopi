@@ -1,0 +1,23 @@
+# Quelques semaines après : appréciation à froid du stagiaire (I30), mise en pratique.
+code: SATISFACTION_FROID
+version: 1
+titre: Et maintenant, que vous reste-t-il de la formation ?
+introduction: Quelques semaines ont passé depuis votre formation. Votre retour nous est précieux (2 minutes).
+questions:
+  - id: note_globale
+    libelle: Avec le recul, êtes-vous satisfait(e) de la formation ?
+    type: note
+    aide: 1 = pas du tout, 5 = tout à fait
+    requis: true
+  - id: mise_en_pratique
+    libelle: Avez-vous pu mettre en pratique ce que vous avez appris ?
+    type: note
+    requis: true
+  - id: situation
+    libelle: Depuis la formation, votre situation professionnelle
+    type: choix
+    options: [Même poste, Évolution ou nouvelles missions, Nouvel emploi, En recherche d'emploi, Autre]
+    requis: true
+  - id: commentaire
+    libelle: Un commentaire ?
+    type: texte

@@ -16,6 +16,7 @@ from app.hr.router import router as hr_router
 from app.journey.router import router as journey_router
 from app.platform.router import router as platform_router
 from app.qualiopi.router import router as qualiopi_router
+from app.questionnaires.router import router as public_router
 from app.relances.router import router as relances_router
 from app.training.router import router as training_router
 
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(funding_router)
     app.include_router(journey_router)
     app.include_router(relances_router)
+    app.include_router(public_router)
 
     @app.get("/health", tags=["system"])
     def health() -> dict:

@@ -1,0 +1,22 @@
+# Deux mois après : évaluation à froid par l'entreprise qui a inscrit le salarié (I30).
+code: ENTREPRISE_FROID
+version: 1
+titre: Votre avis sur la formation suivie par votre salarié
+introduction: "Deux minutes pour nous dire ce que la formation a apporté à {stagiaire}."
+questions:
+  - id: note_globale
+    libelle: Globalement, êtes-vous satisfait(e) de la formation ?
+    type: note
+    aide: 1 = pas du tout, 5 = tout à fait
+    requis: true
+  - id: mise_en_oeuvre
+    libelle: Les compétences acquises sont-elles mises en œuvre dans le poste ?
+    type: note
+    requis: true
+  - id: recommandation
+    libelle: Feriez-vous de nouveau appel à nous ?
+    type: oui_non
+    requis: true
+  - id: commentaire
+    libelle: Un commentaire ?
+    type: texte

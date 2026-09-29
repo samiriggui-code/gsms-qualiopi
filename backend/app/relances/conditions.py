@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.qualiopi.schedule.models import MilestoneStatus
@@ -57,6 +58,58 @@ def _toujours(c: Ctx) -> bool:
     return True
 
 
+def _answered(c: Ctx, kind: str) -> bool:
+    from app.questionnaires.models import Invitation
+
+    return c.db.scalar(select(Invitation.id).where(Invitation.enrollment_id == c.enrollment.id, Invitation.kind == kind,
+                                                   Invitation.answered_at.is_not(None))) is not None
+
+
+def _survey(c: Ctx, audience: str) -> bool:
+    return c.db.scalar(select(t.SatisfactionSurvey.id).where(
+        t.SatisfactionSurvey.enrollment_id == c.enrollment.id, t.SatisfactionSurvey.audience == audience,
+        t.SatisfactionSurvey.answered_on.is_not(None))) is not None
+
+
+def _besoin_a_recueillir(c: Ctx) -> bool:
+    e = c.enrollment
+    missing = not (e.needs_analysis and e.needs_analysis.completed_on) or not (e.positioning and e.positioning.completed_on)
+    return _inscription_active(c) and missing and not _answered(c, "BESOIN_POSITIONNEMENT")
+
+
+def _satisfaction_chaud(c: Ctx) -> bool:
+    return (c.enrollment.status in (*ACTIVE, "TERMINE") and c.session.status != "ANNULEE"
+            and not _survey(c, "APPRENANT_CHAUD"))
+
+
+def _satisfaction_froid(c: Ctx) -> bool:
+    return c.enrollment.status == "TERMINE" and not _survey(c, "APPRENANT_FROID")
+
+
+def _entreprise_froid(c: Ctx) -> bool:
+    e = c.enrollment
+    company_id = e.company_id or e.learner.company_id
+    return e.status == "TERMINE" and company_id is not None and not _survey(c, "ENTREPRISE")
+
+
+def _transmitted(c: Ctx, rule_key: str) -> bool:
+    from app.relances.models import Message
+
+    return c.db.scalar(select(Message.id).where(Message.rule_key == rule_key, Message.enrollment_id == c.enrollment.id,
+                                                Message.status == "ENVOYE")) is not None
+
+
+def _convocation_a_transmettre(c: Ctx) -> bool:
+    conv = c.enrollment.convocation
+    return _inscription_active(c) and bool(conv and conv.document_id) and not _transmitted(c, "document.convocation")
+
+
+def _attestation_a_transmettre(c: Ctx) -> bool:
+    cert = c.enrollment.certificate
+    return (c.enrollment.status in ("TERMINE", "ABANDON") and bool(cert and cert.document_id)
+            and not _transmitted(c, "document.attestation"))
+
+
 CONDITIONS: dict[str, Callable[[Ctx], bool]] = {
     "inscription_active": _inscription_active,
     "convention_non_signee": _convention_non_signee,
@@ -64,6 +117,12 @@ CONDITIONS: dict[str, Callable[[Ctx], bool]] = {
     "evaluations_manquantes": _evaluations_manquantes,
     "jalon_non_fait": _jalon_non_fait,
     "toujours": _toujours,
+    "besoin_a_recueillir": _besoin_a_recueillir,
+    "satisfaction_chaud_a_recueillir": _satisfaction_chaud,
+    "satisfaction_froid_a_recueillir": _satisfaction_froid,
+    "entreprise_a_recueillir": _entreprise_froid,
+    "convocation_a_transmettre": _convocation_a_transmettre,
+    "attestation_a_transmettre": _attestation_a_transmettre,
 }
 
 LABELS = {
@@ -73,4 +132,10 @@ LABELS = {
     "evaluations_manquantes": "les évaluations sont saisies",
     "jalon_non_fait": "le jalon est fait",
     "toujours": "",
+    "besoin_a_recueillir": "l'analyse du besoin et le positionnement sont faits",
+    "satisfaction_chaud_a_recueillir": "l'appréciation à chaud est recueillie",
+    "satisfaction_froid_a_recueillir": "l'appréciation à froid est recueillie",
+    "entreprise_a_recueillir": "l'entreprise a répondu",
+    "convocation_a_transmettre": "la convocation a déjà été transmise",
+    "attestation_a_transmettre": "l'attestation a déjà été transmise",
 }

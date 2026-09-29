@@ -35,6 +35,10 @@ TEMPLATES: dict[str, Template] = {
                                        "Vous êtes le formateur de cette session."),
     "alerte_jalon": Template(2, "{{ '[En retard]' if jalon.en_retard else '[À échéance]' }} {{ jalon.libelle }} — {{ session.reference }}",
                              "Vous êtes responsable de ce jalon dans l'échéancier des sessions."),
+    "questionnaire": Template(1, "{{ invitation.sujet }} — {{ formation }}",
+                              "Vous êtes concerné(e) par cette formation."),
+    "document_disponible": Template(1, "{{ document.sujet }} — {{ formation }}",
+                                    "Vous êtes inscrit(e) à cette formation."),
     "synthese_qualite": Template(1, "Synthèse qualité du {{ date }}",
                                  "Vous suivez la préparation Qualiopi de l'organisme."),
 }

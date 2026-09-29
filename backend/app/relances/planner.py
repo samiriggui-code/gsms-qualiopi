@@ -31,6 +31,21 @@ from app.relances.rules import WEEKDAYS, Rule, load_rules
 from app.training import models as t
 
 WEEKDAY_NAMES = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+INVITATIONS = {  # questionnaire → (objet, phrase d'accroche, durée)
+    "BESOIN_POSITIONNEMENT": ("Préparez votre formation", "Pour adapter la formation à votre situation, merci de répondre "
+                              "à quelques questions sur vos attentes et votre niveau avant le démarrage.", "3 minutes"),
+    "SATISFACTION_CHAUD": ("Votre avis sur la formation", "Vous venez de terminer votre formation : votre avis nous aide "
+                           "à l'améliorer.", "2 minutes"),
+    "SATISFACTION_FROID": ("Que vous reste-t-il de la formation ?", "Quelques semaines ont passé : avez-vous pu mettre "
+                           "en pratique ce que vous avez appris ?", "2 minutes"),
+    "ENTREPRISE_FROID": ("Votre avis sur la formation de votre salarié", "Votre salarié a suivi une formation chez nous : "
+                         "qu'en retirez-vous aujourd'hui ?", "2 minutes"),
+}
+DOCUMENTS = {  # document → (objet, phrase, libellé du bouton)
+    "CONVOCATION": ("Votre convocation", "Voici votre convocation : dates, horaires, lieu et contact.", "Voir ma convocation"),
+    "ATTESTATION_FIN": ("Votre attestation de fin de formation", "Votre attestation de fin de formation est disponible.",
+                        "Voir mon attestation"),
+}
 
 
 @dataclass(frozen=True)
@@ -129,6 +144,20 @@ class Planner:
                 elif q.valid_until and q.valid_until < s.end_date:
                     points.append(f"Votre titre « {q.label} » expire le {_d(q.valid_until)}, avant la fin de la session")
             ctx |= {"stagiaires": [x.learner.full_name for x in active], "points": points, "action": self._staff_action(s)}
+        elif rule.questionnaire:
+            from app.questionnaires.service import get_or_create, link
+
+            inv = get_or_create(self.db, e, rule.questionnaire, self.today)
+            sujet, phrase, duree = INVITATIONS[rule.questionnaire]
+            ctx |= {"stagiaire": e.learner.full_name, "action": {"libelle": "Répondre au questionnaire", "lien": link(inv)},
+                    "invitation": {"sujet": sujet, "phrase": phrase, "duree": duree, "expire": _d(inv.expires_on)}}
+        elif rule.document:
+            from app.questionnaires import tokens
+
+            doc_id = e.convocation.document_id if rule.document == "CONVOCATION" else e.certificate.document_id
+            sujet, phrase, bouton = DOCUMENTS[rule.document]
+            ctx |= {"document": {"sujet": sujet, "phrase": phrase},
+                    "action": {"libelle": bouton, "lien": f"{self.url}/api/public/documents/{tokens.sign('document', f'{e.id}:{doc_id}')}"}}
         elif rule.modele == "evaluations_manquantes":
             ctx |= {"stagiaires": [x.learner.full_name for x in s.enrollments
                                    if x.status in ("INSCRIT", "CONFIRME", "TERMINE") and not x.assessments],
@@ -205,6 +234,9 @@ class Planner:
                             if rule.destinataire == "SIGNATAIRE":
                                 r, document = _signatory(e, self.db)
                                 extra = {"document": document, "stagiaire": e.learner.full_name}
+                            elif rule.destinataire == "ENTREPRISE":
+                                company = self.db.get(t.Company, e.company_id or e.learner.company_id)
+                                r, extra = Recipient("ENTREPRISE", company.contact_name or company.name, company.contact_email), {}
                             else:
                                 r, extra = Recipient("STAGIAIRE", e.learner.full_name, e.learner.email), {}
                             self._create(rule, f"{rule.cle}|{e.id}|{offset}", r, self._view(rule, s, e, r, n > 0, extra), due, s=s, e=e)

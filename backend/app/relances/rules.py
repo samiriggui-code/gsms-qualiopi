@@ -19,7 +19,7 @@ class Rule(BaseModel):
     cle: str
     libelle: str
     portee: Literal["INSCRIPTION", "SESSION", "JALON", "HEBDO"]
-    destinataire: Literal["STAGIAIRE", "SIGNATAIRE", "FORMATEUR", "GESTION", "QUALITE", "RESPONSABLE_JALON"]
+    destinataire: Literal["STAGIAIRE", "SIGNATAIRE", "ENTREPRISE", "FORMATEUR", "GESTION", "QUALITE", "RESPONSABLE_JALON"]
     condition: str
     modele: str
     ancre: Literal["debut", "fin"] | None = None
@@ -27,6 +27,8 @@ class Rule(BaseModel):
     jour: str | None = None
     externe: bool = False
     indicateurs: list[int] = Field(default_factory=list)
+    questionnaire: str | None = None  # code du questionnaire en ligne envoyé (lien personnel)
+    document: Literal["CONVOCATION", "ATTESTATION_FIN"] | None = None  # document du stagiaire transmis
 
     @model_validator(mode="after")
     def coherent(self) -> "Rule":

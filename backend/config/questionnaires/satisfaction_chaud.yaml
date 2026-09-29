@@ -1,0 +1,30 @@
+# Fin de session : appréciation à chaud du stagiaire (I30).
+code: SATISFACTION_CHAUD
+version: 1
+titre: Votre avis sur la formation
+introduction: Votre avis nous aide à améliorer nos formations. Cela prend environ 2 minutes.
+questions:
+  - id: note_globale
+    libelle: Globalement, êtes-vous satisfait(e) de la formation ?
+    type: note
+    aide: 1 = pas du tout, 5 = tout à fait
+    requis: true
+  - id: objectifs
+    libelle: Les objectifs annoncés ont-ils été atteints ?
+    type: note
+    requis: true
+  - id: animation
+    libelle: Qualité de l'animation par le formateur
+    type: note
+    requis: true
+  - id: organisation
+    libelle: Organisation (accueil, horaires, locaux, matériel)
+    type: note
+    requis: true
+  - id: recommandation
+    libelle: Recommanderiez-vous cette formation ?
+    type: oui_non
+    requis: true
+  - id: commentaire
+    libelle: Un commentaire, une suggestion ?
+    type: texte

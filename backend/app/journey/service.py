@@ -18,6 +18,7 @@ from app.journey import documents
 from app.journey.policy import ACTIONS, OPEN, JourneyPolicy, missing_attendance, presences, survey_of
 from app.platform.decisions import enforce
 from app.qualiopi.schedule.service import due_date, load_circuit
+from app.questionnaires import service as questionnaires
 from app.training import models as t
 
 ASSESSMENT_KINDS = ("FORMATIVE", "SOMMATIVE", "EXAMEN")
@@ -311,6 +312,7 @@ def journey_view(db: Session, e: t.Enrollment, user: User | None, today: date | 
         "etapes": steps,
         "assiduite": documents.attendance_summary(e),
         "documents": [documents.doc_view(d) for d in documents.history(db, e)],
+        "questionnaires": questionnaires.answers_view(db, e.id),  # envoyés en ligne : ouverts, répondus, réponses
         "capabilities": JourneyPolicy(db, user, today).capabilities(e),
     }
 

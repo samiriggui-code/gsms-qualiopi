@@ -70,3 +70,77 @@ regles:
     destinataire: QUALITE
     condition: toujours
     modele: synthese_qualite
+
+  # ── Questionnaires en ligne (lien personnel, sans compte) ────────────────────
+  - cle: questionnaire.besoin
+    libelle: Questionnaire d'analyse du besoin et de positionnement
+    portee: INSCRIPTION
+    destinataire: STAGIAIRE
+    ancre: debut
+    decalages: [-15, -10, -7]
+    condition: besoin_a_recueillir
+    modele: questionnaire
+    questionnaire: BESOIN_POSITIONNEMENT
+    externe: true
+    indicateurs: [4, 8]
+
+  - cle: questionnaire.chaud
+    libelle: Questionnaire de satisfaction à chaud
+    portee: INSCRIPTION
+    destinataire: STAGIAIRE
+    ancre: fin
+    decalages: [0, 2, 5]
+    condition: satisfaction_chaud_a_recueillir
+    modele: questionnaire
+    questionnaire: SATISFACTION_CHAUD
+    externe: true
+    indicateurs: [30]
+
+  - cle: questionnaire.froid
+    libelle: Questionnaire de satisfaction à froid
+    portee: INSCRIPTION
+    destinataire: STAGIAIRE
+    ancre: fin
+    decalages: [45, 52]
+    condition: satisfaction_froid_a_recueillir
+    modele: questionnaire
+    questionnaire: SATISFACTION_FROID
+    externe: true
+    indicateurs: [30]
+
+  - cle: questionnaire.entreprise
+    libelle: Évaluation à froid par l'entreprise
+    portee: INSCRIPTION
+    destinataire: ENTREPRISE
+    ancre: fin
+    decalages: [60, 67]
+    condition: entreprise_a_recueillir
+    modele: questionnaire
+    questionnaire: ENTREPRISE_FROID
+    externe: true
+    indicateurs: [30]
+
+  # ── Documents rédigés par le moteur, transmis au stagiaire (lien sécurisé) ───
+  - cle: document.convocation
+    libelle: Convocation transmise au stagiaire
+    portee: INSCRIPTION
+    destinataire: STAGIAIRE
+    ancre: debut
+    decalages: [-10, -5]
+    condition: convocation_a_transmettre
+    modele: document_disponible
+    document: CONVOCATION
+    externe: true
+    indicateurs: [9]
+
+  - cle: document.attestation
+    libelle: Attestation de fin transmise au stagiaire
+    portee: INSCRIPTION
+    destinataire: STAGIAIRE
+    ancre: fin
+    decalages: [3, 7, 14]
+    condition: attestation_a_transmettre
+    modele: document_disponible
+    document: ATTESTATION_FIN
+    externe: true
+    indicateurs: [11]

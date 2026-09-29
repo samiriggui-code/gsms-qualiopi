@@ -1,0 +1,44 @@
+# Avant la session : analyse du besoin (I04) et auto-positionnement (I08), remplis par le stagiaire.
+# L'équipe pédagogique peut compléter ou corriger ensuite : le questionnaire n'écrase jamais une saisie.
+code: BESOIN_POSITIONNEMENT
+version: 1
+titre: Préparer votre formation
+introduction: >-
+  Ces quelques questions nous aident à adapter la formation à votre situation. Cela prend environ 3 minutes.
+questions:
+  - id: objectif
+    libelle: Qu'attendez-vous de cette formation ? Quel est votre objectif professionnel ?
+    type: texte
+    requis: true
+  - id: situation
+    libelle: Votre situation actuelle
+    type: choix
+    options: [Salarié(e), Demandeur d'emploi, Indépendant(e), Étudiant(e), Autre]
+    requis: true
+  - id: experience
+    libelle: Votre expérience dans ce domaine
+    type: choix
+    options: [Aucune, Moins d'un an, De 1 à 3 ans, Plus de 3 ans]
+    requis: true
+  - id: niveau
+    libelle: Comment évaluez-vous votre niveau actuel sur le sujet de la formation ?
+    type: note
+    aide: 1 = débutant, 5 = très à l'aise
+    requis: true
+  - id: prerequis
+    libelle: "Remplissez-vous les prérequis de la formation : {prerequis} ?"
+    type: oui_non
+    requis: true
+  - id: amenagement
+    libelle: Avez-vous besoin d'un aménagement (situation de handicap, contrainte particulière) ?
+    type: oui_non
+    requis: true
+  - id: amenagement_detail
+    libelle: Précisez l'aménagement souhaité
+    aide: Ces informations restent confidentielles et ne servent qu'à adapter la formation.
+    type: texte
+    si: { amenagement: true }
+    requis: true
+  - id: remarques
+    libelle: Autre chose à nous signaler ?
+    type: texte
