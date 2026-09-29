@@ -188,6 +188,31 @@ def worst(statuses: list[str]) -> str:
     return min(statuses, key=lambda s: READINESS_RANK.get(s, 99))
 
 
+def readiness_of(
+    ind: Indicator,
+    rows: list[ControlResult],
+    org: t.Organization | None,
+    programs: list[t.Program],
+    program: t.Program | None = None,
+) -> tuple[str, bool]:
+    """État d'un indicateur à partir de ses résultats. Renvoie (état, automatisé ?).
+
+    Seuls les contrôles actifs comptent : le contrôle « nouvel entrant » ne s'exécute pas
+    pour un organisme établi, il ne doit donc pas rendre l'indicateur « non évaluable ».
+    """
+    applicable, _ = _applicable(ind, org, program, programs)
+    if not applicable:
+        return "NON_APPLICABLE", False
+    active = _controls_for(ind, org)
+    if not active:
+        return "NON_EVALUE", False
+    keys = {c.key for c in active}
+    rows = [r for r in rows if r.control_key in keys]
+    if not rows:
+        return "NON_EVALUABLE", True
+    return worst([r.status for r in rows]), True
+
+
 def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.TrainingSession | None = None) -> list[dict]:
     """État par indicateur. Avec `session` : résultats de la session + formation + organisme hérités."""
     q = select(ControlResult).where(ControlResult.version_id == version.id)
@@ -203,20 +228,13 @@ def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.
     org = db.scalar(select(t.Organization))
     programs = list(db.scalars(select(t.Program)))
     out = []
+    program = session.program if session is not None else None
     for ind in version.indicators:
         rows = by_ind.get(ind.number, [])
         counts: dict[str, int] = defaultdict(int)
         for r in rows:
             counts[r.status] += 1
-        if not ind.controls:
-            status = "NON_EVALUE"
-            applicable, _ = _applicable(ind, org, None, programs)
-            if not applicable:
-                status = "NON_APPLICABLE"
-        elif not rows:
-            status = "NON_EVALUABLE"
-        else:
-            status = worst([r.status for r in rows])
+        status, automated = readiness_of(ind, rows, org, programs, program if ind.scope != "ORGANISME" else None)
         out.append(
             {
                 "number": ind.number,
@@ -225,9 +243,9 @@ def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.
                 "title": ind.title,
                 "status": status,
                 "counts": dict(counts),
-                "human_validation_required": any(r.human_validation_required for r in rows if r.status == "DEMONTRABLE") or not ind.controls,
+                "human_validation_required": any(r.human_validation_required for r in rows if r.status == "DEMONTRABLE") or (not automated and status != "NON_APPLICABLE"),
                 "sessions_at_risk": sorted({r.session_id for r in rows if r.session_id and r.status in ("PREUVES_INSUFFISANTES", "A_RISQUE")}),
-                "automated": bool(ind.controls),
+                "automated": automated,
             }
         )
     return out

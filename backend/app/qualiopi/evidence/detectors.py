@@ -198,18 +198,20 @@ def detect_session(s: t.TrainingSession, today: date) -> Iterator[EvidenceSpec]:
                 **{**eb, "produced_by": conv.created_by},
             )
 
-        if past_slots:
-            signed = sum(
-                1 for sig in e.signatures if sig.present and sig.signed_at is not None and sig.slot.day <= today
-            )
+        # Après un abandon, les demi-journées suivantes ne sont plus attendues.
+        last_day = e.abandoned_on if e.status == "ABANDON" and e.abandoned_on else today
+        due_slots = [sl for sl in past_slots if sl.day <= last_day]
+        if due_slots:
+            due_ids = {sl.id for sl in due_slots}
+            signed = sum(1 for sig in e.signatures if sig.present and sig.signed_at is not None and sig.slot_id in due_ids)
             yield EvidenceSpec(
                 evidence_type="ATTENDANCE",
                 label=f"Émargements — {who}",
                 source_table="formation.enrollment",
                 source_id=e.id,
-                produced_on=max(sl.day for sl in past_slots),
-                facts={"signed": signed, "expected": len(past_slots)},
-                form_issues=[] if signed >= len(past_slots) else [f"{len(past_slots) - signed} demi-journée(s) non émargée(s)"],
+                produced_on=max(sl.day for sl in due_slots),
+                facts={"signed": signed, "expected": len(due_slots)},
+                form_issues=[] if signed >= len(due_slots) else [f"{len(due_slots) - signed} demi-journée(s) non émargée(s)"],
                 **eb,
             )
 

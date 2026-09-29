@@ -184,7 +184,7 @@ indicators:
       - key: I12.dropouts
         label: Chaque abandon est suivi et motivé
         check: per_enrollment_evidence
-        params: { evidence_type: DROPOUT_FOLLOWUP, enrollment_statuses: [ABANDON], session_statuses: [EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 1.0 }
+        params: { evidence_type: DROPOUT_FOLLOWUP, enrollment_statuses: [ABANDON], session_statuses: [EN_COURS, TERMINEE, CLOTUREE], warning_ratio: 1.0, none_means_not_applicable: true }
         severity: mineure
         remediation: Documenter le suivi et le motif de chaque abandon.
   13:

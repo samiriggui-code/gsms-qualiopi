@@ -2,6 +2,7 @@
 
   python -m app.cli create-admin EMAIL "NOM"      mot de passe lu dans GSMS_ADMIN_PASSWORD ou demandé
   python -m app.cli import-referential [qualiopi/v9]
+  python -m app.cli seed-demo                      organisme de démo + réévaluation (base vide uniquement)
 """
 
 import argparse
@@ -15,6 +16,7 @@ from app.auth.models import User
 from app.auth.security import hash_password
 from app.core.config import get_settings
 from app.core.db import session_factory
+from app.qualiopi.engine import refresh_all
 from app.qualiopi.referential.importer import import_referential
 
 MIN_PASSWORD = 12
@@ -40,6 +42,19 @@ def import_ref(folder: str) -> None:
         print(f"{v.code} {v.version} importé et actif ({len(v.indicators)} indicateurs)")
 
 
+def seed_demo() -> None:
+    from app.demo import PLANTED_GAPS
+    from app.demo import seed_demo as build
+
+    with session_factory()() as db:
+        import_referential(db, get_settings().referentials_dir / "qualiopi" / "v9")
+        info = build(db)
+        result = refresh_all(db, trigger="demo")
+        db.commit()
+    print(f"Démo installée : {', '.join(info['sessions'])} ; {result['results']} résultats de contrôle.")
+    print(f"{len(PLANTED_GAPS)} trous plantés à retrouver dans les dossiers de session.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -48,11 +63,14 @@ def main() -> None:
     a.add_argument("full_name")
     r = sub.add_parser("import-referential")
     r.add_argument("folder", nargs="?", default="qualiopi/v9")
+    sub.add_parser("seed-demo")
     args = parser.parse_args()
     if args.cmd == "create-admin":
         create_admin(args.email, args.full_name)
     elif args.cmd == "import-referential":
         import_ref(args.folder)
+    elif args.cmd == "seed-demo":
+        seed_demo()
 
 
 if __name__ == "__main__":

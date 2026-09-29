@@ -98,6 +98,14 @@ def check_per_enrollment_evidence(ctx: EvalContext, target: Target, params: dict
                 observed="aucun besoin d'adaptation déclaré",
                 explanation="Aucun apprenant de la session n'a déclaré de besoin d'adaptation.",
             )
+    if not rows and params.get("none_means_not_applicable"):
+        # Ex. suivi des abandons : aucune personne concernée est la bonne situation, pas un manque de données.
+        return Outcome(
+            "NON_APPLICABLE",
+            expected=f"preuve {etype} pour chaque apprenant ({', '.join(enrollment_statuses)})",
+            observed="0 apprenant concerné",
+            explanation=f"Aucun apprenant au statut {', '.join(enrollment_statuses)} dans la session {s.reference}.",
+        )
     if not rows:
         return Outcome(
             "NON_EVALUABLE",
