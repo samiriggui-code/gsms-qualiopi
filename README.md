@@ -1,22 +1,85 @@
-# GSMS Qualiopi — travail en cours (GELÉ)
+# GSMS Qualiopi
 
-> **Statut : gelé en attente de l'audit SchoolOps / Mizan / ai-agent-education-platform.**
-> Ce dépôt contient un premier jet de backend, poussé pour relecture. Il n'est ni terminé ni testé.
-> Aucune décision d'architecture n'est figée tant que l'audit n'est pas validé.
+Backend Python d'un organisme de formation : domaine formation + moteur de préparation Qualiopi.
+Le moteur transforme les données du quotidien (inscriptions, positionnements, émargements,
+évaluations…) en preuves traçables, les confronte au référentiel national qualité V9 et explique
+chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-## Ce qui existe
+**Statut : jalon 1 terminé** — socle exécutable et prouvé (API, moteur, démo, 50 tests, Docker, CI).
+Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
 
-Backend Python (`backend/`) : FastAPI, SQLAlchemy 2, Alembic, PostgreSQL. Trois schémas : `iam`, `formation`, `qualite`.
+## Architecture
 
-| Module | Contenu | État |
-| --- | --- | --- |
-| `app/training/models.py` | Domaine organisme de formation : organisme, entreprises, apprenants, formateurs, qualifications, programmes, sessions, inscriptions, analyse du besoin, positionnement, convocations, conventions, émargements, évaluations, attestations, satisfaction, réclamations, veille, sous-traitants, partenaires, documents versionnés | Modèles écrits, migration générée |
-| `app/events/` | Outbox PostgreSQL + catalogue d'événements | Écrit |
-| `referentials/qualiopi/v9/` | Source : 32 fichiers de Levier-IA/qualiopi-markdown (Etalab 2.0), commit amont figé. Couche normative : `normative/v9.yaml` (applicabilité, preuves attendues, contrôles) | Écrit, l'import parse et valide les 32 indicateurs |
-| `app/qualiopi/referential/` | Import versionné avec empreintes SHA-256, activation d'une version | Écrit |
-| `app/qualiopi/evidence/` | Detectors données → preuves, statuts DETECTEE / DOCUMENTEE / EXPLOITABLE / VALIDEE / EXPIREE / REJETEE / RETIREE, historique, validation humaine | Écrit, non testé |
-| `app/qualiopi/evaluation/` | Bibliothèque de 9 contrôles paramétrés, runner, constats, dossier d'audit de session | Écrit, non testé |
-| `app/qualiopi/audit/`, `capa/` | Audit figé et comparable, cycle CAPA avec vérification par réévaluation | Écrit, non testé |
-| `app/auth/` | JWT + rôles (admin, qualite, gestion, lecture) | Écrit |
+Un monolithe, un worker, une base.
 
-Manque : routeurs FastAPI (en partie), `main.py`, données de démo, tests, front Next.js, Docker.
+- `api` (FastAPI) : écrit les données métier et les décisions humaines, publie un événement dans la
+  même transaction (`formation.outbox_event`).
+- `worker` : lit l'outbox (`FOR UPDATE SKIP LOCKED`), réconcilie les preuves et réévalue uniquement
+  le périmètre touché ; passe complète chaque nuit pour le temps qui passe (expirations, délais).
+- PostgreSQL, trois schémas : `iam`, `formation` (domaine), `qualite` (moteur).
+
+| Module | Rôle |
+| --- | --- |
+| `app/training/` | Domaine organisme de formation (25 entités) |
+| `app/qualiopi/referential/` | Import versionné : texte officiel (Etalab 2.0) + couche normative `v9.yaml` |
+| `app/qualiopi/evidence/` | Donnée → preuve : détecteurs, cycle de vie, validation humaine, historique |
+| `app/qualiopi/evaluation/` | 9 contrôles paramétrés, états de préparation, constats, dossier de session |
+| `app/qualiopi/audit/`, `capa/` | Audit interne figé et comparable ; CAPA clôturée seulement si le contrôle passe |
+| `app/events/`, `app/qualiopi/engine.py`, `app/worker.py` | Outbox et réévaluation ciblée |
+
+## Démarrer en local
+
+Prérequis : Python 3.11+, PostgreSQL 16.
+
+```bash
+cd backend
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
+export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+alembic upgrade head
+python -m app.cli create-admin admin@exemple.fr "Administrateur"   # mot de passe demandé
+python -m app.cli seed-demo          # organisme de démo, 14 trous plantés
+uvicorn app.main:app --reload        # API sur :8000, documentation sur /docs
+python -m app.worker                 # dans un second terminal
+```
+
+Dossier d'audit d'une session : `GET /api/v1/sessions/{id}/dossier`.
+État de préparation global : `GET /api/v1/qualiopi/readiness`.
+
+## Docker
+
+```bash
+cp .env.example .env    # renseigner POSTGRES_PASSWORD et JWT_SECRET (obligatoires)
+docker compose up -d --build
+docker compose exec api python -m app.cli create-admin admin@exemple.fr "Administrateur"
+docker compose exec api python -m app.cli seed-demo
+```
+
+`APP_ENV=production` (défaut du compose) refuse de démarrer avec un secret faible, un CORS `*`
+ou le mot de passe PostgreSQL par défaut.
+
+## Tests
+
+Les tests tournent sur un vrai PostgreSQL : une base neuve est créée et migrée par Alembic.
+
+```bash
+export TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+python -m pytest
+ruff check .
+alembic check           # le schéma migré doit correspondre aux modèles
+```
+
+`tests/test_demo.py` est le contrat du moteur : sur la démo, il trouve exactement les 14 trous
+plantés (`app/demo.py`, `PLANTED_GAPS`), avec l'apprenant ou la pièce en cause, et rien d'autre.
+
+## Référentiel
+
+`backend/referentials/qualiopi/v9/source/` : 32 fichiers de
+[Levier-IA/qualiopi-markdown](https://github.com/Levier-IA/qualiopi-markdown) (Licence Ouverte
+Etalab 2.0), commit figé dans `UPSTREAM_COMMIT`. La couche normative (`normative/v9.yaml`) est
+propre à GSMS et doit être relue par un responsable qualité face au
+[guide officiel](https://travail-emploi.gouv.fr/referentiel-national-qualite-guide-de-lecture-qualiopi),
+seul document qui fait foi. Une nouvelle version = un nouveau dossier (`v10/`).
+
+Code tiers repris : voir `THIRD_PARTY_NOTICES.md`.

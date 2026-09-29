@@ -9,6 +9,10 @@ Source : https://github.com/simoderyouch/Mizan (commit `26d2163`)
 | Fichier GSMS | Origine Mizan | Nature |
 | --- | --- | --- |
 | `backend/app/core/config.py` (`refuse_unsafe_production`, `WEAK_SECRETS`) | `mizan-backend/app/core/config.py` (`validate_production_safety`) | Adapté |
+| `backend/Dockerfile` | `mizan-backend/Dockerfile` | Adapté (utilisateur non root, image unique API + worker) |
+| `backend/docker/entrypoint.sh` | `mizan-backend/docker/entrypoint.sh` | Adapté (attente PostgreSQL en Python, migrations, `exec "$@"`) |
+| `docker-compose.yml` | `docker-compose.yml` | Adapté (secrets obligatoires, sans valeur par défaut) |
+| `.github/workflows/ci.yml` | `.github/workflows/ci-cd.yml` | Structure reprise (job backend, service Postgres) |
 
 ```
 MIT License

@@ -1,0 +1,48 @@
+# GSMS — un monolithe, un worker, une base.
+# Secrets obligatoires (pas de valeur par défaut) : POSTGRES_PASSWORD, JWT_SECRET. Voir .env.example.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gsms
+      POSTGRES_USER: gsms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est obligatoire}
+    volumes:
+      - gsms-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gsms -d gsms"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: &backend-env
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: postgresql+psycopg://gsms:${POSTGRES_PASSWORD}@db:5432/gsms
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET est obligatoire (32 caractères minimum)}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    volumes:
+      - gsms-documents:/app/var/documents
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      <<: *backend-env
+      RUN_MIGRATIONS: "false"
+    command: ["python", "-m", "app.worker"]
+
+volumes:
+  gsms-postgres:
+  gsms-documents:
