@@ -1,0 +1,11 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour,</p>
+<p>Voici l'état de la préparation Qualiopi au {{ date }}.</p>
+{{ m.infos([("Écarts ouverts", ecarts|string), ("Actions correctives en retard", actions_en_retard|length|string), ("Jalons en retard", jalons_en_retard|length|string), ("Jalons à échéance", jalons_a_echeance|length|string)]) }}
+{% if jalons_en_retard %}<p style="margin-bottom:4px;"><strong>En retard</strong></p>{{ m.liste(jalons_en_retard) }}{% endif %}
+{% if jalons_a_echeance %}<p style="margin-bottom:4px;"><strong>À échéance cette semaine</strong></p>{{ m.liste(jalons_a_echeance) }}{% endif %}
+{% if actions_en_retard %}<p style="margin-bottom:4px;"><strong>Actions correctives en retard</strong></p>{{ m.liste(actions_en_retard) }}{% endif %}
+{% if titres %}<p style="margin-bottom:4px;"><strong>Titres de formateurs à renouveler (60 jours)</strong></p>{{ m.liste(titres) }}{% endif %}
+<p style="font-size:13px;color:#6b7280;">État de préparation calculé à partir des preuves disponibles. Seul l'organisme certificateur décide de la conformité.</p>
+{% endblock %}

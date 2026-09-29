@@ -47,10 +47,11 @@ def _registry() -> dict[str, SettingDef]:
     from app.attendance.settings import SETTINGS as attendance
     from app.platform.general import SETTINGS as general
     from app.qualiopi.settings import SETTINGS as quality
+    from app.relances.settings import SETTINGS as relances
     from app.training.settings import SETTINGS as training
 
     out: dict[str, SettingDef] = {}
-    for d in (*general, *training, *attendance, *quality):
+    for d in (*general, *training, *attendance, *quality, *relances):
         if d.key in out:
             raise ValueError(f"réglage déclaré deux fois : {d.key}")
         d.adapter().validate_python(d.default)

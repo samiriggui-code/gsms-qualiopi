@@ -1,0 +1,9 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour{% if destinataire.nom %} {{ destinataire.nom }}{% endif %},</p>
+{% if relance %}<p>Nous revenons vers vous : nous n'avons pas encore reçu {{ document }} signé{{ "e" if document == "la convention" else "" }}.</p>
+{% else %}<p>Pour confirmer l'inscription ci-dessous, merci de nous retourner {{ document }} signé{{ "e" if document == "la convention" else "" }}.</p>{% endif %}
+{{ m.infos([("Formation", formation), ("Session", session.reference), ("Dates", session.dates), ("Lieu", session.lieu), ("Stagiaire", stagiaire)]) }}
+{{ m.echeance("avant le début de la formation, le " ~ session.debut) }}
+<p>Sans ce document signé, l'inscription ne peut pas être confirmée.</p>
+{% endblock %}

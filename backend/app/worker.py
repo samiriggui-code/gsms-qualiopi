@@ -45,12 +45,30 @@ def run_pending() -> None:
             log.exception("échec du traitement de l'outbox")
 
 
+def run_relances() -> None:
+    """Relances : planifie les messages du jour, puis envoie ceux qui sont prévus."""
+    from app.relances.planner import plan
+    from app.relances.service import dispatch
+
+    with session_factory()() as db:
+        set_actor(db, "relances")
+        try:
+            result = plan(db) | dispatch(db)
+            db.commit()
+            if result.get("crees") or result.get("envoyes") or result.get("echecs"):
+                log.info("relances : %s", result)
+        except Exception:  # noqa: BLE001
+            db.rollback()
+            log.exception("échec du passage des relances")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--full", action="store_true")
     parser.add_argument("--interval", type=float, default=5.0)
     parser.add_argument("--nightly-hour", type=int, default=2, help="heure UTC de la passe complète (-1 pour désactiver)")
+    parser.add_argument("--relances-minutes", type=float, default=15.0, help="intervalle des passages des relances")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -58,8 +76,12 @@ def main() -> None:
         run_full("planifie")
         return
     last_full_day = None
+    last_relances = 0.0
     while True:
         run_pending()
+        if time.monotonic() - last_relances >= args.relances_minutes * 60:
+            run_relances()
+            last_relances = time.monotonic()
         if args.once:
             return
         now = datetime.now(timezone.utc)

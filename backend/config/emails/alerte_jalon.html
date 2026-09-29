@@ -1,0 +1,9 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour,</p>
+<p><strong>{{ jalon.libelle }}</strong> — session {{ session.reference }} ({{ formation }}) :
+{% if jalon.en_retard %}<strong style="color:#b42318;">en retard</strong>{% else %}<strong style="color:#a15c07;">à échéance</strong>{% endif %}.</p>
+{{ m.echeance(jalon.echeance ~ (" (dépassée)" if jalon.en_retard else "")) }}
+<p>Avancement : <strong>{{ jalon.fait }} sur {{ jalon.total }}</strong>.</p>
+{% if jalon.manquants %}<p style="margin-bottom:4px;"><strong>Concerné(s)</strong></p>{{ m.liste(jalon.manquants) }}{% endif %}
+{% endblock %}

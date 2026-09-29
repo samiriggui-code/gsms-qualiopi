@@ -36,6 +36,7 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("funding.write", "Gérer les dossiers de financement (sources, actions, montants)", "funding"),
     Permission("staff.read", "Consulter le personnel, les contrats et les absences", "hr"),
     Permission("staff.write", "Gérer le personnel, les contrats et les absences", "hr"),
+    Permission("communications.manage", "Valider, annuler et suivre les relances et e-mails envoyés", "relances"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
     Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
     Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
@@ -47,13 +48,13 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     "admin": ("Direction : tous les droits", CODES),
     "qualite": ("Responsable qualité : dépose, valide, gère le référentiel, l'équipe et les réglages", frozenset({
         "sessions.read", "quality.read", "quality.write", "evidence.validate", "referential.manage",
-        "journal.read", "users.manage", "settings.manage",
+        "journal.read", "users.manage", "settings.manage", "communications.manage",
     })),
     "assistant_qualite": ("Assistant qualité : dépose les pièces et coche leur grille, ne valide pas", frozenset({
         "sessions.read", "quality.read", "quality.write", "journal.read",
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
-        "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read",
+        "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read", "communications.manage",
     })),
     "financement": ("Financement : dossiers CPF, OPCO, France Travail, entreprises", frozenset({
         "sessions.read", "funding.read", "funding.write", "journal.read",

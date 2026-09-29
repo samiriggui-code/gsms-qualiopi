@@ -1,0 +1,7 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour {{ destinataire.nom }},</p>
+<p>La session <strong>{{ session.reference }}</strong> ({{ formation }}) s'est terminée le {{ session.fin }}. Aucune évaluation des acquis n'est encore enregistrée pour :</p>
+{{ m.liste(stagiaires) }}
+<p>Ces résultats figurent sur l'attestation de fin de formation remise à chaque stagiaire.</p>
+{% endblock %}

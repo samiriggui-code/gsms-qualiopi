@@ -1,0 +1,72 @@
+# Relances et communications automatiques — calendrier par défaut de l'organisme.
+#
+# Qualiopi n'impose aucune relance : il impose des preuves (convocation I09, analyse du besoin I04,
+# positionnement I08, émargement I12, évaluations I11, appréciations I30…). Ces règles servent à les
+# obtenir à temps. Tout se règle : dates, destinataires, validation avant envoi.
+#
+#   cle          identifiant stable de la règle
+#   portee       INSCRIPTION (un message par stagiaire), SESSION (un par session),
+#                JALON (un par jalon de l'échéancier qui passe à échéance ou en retard),
+#                HEBDO (un par semaine, le jour indiqué)
+#   destinataire STAGIAIRE, SIGNATAIRE (entreprise si convention, sinon stagiaire), FORMATEUR,
+#                GESTION, QUALITE, RESPONSABLE_JALON
+#   ancre        debut | fin (de la session) ; decalages : jours après l'ancre (négatif = avant)
+#   condition    condition nommée, relue juste avant l'envoi : devenue fausse, le message est annulé
+#   externe      true : destinataire hors de l'organisme (validation avant envoi au début)
+#   indicateurs  indicateurs Qualiopi que la règle aide à démontrer
+regles:
+  - cle: convention.a_signer
+    libelle: Convention ou contrat à signer
+    portee: INSCRIPTION
+    destinataire: SIGNATAIRE
+    ancre: debut
+    decalages: [-15, -10, -7]
+    condition: convention_non_signee
+    modele: convention_a_signer
+    externe: true
+
+  - cle: session.rappel
+    libelle: Rappel de la session au stagiaire
+    portee: INSCRIPTION
+    destinataire: STAGIAIRE
+    ancre: debut
+    decalages: [-2]
+    condition: inscription_active
+    modele: rappel_session
+    externe: true
+    indicateurs: [9]
+
+  - cle: formateur.recapitulatif
+    libelle: Récapitulatif de la session au formateur
+    portee: SESSION
+    destinataire: FORMATEUR
+    ancre: debut
+    decalages: [-7]
+    condition: session_a_venir
+    modele: recapitulatif_formateur
+    indicateurs: [10, 21]
+
+  - cle: formateur.evaluations
+    libelle: Évaluations des acquis à saisir
+    portee: SESSION
+    destinataire: FORMATEUR
+    ancre: fin
+    decalages: [1, 4]
+    condition: evaluations_manquantes
+    modele: evaluations_manquantes
+    indicateurs: [11]
+
+  - cle: echeancier.alerte
+    libelle: Jalon de l'échéancier à échéance ou en retard
+    portee: JALON
+    destinataire: RESPONSABLE_JALON
+    condition: jalon_non_fait
+    modele: alerte_jalon
+
+  - cle: qualite.synthese
+    libelle: Synthèse hebdomadaire qualité
+    portee: HEBDO
+    jour: lundi
+    destinataire: QUALITE
+    condition: toujours
+    modele: synthese_qualite

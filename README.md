@@ -8,7 +8,7 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
 **Statut : jalons 1 et 1 bis terminés, jalon 2 en cours** — backend : socle de configuration, Formation,
-Émargement, RH, Financement, Parcours du stagiaire, chaîne Qualiopi et actions correctives (142 tests). Front : premier parcours complet
+Émargement, RH, Financement, Parcours du stagiaire, chaîne Qualiopi, actions correctives et relances (150 tests). Front : premier parcours complet
 (connexion, sessions, détail, parcours des stagiaires, émargement, Qualiopi de la session), testé par
 Playwright sur ordinateur et mobile. Voir [`frontend/README.md`](frontend/README.md).
 
@@ -36,6 +36,7 @@ Un monolithe, un worker, une base.
 | `app/attendance/` | Émargement électronique : demi-journées générées depuis les réglages, signature du stagiaire avec le code de salle (QR) + son lien personnel dans la fenêtre horaire, absences constatées et motivées par le formateur, contre-validation qui verrouille ; règle unique « qui est attendu » partagée avec la clôture et le moteur Qualiopi |
 | `app/funding/` + `config/financement/` | Financement (modules activables par dispositif) : dossier par inscription, sources multiples (cofinancement au statut calculé, sur-financement bloqué), cinq rôles séparés (bénéficiaire, financeur, signataire, destinataire de facture, payeur) ; circuits CPF, OPCO, France Travail (AIF), entreprise et reste à charge décrits en YAML versionné, conditions nommées lues dans les données existantes, échéances en jours ouvrés (fériés compris), actions de portail tracées, taux de réalisation depuis l'émargement, règles datées sourcées (participation CPF 100 € puis 150 €) |
 | `app/journey/` + `config/documents_generes/` | Parcours du stagiaire : analyse du besoin, positionnement, convention ou contrat (envoi, signature), convocation, évaluations, fin, abandon ou annulation, attestation, satisfaction à chaud et à froid ; chaque étape a sa politique (permission, portée du formateur, état, conditions) et ses refus motivés ; le moteur **rédige** la convocation (horaires tirés des demi-journées, accessibilité) et l'attestation de fin (objectifs, nature L. 6313-1, durée suivie tirée de l'émargement, résultats des évaluations, L. 6353-1), figées par empreinte SHA-256 et versionnées |
+| `app/relances/` + `config/relances/` + `config/emails/` | Relances et communications (module activable) : calendrier en YAML (convention à signer J-15/J-10/J-7, rappel J-2, récapitulatif formateur J-7, évaluations J+1/J+4, alertes de l'échéancier à échéance ou en retard au responsable du jalon, synthèse qualité du lundi) ; conditions relues avant l'envoi (déjà fait → annulé, avec le motif) ; planification idempotente avec rattrapage limité ; messages externes « à valider » d'abord, internes envoyés directement ; journal complet (destinataire, modèle et version, empreinte, statut, identifiant d'envoi, tentatives, erreur) ; SMTP (Mailpit en local), adresses accentuées comprises ; modèles e-mail Jinja compatibles clients mail |
 | `frontend/` | Espace formation (Next.js 16) : identité de l'organisme par tokens, navigation issue de `/bootstrap`, sessions, parcours des stagiaires (matrice d'états datés, panneau, formulaires, documents émis), émargement, Qualiopi de la session ; boutons gouvernés par les décisions du moteur ; tests Playwright ordinateur + mobile avec axe-core et captures |
 | `app/hr/` | Ressources humaines (module activable) : personnel distinct des comptes, contrats, absences (nature seulement), titres des formateurs typés (carte formateur CNAPS, SSIAP 3, formateur SST…) et leurs échéances ; disponibilité et contrat vérifiés à la confirmation d'une session ; un compte relié à une fiche formateur ne voit que ses sessions |
 | `app/platform/` | Socle de configuration : fonctionnalités activables (une fonctionnalité inactive retire ses droits), réglages typés déclarés par chaque domaine, datés et journalisés (`ConfigurationService`), décisions motivées (`Decision`), `GET /api/v1/bootstrap` pour le front |
@@ -70,6 +71,9 @@ Chaîne d'un indicateur (critère, exigences, preuves attendues, contrôles, pre
 `GET /api/v1/qualiopi/indicateurs/{n}` ; vue par critère : `GET /api/v1/qualiopi/criteres`.
 Actions correctives : `POST /api/v1/qualiopi/ecarts/{id}/actions`, puis
 `POST /api/v1/qualiopi/actions/{id}/{demarrer|realiser|verifier|annuler}` ; liste : `GET /api/v1/qualiopi/actions?en_retard=true`.
+Relances (module « relances » à activer) : le worker planifie et envoie toutes les 15 minutes ;
+`GET /api/v1/communications`, `POST /api/v1/communications/{id}/valider|annuler|renvoyer`,
+aperçu exact : `GET /api/v1/communications/{id}/apercu`. En local, Mailpit reçoit tout sur http://localhost:8025.
 Une action issue d'un contrôle n'est jamais close par un humain : « vérifier » demande au moteur de réévaluer,
 et il ne clôt que si l'écart a disparu.
 

@@ -16,7 +16,8 @@ from app.qualiopi.evidence import models as _evidence  # noqa: F401
 from app.qualiopi.referential import models as _referential  # noqa: F401
 from app.qualiopi.review import models as _review  # noqa: F401
 from app.qualiopi.schedule import models as _schedule  # noqa: F401
+from app.relances import models as _relances  # noqa: F401
 from app.training import models as _training  # noqa: F401
 
-SCHEMAS = ("iam", "config", "formation", "qualite", "rh", "financement")
+SCHEMAS = ("iam", "config", "formation", "qualite", "rh", "financement", "communication")
 metadata = Base.metadata

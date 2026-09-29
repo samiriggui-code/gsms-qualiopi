@@ -27,6 +27,15 @@ services:
       DATABASE_URL: postgresql+psycopg://gsms:${POSTGRES_PASSWORD}@db:5432/gsms
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET est obligatoire (32 caractères minimum)}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      # Envoi des e-mails (serveur SMTP de l'organisme ; Mailpit en local).
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@gsms.local}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
     volumes:
       - gsms-documents:/app/var/documents
     ports:

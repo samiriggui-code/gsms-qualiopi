@@ -23,6 +23,16 @@ class Settings(BaseSettings):
     documents_dir: Path = BACKEND_DIR / "var" / "documents"
     # Fonctionnalités rendues disponibles par le déploiement ou l'abonnement (« * » = toutes).
     features_available: str = "*"
+    # Envoi des e-mails (Mailpit en local : hôte localhost, port 1025, sans TLS ni identifiants).
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = False
+    smtp_ssl: bool = False
+    smtp_from: str = "no-reply@gsms.local"
+    # Adresse publique du front : liens dans les e-mails (questionnaires, documents).
+    public_url: str = "http://localhost:3000"
 
     @property
     def cors_origin_list(self) -> list[str]:
