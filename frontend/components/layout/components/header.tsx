@@ -1,6 +1,8 @@
 import { Separator } from '@/components/ui/separator';
 import { HeaderBrand } from './header-brand';
+import { HeaderLanguage } from './header-language';
 import { HeaderNew } from './header-new';
+import { HeaderTheme } from './header-theme';
 import { HeaderUser } from './header-user';
 
 export function Header() {
@@ -13,6 +15,8 @@ export function Header() {
         <div className="flex items-center gap-2">
           <HeaderNew />
           <Separator orientation="vertical" className="bg-zinc-600 h-4 mx-1" />
+          <HeaderLanguage />
+          <HeaderTheme />
           <HeaderUser />
         </div>
       </div>
