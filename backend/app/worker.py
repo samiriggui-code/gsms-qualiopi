@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 
 from app.core.db import session_factory
 from app.core.errors import DomainError
+from app.core.journal import set_actor
 from app.qualiopi.engine import process_pending, refresh_all
 
 log = logging.getLogger("qualiopi.worker")
@@ -23,12 +24,14 @@ log = logging.getLogger("qualiopi.worker")
 
 def run_full(trigger: str) -> None:
     with session_factory()() as db:
+        set_actor(db, "moteur")
         log.info("réévaluation complète : %s", refresh_all(db, trigger=trigger))
         db.commit()
 
 
 def run_pending() -> None:
     with session_factory()() as db:
+        set_actor(db, "moteur")
         try:
             result = process_pending(db)
             db.commit()

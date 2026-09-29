@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError
+from app.core.journal import set_actor
 from app.training import models as t
 
 ACTOR = "démo"
@@ -104,6 +105,7 @@ def _enroll(db: Session, s: t.TrainingSession, learner: t.Learner, status: str) 
 def seed_demo(db: Session, today: date | None = None) -> dict:
     """Crée l'organisme de démonstration. Refuse si un organisme existe déjà."""
     today = today or date.today()
+    set_actor(db, ACTOR)
     if db.scalar(select(t.Organization)) is not None:
         raise ConflictError("Un organisme existe déjà : la démo ne s'installe que sur une base vide")
 

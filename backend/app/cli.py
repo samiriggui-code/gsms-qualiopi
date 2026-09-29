@@ -16,6 +16,7 @@ from app.auth.models import User
 from app.auth.security import hash_password
 from app.core.config import get_settings
 from app.core.db import session_factory
+from app.core.journal import set_actor
 from app.qualiopi.engine import refresh_all
 from app.qualiopi.referential.importer import import_referential
 
@@ -27,6 +28,7 @@ def create_admin(email: str, full_name: str) -> None:
     if len(password) < MIN_PASSWORD:
         sys.exit(f"Mot de passe trop court ({MIN_PASSWORD} caractères minimum)")
     with session_factory()() as db:
+        set_actor(db, "cli")
         email = email.lower().strip()
         if db.scalar(select(User).where(User.email == email)):
             sys.exit(f"{email} existe déjà")
@@ -37,6 +39,7 @@ def create_admin(email: str, full_name: str) -> None:
 
 def import_ref(folder: str) -> None:
     with session_factory()() as db:
+        set_actor(db, "cli")
         v = import_referential(db, get_settings().referentials_dir / folder)
         db.commit()
         print(f"{v.code} {v.version} importé et actif ({len(v.indicators)} indicateurs)")
@@ -47,6 +50,7 @@ def seed_demo() -> None:
     from app.demo import seed_demo as build
 
     with session_factory()() as db:
+        set_actor(db, "cli")
         import_referential(db, get_settings().referentials_dir / "qualiopi" / "v9")
         info = build(db)
         result = refresh_all(db, trigger="demo")

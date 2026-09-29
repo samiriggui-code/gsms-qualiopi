@@ -1,6 +1,7 @@
 """Importe tous les modèles pour que la métadonnée SQLAlchemy soit complète (Alembic, tests)."""
 
 from app.auth import models as _auth  # noqa: F401
+from app.core import journal as _journal  # noqa: F401
 from app.core.db import Base
 from app.events import models as _events  # noqa: F401
 from app.qualiopi.audit import models as _audit  # noqa: F401

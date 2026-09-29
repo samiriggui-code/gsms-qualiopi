@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.core.config import get_settings
 from app.core.db import get_db, utcnow
+from app.core.journal import set_actor
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -58,6 +59,7 @@ def current_user(
     user = db.get(User, payload.get("sub"))
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Utilisateur inactif")
+    set_actor(db, f"{user.full_name} <{user.email}>")
     return user
 
 
