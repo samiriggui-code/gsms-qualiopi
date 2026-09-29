@@ -5,8 +5,8 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 évaluations…) en preuves traçables, les confronte au référentiel national qualité V9 et explique
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-**Statut : jalon 1 terminé** — socle exécutable et prouvé (API, moteur, démo, 50 tests, Docker, CI).
-Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
+**Statut : jalons 1 et 1 bis terminés** — socle exécutable et prouvé (API, moteur, démo, 80 tests, Docker, CI)
+et les cinq briques manquantes du moteur. Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
 
 ## Architecture
 
@@ -26,6 +26,11 @@ Un monolithe, un worker, une base.
 | `app/qualiopi/evaluation/` | 9 contrôles paramétrés, états de préparation, constats, dossier de session |
 | `app/qualiopi/audit/`, `capa/` | Audit interne figé et comparable ; CAPA clôturée seulement si le contrôle passe |
 | `app/events/`, `app/qualiopi/engine.py`, `app/worker.py` | Outbox et réévaluation ciblée |
+| `app/qualiopi/schedule/` + `config/circuits/` | Échéancier : jalons J-15 → J+45 par session, à venir / à échéance / en retard |
+| `app/documents/` + `config/dossiers/` | Dossiers de pièces : dépôt SHA-256, versions, demandes ; une pièce devient une preuve |
+| `app/qualiopi/review/` | Revue humaine attestée par indicateur (conclusion, justification, validité) |
+| `app/qualiopi/cycle/` | Cycle de certification : période évaluée pour l'état global et l'échantillon d'audit |
+| `app/core/journal.py` | Journal des modifications métier : qui, quoi, quand, champ par champ |
 
 ## Démarrer en local
 
@@ -44,8 +49,9 @@ uvicorn app.main:app --reload        # API sur :8000, documentation sur /docs
 python -m app.worker                 # dans un second terminal
 ```
 
-Dossier d'audit d'une session : `GET /api/v1/sessions/{id}/dossier`.
-État de préparation global : `GET /api/v1/qualiopi/readiness`.
+Dossier d'audit d'une session (avec son échéancier) : `GET /api/v1/sessions/{id}/dossier`.
+État de préparation global sur le cycle en cours : `GET /api/v1/qualiopi/readiness`.
+Échéances proches ou dépassées : `GET /api/v1/qualiopi/echeances`.
 
 ## Docker
 
@@ -70,8 +76,9 @@ ruff check .
 alembic check           # le schéma migré doit correspondre aux modèles
 ```
 
-`tests/test_demo.py` est le contrat du moteur : sur la démo, il trouve exactement les 14 trous
-plantés (`app/demo.py`, `PLANTED_GAPS`), avec l'apprenant ou la pièce en cause, et rien d'autre.
+`tests/test_demo.py` et `tests/test_schedule.py` sont le contrat du moteur : sur la démo, il trouve
+exactement les 15 trous plantés (`PLANTED_GAPS`) et les 8 jalons en retard ou à échéance
+(`PLANTED_MILESTONES`), avec l'apprenant ou la pièce en cause, et rien d'autre.
 
 ## Référentiel
 

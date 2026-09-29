@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.db import utcnow
 from app.qualiopi.common import next_reference
+from app.qualiopi.cycle.service import Period
 from app.qualiopi.evaluation.checks import CHECKS, EvalContext, Outcome, Target
 from app.qualiopi.evaluation.models import READINESS_RANK, ControlResult, ControlResultHistory, EvaluationRun, Finding
 from app.qualiopi.evidence.detectors import load_sessions
@@ -222,10 +223,19 @@ def readiness_of(
     return worst([r.status for r in rows]), True
 
 
-def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.TrainingSession | None = None) -> list[dict]:
-    """État par indicateur. Avec `session` : résultats de la session + formation + organisme hérités."""
+def indicator_readiness(db: Session, version: ReferentialVersion, *, session: t.TrainingSession | None = None,
+                        period: Period | None = None) -> list[dict]:
+    """État par indicateur. Avec `session` : résultats de la session + formation + organisme hérités.
+
+    Avec `period` : seules comptent les sessions qui chevauchent la période (cycle de certification).
+    Les résultats formation et organisme décrivent l'état actuel et comptent toujours.
+    """
     q = select(ControlResult).where(ControlResult.version_id == version.id)
     results = list(db.scalars(q))
+    if period is not None and (period.start or period.end):
+        in_period = {sid for sid, start, end in db.execute(select(t.TrainingSession.id, t.TrainingSession.start_date, t.TrainingSession.end_date))
+                     if period.contains_session(start, end)}
+        results = [r for r in results if r.session_id is None or r.session_id in in_period]
     if session is not None:
         results = [
             r for r in results

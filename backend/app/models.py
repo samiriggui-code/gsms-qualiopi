@@ -7,6 +7,7 @@ from app.documents import models as _documents  # noqa: F401
 from app.events import models as _events  # noqa: F401
 from app.qualiopi.audit import models as _audit  # noqa: F401
 from app.qualiopi.capa import models as _capa  # noqa: F401
+from app.qualiopi.cycle import models as _cycle  # noqa: F401
 from app.qualiopi.evaluation import models as _evaluation  # noqa: F401
 from app.qualiopi.evidence import models as _evidence  # noqa: F401
 from app.qualiopi.referential import models as _referential  # noqa: F401

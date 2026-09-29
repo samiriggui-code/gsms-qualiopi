@@ -26,6 +26,8 @@ class Audit(TimestampMixin, Base):
     auditor_name: Mapped[str] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(20), default="EN_COURS")  # EN_COURS | CLOS
     sample_session_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    period_start: Mapped[date | None] = mapped_column(Date)
+    period_end: Mapped[date | None] = mapped_column(Date)
     snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     conclusion: Mapped[str | None] = mapped_column(Text)

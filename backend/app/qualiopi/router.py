@@ -10,6 +10,8 @@ from sqlalchemy import or_, select
 from app.auth.security import DB, EvidenceValidator, QualityWriter, Reader, ReferentialManager
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
+from app.qualiopi.cycle.models import CertificationCycle
+from app.qualiopi.cycle.service import create_cycle, resolve_period
 from app.qualiopi.engine import refresh_all
 from app.qualiopi.evaluation.report import session_dossier
 from app.qualiopi.evaluation.service import indicator_readiness
@@ -75,11 +77,14 @@ def evaluate_all(db: DB, user: QualityWriter) -> dict:
 
 
 @router.get("/qualiopi/readiness")
-def readiness(db: DB, _: Reader) -> dict:
+def readiness(db: DB, _: Reader, du: date | None = None, au: date | None = None) -> dict:
+    """État global sur la période : `du`/`au`, sinon le cycle de certification en cours, sinon toute l'activité."""
     version = active_version(db)
+    period = resolve_period(db, du, au)
     return {
         "referential": f"{version.code} {version.version}",
-        "indicators": indicator_readiness(db, version),
+        "periode": period.view(),
+        "indicators": indicator_readiness(db, version, period=period),
         "disclaimer": "État de préparation calculé à partir des preuves disponibles. "
         "Ne constitue pas une décision de conformité : seul l'organisme certificateur en décide.",
     }
@@ -148,3 +153,28 @@ def list_reviews(number: int, db: DB, _: Reader) -> list[dict]:
     rows = db.scalars(select(IndicatorReview).where(IndicatorReview.indicator_number == number).order_by(IndicatorReview.reviewed_at.desc()))
     return [{"conclusion": r.conclusion, "comment": r.comment, "by": r.reviewed_by, "at": r.reviewed_at.isoformat(),
              "valid_until": r.valid_until.isoformat(), "engine_status": r.engine_status, "evidence_refs": r.evidence_refs} for r in rows]
+
+
+class CycleIn(BaseModel):
+    label: str
+    kind: str  # INITIAL | SURVEILLANCE | RENOUVELLEMENT | INTERNE
+    period_start: date
+    period_end: date | None = None
+    audit_on: date | None = None
+    certifier: str | None = None
+    notes: str | None = None
+
+
+@router.post("/qualiopi/cycles")
+def add_cycle(body: CycleIn, db: DB, _: QualityWriter) -> dict:
+    cycle = create_cycle(db, **body.model_dump())
+    db.commit()
+    return {"id": cycle.id, "label": cycle.label}
+
+
+@router.get("/qualiopi/cycles")
+def list_cycles(db: DB, _: Reader) -> list[dict]:
+    rows = db.scalars(select(CertificationCycle).order_by(CertificationCycle.period_start.desc()))
+    return [{"id": c.id, "label": c.label, "kind": c.kind, "period_start": c.period_start.isoformat(),
+             "period_end": c.period_end.isoformat() if c.period_end else None,
+             "audit_on": c.audit_on.isoformat() if c.audit_on else None, "certifier": c.certifier} for c in rows]

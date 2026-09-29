@@ -11,6 +11,7 @@ from app.core.db import utcnow
 from app.core.errors import InvalidStateError, NotFoundError
 from app.qualiopi.audit.models import JUDGMENTS, Audit, AuditItem
 from app.qualiopi.common import next_reference
+from app.qualiopi.cycle.service import Period, resolve_period
 from app.qualiopi.evaluation.models import ControlResult, Finding
 from app.qualiopi.evaluation.service import readiness_of
 from app.qualiopi.evidence.models import Evidence
@@ -18,8 +19,8 @@ from app.qualiopi.referential.models import ReferentialVersion
 from app.training import models as t
 
 
-def default_sample(db: Session, per_program: int = 2) -> list[str]:
-    """Échantillon façon certificateur : les sessions réalisées les plus récentes, par formation."""
+def default_sample(db: Session, per_program: int = 2, period: Period | None = None) -> list[str]:
+    """Échantillon façon certificateur : les sessions réalisées les plus récentes de la période, par formation."""
     rows = db.scalars(
         select(t.TrainingSession)
         .where(t.TrainingSession.status.in_(("EN_COURS", "TERMINEE", "CLOTUREE")))
@@ -27,6 +28,8 @@ def default_sample(db: Session, per_program: int = 2) -> list[str]:
     )
     picked: dict[str, list[str]] = {}
     for s in rows:
+        if period is not None and not period.contains_session(s.start_date, s.end_date):
+            continue
         lst = picked.setdefault(s.program_id, [])
         if len(lst) < per_program:
             lst.append(s.id)
@@ -34,8 +37,10 @@ def default_sample(db: Session, per_program: int = 2) -> list[str]:
 
 
 def create_audit(db: Session, version: ReferentialVersion, *, title: str, kind: str, auditor_name: str,
-                 planned_on: date | None, sample_session_ids: list[str] | None, actor: str) -> Audit:
-    sample = sample_session_ids or default_sample(db)
+                 planned_on: date | None, sample_session_ids: list[str] | None, actor: str,
+                 period: Period | None = None) -> Audit:
+    period = period or resolve_period(db)
+    sample = sample_session_ids or default_sample(db, period=period)
     known = set(db.scalars(select(t.TrainingSession.id).where(t.TrainingSession.id.in_(sample))))
     unknown = set(sample) - known
     if unknown:
@@ -51,6 +56,8 @@ def create_audit(db: Session, version: ReferentialVersion, *, title: str, kind: 
         planned_on=planned_on,
         auditor_name=auditor_name,
         sample_session_ids=sample,
+        period_start=period.start,
+        period_end=period.end,
         snapshot_at=utcnow(),
         created_by=actor,
     )
