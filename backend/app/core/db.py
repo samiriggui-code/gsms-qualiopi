@@ -1,6 +1,6 @@
+import uuid
 from collections.abc import Iterator
 from datetime import datetime, timezone
-import uuid
 
 from sqlalchemy import DateTime, MetaData, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker

@@ -11,14 +11,21 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Iterator
+from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
+
+    from app.auth.models import User
 
 os.environ.setdefault("JWT_SECRET", "secret-de-test-assez-long-pour-hs256-0123456789")
 
@@ -102,3 +109,38 @@ def make_user(db: Session, role: str, email: str | None = None) -> tuple["User",
     db.add(user)
     db.commit()
     return user, {"Authorization": f"Bearer {create_token(user)}"}
+
+
+# ── Démo ─────────────────────────────────────────────────────────────────────────
+
+V9 = BACKEND_DIR / "referentials" / "qualiopi" / "v9"
+TODAY = date.today()
+
+
+@pytest.fixture
+def demo(db: Session) -> Session:
+    """Référentiel V9 actif + organisme de démo évalué (14 trous plantés)."""
+    from app.demo import seed_demo
+    from app.qualiopi.engine import refresh_all
+    from app.qualiopi.referential.importer import import_referential
+
+    version = import_referential(db, V9)
+    seed_demo(db, today=TODAY)
+    refresh_all(db, trigger="test", today=TODAY)
+    db.commit()
+    db.info["version"] = version
+    return db
+
+
+def find_session(db: Session, ref: str):  # noqa: ANN201
+    from app.training import models as t
+
+    return db.scalar(select(t.TrainingSession).where(t.TrainingSession.reference == ref))
+
+
+def target_names(db: Session) -> dict[str, str]:
+    from app.training import models as t
+
+    names = {s.id: s.reference for s in db.scalars(select(t.TrainingSession))}
+    names |= {p.id: p.code for p in db.scalars(select(t.Program))}
+    return names

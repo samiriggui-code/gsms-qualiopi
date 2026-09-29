@@ -1,10 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.auth.models import ROLES, User
 from app.auth.security import DB, CurrentUser, create_token, hash_password, require, verify_password
-from fastapi import Depends
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 

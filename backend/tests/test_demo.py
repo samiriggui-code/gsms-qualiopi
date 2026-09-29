@@ -4,9 +4,6 @@ C'est la condition de sortie du jalon 1 : chaque trou planté produit le bon ré
 explicable, dans le dossier de session renvoyé par l'API.
 """
 
-from datetime import date
-from pathlib import Path
-
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -17,33 +14,13 @@ from app.qualiopi.engine import refresh_all
 from app.qualiopi.evaluation.models import ControlResult, Finding
 from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.models import Evidence
-from app.qualiopi.referential.importer import import_referential
-from app.training import models as t
-from tests.conftest import make_user
+from tests.conftest import TODAY, make_user
+from tests.conftest import find_session as _session
+from tests.conftest import target_names as _names
 
-V9 = Path(__file__).resolve().parents[1] / "referentials" / "qualiopi" / "v9"
-TODAY = date(2026, 9, 29)
 OK = ("DEMONTRABLE", "NON_APPLICABLE")
 
 
-@pytest.fixture
-def demo(db: Session) -> Session:
-    version = import_referential(db, V9)
-    seed_demo(db, today=TODAY)
-    refresh_all(db, trigger="test", today=TODAY)
-    db.commit()
-    db.info["version"] = version
-    return db
-
-
-def _names(db: Session) -> dict[str, str]:
-    names = {s.id: s.reference for s in db.scalars(select(t.TrainingSession))}
-    names |= {p.id: p.code for p in db.scalars(select(t.Program))}
-    return names
-
-
-def _session(db: Session, ref: str) -> t.TrainingSession:
-    return db.scalar(select(t.TrainingSession).where(t.TrainingSession.reference == ref))
 
 
 def test_le_moteur_trouve_exactement_les_trous_plantes(demo: Session) -> None:
