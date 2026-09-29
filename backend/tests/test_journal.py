@@ -43,7 +43,7 @@ def test_auteur_par_defaut(db: Session) -> None:
 def test_tables_du_moteur_non_journalisees(demo: Session) -> None:
     moteur = demo.scalar(select(func.count()).select_from(ChangeLog).where(ChangeLog.table_name.like("qualite.%")))
     assert moteur == 0, "preuves, résultats et constats ont leur propre historique"
-    assert demo.scalar(select(func.count()).select_from(ChangeLog).where(ChangeLog.table_name == "formation.positioning")) == 14  # 11 + 3
+    assert demo.scalar(select(func.count()).select_from(ChangeLog).where(ChangeLog.table_name == "formation.positioning")) == 15  # 11 + 3 + 1
 
 
 def test_api_auteur_authentifie_et_mot_de_passe_masque(client, db: Session) -> None:  # noqa: ANN001

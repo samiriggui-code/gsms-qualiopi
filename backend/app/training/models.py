@@ -252,6 +252,7 @@ class Agreement(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20), default="CONVENTION")
     sent_on: Mapped[date | None] = mapped_column(Date)
     signed_on: Mapped[date | None] = mapped_column(Date)
+    signed_by: Mapped[str | None] = mapped_column(String(200))  # signataire côté client (repris du Contract de Frappe)
     document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
 
     enrollment: Mapped[Enrollment] = relationship(back_populates="agreement")

@@ -1,9 +1,11 @@
 """API du moteur Qualiopi (lecture de l'état de préparation, import du référentiel, validation humaine)."""
 
+from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
+from sqlalchemy import or_, select
 
 from app.auth.security import DB, EvidenceValidator, QualityWriter, Reader, ReferentialManager
 from app.core.config import get_settings
@@ -13,6 +15,9 @@ from app.qualiopi.evaluation.report import session_dossier
 from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.service import validate
 from app.qualiopi.referential.importer import active_version, import_referential
+from app.qualiopi.schedule.models import MilestoneStatus
+from app.qualiopi.schedule.service import milestone_view
+from app.training import models as t
 
 router = APIRouter(prefix="/api/v1", tags=["qualiopi"])
 
@@ -92,3 +97,19 @@ def validate_evidence(evidence_id: str, body: ValidationIn, db: DB, user: Eviden
     ev = validate(db, evidence_id, body.decision, body.comment, user.id, user.full_name)
     db.commit()
     return {"id": ev.id, "reference": ev.reference, "status": ev.status}
+
+
+@router.get("/qualiopi/echeances")
+def upcoming(db: DB, _: Reader, days: int = Query(15, ge=0, le=365), owner: str | None = None) -> list[dict]:
+    """Jalons en retard, ou non faits dont l'échéance tombe dans les `days` prochains jours."""
+    horizon = date.today() + timedelta(days=days)
+    q = (
+        select(MilestoneStatus, t.TrainingSession.reference)
+        .join(t.TrainingSession, t.TrainingSession.id == MilestoneStatus.session_id)
+        .where(or_(MilestoneStatus.status.in_(("EN_RETARD", "A_ECHEANCE")),
+                   (MilestoneStatus.status == "A_VENIR") & (MilestoneStatus.due_on <= horizon)))
+        .order_by(MilestoneStatus.due_on)
+    )
+    if owner:
+        q = q.where(MilestoneStatus.owner == owner)
+    return [{"session": ref, "session_id": m.session_id, **milestone_view(m)} for m, ref in db.execute(q)]

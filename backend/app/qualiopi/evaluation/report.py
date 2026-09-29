@@ -11,6 +11,8 @@ from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.detectors import load_sessions
 from app.qualiopi.evidence.models import Evidence
 from app.qualiopi.referential.models import ReferentialVersion
+from app.qualiopi.schedule.models import MilestoneStatus
+from app.qualiopi.schedule.service import milestone_view
 from app.training import models as t
 
 
@@ -111,6 +113,10 @@ def session_dossier(db: Session, version: ReferentialVersion, session_id: str) -
             "learners": n,
         },
         "checklist": checklist,
+        "echeancier": [
+            milestone_view(m)
+            for m in db.scalars(select(MilestoneStatus).where(MilestoneStatus.session_id == s.id).order_by(MilestoneStatus.due_on, MilestoneStatus.key))
+        ],
         "summary": summary,
         "indicators": indicators,
         "findings": [

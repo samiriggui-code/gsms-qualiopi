@@ -60,6 +60,28 @@ PLANTED_GAPS = (
 )
 
 
+@dataclass(frozen=True)
+class MilestoneGap:
+    """Un jalon d'échéancier planté et l'état attendu (anticipation, pas de constat)."""
+
+    session: str
+    key: str
+    status: str
+    why: str
+
+
+PLANTED_MILESTONES = (
+    MilestoneGap("SSIAP1-2026-01", "J-5.positionnement", "EN_RETARD", "Adam Nicolas sans positionnement"),
+    MilestoneGap("SSIAP1-2026-01", "J0.emargement", "EN_RETARD", "une demi-journée non signée par Chloé Blanc"),
+    MilestoneGap("SSIAP1-2026-01", "FIN.satisfaction-chaud", "EN_RETARD", "2 questionnaires à chaud manquants"),
+    MilestoneGap("SSIAP1-2026-01", "J+45.satisfaction-froid", "A_ECHEANCE", "questionnaires à froid dus dans 9 jours"),
+    MilestoneGap("SST-2026-02", "J-5.besoin", "EN_RETARD", "Louis Morin sans analyse du besoin"),
+    MilestoneGap("SST-2026-04", "J-15.convention", "EN_RETARD", "2 conventions sur 4 signées"),
+    MilestoneGap("SST-2026-04", "J-10.convocation", "EN_RETARD", "aucune convocation, départ dans 8 jours"),
+    MilestoneGap("SST-2026-04", "J-5.positionnement", "A_ECHEANCE", "1 positionnement sur 4, échéance dans 3 jours"),
+)
+
+
 def _at(d: date, hour: int) -> datetime:
     return datetime.combine(d, time(hour), tzinfo=timezone.utc)
 
@@ -180,7 +202,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
             db.add(t.Positioning(enrollment_id=e.id, method="QCM d'entrée", completed_on=d(-50), level="débutant",
                                  prerequisites_met=True, created_by=ACTOR))
         db.add(t.Convocation(enrollment_id=e.id, sent_on=d(-50), created_by=ACTOR))
-        db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-52), signed_on=d(-48), created_by=ACTOR))
+        db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-52), signed_on=d(-48), signed_by="Service RH de l'employeur", created_by=ACTOR))
         for sl in slots1:
             _sign(db, sl, e, signed=not (i == 6 and sl is slots1[3]))  # trou I12 : Chloé Blanc, 1 demi-journée
         db.add(t.Assessment(enrollment_id=e.id, kind="SOMMATIVE", label="QCM final", assessed_on=d(-36),
@@ -215,7 +237,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
         # i == 0 : trou I04, aucune analyse du besoin
         db.add(t.Positioning(enrollment_id=e.id, method="Entretien", completed_on=d(-8), prerequisites_met=True, created_by=ACTOR))
         db.add(t.Convocation(enrollment_id=e.id, sent_on=d(-12), created_by=ACTOR))
-        db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-14), signed_on=d(-11), created_by=ACTOR))
+        db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-14), signed_on=d(-11), signed_by="Service RH de l'employeur", created_by=ACTOR))
         for sl in slots2:
             if sl.day <= today:
                 _sign(db, sl, e)
@@ -229,5 +251,27 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     for learner in learners[16:18]:
         _enroll(db, s3, learner, "INSCRIT")
 
+    # ── Session qui démarre dans 8 jours : SST-2026-04 ───────────────────────────
+    # Encore « planifiée » : aucun contrôle Qualiopi n'est exigible, seul l'échéancier alerte.
+    s4 = t.TrainingSession(reference="SST-2026-04", program_id=sst.id, start_date=d(8), end_date=d(9),
+                           location="Site client ACME", trainer_id=julie.id, capacity=8, status="PLANIFIEE",
+                           created_by=ACTOR)
+    db.add(s4)
     db.flush()
-    return {"sessions": [s1.reference, s2.reference, s3.reference], "programs": [ssiap.code, sst.code], "gaps": len(PLANTED_GAPS)}
+    acme = [t.Learner(first_name=f, last_name=n, email=f"{f.lower()}.{n.lower()}@acme.exemple", created_by=ACTOR)
+            for f, n in (("Paul", "Lambert"), ("Nora", "Fontaine"), ("Éric", "Chevalier"), ("Zoé", "Robin"))]
+    db.add_all(acme)
+    db.flush()
+    for i, learner in enumerate(acme):
+        e = _enroll(db, s4, learner, "INSCRIT")
+        db.add(t.NeedsAnalysis(enrollment_id=e.id, completed_on=d(-12), summary="Recueilli auprès de l'employeur", created_by=ACTOR))
+        if i < 2:
+            db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-20), signed_on=d(-16), signed_by="DRH ACME", created_by=ACTOR))
+        elif i == 2:
+            db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-20), created_by=ACTOR))  # envoyée, pas signée
+        if i == 0:
+            db.add(t.Positioning(enrollment_id=e.id, method="Questionnaire en ligne", completed_on=d(-1), created_by=ACTOR))
+
+    db.flush()
+    return {"sessions": [s1.reference, s2.reference, s3.reference, s4.reference], "programs": [ssiap.code, sst.code],
+            "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES)}

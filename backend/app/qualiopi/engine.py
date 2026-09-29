@@ -15,8 +15,10 @@ from sqlalchemy.orm import Session
 from app.core.db import utcnow
 from app.events.models import OutboxEvent
 from app.qualiopi.evaluation.service import evaluate
+from app.qualiopi.evidence.detectors import load_sessions
 from app.qualiopi.evidence.service import Scope, reconcile
 from app.qualiopi.referential.importer import active_version
+from app.qualiopi.schedule.service import refresh_schedule
 from app.training import models as t
 
 # Événements qui n'ont d'effet qu'au niveau organisme.
@@ -39,8 +41,9 @@ def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None)
     version = active_version(db)
     stats = reconcile(db, version, today=today, scope=Scope.everything())
     run = evaluate(db, version, trigger=trigger, today=today)
+    milestones = refresh_schedule(db, load_sessions(db), today=today)
     _mark_all_processed(db)
-    return {"evidence": stats, "run_id": run.id, "results": run.results_count}
+    return {"evidence": stats, "run_id": run.id, "results": run.results_count, "milestones": milestones}
 
 
 def _mark_all_processed(db: Session) -> None:
@@ -99,6 +102,7 @@ def process_pending(db: Session, limit: int = 500, today: date | None = None) ->
         include_programs=True,
         today=today,
     )
+    refresh_schedule(db, [s for sid in sorted(scope.session_ids) for s in load_sessions(db, sid)], today=today)
     # Les vérifications CAPA se concluent sur l'évaluation qui vient d'être faite.
     from app.qualiopi.capa.service import conclude_verification
 

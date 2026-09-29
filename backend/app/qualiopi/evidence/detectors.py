@@ -185,6 +185,25 @@ def detect_session(s: t.TrainingSession, today: date) -> Iterator[EvidenceSpec]:
                 **{**eb, "produced_by": pos.created_by},
             )
 
+        ag = e.agreement
+        if ag is not None and (ag.sent_on or ag.signed_on):
+            issues = []
+            if not ag.signed_on:
+                issues.append("convention envoyée, non signée")
+            elif not ag.signed_by:
+                issues.append("signataire non renseigné")
+            yield EvidenceSpec(
+                evidence_type="AGREEMENT",
+                label=f"{ag.kind.title()} — {who}",
+                source_table="formation.agreement",
+                source_id=ag.id,
+                produced_on=ag.signed_on or ag.sent_on,
+                document_id=ag.document_id,
+                facts={"kind": ag.kind, "signed_on": _iso(ag.signed_on), "signed_by": ag.signed_by},
+                form_issues=issues,
+                **{**eb, "produced_by": ag.created_by},
+            )
+
         conv = e.convocation
         if conv is not None and conv.sent_on is not None:
             yield EvidenceSpec(
@@ -426,6 +445,7 @@ def load_sessions(db: Session, session_id: str | None = None) -> list[t.Training
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.needs_analysis),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.positioning),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.convocation),
+        selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.agreement),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.assessments),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.certificate),
         selectinload(t.TrainingSession.enrollments).selectinload(t.Enrollment.signatures).selectinload(t.AttendanceSignature.slot),

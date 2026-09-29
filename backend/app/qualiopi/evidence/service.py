@@ -57,6 +57,7 @@ SESSION_TABLES = (
     "formation.needs_analysis",
     "formation.positioning",
     "formation.convocation",
+    "formation.agreement",
     "formation.assessment",
     "formation.certificate",
     "formation.satisfaction_survey",
