@@ -52,10 +52,10 @@ PLANTED_GAPS = (
     Gap("I12.attendance", "SSIAP1-2026-01", "A_RISQUE", "une demi-journée non signée par Chloé Blanc"),
     Gap("I12.dropouts", "SSIAP1-2026-01", "PREUVES_INSUFFISANTES", "abandon sans motif"),
     Gap("I18.coordination-documents", "organisme", "PREUVES_INSUFFISANTES", "compte rendu de réunion pédagogique non déposé"),
-    Gap("I20.disability-referent", "organisme", "PREUVES_INSUFFISANTES", "référent handicap sans coordonnées"),
     Gap("I21.trainer-qualification", "SST-2026-02", "PREUVES_INSUFFISANTES", "qualification du formateur expirée avant le début"),
     Gap("I24.watch-jobs", "organisme", "PREUVES_INSUFFISANTES", "veille métiers notée mais non exploitée"),
     Gap("I25.watch-pedagogy", "organisme", "A_RISQUE", "veille pédagogique exploitée il y a plus d'un an"),
+    Gap("I26.disability-referent", "organisme", "PREUVES_INSUFFISANTES", "référent handicap sans coordonnées"),
     Gap("I30.learner-surveys", "SSIAP1-2026-01", "A_RISQUE", "10 questionnaires à chaud sur 12"),
     Gap("I31.complaints", "organisme", "PREUVES_INSUFFISANTES", "réclamation sans réponse depuis 20 jours"),
     Gap("I32.improvement", "organisme", "PREUVES_INSUFFISANTES", "aucune action d'amélioration clôturée"),
@@ -144,7 +144,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     org = t.Organization(
         name="Organisme de démonstration", nda_number="00 00 00000 00", siret="00000000000000",
         action_categories=["AF"], disability_referent_name="Nadia Roux", created_by=ACTOR,
-    )  # trou : référent handicap sans e-mail (I20)
+    )  # trou : référent handicap sans e-mail (I26)
     db.add(org)
     db.flush()
     # Dossier qualité : organigramme et inventaire déposés ; trou I18 : pas de compte rendu de réunion pédagogique.

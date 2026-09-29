@@ -17,7 +17,7 @@ from app.events.models import OutboxEvent
 from app.qualiopi.evaluation.service import evaluate
 from app.qualiopi.evidence.detectors import load_sessions
 from app.qualiopi.evidence.service import Scope, reconcile
-from app.qualiopi.referential.importer import active_version
+from app.qualiopi.referential.importer import activate_due, active_version
 from app.qualiopi.schedule.service import refresh_schedule
 from app.training import models as t
 
@@ -37,7 +37,11 @@ ORG_EVENTS = {
 
 
 def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None) -> dict:
-    """Réconciliation complète + réévaluation de tout (passe nocturne, bouton « tout réévaluer »)."""
+    """Réconciliation complète + réévaluation de tout (passe nocturne, bouton « tout réévaluer »).
+
+    Bascule d'abord sur la dernière version du référentiel entrée en vigueur (V9 → V10 le 1er novembre 2026).
+    """
+    activate_due(db, today=today)
     version = active_version(db)
     stats = reconcile(db, version, today=today, scope=Scope.everything())
     run = evaluate(db, version, trigger=trigger, today=today)

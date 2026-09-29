@@ -2,10 +2,11 @@
 
 Backend Python d'un organisme de formation : domaine formation + moteur de préparation Qualiopi.
 Le moteur transforme les données du quotidien (inscriptions, positionnements, émargements,
-évaluations…) en preuves traçables, les confronte au référentiel national qualité V9 et explique
+évaluations…) en preuves traçables, les confronte au référentiel national qualité (V9, puis V10 au
+1er novembre 2026) et explique
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
-**Statut : jalons 1 et 1 bis terminés** — socle exécutable et prouvé (API, moteur, démo, 80 tests, Docker, CI)
+**Statut : jalons 1 et 1 bis terminés** — socle exécutable et prouvé (API, moteur, démo, 85 tests, Docker, CI)
 et les cinq briques manquantes du moteur. Pas encore de routeurs métier ni de frontend : c'est le jalon 2.
 
 ## Architecture
@@ -21,7 +22,7 @@ Un monolithe, un worker, une base.
 | Module | Rôle |
 | --- | --- |
 | `app/training/` | Domaine organisme de formation (25 entités) |
-| `app/qualiopi/referential/` | Import versionné : texte officiel (Etalab 2.0) + couche normative `v9.yaml` |
+| `app/qualiopi/referential/` | Import versionné : texte officiel + couche normative (`v9.yaml`, `v10.yaml`), bascule à la date d'entrée en vigueur |
 | `app/qualiopi/evidence/` | Donnée → preuve : détecteurs, cycle de vie, validation humaine, historique |
 | `app/qualiopi/evaluation/` | 9 contrôles paramétrés, états de préparation, constats, dossier de session |
 | `app/qualiopi/audit/`, `capa/` | Audit interne figé et comparable ; CAPA clôturée seulement si le contrôle passe |
@@ -82,11 +83,21 @@ exactement les 15 trous plantés (`PLANTED_GAPS`) et les 8 jalons en retard ou �
 
 ## Référentiel
 
-`backend/referentials/qualiopi/v9/source/` : 32 fichiers de
-[Levier-IA/qualiopi-markdown](https://github.com/Levier-IA/qualiopi-markdown) (Licence Ouverte
-Etalab 2.0), commit figé dans `UPSTREAM_COMMIT`. La couche normative (`normative/v9.yaml`) est
-propre à GSMS et doit être relue par un responsable qualité face au
-[guide officiel](https://travail-emploi.gouv.fr/referentiel-national-qualite-guide-de-lecture-qualiopi),
-seul document qui fait foi. Une nouvelle version = un nouveau dossier (`v10/`).
+Chaque version est un dossier `backend/referentials/qualiopi/vN/` : `source/` (texte officiel) et
+`normative/vN.yaml` (couche GSMS : applicabilité, preuves attendues, contrôles). Une version dont la
+date d'entrée en vigueur n'est pas atteinte est importée inactive ; la passe de nuit du worker active
+la plus récente version en vigueur.
+
+| Version | En vigueur | Source |
+| --- | --- | --- |
+| V9 | jusqu'au 31/10/2026 | 32 fichiers de [Levier-IA/qualiopi-markdown](https://github.com/Levier-IA/qualiopi-markdown) (Licence Ouverte Etalab 2.0, commit figé dans `UPSTREAM_COMMIT`), transcription du guide de lecture V9 |
+| V10 | à partir du 01/11/2026 | 33 énoncés de l'annexe du [décret n° 2026-728 du 1er août 2026](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054608509) (Légifrance, référence dans `UPSTREAM_REF`) |
+
+Le guide de lecture V10 n'était pas publié au 29/09/2026 : la couche `v10.yaml` reprend les contrôles
+V9, ajoute ceux des nouvelles exigences (indicateur 12 : violences, harcèlement, discriminations ;
+indicateur 32 : analyse des risques) et marque ce qui est provisoire. Les couches normatives sont
+propres à GSMS et doivent être relues par un responsable qualité face aux textes officiels
+([guide de lecture](https://travail-emploi.gouv.fr/referentiel-national-qualite-guide-de-lecture-qualiopi)),
+seuls à faire foi.
 
 Code tiers repris : voir `THIRD_PARTY_NOTICES.md`.

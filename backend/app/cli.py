@@ -1,7 +1,7 @@
 """Commandes d'exploitation.
 
   python -m app.cli create-admin EMAIL "NOM"      mot de passe lu dans GSMS_ADMIN_PASSWORD ou demandé
-  python -m app.cli import-referential [qualiopi/v9]
+  python -m app.cli import-referential [qualiopi/v9 | qualiopi/v10]
   python -m app.cli seed-demo                      organisme de démo + réévaluation (base vide uniquement)
 """
 
@@ -42,7 +42,8 @@ def import_ref(folder: str) -> None:
         set_actor(db, "cli")
         v = import_referential(db, get_settings().referentials_dir / folder)
         db.commit()
-        print(f"{v.code} {v.version} importé et actif ({len(v.indicators)} indicateurs)")
+        state = "actif" if v.is_active else f"inactif jusqu'à son entrée en vigueur le {v.effective_from:%d/%m/%Y}"
+        print(f"{v.code} {v.version} importé, {state} ({len(v.indicators)} indicateurs)")
 
 
 def seed_demo() -> None:
@@ -51,7 +52,9 @@ def seed_demo() -> None:
 
     with session_factory()() as db:
         set_actor(db, "cli")
-        import_referential(db, get_settings().referentials_dir / "qualiopi" / "v9")
+        # V9 en vigueur ; V10 importée inactive, activée par la passe de nuit le 1er novembre 2026.
+        for folder in ("v9", "v10"):
+            import_referential(db, get_settings().referentials_dir / "qualiopi" / folder)
         info = build(db)
         result = refresh_all(db, trigger="demo")
         db.commit()

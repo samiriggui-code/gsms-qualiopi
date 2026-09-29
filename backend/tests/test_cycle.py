@@ -35,7 +35,7 @@ def test_un_cycle_exclut_les_sessions_anterieures(demo: Session) -> None:
     assert period.label == "Surveillance 2027"
     assert _status(demo, 8, period) != "A_RISQUE", "le positionnement manquant d'une session hors période ne compte plus"
     assert _status(demo, 4, period) == "PREUVES_INSUFFISANTES", "SST-2026-02 est dans la période"
-    assert _status(demo, 20, period) == "PREUVES_INSUFFISANTES", "l'organisme compte toujours"
+    assert _status(demo, 26, period) == "PREUVES_INSUFFISANTES", "l'organisme compte toujours"
 
 
 def test_periode_explicite_prioritaire(demo: Session) -> None:

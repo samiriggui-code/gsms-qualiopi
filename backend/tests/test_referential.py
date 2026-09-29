@@ -20,9 +20,9 @@ def test_parse_32_indicateurs_7_criteres() -> None:
     assert sorted(parsed.source) == list(range(1, 33))
     assert sorted(parsed.criteria) == list(range(1, 8))
     assert parsed.upstream_ref and len(parsed.upstream_ref) == 40
-    # Les 7 indicateurs sans contrôle automatique sont signalés, pas masqués.
+    # Les indicateurs sans contrôle automatique sont signalés, pas masqués.
     sans_controle = sorted(int(w[1:3]) for w in parsed.warnings)
-    assert sans_controle == [13, 14, 15, 28, 29]
+    assert sans_controle == [13, 14, 15, 20, 28, 29]
 
 
 def test_import_en_base_puis_reimport_idempotent(db: Session) -> None:

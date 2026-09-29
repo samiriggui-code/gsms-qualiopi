@@ -32,14 +32,14 @@ def test_photo_figee_de_32_indicateurs(demo: Session) -> None:
 def test_cloture_exige_tous_les_jugements_et_cree_les_constats(demo: Session) -> None:
     audit = _audit(demo)
     with pytest.raises(InvalidStateError, match="motivée"):
-        judge(demo, audit, 20, "NC_MINEURE", None, "Auditrice")
+        judge(demo, audit, 26, "NC_MINEURE", None, "Auditrice")
     for item in audit.items:
         judge(demo, audit, item.indicator_number, "CONFORME", None, "Auditrice")
-    judge(demo, audit, 20, "NC_MINEURE", "Coordonnées du référent absentes des supports", "Auditrice")
+    judge(demo, audit, 26, "NC_MINEURE", "Coordonnées du référent absentes des supports", "Auditrice")
     close_audit(demo, audit, "Audit blanc satisfaisant, une non-conformité mineure.", "Auditrice")
     demo.commit()
     f = demo.scalar(select(Finding).where(Finding.origin == "AUDIT"))
-    assert f.indicator_number == 20 and f.severity == "mineure"
+    assert f.indicator_number == 26 and f.severity == "mineure"
     with pytest.raises(InvalidStateError, match="clos"):
         judge(demo, audit, 1, "CONFORME", None, "Auditrice")
 
@@ -50,5 +50,5 @@ def test_comparaison_de_deux_audits(demo: Session) -> None:
     refresh_all(demo, trigger="test", today=TODAY)
     second = _audit(demo, "Audit mars")
     rows = {r["indicator"]: r for r in compare([second, first])}
-    assert [p["audit"] for p in rows[20]["points"]] == [first.reference, second.reference]
-    assert [p["engine"] for p in rows[20]["points"]] == ["PREUVES_INSUFFISANTES", "DEMONTRABLE"]
+    assert [p["audit"] for p in rows[26]["points"]] == [first.reference, second.reference]
+    assert [p["engine"] for p in rows[26]["points"]] == ["PREUVES_INSUFFISANTES", "DEMONTRABLE"]

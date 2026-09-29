@@ -88,7 +88,7 @@ def _sections(body: str) -> list[tuple[str, str]]:
     return [(title, "\n".join(lines).strip()) for title, lines in out]
 
 
-def parse_source_dir(source_dir: Path) -> tuple[dict[int, SourceIndicator], str]:
+def parse_source_dir(source_dir: Path, required_sections: tuple[str, ...] = REQUIRED_SECTIONS) -> tuple[dict[int, SourceIndicator], str]:
     files = sorted(p for p in source_dir.glob("*.md") if re.match(r"^\d{2}-", p.name))
     if not files:
         raise ReferentialImportError(f"aucun fichier indicateur dans {source_dir}")
@@ -105,7 +105,7 @@ def parse_source_dir(source_dir: Path) -> tuple[dict[int, SourceIndicator], str]
             raise ReferentialImportError(f"{path.name} : indicateur/critère illisible") from None
         secs = _sections(body)
         titles = {t for t, _ in secs}
-        missing = [s for s in REQUIRED_SECTIONS if s not in titles]
+        missing = [s for s in required_sections if s not in titles]
         if missing:
             raise ReferentialImportError(f"{path.name} : sections manquantes {missing}")
         if n in out:
@@ -126,7 +126,6 @@ def parse_source_dir(source_dir: Path) -> tuple[dict[int, SourceIndicator], str]
 
 
 def load_referential(folder: Path) -> ParsedReferential:
-    source, source_sha = parse_source_dir(folder / "source")
     norm_files = sorted((folder / "normative").glob("*.yaml"))
     if len(norm_files) != 1:
         raise ReferentialImportError("un seul fichier normatif YAML attendu par version")
@@ -136,6 +135,10 @@ def load_referential(folder: Path) -> ParsedReferential:
     for k in ("code", "version", "title", "effective_from", "source_label"):
         if not meta.get(k):
             raise ReferentialImportError(f"normatif : referential.{k} manquant")
+    # Sections exigées dans la source : le guide de lecture en fournit trois ; un référentiel
+    # publié au Journal officiel sans guide n'a que l'énoncé.
+    required = tuple(meta.get("required_sections") or REQUIRED_SECTIONS)
+    source, source_sha = parse_source_dir(folder / "source", required)
     indicators = {int(k): v or {} for k, v in (norm.get("indicators") or {}).items()}
     criteria = {int(k): str(v) for k, v in (norm.get("criteria") or {}).items()}
 
@@ -150,7 +153,12 @@ def load_referential(folder: Path) -> ParsedReferential:
             raise ReferentialImportError(f"critère {source[n].criterion} sans titre dans le normatif")
         if spec.get("scope") not in ("ORGANISME", "FORMATION", "SESSION"):
             raise ReferentialImportError(f"indicateur {n} : scope invalide")
+        if "new_entrant_adapted" in spec:
+            # Le normatif peut fixer l'adaptation « nouveaux entrants » quand la source ne la dit pas.
+            source[n].new_entrant = bool(spec["new_entrant_adapted"])
         for c in spec.get("controls") or []:
+            if c.get("scope", spec["scope"]) not in ("ORGANISME", "FORMATION", "SESSION"):
+                raise ReferentialImportError(f"{c.get('key')} : scope invalide")
             if c.get("check") not in KNOWN_CHECKS:
                 raise ReferentialImportError(f"indicateur {n} : check inconnu {c.get('check')}")
             if c["key"] in keys:
@@ -161,7 +169,7 @@ def load_referential(folder: Path) -> ParsedReferential:
         if not spec.get("controls"):
             warnings.append(f"I{n:02d} : aucun contrôle automatisé (revue humaine)")
 
-    upstream = folder / "source" / "UPSTREAM_COMMIT"
+    upstream = next((p for p in (folder / "source" / "UPSTREAM_COMMIT", folder / "source" / "UPSTREAM_REF") if p.exists()), None)
     return ParsedReferential(
         meta=meta,
         criteria=criteria,
@@ -170,12 +178,16 @@ def load_referential(folder: Path) -> ParsedReferential:
         new_entrant_control=norm.get("new_entrant_control") or {},
         source_sha256=source_sha,
         normative_sha256=hashlib.sha256(norm_raw).hexdigest(),
-        upstream_ref=upstream.read_text().strip() if upstream.exists() else None,
+        upstream_ref=upstream.read_text(encoding="utf-8").strip() if upstream else None,
         warnings=warnings,
     )
 
 
-def import_referential(db: Session, folder: Path, *, activate: bool = True, actor_id: str | None = None) -> ReferentialVersion:
+def import_referential(db: Session, folder: Path, *, activate: bool = True, actor_id: str | None = None,
+                       today: date | None = None) -> ReferentialVersion:
+    """Importe une version. `activate` n'active qu'une version déjà en vigueur : une version
+    future reste inactive et `activate_due` la bascule à sa date d'entrée en vigueur."""
+    today = today or date.today()
     parsed = load_referential(folder)
     m = parsed.meta
     existing = db.scalar(
@@ -183,7 +195,7 @@ def import_referential(db: Session, folder: Path, *, activate: bool = True, acto
     )
     if existing is not None:
         if existing.source_sha256 == parsed.source_sha256 and existing.normative_sha256 == parsed.normative_sha256:
-            if activate and not existing.is_active:
+            if activate and not existing.is_active and existing.effective_from <= today:
                 _activate(db, existing)
             return existing
         raise ConflictError(
@@ -240,7 +252,7 @@ def import_referential(db: Session, folder: Path, *, activate: bool = True, acto
                     control_version=int(c.get("version", 1)),
                     label=c["label"],
                     check=c["check"],
-                    scope=spec["scope"],
+                    scope=c.get("scope", spec["scope"]),
                     params=c.get("params") or {},
                     severity=c.get("severity", "majeure"),
                     remediation=c.get("remediation", ""),
@@ -263,10 +275,29 @@ def import_referential(db: Session, folder: Path, *, activate: bool = True, acto
                     new_entrant_mode="only",
                 )
             )
-    if activate:
+    if activate and version.effective_from <= today:
         _activate(db, version)
     db.flush()
     return version
+
+
+def activate_due(db: Session, code: str = "QUALIOPI", today: date | None = None) -> ReferentialVersion | None:
+    """Active la version la plus récente déjà entrée en vigueur (passe nocturne).
+
+    Renvoie la version nouvellement activée, ou None si rien ne change.
+    """
+    today = today or date.today()
+    due = db.scalar(
+        select(ReferentialVersion)
+        .where(ReferentialVersion.code == code, ReferentialVersion.effective_from <= today)
+        .order_by(ReferentialVersion.effective_from.desc())
+        .limit(1)
+    )
+    if due is None or due.is_active:
+        return None
+    _activate(db, due)
+    db.flush()
+    return due
 
 
 def _activate(db: Session, version: ReferentialVersion) -> None:

@@ -33,6 +33,15 @@ dossiers:
         label: Règlement intérieur applicable aux stagiaires
         evidence: ORG_DOCUMENT
         indicators: [9]
+      - code: PROCEDURE_VIOLENCES_DISCRIMINATIONS
+        label: Procédure de prévention et de traitement des violences, du harcèlement et des discriminations
+        evidence: PROCEDURE
+        indicators: [12]
+      - code: ANALYSE_RISQUES_QUALITE
+        label: Analyse des risques sur la qualité des formations
+        evidence: ORG_DOCUMENT
+        indicators: [32]
+        validity_days: 365
   FORMATEUR:
     label: Dossier formateur
     items:

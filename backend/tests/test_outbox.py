@@ -60,7 +60,7 @@ def test_evenement_organisme_reevalue_l_organisme(demo: Session) -> None:
     result = process_pending(demo, today=TODAY)
     demo.commit()
     assert result["org"] is True
-    r = demo.scalar(select(ControlResult).where(ControlResult.control_key == "I20.disability-referent"))
+    r = demo.scalar(select(ControlResult).where(ControlResult.control_key == "I26.disability-referent"))
     assert r.status == "DEMONTRABLE"
 
 

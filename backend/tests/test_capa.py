@@ -28,7 +28,7 @@ def _open_capa(db: Session, finding: Finding) -> capa.CapaAction:
 
 
 def test_cloture_uniquement_si_le_controle_passe(demo: Session) -> None:
-    f = _finding(demo, "I20.disability-referent")
+    f = _finding(demo, "I26.disability-referent")
     action = _open_capa(demo, f)
     assert f.status == "EN_TRAITEMENT"
     capa.start(demo, action, "Direction")
@@ -56,7 +56,7 @@ def test_cloture_uniquement_si_le_controle_passe(demo: Session) -> None:
 
 
 def test_une_capa_cloturee_devient_preuve_d_amelioration_i32(demo: Session) -> None:
-    f = _finding(demo, "I20.disability-referent")
+    f = _finding(demo, "I26.disability-referent")
     action = _open_capa(demo, f)
     capa.start(demo, action, "Direction")
     demo.scalar(select(t.Organization)).disability_referent_email = "referent.handicap@exemple.fr"
@@ -70,7 +70,7 @@ def test_une_capa_cloturee_devient_preuve_d_amelioration_i32(demo: Session) -> N
 
 
 def test_transition_interdite(demo: Session) -> None:
-    action = _open_capa(demo, _finding(demo, "I20.disability-referent"))
+    action = _open_capa(demo, _finding(demo, "I26.disability-referent"))
     capa.start(demo, action, "Direction")
     with pytest.raises(InvalidStateError, match="interdite"):
         capa.start(demo, action, "Direction")
@@ -79,7 +79,7 @@ def test_transition_interdite(demo: Session) -> None:
 
 
 def test_constat_resolu_sans_capa(demo: Session) -> None:
-    f = _finding(demo, "I20.disability-referent")
+    f = _finding(demo, "I26.disability-referent")
     f.status = "RESOLU"
     with pytest.raises(InvalidStateError):
         _open_capa(demo, f)
@@ -100,7 +100,7 @@ def test_verification_ciblee_sur_une_formation(demo: Session) -> None:
 
 
 def test_verification_rejouee_sans_effet(demo: Session) -> None:
-    action = _open_capa(demo, _finding(demo, "I20.disability-referent"))
+    action = _open_capa(demo, _finding(demo, "I26.disability-referent"))
     demo.scalar(select(t.Organization)).disability_referent_email = "referent.handicap@exemple.fr"
     capa.complete(demo, action, "E-mail ajouté", "Direction")
     capa.verify(demo, action, "Qualité")
