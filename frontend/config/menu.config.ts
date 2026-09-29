@@ -21,6 +21,7 @@ import {
   History,
   Home,
   Landmark,
+  LayoutDashboard,
   Library,
   ListChecks,
   Mail,
@@ -45,6 +46,8 @@ import { type NavConfig, type NavItem } from './types';
 export const MAIN_NAV: NavConfig = [
   {
     id: 'pilotage',
+    title: 'Pilotage',
+    icon: LayoutDashboard,
     items: [
       {
         id: 'dashboard',
