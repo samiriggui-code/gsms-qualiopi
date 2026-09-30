@@ -10,6 +10,7 @@ Rien n'est ajouté aux textes : un conseil ou une bonne pratique n'y figure jama
 
 from __future__ import annotations
 
+import base64
 import difflib
 import re
 from collections import defaultdict
@@ -17,6 +18,7 @@ from datetime import date
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
+from markupsafe import Markup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -231,6 +233,21 @@ def _fr(iso: str | None) -> str:
     return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
 
 
+LOGO = Path(__file__).resolve().parents[2] / "config" / "organisme" / "logo.png"
+
+
+def _css_string(text: str) -> Markup:
+    """Texte sûr dans une chaîne CSS (content: "…"), non réencodé par l'échappement HTML."""
+    return Markup(text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " "))
+
+
+def _logo_css() -> Markup:
+    """Logo de l'organisme pour l'en-tête (image de fond de la zone de marge, mise à l'échelle par le CSS)."""
+    if not LOGO.exists():
+        return Markup("none")
+    return Markup(f'url("data:image/png;base64,{base64.b64encode(LOGO.read_bytes()).decode()}")')
+
+
 def render_book(book: dict) -> str:
     """Le carnet en HTML A4 : sommaire, une feuille par indicateur applicable, indicateurs sans objet."""
     fiches = book["fiches"]
@@ -246,10 +263,16 @@ def render_book(book: dict) -> str:
         items = [f for f in fiches if f["critere"]["numero"] == n]
         criteres.append({"numero": n, "nom": items[0]["critere"]["nom"], "fiches": items})
     nxt = book["prochaine_version"]
+    org = book["organisme"] or {}
     return _env.get_template("carnet.html").render(
         organisme=book["organisme"], session=book["session"], referentiel=book["referentiel"],
         prochaine_version={**nxt, "en_vigueur_le_fr": _fr(nxt["en_vigueur_le"])} if nxt else None,
         edite_le=_fr(book["edite_le"]), avertissement=book["avertissement"], etats=ETATS,
+        logo_css=_logo_css(),
+        perimetre_css=_css_string(f" — session {book['session']['reference']}" if book["session"] else ""),
+        pied_css=_css_string(" · ".join(x for x in (
+            org.get("nom"), f"NDA {org['nda']}" if org.get("nda") else None,
+            f"SIRET {org['siret']}" if org.get("siret") else None, f"édité le {_fr(book['edite_le'])}") if x)),
         fiches=fiches, criteres=criteres,
         synthese={"demontrables": sum(1 for f in applicable if f["etat"] == "DEMONTRABLE"),
                   "applicables": len(applicable),

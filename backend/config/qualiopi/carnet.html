@@ -5,24 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Carnet d'audit Qualiopi — {{ organisme.nom if organisme else "" }}{% if session %} — {{ session.reference }}{% endif %}</title>
 <style>
-  /* Carnet d'audit imprimable. Aucune marge de page : le navigateur n'ajoute ni en-tête, ni pied, ni
-     numéro de page ; les marges sont portées par chaque feuille. */
-  @page { size: A4; margin: 0; }
+  /* Carnet d'audit imprimable : document de l'organisme. En-tête (logo, titre) et pied (organisme,
+     date d'édition, numéro de page) répétés sur chaque page via les zones de marge de @page. */
+  @page {
+    size: A4; margin: 24mm 16mm 18mm;
+    @top-left { content: ""; width: 48mm; background: {{ logo_css }} no-repeat left bottom 3mm / contain; }
+    @top-right { content: "Carnet d'audit Qualiopi{{ perimetre_css }}"; font: 600 8pt "Helvetica Neue", Arial, sans-serif;
+                 color: #6b7280; vertical-align: bottom; padding-bottom: 4mm; }
+    @bottom-left { content: "{{ pied_css }}"; font: 7.5pt "Helvetica Neue", Arial, sans-serif; color: #6b7280;
+                   vertical-align: top; padding-top: 4mm; }
+    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 7.5pt "Helvetica Neue", Arial, sans-serif;
+                    color: #6b7280; vertical-align: top; padding-top: 4mm; }
+  }
   :root {
     --ink: #111827; --muted: #6b7280; --line: #e5e7eb; --soft: #f9fafb;
     --ok: #15803d; --ok-bg: #dcfce7; --warn: #a16207; --warn-bg: #fef9c3;
     --ko: #b91c1c; --ko-bg: #fef2f2; --info: #1d4ed8; --info-bg: #eff6ff; --neutral-bg: #f3f4f6;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #e5e7eb; }
+  html, body { margin: 0; padding: 0; background: #fff; }
   body { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5;
          -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .sheet { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 16mm 16mm 14mm; background: #fff;
-           box-shadow: 0 1px 3px rgba(0,0,0,.08); page-break-after: always; break-after: page;
-           -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-  .sheet:last-child { page-break-after: auto; break-after: auto; }
-  @media print { html, body { background: #fff; } .sheet { margin: 0; box-shadow: none; } }
-
+  .sheet { page-break-after: always; break-after: page; }
+  .sheet:last-of-type { page-break-after: auto; break-after: auto; }
+  /* À l'écran (avant impression) : feuilles posées sur un fond gris */
+  @media screen {
+    html, body { background: #e5e7eb; }
+    .sheet { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 24mm 16mm 18mm; background: #fff;
+             box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  }
   .eyebrow { font-size: 8pt; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   h1 { font-size: 22pt; line-height: 1.15; margin: 4mm 0 2mm; letter-spacing: -.01em; }
   h2 { font-size: 16pt; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
@@ -95,8 +106,8 @@
 
 {# ── Sommaire ─────────────────────────────────────────────────────────────── #}
 <section class="sheet">
-  <div class="eyebrow">Carnet d'audit Qualiopi</div>
-  <h1>{{ organisme.nom if organisme else "Organisme" }}</h1>
+  <div class="eyebrow">{{ organisme.nom if organisme else "Organisme" }}</div>
+  <h1>Carnet d'audit Qualiopi</h1>
   <div class="meta">
     <span>Périmètre <b>{% if session %}session {{ session.reference }}{% if session.formation %} — {{ session.formation }}{% endif %}{% else %}organisme, toutes sessions{% endif %}</b></span>
     <span>Référentiel <b>{{ referentiel.version }}</b></span>

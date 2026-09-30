@@ -152,5 +152,6 @@ def test_nomenclature_et_carnet_imprimable(client, demo: Session) -> None:  # no
     assert indicators[3]["short_title"] == "Analyse des besoins"
     r = client.get("/api/v1/qualiopi/carnet/impression", headers=h)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
-    assert "@page { size: A4; margin: 0; }" in r.text and "Analyse des besoins" in r.text
+    assert 'counter(page) " / " counter(pages)' in r.text and "@top-left" in r.text  # en-tête et pagination
+    assert "Analyse des besoins" in r.text and "&#39;" not in r.text.split("</style>")[0]
     assert "Le prestataire analyse le besoin" in r.text  # libellé officiel conservé
