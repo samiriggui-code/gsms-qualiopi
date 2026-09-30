@@ -1,0 +1,15 @@
+# HTTPS automatique (Let's Encrypt) pour le nom de domaine de l'instance.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# Tout passe par le front : l'API n'est jamais exposée directement.
+	reverse_proxy web:3000
+}

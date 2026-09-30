@@ -72,9 +72,13 @@ jobs:
       # Les tests de bout en bout (Playwright) de l'ancien front sont à réécrire pour le front Metronic.
 
   docker:
-    name: Image Docker
+    name: Images Docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+      - name: API et worker
         run: docker build -t gsms-backend:ci backend
+      - name: Front
+        run: docker build -t gsms-frontend:ci frontend
+      - name: Configuration serveur
+        run: DOMAIN=ci.exemple.fr POSTGRES_PASSWORD=x JWT_SECRET=x docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml config -q

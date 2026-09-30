@@ -1,0 +1,33 @@
+# Serveur : à ajouter au docker-compose.yml de la racine.
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+# Caddy obtient et renouvelle seul le certificat HTTPS de DOMAIN (ports 80 et 443 ouverts).
+services:
+  api:
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?DOMAIN est obligatoire}
+      CORS_ORIGINS: https://${DOMAIN}
+
+  worker:
+    environment:
+      PUBLIC_URL: https://${DOMAIN}
+      CORS_ORIGINS: https://${DOMAIN}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

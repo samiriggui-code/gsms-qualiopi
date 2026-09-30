@@ -1,4 +1,5 @@
-# GSMS — un monolithe, un worker, une base.
+# GSMS — un front, un monolithe, un worker, une base.
+# Sur un serveur, ajouter deploy/docker-compose.prod.yml (HTTPS automatique) : voir deploy/README.md.
 # Secrets obligatoires (pas de valeur par défaut) : POSTGRES_PASSWORD, JWT_SECRET. Voir .env.example.
 services:
   db:
@@ -40,17 +41,35 @@ services:
       - gsms-documents:/app/var/documents
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    # Prête quand les migrations sont passées et que l'API répond.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
 
   worker:
     build: ./backend
     restart: unless-stopped
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     environment:
       <<: *backend-env
       RUN_MIGRATIONS: "false"
     command: ["python", "-m", "app.worker"]
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Le navigateur ne parle qu'au front ; le front relaie vers l'API sur le réseau interne.
+      API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
 
 volumes:
   gsms-postgres:
