@@ -11,3 +11,7 @@ node_modules/
 # Démos sous licence (Metronic…) : consultation locale uniquement, jamais publiées
 research/
 Research/
+
+# Résultats des tests de bout en bout (générés)
+frontend/e2e-results/
+frontend/e2e-report/
