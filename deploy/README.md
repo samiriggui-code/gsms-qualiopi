@@ -1,10 +1,18 @@
 # Déployer GSMS Qualiopi sur un serveur
 
-Une commande installe tout sur un VPS : base PostgreSQL, API, worker, front, et HTTPS automatique
-(Caddy + Let's Encrypt). Seul le front est exposé ; l'API reste sur le réseau interne.
+Une commande installe tout sur un VPS : base PostgreSQL, API, worker, front, et HTTPS automatique.
+Si Traefik tient déjà les ports 80/443 (autres sites sur le serveur), l'application s'y branche par
+étiquettes, sans rien arrêter ; sinon Caddy s'en charge (Let's Encrypt). Seul le front est exposé ;
+l'API reste sur le réseau interne.
+
+Installation la plus simple, depuis la console du VPS (root) :
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/samiriggui-code/gsms-qualiopi/claude/publish-gsms-qualiopi-v0ta5n/deploy/install.sh && bash install.sh
+```
 
 ```
-Internet ──443──> Caddy ──> web (Next.js) ──> api (FastAPI) ──> db (PostgreSQL)
+Internet ──443──> Traefik ou Caddy ──> web (Next.js) ──> api (FastAPI) ──> db (PostgreSQL)
                                                worker ─────────┘
 ```
 
@@ -33,8 +41,7 @@ Le script :
 5. affiche la commande pour créer le compte de direction :
 
 ```bash
-docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
-  exec api python -m app.cli create-admin vous@exemple.fr "Votre nom"
+docker compose exec api python -m app.cli create-admin vous@exemple.fr "Votre nom"
 ```
 
 ## Mettre à jour
@@ -54,10 +61,10 @@ relancez `./deploy/deploy.sh formssi.global-it-ss.com`. Hostinger : `smtp.hostin
 ## Exploitation
 
 ```bash
-alias gsms='docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml'
-gsms ps                      # état des services
-gsms logs -f api worker      # journaux
-gsms exec db pg_dump -U gsms gsms | gzip > sauvegarde-$(date +%F).sql.gz   # sauvegarde de la base
+# Depuis le dossier de l'application (.env indique à Docker les fichiers à utiliser)
+docker compose ps                      # état des services
+docker compose logs -f api worker      # journaux
+docker compose exec db pg_dump -U gsms gsms | gzip > sauvegarde-$(date +%F).sql.gz   # sauvegarde de la base
 ```
 
 Sauvegardez aussi le volume des documents (`gsms-qualiopi_gsms-documents`) et gardez une copie de

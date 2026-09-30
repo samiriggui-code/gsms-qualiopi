@@ -15,3 +15,6 @@ Research/
 # Résultats des tests de bout en bout (générés)
 frontend/e2e-results/
 frontend/e2e-report/
+
+# Serveur : réglages et marqueur de première mise en service
+.gsms-initialise

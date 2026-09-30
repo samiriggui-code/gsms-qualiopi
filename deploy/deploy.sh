@@ -6,6 +6,9 @@
 #
 # À lancer depuis la racine du dépôt cloné. Le premier lancement crée .env avec des secrets tirés au hasard
 # (jamais committé) ; les lancements suivants le conservent et ne font que reconstruire et redémarrer.
+#
+# HTTPS : si Traefik tient déjà les ports 80/443 (autres sites sur le serveur), l'application s'y branche ;
+# sinon Caddy s'en charge. Rien d'existant n'est arrêté.
 set -euo pipefail
 
 DOMAIN="${1:-}"
@@ -32,9 +35,16 @@ fi
 
 secret() { openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-48; }
 
-first_install=false
+# Écrit ou remplace une variable dans .env.
+set_env() {
+  if grep -q "^$1=" .env; then
+    sed -i "s|^$1=.*|$1=$2|" .env
+  else
+    printf '%s=%s\n' "$1" "$2" >> .env
+  fi
+}
+
 if [[ ! -f .env ]]; then
-  first_install=true
   umask 077
   cat > .env <<ENV
 # Généré par deploy/deploy.sh le $(date -u +%Y-%m-%d). Ne jamais committer ce fichier.
@@ -54,31 +64,70 @@ SMTP_SSL=true
 SMTP_FROM=
 ENV
   echo ".env créé (secrets générés, lisible par vous seul)."
+fi
+set_env DOMAIN "$DOMAIN"
+
+# ── Publication HTTPS : Traefik déjà présent, ou Caddy ────────────────────────────────────────────────
+traefik="$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /traefik/ {print $1; exit}')"
+if [[ -n "$traefik" ]]; then
+  # Configuration de Traefik : arguments de lancement, sinon son fichier de configuration.
+  conf="$(docker inspect -f '{{join .Args "\n"}}' "$traefik")"
+  conf+=$'\n'"$(docker exec "$traefik" sh -c 'cat /etc/traefik/traefik.y*ml /traefik.y*ml 2>/dev/null' || true)"
+  network="${TRAEFIK_NETWORK:-$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$traefik" \
+    | grep -vxE 'bridge|host|none' | head -1)}"
+  entrypoint="${TRAEFIK_ENTRYPOINT:-$(printf '%s\n' "$conf" | sed -nE 's/.*--entrypoints\.([^.=]+)\.address=:?443.*/\1/Ip' | head -1)}"
+  if [[ -z "$entrypoint" ]]; then  # traefik.yml : « entryPoints: <nom>: address: ":443" »
+    entrypoint="$(printf '%s\n' "$conf" | awk '/^  [A-Za-z0-9_-]+:[ \t]*$/ {n=$1} /address:.*:443/ {sub(":","",n); print n; exit}')"
+  fi
+  resolver="${TRAEFIK_CERTRESOLVER:-$(printf '%s\n' "$conf" | sed -nE 's/.*--certificatesresolvers\.([^.=]+)\..*/\1/Ip' | head -1)}"
+  if [[ -z "$resolver" ]]; then  # traefik.yml : « certificatesResolvers: <nom>: »
+    resolver="$(printf '%s\n' "$conf" | awk '/^certificatesResolvers:/ {f=1; next} f && /^[ \t]+[A-Za-z0-9_-]+:/ {sub(":","",$1); print $1; exit}')"
+  fi
+  if [[ -z "$network" || -z "$entrypoint" || -z "$resolver" ]]; then
+    echo "Traefik ($traefik) détecté, mais sa configuration n'a pas pu être lue entièrement :" >&2
+    echo "  réseau=${network:-?} entrée 443=${entrypoint:-?} résolveur de certificats=${resolver:-?}" >&2
+    echo "Relancez en précisant les valeurs manquantes, par exemple :" >&2
+    echo "  TRAEFIK_ENTRYPOINT=websecure TRAEFIK_CERTRESOLVER=letsencrypt $0 $DOMAIN" >&2
+    exit 1
+  fi
+  echo "HTTPS par le Traefik existant ($traefik) : réseau $network, entrée $entrypoint, certificats $resolver."
+  set_env TRAEFIK_NETWORK "$network"
+  set_env TRAEFIK_ENTRYPOINT "$entrypoint"
+  set_env TRAEFIK_CERTRESOLVER "$resolver"
+  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:deploy/docker-compose.traefik.yml"
 else
-  sed -i "s/^DOMAIN=.*/DOMAIN=$DOMAIN/" .env
+  if ss -ltn 2>/dev/null | grep -qE '[:.]80[[:space:]]' && ! docker ps --format '{{.Names}}' | grep -q 'caddy'; then
+    echo "Le port 80 est déjà utilisé par un programme autre que Traefik :" >&2
+    ss -ltnp 2>/dev/null | grep -E '[:.](80|443)[[:space:]]' >&2 || true
+    echo "Rien n'a été arrêté. Libérez les ports 80/443 ou demandez un branchement sur ce programme." >&2
+    exit 1
+  fi
+  echo "HTTPS par Caddy (ports 80 et 443)."
+  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:deploy/docker-compose.caddy.yml"
 fi
 
-compose=(docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml)
-"${compose[@]}" up -d --build --remove-orphans
+docker compose up -d --build --remove-orphans
 
 echo "Attente de l'API (migrations)…"
 for _ in $(seq 1 60); do
-  if "${compose[@]}" exec -T api python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" 2>/dev/null; then
+  if docker compose exec -T api python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" 2>/dev/null; then
     break
   fi
   sleep 2
 done
 
-if $first_install; then
+# Première mise en service (une seule fois) : référentiels Qualiopi, ou organisme de démonstration.
+if [[ ! -f .gsms-initialise ]]; then
   if [[ "$DEMO" == "--demo" ]]; then
-    "${compose[@]}" exec -T api python -m app.cli seed-demo
+    docker compose exec -T api python -m app.cli seed-demo
   else
-    "${compose[@]}" exec -T api python -m app.cli import-referential qualiopi/v9
-    "${compose[@]}" exec -T api python -m app.cli import-referential qualiopi/v10
+    docker compose exec -T api python -m app.cli import-referential qualiopi/v9
+    docker compose exec -T api python -m app.cli import-referential qualiopi/v10
   fi
+  date -u +%FT%TZ > .gsms-initialise
   echo
   echo "Créez maintenant le compte de direction (mot de passe demandé, 12 caractères minimum) :"
-  echo "  ${compose[*]} exec api python -m app.cli create-admin vous@exemple.fr \"Votre nom\""
+  echo "  docker compose exec api python -m app.cli create-admin vous@exemple.fr \"Votre nom\""
 fi
 
 echo

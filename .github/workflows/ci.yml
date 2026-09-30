@@ -81,4 +81,7 @@ jobs:
       - name: Front
         run: docker build -t gsms-frontend:ci frontend
       - name: Configuration serveur
-        run: DOMAIN=ci.exemple.fr POSTGRES_PASSWORD=x JWT_SECRET=x docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml config -q
+        run: |
+          export DOMAIN=ci.exemple.fr POSTGRES_PASSWORD=x JWT_SECRET=x TRAEFIK_NETWORK=proxy TRAEFIK_ENTRYPOINT=websecure TRAEFIK_CERTRESOLVER=letsencrypt
+          docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml -f deploy/docker-compose.caddy.yml config -q
+          docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml -f deploy/docker-compose.traefik.yml config -q

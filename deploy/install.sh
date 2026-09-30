@@ -5,7 +5,8 @@
 #   bash install.sh
 #
 # Installe Docker et git si besoin, ouvre les ports 80/443, récupère le code dans /opt/gsms-qualiopi,
-# démarre base + API + worker + front + HTTPS, puis crée le compte de direction.
+# démarre base + API + worker + front + HTTPS (branché sur Traefik s'il est déjà là, sinon Caddy),
+# puis crée le compte de direction.
 # Relancer le même script met l'application à jour (les données sont conservées).
 set -euo pipefail
 
@@ -47,7 +48,7 @@ fi
 cd "$DIR"
 
 first_install=false
-[[ -f .env ]] || first_install=true
+[[ -f .gsms-initialise ]] || first_install=true
 
 say "Construction et démarrage (plusieurs minutes la première fois)"
 ./deploy/deploy.sh "$DOMAIN"
@@ -57,8 +58,7 @@ if $first_install; then
   read -rp "E-mail : " email
   read -rp "Nom affiché : " name
   echo "Mot de passe (12 caractères minimum, rien ne s'affiche pendant la saisie) :"
-  docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
-    exec api python -m app.cli create-admin "$email" "$name"
+  docker compose exec api python -m app.cli create-admin "$email" "$name"
 fi
 
 say "Terminé"

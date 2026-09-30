@@ -1,6 +1,6 @@
-# Serveur : à ajouter au docker-compose.yml de la racine.
-#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
-# Caddy obtient et renouvelle seul le certificat HTTPS de DOMAIN (ports 80 et 443 ouverts).
+# Serveur : réglages communs, ajoutés au docker-compose.yml de la racine, avec un des deux fichiers de
+# publication HTTPS : docker-compose.caddy.yml (serveur libre) ou docker-compose.traefik.yml (Traefik déjà
+# en place). deploy/deploy.sh choisit et l'écrit dans .env (COMPOSE_FILE) : ensuite « docker compose » suffit.
 services:
   api:
     environment:
@@ -11,23 +11,3 @@ services:
     environment:
       PUBLIC_URL: https://${DOMAIN}
       CORS_ORIGINS: https://${DOMAIN}
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - web
-    environment:
-      DOMAIN: ${DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-
-volumes:
-  caddy-data:
-  caddy-config:
