@@ -103,3 +103,16 @@ def test_plan_d_actions_depuis_les_ecarts(client, demo: Session) -> None:  # noq
     assert r.json()["statut"] == "EN_COURS"
     suivants = client.get("/api/v1/qualiopi/ecarts", headers=h).json()
     assert next(e for e in suivants if e["id"] == ecarts[0]["id"])["statut"] == "EN_TRAITEMENT"
+
+
+def test_carnet_d_audit(client, demo: Session) -> None:  # noqa: ANN001
+    _, h = make_user(demo, "qualite")
+    client.post("/api/v1/qualiopi/evaluate", headers=h)
+    book = client.get("/api/v1/qualiopi/carnet", headers=h).json()
+    fiches = {f["numero"]: f for f in book["fiches"]}
+    assert book["referentiel"]["version"] and len(fiches) >= 32
+    i4 = fiches[4]
+    assert i4["enonce"].startswith("Le prestataire analyse le besoin")
+    assert {g["section"] for g in i4["guide"]} >= {"Exemples de preuves", "Non-conformité"}
+    assert all(set(p) >= {"reference", "statut", "type"} for p in i4["preuves"]["liste"])
+    assert any(f["ecarts"] for f in fiches.values())

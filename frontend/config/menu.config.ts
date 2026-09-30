@@ -41,6 +41,7 @@ import {
   Warehouse,
   Wrench,
   Settings,
+  BookOpenCheck,
 } from 'lucide-react';
 import { type NavConfig, type NavItem } from './types';
 
@@ -482,6 +483,12 @@ export const MAIN_NAV: NavConfig = [
         title: 'Indicateurs',
         icon: ListChecks,
         path: '/qualiopi/referentiel',
+      },
+      {
+        id: 'carnet',
+        title: 'Carnet d’audit',
+        icon: BookOpenCheck,
+        path: '/qualiopi/carnet',
       },
       {
         id: 'preuves',

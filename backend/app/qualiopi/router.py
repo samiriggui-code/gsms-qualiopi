@@ -15,6 +15,7 @@ from app.platform.decisions import enforce
 from app.qualiopi.capa import service as capa_service
 from app.qualiopi.capa.models import CapaAction
 from app.qualiopi.capa.policy import CapaPolicy, is_late
+from app.qualiopi.carnet import carnet
 from app.qualiopi.chain import capa_view, criteria_overview, indicator_chain
 from app.qualiopi.cycle.models import CertificationCycle
 from app.qualiopi.cycle.service import create_cycle, resolve_period
@@ -248,6 +249,12 @@ def criteria(db: DB, _: QualityReader) -> list[dict]:
 def indicator(number: int, db: DB, user: QualityReader) -> dict:
     """Exigences, preuves attendues, contrôles, preuves disponibles, écarts, actions, historique."""
     return indicator_chain(db, active_version(db), number, user)
+
+
+@router.get("/qualiopi/carnet")
+def audit_book(db: DB, _: QualityReader) -> dict:
+    """Carnet d'audit : une fiche par indicateur (textes officiels, état, preuves réunies, écarts, évolutions)."""
+    return carnet(db, active_version(db))
 
 
 @router.get("/qualiopi/actions")
