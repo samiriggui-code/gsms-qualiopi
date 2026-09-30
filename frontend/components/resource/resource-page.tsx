@@ -202,15 +202,15 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
             )}
             <CardHeader className="px-4 py-3">
               <CardHeading>
-                <div className="flex items-center gap-2.5">
-                  <div className="relative">
+                <div className="flex items-center gap-2.5 max-lg:flex-wrap">
+                  <div className="relative max-sm:w-full">
                     <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
                     <Input
                       variant="sm"
                       placeholder="Rechercher..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="ps-9 w-52"
+                      className="ps-9 w-52 max-sm:w-full"
                     />
                     {searchQuery.length > 0 && (
                       <Button

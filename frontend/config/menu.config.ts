@@ -40,6 +40,7 @@ import {
   UserX,
   Warehouse,
   Wrench,
+  Settings,
 } from 'lucide-react';
 import { type NavConfig, type NavItem } from './types';
 
@@ -567,6 +568,12 @@ export const MAIN_NAV: NavConfig = [
           source: 'qualite.referential_version',
           data: 'existant',
         },
+      },
+      {
+        id: 'parametres',
+        title: 'Paramètres',
+        icon: Settings,
+        path: '/administration/parametres',
       },
       {
         id: 'journal',

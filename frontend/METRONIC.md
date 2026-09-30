@@ -28,12 +28,17 @@ Référence : démo Metronic Next.js complète, décompressée localement dans `
 | `store-inventory/product-form-sheet` | formulaire en sections, dépôt de fichier | programme, session, dépôt de pièces |
 | `store-inventory/dashboard`, `crm/dashboard` | cartes indicateurs, graphiques | tableau de bord |
 | `store-inventory/stock-planner` | tableau de planification avec échéances | échéancier Qualiopi |
-| `todo/today`, `upcoming`, `priority` | anneaux de progression, listes groupées par échéance | échéances et alertes, actions correctives |
+| `todo/all-tasks` | kanban : colonnes par statut, cartes glissées | actions correctives (`/qualiopi/capa`) : glisser = étape demandée à l'API, confirmée en dialogue, refus notifié |
+| `todo/today`, `upcoming`, `priority` | anneaux de progression, listes groupées par échéance | échéances et alertes ; compteurs des actions correctives |
 | `mail/inbox` | trois volets : dossiers, liste, lecture | communications (à valider, envoyées, échecs, aperçu) |
 | `calendar` | agenda mois / semaine / jour | agenda des sessions et des demi-journées |
-| `store-inventory/settings-modal` | réglages en onglets | organisme, réglages, fonctionnalités |
+| `store-inventory/settings-modal` | réglages en onglets, cartes ligne par ligne | paramètres (`/administration/parametres`) : réglages datés par domaine, date d'effet et motif en dialogue, historique, modules |
 
 ## Téléphone
+
+Une barre d'onglets défilante (`overflow-x-auto`) doit avoir `w-0 min-w-full` : sinon sa largeur remonte
+jusqu'à la page et le téléphone dézoome toute la page (contrôle : largeur du document à 390 px).
+
 
 La démo n'est pas prévue pour le téléphone sur ses pages fiches (panneau fixe de 500 px, zones de
 défilement à hauteur fixe). En dessous de 1024 px : colonnes empilées, défilement de page, panneaux latéraux

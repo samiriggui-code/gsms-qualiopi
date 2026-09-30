@@ -12,6 +12,7 @@ const API_PERMISSIONS = {
   manage_referential: 'referential.manage',
   manage_users: 'users.manage',
   manage_communications: 'communications.manage',
+  manage_settings: 'settings.manage',
 } as const;
 
 export type Permission = keyof typeof API_PERMISSIONS;

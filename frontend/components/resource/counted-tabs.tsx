@@ -26,7 +26,7 @@ export function CountedTabs({
   return (
     <CardHeader className="px-4 py-3.5 flex-nowrap">
       <Tabs value={value} onValueChange={onChange} className="m-0 p-0 w-full min-w-0">
-        <TabsList className="h-auto p-0 bg-transparent border-b-0 border-border rounded-none -ms-[3px] w-full overflow-x-auto [scrollbar-width:none]">
+        <TabsList className="h-auto p-0 bg-transparent border-b-0 border-border rounded-none -ms-[3px] w-0 min-w-full overflow-x-auto [scrollbar-width:none]">
           <div className="flex items-center gap-1 min-w-max">
             {tabs.map((tab) => (
               <TabsTrigger
