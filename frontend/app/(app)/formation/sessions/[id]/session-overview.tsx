@@ -59,6 +59,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
 
 type Tab = 'journey' | 'attendance' | 'qualiopi' | 'activity';
 
@@ -421,8 +422,8 @@ function OpenFindings({
               <ul className="flex flex-col gap-2.5">
                 {findings.slice(0, 5).map((f) => (
                   <li key={f.id} className="flex items-center gap-2.5 text-sm">
-                    <span className="text-mono font-medium shrink-0">
-                      I{String(f.indicator).padStart(2, '0')}
+                    <span className="text-muted-foreground shrink-0 max-lg:hidden">
+                      <IndicatorName number={f.indicator} />
                     </span>
                     <span className="font-medium text-foreground truncate min-w-0">
                       {f.title.replace(/^I\d+ — /, '')}

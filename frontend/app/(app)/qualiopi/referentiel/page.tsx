@@ -3,7 +3,6 @@
 // Indicateurs : les 7 critères en sections, chaque indicateur en carte (son nom, ce qu'il demande, son
 // état, ses preuves et ses écarts), quatre par rangée ; le détail s'ouvre dans un volet (mêmes onglets que
 // le carnet d'audit). L'état vient du moteur ; la page n'en calcule aucun.
-import * as React from 'react';
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -13,17 +12,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  GraduationCap,
   Info,
   ListChecks,
-  Megaphone,
-  MessagesSquare,
-  Network,
-  Target,
-  Users,
-  Wrench,
 } from 'lucide-react';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
+import { CRITERIA } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,18 +49,6 @@ import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
 import { stateBadge } from '../carnet/fiche';
 import { IndicatorBody } from '../carnet/indicator-body';
-
-// Nom court et pictogramme de chaque critère (repères d'interface ; le titre officiel reste affiché dessous).
-// Nom court et pictogramme de chaque critère (repères d'interface ; le titre officiel reste affiché dessous).
-const CRITERIA: Record<number, { name: string; icon: React.ElementType }> = {
-  1: { name: 'Informer le public', icon: Megaphone },
-  2: { name: 'Concevoir la formation', icon: Target },
-  3: { name: 'Accueillir, suivre, évaluer', icon: Users },
-  4: { name: 'Moyens et encadrement', icon: Wrench },
-  5: { name: 'Compétences des équipes', icon: GraduationCap },
-  6: { name: 'Environnement professionnel', icon: Network },
-  7: { name: 'Appréciations et réclamations', icon: MessagesSquare },
-};
 
 const DOT: Record<string, string> = {
   DEMONTRABLE: 'bg-green-500',

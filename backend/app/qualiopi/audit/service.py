@@ -128,7 +128,7 @@ def close_audit(db: Session, audit: Audit, conclusion: str, actor: str) -> Audit
         raise InvalidStateError("Audit déjà clos")
     pending = [i.indicator_number for i in audit.items if i.judgment is None]
     if pending:
-        raise InvalidStateError(f"Indicateurs non jugés : {', '.join(f'I{n:02d}' for n in pending)}")
+        raise InvalidStateError(f"Indicateurs non jugés : {', '.join(str(n) for n in pending)}")
     for item in audit.items:
         if item.judgment in ("NC_MINEURE", "NC_MAJEURE"):
             key = f"audit:{audit.id}:{item.indicator_number}"
@@ -143,7 +143,7 @@ def close_audit(db: Session, audit: Audit, conclusion: str, actor: str) -> Audit
                         target_id=audit.id,
                         readiness=item.engine_readiness,
                         severity="majeure" if item.judgment == "NC_MAJEURE" else "mineure",
-                        title=f"I{item.indicator_number:02d} — {item.judgment.replace('_', ' ').lower()} ({audit.reference})",
+                        title=f"Audit {audit.reference} : {item.judgment.replace('_', ' ').lower()}",
                         explanation=item.comment or "",
                         remediation="Définir une action corrective et la faire vérifier.",
                         audit_item_id=item.id,

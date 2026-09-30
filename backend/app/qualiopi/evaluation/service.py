@@ -179,7 +179,7 @@ def _store(db, run, version, ind, control, target, outcome, existing, findings) 
         f.session_id = session_id
         f.readiness = outcome.status
         f.severity = severity
-        f.title = f"I{ind.number:02d} — {control.label} ({where})"
+        f.title = f"{control.label} ({where})"
         f.explanation = outcome.explanation
         f.missing = outcome.missing
         f.remediation = control.remediation

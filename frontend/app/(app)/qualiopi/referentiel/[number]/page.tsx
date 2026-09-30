@@ -4,7 +4,6 @@ import { use } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, ListChecks } from 'lucide-react';
 import { useIndicator, useIndicators } from '@/lib/qualiopi/referentiel';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Content } from '@/components/layout/components/content';
@@ -37,10 +36,10 @@ export default function IndicatorPage({
           </Button>
           {indicator ? (
             <h1 className="inline-flex items-center gap-2.5 text-sm font-semibold min-w-0">
-              <Badge variant="primary" appearance="light">
-                {indicator.code}
-              </Badge>
               <span className="truncate">{indicator.title}</span>
+              <span className="shrink-0 text-xs font-normal text-muted-foreground">
+                Indicateur {indicator.number}
+              </span>
             </h1>
           ) : (
             <Skeleton className="h-5 w-80" />

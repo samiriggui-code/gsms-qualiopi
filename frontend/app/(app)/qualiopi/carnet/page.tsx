@@ -19,6 +19,7 @@ import {
 import { formatDate } from '@/lib/format';
 import { useCarnet, type Carnet, type CarnetFiche } from '@/lib/gsms/carnet';
 import { useSessions } from '@/lib/gsms/sessions';
+import { CRITERIA, indicatorNumber } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import {
   Alert,
@@ -171,7 +172,7 @@ function Rail({
           {groups.map((n) => (
             <div key={n} className="space-y-0.5">
               <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Critère {n}
+                {CRITERIA[n]?.name ?? `Critère ${n}`}
               </div>
               {visible
                 .filter((f) => f.critere.numero === n)
@@ -192,9 +193,7 @@ function Rail({
                         DOT[f.etat],
                       )}
                     />
-                    <span className="w-8 shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                      {f.code}
-                    </span>
+
                     <span className="min-w-0 grow truncate text-sm text-secondary-foreground">
                       {f.titre || f.evolution?.enonce}
                     </span>
@@ -309,11 +308,12 @@ function Detail({
         >
           <ChevronLeft />
         </Button>
-        <span className="text-lg font-semibold tabular-nums text-foreground">
-          {fiche.code}
+        <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+          {CRITERIA[fiche.critere.numero]?.name ??
+            `Critère ${fiche.critere.numero}`}
         </span>
-        <span className="min-w-0 truncate text-xs text-muted-foreground">
-          Critère {fiche.critere.numero}
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {indicatorNumber(fiche.numero)}
         </span>
         <div className="ms-auto flex items-center gap-1">
           <Badge className={s.color}>{s.label}</Badge>

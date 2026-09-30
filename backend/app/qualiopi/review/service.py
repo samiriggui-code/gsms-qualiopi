@@ -41,7 +41,7 @@ def record_review(db: Session, version: ReferentialVersion, number: int, *, conc
             reference=next_reference(db, "CST"), key=f"revue:{review.id}", origin="REVUE",
             indicator_number=number, target_type="ORGANISME", target_id=review.id, readiness=engine_status,
             severity="majeure" if severity == "majeure" else "mineure",
-            title=f"I{number:02d} — revue humaine insuffisante ({user_name})", explanation=review.comment,
+            title=f"Revue humaine insuffisante ({user_name})", explanation=review.comment,
             remediation="Définir une action corrective ; la clôture exigera une nouvelle vérification humaine.",
         )
         db.add(f)

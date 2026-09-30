@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
 
 const DATA_LABELS: Record<PageSpec['data'], { label: string; variant: 'success' | 'warning' | 'info' }> = {
   existant: { label: 'Tables prêtes', variant: 'success' },
@@ -51,7 +52,7 @@ export function PagePlaceholder({ item }: { item: NavItem }) {
                         {spec.indicators.map((n) => (
                           <Badge key={n} variant="primary" appearance="light" asChild>
                             <Link href={`/qualiopi/referentiel/${n}`}>
-                              I{String(n).padStart(2, '0')}
+                              <IndicatorName number={n} />
                             </Link>
                           </Badge>
                         ))}

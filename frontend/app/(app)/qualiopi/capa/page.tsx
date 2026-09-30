@@ -24,6 +24,7 @@ import {
   type CapaStep,
 } from '@/lib/gsms/capa';
 import { useCan } from '@/lib/permissions';
+import { indicatorNumber } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -138,8 +139,8 @@ function CapaCard({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-muted-foreground text-xs">
               {action.ecart && (
                 <span className="inline-flex items-center gap-1">
-                  <ShieldCheck className="size-3" /> I
-                  {String(action.ecart.indicateur).padStart(2, '0')}
+                  <ShieldCheck className="size-3" />{' '}
+                  {indicatorNumber(action.ecart.indicateur)}
                 </span>
               )}
               <span className="inline-flex items-center gap-1 min-w-0">

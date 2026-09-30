@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { Refusal } from '@/components/gsms/refusal';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -161,7 +162,7 @@ export function NewCapaSheet({
                           {openable.map((f) => (
                             <SelectItem key={f.id} value={f.id}>
                               <span className="truncate">
-                                I{String(f.indicateur).padStart(2, '0')} ·{' '}
+                                <IndicatorName number={f.indicateur} /> ·{' '}
                                 {f.reference}
                                 {f.session ? ` · ${f.session}` : ''} — {f.titre}
                               </span>

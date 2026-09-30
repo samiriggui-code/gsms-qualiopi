@@ -120,5 +120,6 @@ def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN
     assert by_number[8]["status"] == "A_RISQUE"
     assert by_number[8]["results"][0]["missing"][0]["who"] == "Adam Nicolas"
     session_gaps = {g.control for g in PLANTED_GAPS if g.target == "SSIAP1-2026-01"}
-    assert {f["title"].split(" — ")[0] for f in body["findings"]} == {c.split(".")[0] for c in session_gaps}
+    assert {f"I{f['indicator']:02d}" for f in body["findings"]} == {c.split(".")[0] for c in session_gaps}
+    assert not any(f["title"].startswith("I") and " — " in f["title"][:6] for f in body["findings"]), "pas de code en titre"
     assert "seul l'organisme certificateur" in body["disclaimer"]

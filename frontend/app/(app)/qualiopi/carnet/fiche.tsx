@@ -15,6 +15,7 @@ import {
 import { formatDate } from '@/lib/format';
 import { type CarnetFiche } from '@/lib/gsms/carnet';
 import { READINESS, TONE } from '@/lib/gsms/labels';
+import { CRITERIA, indicatorNumber } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import {
   Alert,
@@ -190,12 +191,13 @@ export function Fiche({
       <CardHeader className="min-h-auto py-3.5 flex-wrap gap-2">
         <CardHeading className="min-w-0">
           <CardTitle className="flex flex-wrap items-center gap-2.5">
-            <span className="text-lg font-semibold tabular-nums text-foreground">
-              {fiche.code}
+            <span className="text-base font-semibold text-foreground">
+              {fiche.titre || indicatorNumber(fiche.numero)}
             </span>
             <span className="text-xs font-normal text-muted-foreground">
-              Critère {fiche.critere.numero}
-              {fiche.titre ? ` · ${fiche.titre}` : ''}
+              {indicatorNumber(fiche.numero)} ·{' '}
+              {CRITERIA[fiche.critere.numero]?.name ??
+                `Critère ${fiche.critere.numero}`}
             </span>
           </CardTitle>
         </CardHeading>

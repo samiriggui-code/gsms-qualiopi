@@ -33,6 +33,8 @@ import { ActionGate } from '@/components/gsms/action-gate';
 import { Refusal } from '@/components/gsms/refusal';
 import { StepMark } from '@/components/gsms/step-mark';
 import { SessionActivityTab, SessionOverview } from './session-overview';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
+import { indicatorNumber } from '@/lib/qualiopi/criteres';
 
 function Loading() {
   return (
@@ -211,7 +213,7 @@ function Qualiopi({ sessionId }: { sessionId: string }) {
               <CardContent className="p-4 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-foreground">
-                    {f.reference} · I{String(f.indicator).padStart(2, '0')} — {f.title}
+                    {f.title} · <IndicatorName number={f.indicator} /> · {f.reference}
                   </span>
                   <Badge variant={f.severity === 'majeure' ? 'destructive' : 'warning'} appearance="light">
                     {f.severity}
@@ -290,8 +292,8 @@ function Qualiopi({ sessionId }: { sessionId: string }) {
             {indicators.map((i) => (
               <TableRow key={i.number}>
                 <TableCell className="align-top">
-                  <span className="font-semibold text-foreground">{i.code}</span>
-                  <div className="text-xs text-muted-foreground max-w-64">{i.title}</div>
+                  <span className="font-semibold text-foreground">{i.title}</span>
+                  <div className="text-xs text-muted-foreground max-w-64">{indicatorNumber(i.number)}</div>
                 </TableCell>
                 <TableCell className="align-top">
                   <Badge className={READINESS[i.status as ReadinessStatus].color}>

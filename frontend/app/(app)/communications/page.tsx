@@ -52,6 +52,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
 
 const STATUS: Record<
   MessageStatus,
@@ -348,8 +349,8 @@ function Reader({ id, onBack }: { id: string | null; onBack: () => void }) {
                   <span className="inline-flex flex-wrap gap-1">
                     {m.indicateurs.map((n) => (
                       <Badge key={n} variant="secondary" size="sm">
-                        <ShieldCheck className="size-3" /> I
-                        {String(n).padStart(2, '0')}
+                        <ShieldCheck className="size-3" />{' '}
+                        <IndicatorName number={n} />
                       </Badge>
                     ))}
                   </span>
