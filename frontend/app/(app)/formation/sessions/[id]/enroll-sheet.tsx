@@ -63,7 +63,7 @@ export function EnrollSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:w-[480px] sm:max-w-none inset-5 start-auto h-auto rounded-lg p-0 [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
+      <SheetContent className="sm:w-[480px] sm:max-w-none inset-5 start-auto max-sm:inset-2 max-sm:w-auto h-auto rounded-lg p-0 [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
         <SheetHeader className="border-b py-3.5 px-5 border-border">
           <SheetTitle className="flex items-center gap-2.5">
             <UserPlus className="text-primary size-4" />
@@ -114,7 +114,7 @@ export function EnrollSheet({
             </Select>
           </div>
         </SheetBody>
-        <SheetFooter className="flex items-center justify-end gap-2 border-t py-3.5 px-5 border-border">
+        <SheetFooter className="flex flex-row items-center justify-end gap-2 border-t py-3.5 px-5 border-border">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.auth.models import User
 from app.auth.security import DB, CurrentUser, QualityReader, permissions_of
+from app.core.downloads import content_disposition
 from app.core.errors import NotFoundError
 from app.documents import storage
 from app.documents.dossier import modele_text
@@ -83,7 +84,7 @@ def download(document_id: str, db: DB, _: QualityReader) -> Response:
     content = storage.read(doc.storage_path, expected_sha256=doc.sha256)
     name = (doc.original_name or doc.title).replace('"', "")
     return Response(content, media_type=doc.mime_type,
-                    headers={"Content-Disposition": f'attachment; filename="{name}"', "X-Content-SHA256": doc.sha256 or ""})
+                    headers={"Content-Disposition": content_disposition(name), "X-Content-SHA256": doc.sha256 or ""})
 
 
 class RequestIn(BaseModel):

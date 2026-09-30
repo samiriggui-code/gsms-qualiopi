@@ -24,7 +24,7 @@ const config: ResourceConfig<Trainer> = {
   icon: Presentation,
   newLabel: 'Nouveau formateur',
   labels: { one: 'Le formateur', created: 'créé', updated: 'modifié', deleted: 'supprimé' },
-  permission: 'write_training',
+  permission: 'write_trainers',
   defaultSort: { id: 'last_name', desc: false },
   search: (r) => [r.full_name, r.email, ...(r.specialties ?? [])].join(' '),
   facets: [

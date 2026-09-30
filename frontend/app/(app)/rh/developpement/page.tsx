@@ -23,7 +23,7 @@ const config: ResourceConfig<Action> = {
   icon: Sprout,
   newLabel: 'Nouvelle action',
   labels: { one: "L'action", created: 'ajoutée', updated: 'modifiée', deleted: 'supprimée' },
-  permission: 'write_quality',
+  permission: 'write_trainers',
   defaultSort: { id: 'planned_on', desc: true },
   search: (r) => [r.label, r.trainer_name].join(' '),
   facets: [

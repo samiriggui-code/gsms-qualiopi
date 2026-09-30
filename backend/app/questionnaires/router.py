@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body
 from fastapi.responses import Response
 
 from app.auth.security import DB
+from app.core.downloads import content_disposition
 from app.core.errors import NotFoundError
 from app.documents import storage
 from app.questionnaires import service, tokens
@@ -37,4 +38,4 @@ def document(token: str, db: DB) -> Response:
         raise NotFoundError("Lien invalide")
     content = storage.read(doc.storage_path, expected_sha256=doc.sha256)
     return Response(content, media_type=doc.mime_type,
-                    headers={"Content-Disposition": f'inline; filename="{doc.original_name}"', "X-Content-SHA256": doc.sha256 or ""})
+                    headers={"Content-Disposition": content_disposition(doc.original_name, inline=True), "X-Content-SHA256": doc.sha256 or ""})

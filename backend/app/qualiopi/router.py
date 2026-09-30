@@ -57,8 +57,27 @@ def _version_view(v) -> dict:  # noqa: ANN001
         "source_sha256": v.source_sha256,
         "normative_sha256": v.normative_sha256,
         "upstream_ref": v.upstream_ref,
+        "source_url": v.source_url,
+        "imported_at": v.imported_at.isoformat() if v.imported_at else None,
         "is_active": v.is_active,
         "indicators": len(v.indicators),
+        "criteria": [{"number": c.number, "title": c.title} for c in v.criteria],
+    }
+
+
+def _indicator_summary(ind) -> dict:  # noqa: ANN001
+    return {
+        "number": ind.number,
+        "code": f"I{ind.number:02d}",
+        "criterion_number": ind.criterion_number,
+        "title": ind.title,
+        "scope": ind.scope,
+        "ponderation": ind.ponderation,
+        "new_entrant_adapted": ind.new_entrant_adapted,
+        "subcontracting": ind.subcontracting,
+        "applicability": ind.applicability or {},
+        "expected_evidence": [e["type"] for e in ind.expected_evidence or []],
+        "controls_count": len(ind.controls),
     }
 
 
@@ -72,6 +91,34 @@ def import_version(body: ImportIn, db: DB, user: ReferentialManager) -> dict:
 @router.get("/referentials/active")
 def get_active(db: DB, _: QualityReader) -> dict:
     return _version_view(active_version(db))
+
+
+@router.get("/referentials/active/indicators")
+def list_indicators(db: DB, _: QualityReader) -> list[dict]:
+    """Les indicateurs du référentiel en vigueur (écran « Référentiel »)."""
+    return [_indicator_summary(ind) for ind in sorted(active_version(db).indicators, key=lambda i: i.number)]
+
+
+@router.get("/referentials/active/indicators/{number}")
+def get_indicator(number: int, db: DB, _: QualityReader) -> dict:
+    """Un indicateur : textes officiels, lecture de l'organisme, contrôles du moteur."""
+    version = active_version(db)
+    ind = next((i for i in version.indicators if i.number == number), None)
+    if ind is None:
+        raise NotFoundError(f"Indicateur {number} introuvable dans {version.code} {version.version}")
+    criterion = next((c for c in version.criteria if c.number == ind.criterion_number), None)
+    return {
+        **_indicator_summary(ind),
+        "criterion_title": criterion.title if criterion else "",
+        "editorial_note": ind.editorial_note,
+        "human_review": ind.human_review,
+        "texts": [{"section": x.section, "body": x.body} for x in ind.texts],
+        "controls": [
+            {"key": c.key, "label": c.label, "check": c.check, "scope": c.scope, "severity": c.severity,
+             "remediation": c.remediation, "guide_section": c.guide_section, "new_entrant_mode": c.new_entrant_mode}
+            for c in ind.controls
+        ],
+    }
 
 
 @router.post("/qualiopi/evaluate")

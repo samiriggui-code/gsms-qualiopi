@@ -140,6 +140,9 @@ réintroduire.
   (entreprises, apprenants, formateurs, qualifications, développement, sous-traitants, partenaires,
   veille, réclamations, satisfaction, programmes) appellent des routes absentes (404) : à rebrancher sur
   `/formations`, `/formateurs`, `/stagiaires`, `/rh/*`, `/qualiopi/*`, ou à ajouter côté API.
+  **Fait le 30/09** : l'API CRUD de `main` est réintégrée (`app/core/crud.py`, `app/training/resources.py`,
+  droits actuels : `sessions.write`, `trainers.write`, `quality.write`) ainsi que
+  `/referentials/active/indicators[/{n}]`. Les 43 pages du menu n'ont plus aucun appel en erreur.
 - Pages et composants Metronic à récupérer : `C:/laragon/www/gsms-school/apps/lms-crm` (171 pages, dont
   23 pages Qualiopi).
 - Local : base `gsms_qualiopi` recréée avec ces migrations (l'ancienne est gardée en

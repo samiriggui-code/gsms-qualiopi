@@ -38,7 +38,7 @@ const config: ResourceConfig<Qualification> = {
   icon: ShieldCheck,
   newLabel: 'Nouvelle qualification',
   labels: { one: 'La qualification', created: 'ajoutée', updated: 'modifiée', deleted: 'supprimée' },
-  permission: 'write_training',
+  permission: 'write_trainers',
   defaultSort: { id: 'valid_until', desc: false },
   search: (r) => [r.label, r.trainer_name].join(' '),
   facets: [

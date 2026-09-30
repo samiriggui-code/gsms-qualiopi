@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 const API_PERMISSIONS = {
   read: 'sessions.read',
   write_training: 'sessions.write',
+  write_trainers: 'trainers.write',
   write_quality: 'quality.write',
   validate_evidence: 'evidence.validate',
   manage_referential: 'referential.manage',

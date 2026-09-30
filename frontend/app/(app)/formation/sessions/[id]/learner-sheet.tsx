@@ -52,7 +52,7 @@ export function LearnerSheet({
 
   return (
     <Sheet open={!!enrollmentId} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:w-[600px] sm:max-w-none inset-5 start-auto h-auto rounded-lg p-0 [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
+      <SheetContent className="sm:w-[600px] sm:max-w-none inset-5 start-auto max-sm:inset-2 max-sm:w-auto h-auto rounded-lg p-0 [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
         <SheetHeader className="border-b py-3.5 px-5 border-border">
           <SheetTitle className="flex items-center gap-2.5">
             <User className="text-primary size-4" />
