@@ -3,20 +3,16 @@
 // Éléments du carnet d'audit : fiche complète d'un indicateur (version imprimée) et ses blocs, réutilisés
 // par le détail à l'écran.
 import * as React from 'react';
-import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  AlertTriangle,
   ArrowUpRight,
-  BookOpenCheck,
   CircleAlert,
   FileCheck2,
-  Printer,
   Sparkles,
   Wrench,
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
-import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
+import { type CarnetFiche } from '@/lib/gsms/carnet';
 import { READINESS, TONE } from '@/lib/gsms/labels';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
@@ -34,13 +30,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { Refusal } from '@/components/gsms/refusal';
-import { Content } from '@/components/layout/components/content';
-import { ContentHeader } from '@/components/layout/components/content-header';
-import { CountedTabs } from '@/components/resource/counted-tabs';
 
 export const STATE_BAR: { key: string; label: string; bar: string }[] = [
   { key: 'DEMONTRABLE', label: 'Démontrables', bar: 'bg-emerald-500' },
