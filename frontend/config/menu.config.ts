@@ -86,6 +86,12 @@ export const MAIN_NAV: NavConfig = [
           data: 'calcule',
         },
       },
+      {
+        id: 'communications',
+        title: 'Communications',
+        icon: Mail,
+        path: '/communications',
+      },
     ],
   },
   {

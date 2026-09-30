@@ -11,6 +11,7 @@ const API_PERMISSIONS = {
   validate_evidence: 'evidence.validate',
   manage_referential: 'referential.manage',
   manage_users: 'users.manage',
+  manage_communications: 'communications.manage',
 } as const;
 
 export type Permission = keyof typeof API_PERMISSIONS;
