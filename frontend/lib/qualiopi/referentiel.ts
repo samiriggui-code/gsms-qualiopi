@@ -32,7 +32,9 @@ export interface IndicatorSummary {
   number: number;
   code: string;
   criterion_number: number;
+  criterion_name: string;
   title: string;
+  short_title: string;
   scope: Scope;
   ponderation: string;
   new_entrant_adapted: boolean;

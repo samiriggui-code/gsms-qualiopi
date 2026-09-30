@@ -8,12 +8,20 @@ import {
   ArrowUpRight,
   CircleAlert,
   FileCheck2,
+  Info,
   Sparkles,
   Wrench,
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import type { Carnet, CarnetFiche } from '@/lib/gsms/carnet';
 import { cn } from '@/lib/utils';
+import {
+  Alert,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,15 +47,35 @@ export function IndicatorBody({
   const upcoming = fiche.etat === 'A_VENIR';
   return (
     <div className={cn('space-y-4 p-4 lg:p-5', className)}>
-      {fiche.titre && (
-        <h2 className="text-base font-semibold text-foreground">
-          {fiche.titre}
-        </h2>
-      )}
+      <div className="space-y-0.5">
+        <h2 className="text-base font-semibold text-foreground">{fiche.nom}</h2>
+        <p className="text-xs text-muted-foreground">
+          Indicateur {fiche.numero} · Critère {fiche.critere.numero} —{' '}
+          {fiche.critere.nom}
+        </p>
+      </div>
       {fiche.enonce && (
-        <blockquote className="border-s-2 border-primary ps-3 text-sm text-foreground">
-          {fiche.enonce}
-        </blockquote>
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">
+            Libellé officiel
+          </div>
+          <blockquote className="border-s-2 border-primary ps-3 text-sm text-foreground">
+            {fiche.enonce}
+          </blockquote>
+        </div>
+      )}
+      {fiche.sans_objet && (
+        <Alert variant="secondary" appearance="light" size="sm">
+          <AlertIcon>
+            <Info />
+          </AlertIcon>
+          <AlertContent>
+            <AlertTitle>
+              Sans objet pour ce périmètre — pas une non-conformité
+            </AlertTitle>
+            <AlertDescription>{fiche.sans_objet}</AlertDescription>
+          </AlertContent>
+        </Alert>
       )}
       {(fiche.ponderation?.includes('majeure') ||
         fiche.nouvel_entrant_adapte) && (

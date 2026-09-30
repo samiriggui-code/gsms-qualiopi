@@ -24,7 +24,6 @@ import {
   type CapaStep,
 } from '@/lib/gsms/capa';
 import { useCan } from '@/lib/permissions';
-import { indicatorNumber } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +45,7 @@ import { Switch } from '@/components/ui/switch';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
 import { CapaSheet } from './capa-sheet';
 import { CAPA_STATUS, STEP_INTO } from './columns';
 import { NewCapaSheet } from './new-capa-sheet';
@@ -140,7 +140,7 @@ function CapaCard({
               {action.ecart && (
                 <span className="inline-flex items-center gap-1">
                   <ShieldCheck className="size-3" />{' '}
-                  {indicatorNumber(action.ecart.indicateur)}
+                  <IndicatorName number={action.ecart.indicateur} />
                 </span>
               )}
               <span className="inline-flex items-center gap-1 min-w-0">

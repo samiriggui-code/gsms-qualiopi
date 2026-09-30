@@ -10,6 +10,7 @@ import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
 import { IndicatorDetails } from './indicator-details';
 import { IndicatorRecords } from './indicator-records';
+import { IndicatorName } from '@/components/qualiopi/indicator-name';
 
 export default function IndicatorPage({
   params,
@@ -36,9 +37,11 @@ export default function IndicatorPage({
           </Button>
           {indicator ? (
             <h1 className="inline-flex items-center gap-2.5 text-sm font-semibold min-w-0">
-              <span className="truncate">{indicator.title}</span>
+              <span className="truncate">
+                <IndicatorName number={indicator.number} />
+              </span>
               <span className="shrink-0 text-xs font-normal text-muted-foreground">
-                Indicateur {indicator.number}
+                Indicateur {indicator.number} · Critère {indicator.criterion_number}
               </span>
             </h1>
           ) : (

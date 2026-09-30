@@ -292,7 +292,9 @@ function Qualiopi({ sessionId }: { sessionId: string }) {
             {indicators.map((i) => (
               <TableRow key={i.number}>
                 <TableCell className="align-top">
-                  <span className="font-semibold text-foreground">{i.title}</span>
+                  <span className="font-semibold text-foreground">
+                    <IndicatorName number={i.number} />
+                  </span>
                   <div className="text-xs text-muted-foreground max-w-64">{indicatorNumber(i.number)}</div>
                 </TableCell>
                 <TableCell className="align-top">

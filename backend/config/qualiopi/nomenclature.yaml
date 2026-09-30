@@ -1,0 +1,48 @@
+# Noms d'affichage des critères et indicateurs Qualiopi (éditoriaux, fournis par l'organisme).
+# Ils rendent l'interface lisible ; ils ne remplacent jamais le libellé officiel du Référentiel national
+# qualité, toujours conservé et affiché dans la fiche et dans les exports d'audit avec le numéro.
+# Rattachement réglementaire : C1 1–3, C2 4–8, C3 9–16, C4 17–20, C5 21–22, C6 23–29, C7 30–32
+# (l'indicateur 33 est créé par le référentiel V10, applicable au 1er novembre 2026).
+
+criteres:
+  1: { nom: "Information du public", indicateurs: [1, 3] }
+  2: { nom: "Conception des prestations", indicateurs: [4, 8] }
+  3: { nom: "Accompagnement et évaluation", indicateurs: [9, 16] }
+  4: { nom: "Moyens et ressources", indicateurs: [17, 20] }
+  5: { nom: "Compétences des intervenants", indicateurs: [21, 22] }
+  6: { nom: "Environnement professionnel", indicateurs: [23, 29] }
+  7: { nom: "Satisfaction et amélioration continue", indicateurs: [30, 32] }
+
+indicateurs:
+  1: "Information sur les prestations"
+  2: "Publication des résultats"
+  3: "Information sur les certifications et débouchés"
+  4: "Analyse des besoins"
+  5: "Définition des objectifs"
+  6: "Adaptation des contenus et modalités"
+  7: "Adéquation aux exigences de certification"
+  8: "Positionnement et évaluation à l'entrée"
+  9: "Information sur le déroulement"
+  10: "Adaptation de l'accompagnement et du suivi"
+  11: "Évaluation de l'atteinte des objectifs"
+  12: "Engagement et prévention des ruptures"
+  13: "Coordination des apprentissages en alternance"
+  14: "Accompagnement socioprofessionnel et citoyen"
+  15: "Droits, devoirs et sécurité des apprentis"
+  16: "Conditions de présentation à la certification"
+  17: "Moyens humains, techniques et locaux"
+  18: "Coordination des intervenants"
+  19: "Ressources pédagogiques et appropriation"
+  20: "Mobilité, référent handicap et perfectionnement"
+  21: "Compétences des intervenants"
+  22: "Développement des compétences des salariés"
+  23: "Veille légale et réglementaire"
+  24: "Veille métiers, emplois et compétences"
+  25: "Veille pédagogique et technologique"
+  26: "Mobilisation des ressources handicap"
+  27: "Conformité de la sous-traitance et du portage salarial"
+  28: "Partenariats pour la formation en situation de travail"
+  29: "Insertion professionnelle et poursuite d'études"
+  30: "Recueil des appréciations"
+  31: "Traitement des difficultés, réclamations et aléas"
+  32: "Mise en œuvre des améliorations"

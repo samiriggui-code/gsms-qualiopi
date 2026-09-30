@@ -14,16 +14,19 @@ import difflib
 import re
 from collections import defaultdict
 from datetime import date
+from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.qualiopi.capa.models import CapaAction
 from app.qualiopi.capa.policy import STATUS_LABELS
-from app.qualiopi.evaluation.models import Finding
+from app.qualiopi.evaluation.models import ControlResult, Finding
 from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.models import USABLE_STATUSES, Evidence, EvidenceIndicatorLink
 from app.qualiopi.labels import evidence_label
+from app.qualiopi.nomenclature import criterion_name, indicator_name, not_applicable_reason, search_keys
 from app.qualiopi.referential.models import ReferentialVersion
 from app.training import models as t
 
@@ -110,6 +113,16 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None,
         for a in db.scalars(select(CapaAction).where(CapaAction.finding_id.in_([f.id for f in open_findings]))):
             capas[a.finding_id].append(a)
 
+    org = db.scalar(select(t.Organization))
+    org_categories = (org.action_categories if org else None) or ["AF"]
+    certifying = any(p.is_certifying for p in (
+        [session.program] if session is not None and session.program else db.scalars(select(t.Program))))
+
+    na_explanations: dict[int, str] = {}
+    for r_ in db.scalars(select(ControlResult).where(ControlResult.version_id == active.id,
+                                                    ControlResult.status == "NON_APPLICABLE")):
+        na_explanations.setdefault(r_.indicator_number, r_.explanation)
+
     fiches = []
     for ind in active.indicators:
         texts = {x.section: x.body for x in ind.texts}
@@ -126,7 +139,12 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None,
                           "prestations": next((x.body for x in nxt.texts if x.section == "Prestations concernées"), None)}
         fiches.append({
             "numero": ind.number, "code": ind.code, "titre": ind.title,
-            "critere": {"numero": ind.criterion_number, "titre": criteria.get(ind.criterion_number)},
+            "nom": indicator_name(ind.number, ind.title),
+            "recherche": search_keys(ind.number, indicator_name(ind.number, ind.title), ind.title),
+            "critere": {"numero": ind.criterion_number, "titre": criteria.get(ind.criterion_number),
+                        "nom": criterion_name(ind.criterion_number)},
+            "sans_objet": (not_applicable_reason(ind.applicability or {}, org_categories, certifying)
+                           or na_explanations.get(ind.number)) if r["status"] == "NON_APPLICABLE" else None,
             "enonce": texts.get("Énoncé", ""),
             "guide": [{"section": s, "texte": texts[s]} for s in GUIDE_SECTIONS if texts.get(s)],
             "ponderation": ind.ponderation or None, "nouvel_entrant_adapte": ind.new_entrant_adapted,
@@ -159,8 +177,12 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None,
                 texts = {x.section: x.body for x in nxt.texts}
                 fiches.append({
                     "numero": nxt.number, "code": nxt.code, "titre": nxt.title,
+                    "nom": indicator_name(nxt.number, nxt.title),
+                    "recherche": search_keys(nxt.number, indicator_name(nxt.number, nxt.title), nxt.title),
                     "critere": {"numero": nxt.criterion_number,
-                                "titre": next((c.title for c in upcoming.criteria if c.number == nxt.criterion_number), None)},
+                                "titre": next((c.title for c in upcoming.criteria if c.number == nxt.criterion_number), None),
+                                "nom": criterion_name(nxt.criterion_number)},
+                    "sans_objet": None,
                     "enonce": "", "guide": [], "ponderation": None, "nouvel_entrant_adapte": False,
                     "etat": "A_VENIR", "revue_humaine": None, "preuves_attendues": [],
                     "preuves": {"total": 0, "exploitables": 0, "liste": []}, "ecarts": [],
@@ -168,7 +190,6 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None,
                                   "prestations": texts.get("Prestations concernées")},
                 })
 
-    org = db.scalar(select(t.Organization))
     return {
         "organisme": {"nom": org.name, "nda": org.nda_number, "siret": org.siret,
                       "categories": org.action_categories, "nouvel_entrant": org.is_new_entrant} if org else None,
@@ -185,3 +206,53 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None,
                          "de conformité : seul l'organisme certificateur en décide. Textes : référentiel national "
                          "qualité et son guide de lecture, seuls à faire foi.",
     }
+
+
+# ── Version imprimable (HTML autonome, rendu par Jinja) ────────────────────────────────────────────
+
+ETATS = {
+    "DEMONTRABLE": "Démontrable", "A_RISQUE": "À risque", "PREUVES_INSUFFISANTES": "Preuves insuffisantes",
+    "NON_EVALUABLE": "Revue humaine", "NON_EVALUE": "Non évalué", "NON_APPLICABLE": "Sans objet", "A_VENIR": "À venir",
+}
+BAR = (("DEMONTRABLE", "Démontrables", "#16a34a"), ("A_RISQUE", "À risque", "#eab308"),
+       ("PREUVES_INSUFFISANTES", "Preuves insuffisantes", "#dc2626"), ("NON_EVALUABLE", "Revue humaine", "#6b7280"),
+       ("NON_EVALUE", "Non évalués", "#d1d5db"))
+MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+          "novembre", "décembre")
+TEMPLATE_DIR = Path(__file__).resolve().parents[2] / "config" / "qualiopi"
+_env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=select_autoescape(["html"]),
+                   undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)
+
+
+def _fr(iso: str | None) -> str:
+    if not iso:
+        return ""
+    d = date.fromisoformat(iso[:10])
+    return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
+
+
+def render_book(book: dict) -> str:
+    """Le carnet en HTML A4 : sommaire, une feuille par indicateur applicable, indicateurs sans objet."""
+    fiches = book["fiches"]
+    for f in fiches:
+        for p in f["preuves"]["liste"]:
+            p["produite_le_fr"] = _fr(p["produite_le"])
+        for e in f["ecarts"]:
+            for a in e["actions"]:
+                a["echeance_fr"] = _fr(a["echeance"])
+    applicable = [f for f in fiches if f["etat"] not in ("NON_APPLICABLE", "A_VENIR")]
+    criteres = []
+    for n in sorted({f["critere"]["numero"] for f in fiches}):
+        items = [f for f in fiches if f["critere"]["numero"] == n]
+        criteres.append({"numero": n, "nom": items[0]["critere"]["nom"], "fiches": items})
+    nxt = book["prochaine_version"]
+    return _env.get_template("carnet.html").render(
+        organisme=book["organisme"], session=book["session"], referentiel=book["referentiel"],
+        prochaine_version={**nxt, "en_vigueur_le_fr": _fr(nxt["en_vigueur_le"])} if nxt else None,
+        edite_le=_fr(book["edite_le"]), avertissement=book["avertissement"], etats=ETATS,
+        fiches=fiches, criteres=criteres,
+        synthese={"demontrables": sum(1 for f in applicable if f["etat"] == "DEMONTRABLE"),
+                  "applicables": len(applicable),
+                  "barre": [{"label": label, "color": color, "n": sum(1 for f in applicable if f["etat"] == key)}
+                            for key, label, color in BAR]},
+    )

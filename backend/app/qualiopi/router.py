@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 
@@ -15,7 +16,7 @@ from app.platform.decisions import enforce
 from app.qualiopi.capa import service as capa_service
 from app.qualiopi.capa.models import CapaAction
 from app.qualiopi.capa.policy import CapaPolicy, is_late
-from app.qualiopi.carnet import carnet
+from app.qualiopi.carnet import carnet, render_book
 from app.qualiopi.chain import capa_view, criteria_overview, indicator_chain
 from app.qualiopi.cycle.models import CertificationCycle
 from app.qualiopi.cycle.service import create_cycle, resolve_period
@@ -25,6 +26,7 @@ from app.qualiopi.evaluation.report import session_dossier
 from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.models import Evidence, EvidenceIndicatorLink
 from app.qualiopi.evidence.service import validate
+from app.qualiopi.nomenclature import criterion_name, indicator_name
 from app.qualiopi.referential.importer import active_version, import_referential
 from app.qualiopi.review.models import IndicatorReview
 from app.qualiopi.review.service import record_review
@@ -72,7 +74,9 @@ def _indicator_summary(ind) -> dict:  # noqa: ANN001
         "number": ind.number,
         "code": f"I{ind.number:02d}",
         "criterion_number": ind.criterion_number,
+        "criterion_name": criterion_name(ind.criterion_number),
         "title": ind.title,
+        "short_title": indicator_name(ind.number, ind.title),
         "scope": ind.scope,
         "ponderation": ind.ponderation,
         "new_entrant_adapted": ind.new_entrant_adapted,
@@ -262,6 +266,12 @@ def audit_book(db: DB, _: QualityReader, session_id: str | None = None) -> dict:
         if session is None:
             raise NotFoundError("Session introuvable")
     return carnet(db, active_version(db), session=session)
+
+
+@router.get("/qualiopi/carnet/impression", response_class=HTMLResponse)
+def audit_book_print(db: DB, _: QualityReader, session_id: str | None = None) -> HTMLResponse:
+    """Le carnet en HTML A4 autonome (sans en-tête ni pied de page), à imprimer ou enregistrer en PDF."""
+    return HTMLResponse(render_book(audit_book(db, _, session_id)))
 
 
 @router.get("/qualiopi/actions")

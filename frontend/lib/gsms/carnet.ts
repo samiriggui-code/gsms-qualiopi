@@ -16,7 +16,10 @@ export interface CarnetFiche {
   numero: number;
   code: string;
   titre: string;
-  critere: { numero: number; titre: string | null };
+  nom: string;
+  recherche: string;
+  sans_objet: string | null;
+  critere: { numero: number; titre: string | null; nom: string };
   enonce: string;
   guide: { section: string; texte: string }[];
   ponderation: string | null;

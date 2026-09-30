@@ -9,16 +9,36 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-// Nom court et pictogramme de chaque critère (repères d'interface ; le titre officiel reste affiché à côté).
-export const CRITERIA: Record<number, { name: string; icon: LucideIcon }> = {
-  1: { name: 'Informer le public', icon: Megaphone },
-  2: { name: 'Concevoir la formation', icon: Target },
-  3: { name: 'Accueillir, suivre, évaluer', icon: Users },
-  4: { name: 'Moyens et encadrement', icon: Wrench },
-  5: { name: 'Compétences des équipes', icon: GraduationCap },
-  6: { name: 'Environnement professionnel', icon: Network },
-  7: { name: 'Appréciations et réclamations', icon: MessagesSquare },
+// Pictogramme de chaque critère. Les noms affichés viennent de l'API (config/qualiopi/nomenclature.yaml).
+export const CRITERION_ICONS: Record<number, LucideIcon> = {
+  1: Megaphone,
+  2: Target,
+  3: Users,
+  4: Wrench,
+  5: GraduationCap,
+  6: Network,
+  7: MessagesSquare,
 };
 
 // Les indicateurs se désignent par leur nom ; le numéro n'apparaît qu'en complément (« Indicateur 17 »).
 export const indicatorNumber = (n: number) => `Indicateur ${n}`;
+
+// Normalisation pour la recherche : minuscules, sans accents.
+export const normalize = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+// Retrouve un indicateur par son nom, son libellé, « indicateur 4 », « I04 » ou « 4 ».
+export function matchesIndicator(
+  query: string,
+  numero: number,
+  recherche: string,
+) {
+  const q = normalize(query).replace(/\s+/g, ' ');
+  if (!q) return true;
+  if (/^\d+$/.test(q)) return Number(q) === numero;
+  return recherche.includes(q);
+}

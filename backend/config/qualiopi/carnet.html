@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carnet d'audit Qualiopi — {{ organisme.nom if organisme else "" }}{% if session %} — {{ session.reference }}{% endif %}</title>
+<style>
+  /* Carnet d'audit imprimable. Aucune marge de page : le navigateur n'ajoute ni en-tête, ni pied, ni
+     numéro de page ; les marges sont portées par chaque feuille. */
+  @page { size: A4; margin: 0; }
+  :root {
+    --ink: #111827; --muted: #6b7280; --line: #e5e7eb; --soft: #f9fafb;
+    --ok: #15803d; --ok-bg: #dcfce7; --warn: #a16207; --warn-bg: #fef9c3;
+    --ko: #b91c1c; --ko-bg: #fef2f2; --info: #1d4ed8; --info-bg: #eff6ff; --neutral-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e5e7eb; }
+  body { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sheet { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 16mm 16mm 14mm; background: #fff;
+           box-shadow: 0 1px 3px rgba(0,0,0,.08); page-break-after: always; break-after: page;
+           -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .sheet:last-child { page-break-after: auto; break-after: auto; }
+  @media print { html, body { background: #fff; } .sheet { margin: 0; box-shadow: none; } }
+
+  .eyebrow { font-size: 8pt; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 22pt; line-height: 1.15; margin: 4mm 0 2mm; letter-spacing: -.01em; }
+  h2 { font-size: 16pt; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
+  h3 { font-size: 8.5pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 1.5mm; }
+  p { margin: 0 0 2mm; }
+  .muted { color: var(--muted); }
+  .small { font-size: 8.5pt; }
+
+  .chip { display: inline-block; font-size: 8pt; font-weight: 600; padding: .4mm 2.2mm; border-radius: 99px; white-space: nowrap; }
+  .DEMONTRABLE { color: var(--ok); background: var(--ok-bg); }
+  .A_RISQUE { color: var(--warn); background: var(--warn-bg); }
+  .PREUVES_INSUFFISANTES { color: var(--ko); background: var(--ko-bg); }
+  .NON_EVALUABLE, .NON_EVALUE, .NON_APPLICABLE { color: #374151; background: var(--neutral-bg); }
+  .A_VENIR { color: var(--info); background: var(--info-bg); }
+
+  /* Sommaire */
+  .meta { display: flex; flex-wrap: wrap; gap: 1.5mm 6mm; margin: 3mm 0 8mm; font-size: 9pt; }
+  .meta b { font-weight: 600; }
+  .bar { display: flex; height: 2.2mm; border-radius: 99px; overflow: hidden; background: var(--neutral-bg); margin: 2mm 0; }
+  .bar span { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 1mm 5mm; font-size: 8.5pt; color: var(--muted); }
+  .dot { display: inline-block; width: 2mm; height: 2mm; border-radius: 99px; margin-right: 1.2mm; vertical-align: middle; }
+  .toc { width: 100%; border-collapse: collapse; margin-top: 7mm; font-size: 9pt; }
+  .toc th { text-align: left; font-size: 8pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+            padding: 2mm 0 1.5mm; border-bottom: 1px solid var(--ink); }
+  .toc td { padding: 1.6mm 2mm 1.6mm 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .toc .crit td { padding-top: 4mm; font-weight: 600; border-bottom: none; }
+  .toc .n { width: 9mm; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .toc .st { width: 34mm; text-align: right; }
+
+  /* Fiche */
+  .head { display: flex; gap: 5mm; align-items: flex-start; padding-bottom: 5mm; border-bottom: 1px solid var(--line); }
+  .num { flex: 0 0 auto; width: 15mm; height: 15mm; border-radius: 3mm; background: var(--ink); color: #fff;
+         display: flex; align-items: center; justify-content: center; font-size: 17pt; font-weight: 700; }
+  .head .titles { flex: 1 1 auto; min-width: 0; }
+  .head .sub { margin-top: 1mm; font-size: 9pt; color: var(--muted); }
+  .quote { margin: 5mm 0 0; padding: 3.5mm 4mm; border-left: 1mm solid var(--ink); background: var(--soft); font-size: 10.5pt; }
+  .quote .eyebrow { display: block; margin-bottom: 1mm; }
+  .v10 { margin-top: 3mm; padding: 3mm 4mm; border: 1px solid #bfdbfe; background: var(--info-bg); border-radius: 2mm; font-size: 9.5pt; }
+  .v10 .eyebrow { color: var(--info); display: block; margin-bottom: 1mm; }
+  .v10 strong { font-weight: 700; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 6mm; }
+  .block { margin-top: 5mm; break-inside: avoid; }
+  .grid .block { margin-top: 0; }
+  .text { white-space: pre-line; font-size: 9.5pt; color: #374151; }
+  .evidence { border: 1px solid var(--line); border-radius: 2mm; }
+  .evidence .top { display: flex; justify-content: space-between; align-items: baseline; padding: 2mm 3mm; border-bottom: 1px solid var(--line); }
+  .evidence .top b { font-size: 9.5pt; }
+  .expected { padding: 2mm 3mm 0; display: flex; flex-wrap: wrap; gap: 1.5mm; }
+  .expected span { font-size: 8pt; padding: .3mm 2mm; border-radius: 99px; border: 1px solid var(--line); }
+  .expected .none { color: var(--ko); border-color: #fecaca; }
+  .evidence ul { list-style: none; margin: 0; padding: 1mm 3mm 2mm; }
+  .evidence li { display: flex; gap: 2mm; padding: 1.4mm 0; border-bottom: 1px dashed var(--line); font-size: 8.8pt; }
+  .evidence li:last-child { border-bottom: none; }
+  .evidence li .ref { color: var(--muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .evidence li .lbl { flex: 1 1 auto; }
+  .evidence li .dt { color: var(--muted); flex: 0 0 auto; }
+  .lines { padding: 2mm 3mm 3mm; }
+  .lines div { height: 7mm; border-bottom: 1px solid var(--line); }
+  .nc { border: 1px solid #fecaca; background: var(--ko-bg); border-radius: 2mm; padding: 3mm 4mm; }
+  .nc h3 { color: var(--ko); }
+  .gaps { border: 1px solid var(--line); border-radius: 2mm; padding: 2.5mm 4mm; }
+  .gaps li { margin: 0 0 1.5mm; font-size: 9pt; }
+  .gaps .act { color: var(--muted); font-size: 8.5pt; }
+  .na td { font-size: 9pt; }
+  .foot { margin-top: 8mm; font-size: 8pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+{# ── Sommaire ─────────────────────────────────────────────────────────────── #}
+<section class="sheet">
+  <div class="eyebrow">Carnet d'audit Qualiopi</div>
+  <h1>{{ organisme.nom if organisme else "Organisme" }}</h1>
+  <div class="meta">
+    <span>Périmètre <b>{% if session %}session {{ session.reference }}{% if session.formation %} — {{ session.formation }}{% endif %}{% else %}organisme, toutes sessions{% endif %}</b></span>
+    <span>Référentiel <b>{{ referentiel.version }}</b></span>
+    {% if organisme and organisme.nda %}<span>NDA <b>{{ organisme.nda }}</b></span>{% endif %}
+    {% if organisme and organisme.siret %}<span>SIRET <b>{{ organisme.siret }}</b></span>{% endif %}
+    <span>Édité le <b>{{ edite_le }}</b></span>
+  </div>
+
+  <div class="eyebrow">État de préparation</div>
+  <p style="margin:1.5mm 0 0"><b style="font-size:16pt">{{ synthese.demontrables }}</b> <span class="muted">indicateurs démontrables sur {{ synthese.applicables }} applicables</span></p>
+  <div class="bar">{% for s in synthese.barre %}{% if s.n %}<span style="flex:{{ s.n }};background:{{ s.color }}"></span>{% endif %}{% endfor %}</div>
+  <div class="legend">{% for s in synthese.barre %}<span><span class="dot" style="background:{{ s.color }}"></span>{{ s.label }} : {{ s.n }}</span>{% endfor %}</div>
+
+  <table class="toc">
+    <thead><tr><th class="n">N°</th><th>Indicateur</th><th class="st">État</th></tr></thead>
+    <tbody>
+    {% for c in criteres %}
+      <tr class="crit"><td colspan="3">Critère {{ c.numero }} — {{ c.nom }}</td></tr>
+      {% for f in c.fiches %}
+      <tr>
+        <td class="n">{{ f.numero }}</td>
+        <td>{{ f.nom }}<div class="small muted">{{ f.titre }}</div></td>
+        <td class="st"><span class="chip {{ f.etat }}">{{ etats[f.etat] }}</span></td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="foot">{{ avertissement }}<br>Sources : {{ referentiel.source }}{% if prochaine_version %} ; {{ prochaine_version.source }}{% endif %}</p>
+</section>
+
+{# ── Une feuille par indicateur applicable ─────────────────────────────────── #}
+{% for f in fiches if f.etat != "NON_APPLICABLE" %}
+<section class="sheet">
+  <div class="eyebrow">Critère {{ f.critere.numero }} — {{ f.critere.nom }}</div>
+  <div class="head" style="margin-top:3mm">
+    <div class="num">{{ f.numero }}</div>
+    <div class="titles">
+      <h2>{{ f.nom }}</h2>
+      <div class="sub">Indicateur {{ f.numero }}{% if f.titre %} · {{ f.titre }}{% endif %}</div>
+    </div>
+    <span class="chip {{ f.etat }}">{{ etats[f.etat] }}</span>
+  </div>
+
+  {% if f.enonce %}
+  <div class="quote"><span class="eyebrow">Libellé officiel</span>{{ f.enonce }}</div>
+  {% endif %}
+
+  {% if f.evolution and prochaine_version %}
+  <div class="v10">
+    <span class="eyebrow">{% if f.evolution.type == "NOUVEAU" %}Nouvel indicateur{% elif f.evolution.get("ampleur") == "FOND" %}Exigence modifiée{% else %}Rédaction ajustée{% endif %} au {{ prochaine_version.en_vigueur_le_fr }} ({{ prochaine_version.version }})</span>
+    {% if f.evolution.get("segments") %}{% for s in f.evolution.segments %}{% if s.ajout %}<strong>{{ s.texte }}</strong>{% else %}{{ s.texte }}{% endif %} {% endfor %}{% else %}{{ f.evolution.enonce }}{% endif %}
+    {% if f.evolution.get("prestations") and f.evolution.type == "NOUVEAU" %}<div class="small muted" style="margin-top:1mm">{{ f.evolution.prestations }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if f.etat != "A_VENIR" %}
+  <div class="grid">
+    <div>
+      {% for g in f.guide if g.section in ("Niveau attendu", "Exemples de preuves") %}
+      <div class="block"><h3>{{ "Preuves citées par le guide de lecture" if g.section == "Exemples de preuves" else g.section }}</h3><div class="text">{{ g.texte }}</div></div>
+      {% endfor %}
+    </div>
+    <div class="block">
+      <div class="evidence">
+        <div class="top"><b>Éléments de preuve réunis</b><span class="small muted">{{ f.preuves.exploitables }} exploitable{{ "s" if f.preuves.exploitables > 1 }} / {{ f.preuves.total }}</span></div>
+        {% if f.preuves_attendues %}
+        <div class="expected">{% for p in f.preuves_attendues %}<span class="{{ 'none' if not p.disponibles }}">{{ p.libelle }} · {{ p.disponibles }}</span>{% endfor %}</div>
+        {% endif %}
+        {% if f.preuves.liste %}
+        <ul>{% for p in f.preuves.liste %}<li><span class="ref">{{ p.reference }}</span><span class="lbl">{{ p.libelle }}</span><span class="dt">{{ p.produite_le_fr }}</span></li>{% endfor %}</ul>
+        {% if f.preuves.total > f.preuves.liste|length %}<div class="small muted" style="padding:0 3mm 2mm">… et {{ f.preuves.total - f.preuves.liste|length }} autres dans GSMS.</div>{% endif %}
+        {% else %}
+        <div class="lines"><div></div><div></div><div></div><div></div></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% for g in f.guide if g.section == "Non-conformité" %}
+  <div class="block nc"><h3>Non-conformité</h3><div class="text">{{ g.texte }}</div></div>
+  {% endfor %}
+
+  {% for g in f.guide if g.section in ("Obligations spécifiques", "Sous-traitance") %}
+  <div class="block"><h3>{{ g.section }}</h3><div class="text">{{ g.texte }}</div></div>
+  {% endfor %}
+
+  {% if f.ecarts %}
+  <div class="block gaps">
+    <h3>Écarts ouverts et actions</h3>
+    <ul style="margin:0;padding-left:4mm">
+    {% for e in f.ecarts %}
+      <li>{{ e.titre }} <span class="muted small">({{ e.reference }}, {{ e.gravite }})</span>
+        {% for a in e.actions %}<div class="act">{{ a.reference }} — {{ a.statut_libelle }}, échéance {{ a.echeance_fr }}</div>{% else %}<div class="act">Aucune action ouverte.</div>{% endfor %}
+      </li>
+    {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+{# ── Indicateurs sans objet, avec leur justification ───────────────────────── #}
+{% set na = fiches | selectattr("etat", "equalto", "NON_APPLICABLE") | list %}
+{% if na %}
+<section class="sheet">
+  <div class="eyebrow">Indicateurs sans objet</div>
+  <h2 style="margin-top:3mm">Non applicables à l'activité de l'organisme</h2>
+  <p class="muted small" style="margin-top:2mm">Ces indicateurs ne concernent pas les prestations déclarées ; ils ne constituent pas des non-conformités.</p>
+  <table class="toc na">
+    <thead><tr><th class="n">N°</th><th>Indicateur</th><th>Justification</th></tr></thead>
+    <tbody>
+    {% for f in na %}
+      <tr><td class="n">{{ f.numero }}</td><td>{{ f.nom }}<div class="small muted">Critère {{ f.critere.numero }} — {{ f.critere.nom }}</div></td><td>{{ f.sans_objet or "Sans objet pour ce périmètre." }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<script>if (location.hash === '#imprimer') window.addEventListener('load', () => window.print());</script>
+</body>
+</html>

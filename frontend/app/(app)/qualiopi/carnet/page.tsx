@@ -4,7 +4,7 @@
 // droite en onglets (preuves réunies, écarts et actions, textes du guide, changements de la version
 // suivante). Périmètre : l'organisme entier, ou l'audit d'une session (ses éléments et ceux hérités de sa
 // formation, de son formateur et de l'organisme). L'impression reprend toutes les fiches en entier.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
@@ -13,13 +13,14 @@ import {
   ChevronRight,
   Info,
   Printer,
+  Search,
   Sparkles,
   Target,
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import { useCarnet, type Carnet, type CarnetFiche } from '@/lib/gsms/carnet';
 import { useSessions } from '@/lib/gsms/sessions';
-import { CRITERIA, indicatorNumber } from '@/lib/qualiopi/criteres';
+import { indicatorNumber, matchesIndicator } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import {
   Alert,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -42,7 +44,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
-import { Fiche, STATE_BAR, stateBadge } from './fiche';
+import { STATE_BAR, stateBadge } from './fiche';
 import { IndicatorBody } from './indicator-body';
 
 const PANE =
@@ -106,17 +108,26 @@ function Rail({
   data,
   filter,
   onFilter,
+  query,
+  onQuery,
   selected,
   onSelect,
 }: {
   data: Carnet;
   filter: Filter;
   onFilter: (f: Filter) => void;
+  query: string;
+  onQuery: (q: string) => void;
   selected: number | null;
   onSelect: (n: number) => void;
 }) {
-  const visible = data.fiches.filter((f) =>
-    filter === 'a_traiter' ? toTreat(f) : filter === 'v10' ? changes(f) : true,
+  const visible = data.fiches.filter(
+    (f) =>
+      (filter === 'a_traiter'
+        ? toTreat(f)
+        : filter === 'v10'
+          ? changes(f)
+          : true) && matchesIndicator(query, f.numero, f.recherche),
   );
   const groups = Array.from(new Set(visible.map((f) => f.critere.numero))).sort(
     (a, b) => a - b,
@@ -148,6 +159,17 @@ function Rail({
     >
       <div className="space-y-3 border-b border-border p-4">
         <Summary data={data} />
+        <div className="relative">
+          <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
+          <Input
+            variant="sm"
+            placeholder="Nom, n° ou code (I04)…"
+            value={query}
+            onChange={(e) => onQuery(e.target.value)}
+            className="ps-9"
+            aria-label="Rechercher un indicateur"
+          />
+        </div>
         <div className="flex gap-1 rounded-lg bg-muted/70 p-1">
           {filters.map((f) => (
             <button
@@ -172,7 +194,8 @@ function Rail({
           {groups.map((n) => (
             <div key={n} className="space-y-0.5">
               <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {CRITERIA[n]?.name ?? `Critère ${n}`}
+                Critère {n} ·{' '}
+                {visible.find((f) => f.critere.numero === n)?.critere.nom}
               </div>
               {visible
                 .filter((f) => f.critere.numero === n)
@@ -195,7 +218,7 @@ function Rail({
                     />
 
                     <span className="min-w-0 grow truncate text-sm text-secondary-foreground">
-                      {f.titre || f.evolution?.enonce}
+                      {f.nom}
                     </span>
                     {f.ecarts.length > 0 && (
                       <Badge
@@ -309,11 +332,10 @@ function Detail({
           <ChevronLeft />
         </Button>
         <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-          {CRITERIA[fiche.critere.numero]?.name ??
-            `Critère ${fiche.critere.numero}`}
+          {fiche.critere.nom}
         </span>
         <span className="shrink-0 text-xs text-muted-foreground">
-          {indicatorNumber(fiche.numero)}
+          Critère {fiche.critere.numero} · {indicatorNumber(fiche.numero)}
         </span>
         <div className="ms-auto flex items-center gap-1">
           <Badge className={s.color}>{s.label}</Badge>
@@ -351,6 +373,7 @@ export default function CarnetPage() {
   const sessionId = params.get('session') ?? '';
   const selected = params.get('i') ? Number(params.get('i')) : null;
   const filter = (params.get('filtre') as Filter) || 'tous';
+  const [query, setQuery] = useState('');
   const { data, isLoading, error } = useCarnet(sessionId || undefined);
   const { data: sessions = [] } = useSessions();
 
@@ -407,7 +430,12 @@ export default function CarnetPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => window.print()}
+            onClick={() =>
+              window.open(
+                `/api/backend/v1/qualiopi/carnet/impression${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}#imprimer`,
+                '_blank',
+              )
+            }
             disabled={!data}
           >
             <Printer /> <span className="max-sm:sr-only">Imprimer ou PDF</span>
@@ -442,6 +470,8 @@ export default function CarnetPage() {
                 data={data}
                 filter={filter}
                 onFilter={(f) => set({ filtre: f === 'tous' ? null : f })}
+                query={query}
+                onQuery={setQuery}
                 selected={selected}
                 onSelect={(n) => set({ i: String(n) })}
               />
@@ -464,32 +494,6 @@ export default function CarnetPage() {
           </div>
         )}
       </Content>
-
-      {data && (
-        <div className="hidden print:block space-y-5">
-          <div className="space-y-1">
-            <div className="text-xl font-semibold">
-              Carnet d’audit — {data.organisme?.nom}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {data.session
-                ? `Session ${data.session.reference} · ${data.session.formation ?? ''} · `
-                : 'Organisme · '}
-              Référentiel {data.referentiel.version} · édité le{' '}
-              {formatDate(data.edite_le)}
-              {data.organisme?.nda ? ` · NDA ${data.organisme.nda}` : ''}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {data.avertissement}
-            </p>
-          </div>
-          {data.fiches
-            .filter((f) => f.etat !== 'NON_APPLICABLE')
-            .map((f) => (
-              <Fiche key={f.numero} fiche={f} next={data.prochaine_version} />
-            ))}
-        </div>
-      )}
     </>
   );
 }

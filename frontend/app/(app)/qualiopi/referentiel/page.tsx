@@ -3,7 +3,7 @@
 // Indicateurs : les 7 critères en sections, chaque indicateur en carte (son nom, ce qu'il demande, son
 // état, ses preuves et ses écarts), quatre par rangée ; le détail s'ouvre dans un volet (mêmes onglets que
 // le carnet d'audit). L'état vient du moteur ; la page n'en calcule aucun.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -14,9 +14,10 @@ import {
   ClipboardList,
   Info,
   ListChecks,
+  Search,
 } from 'lucide-react';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
-import { CRITERIA } from '@/lib/qualiopi/criteres';
+import { CRITERION_ICONS, matchesIndicator } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import {
   CardTitle,
   CardToolbar,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -69,12 +71,14 @@ function IndicatorCard({
   onOpen: () => void;
 }) {
   const s = stateBadge(fiche.etat);
-  const Icon = CRITERIA[fiche.critere.numero]?.icon ?? ClipboardList;
+  const Icon = CRITERION_ICONS[fiche.critere.numero] ?? ClipboardList;
   const meta = [
     `Indicateur ${fiche.numero}`,
-    fiche.etat !== 'NON_APPLICABLE' && fiche.etat !== 'A_VENIR'
-      ? `${fiche.preuves.exploitables} preuves`
-      : s.label,
+    fiche.etat === 'NON_APPLICABLE'
+      ? 'Sans objet'
+      : fiche.etat === 'A_VENIR'
+        ? s.label
+        : `${fiche.preuves.exploitables} preuves`,
     fiche.ecarts.length
       ? `${fiche.ecarts.length} écart${fiche.ecarts.length > 1 ? 's' : ''}`
       : null,
@@ -95,7 +99,7 @@ function IndicatorCard({
       </div>
       <div className="flex flex-col gap-0.5 min-w-0 grow">
         <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
-          {fiche.titre || 'Nouvel indicateur'}
+          {fiche.nom}
         </h3>
         <p className="text-xs text-muted-foreground truncate">
           {meta.join(' · ')}
@@ -131,7 +135,7 @@ function CriterionCard({
       <CardHeader>
         <CardHeading>
           <CardTitle>
-            {CRITERIA[numero]?.name ?? `Critère ${numero}`}{' '}
+            {fiches[0]?.critere.nom ?? `Critère ${numero}`}{' '}
             <span className="text-sm font-normal text-muted-foreground">
               · Critère {numero}
             </span>
@@ -173,7 +177,12 @@ export default function IndicateursPage() {
   const open = (n: number | null) =>
     router.replace(n ? `${pathname}?i=${n}` : pathname, { scroll: false });
 
-  const fiches = useMemo(() => data?.fiches ?? [], [data]);
+  const [query, setQuery] = useState('');
+  const all = useMemo(() => data?.fiches ?? [], [data]);
+  const fiches = useMemo(
+    () => all.filter((f) => matchesIndicator(query, f.numero, f.recherche)),
+    [all, query],
+  );
   const groups = useMemo(
     () =>
       Array.from(new Set(fiches.map((f) => f.critere.numero))).sort(
@@ -181,14 +190,14 @@ export default function IndicateursPage() {
       ),
     [fiches],
   );
-  const fiche = fiches.find((f) => f.numero === selected) ?? null;
-  const order = fiches.map((f) => f.numero);
+  const fiche = all.find((f) => f.numero === selected) ?? null;
+  const order = all.map((f) => f.numero);
   const move = (d: number) => {
     if (!fiche) return;
     const idx = order.indexOf(fiche.numero);
     open(order[(idx + d + order.length) % order.length]);
   };
-  const applicable = fiches.filter(
+  const applicable = all.filter(
     (f) => f.etat !== 'NON_APPLICABLE' && f.etat !== 'A_VENIR',
   );
 
@@ -229,6 +238,24 @@ export default function IndicateursPage() {
       <Content className="block">
         <div className="container-fluid space-y-5">
           <Refusal error={error} />
+          {data && (
+            <div className="relative max-w-sm">
+              <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
+              <Input
+                variant="sm"
+                placeholder="Rechercher : nom, n° ou code (I04)…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="ps-9"
+                aria-label="Rechercher un indicateur"
+              />
+            </div>
+          )}
+          {data && fiches.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Aucun indicateur ne correspond à « {query} ».
+            </p>
+          )}
           {isLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -257,9 +284,7 @@ export default function IndicateursPage() {
             <>
               <SheetHeader className="border-b border-border py-3.5 px-5">
                 <SheetTitle className="flex items-center gap-2.5 pe-8">
-                  <span className="min-w-0 truncate">
-                    {CRITERIA[fiche.critere.numero]?.name}
-                  </span>
+                  <span className="min-w-0 truncate">{fiche.critere.nom}</span>
                   <span className="text-xs font-normal text-muted-foreground shrink-0">
                     Indicateur {fiche.numero}
                   </span>
