@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Plus } from 'lucide-react';
@@ -85,8 +85,7 @@ function NavItems({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   const { sidebarCollapse } = useLayout();
 
-  const matchPath = (path: string) =>
-    path === pathname || (path.length > 1 && pathname.startsWith(path));
+  const matchPath = (path: string) => matches(path, pathname);
 
   return (
     <AccordionMenu
@@ -113,9 +112,43 @@ function NavItems({ items }: { items: NavItem[] }) {
   );
 }
 
+const matches = (path: string, pathname: string) =>
+  path === pathname || (path.length > 1 && pathname.startsWith(path));
+
+// Rubriques repliées par défaut : seule celle de la page en cours s'ouvre ; les choix de l'utilisateur
+// sont gardés dans le navigateur.
+const STORAGE_KEY = 'gsms.sidebar.sections';
+
+function readOpenSections(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
 function NavGroup({ section }: { section: NavSection }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const pathname = usePathname();
+  const active = section.items.some((item) => matches(item.path, pathname));
+  const [isOpen, setIsOpen] = useState(active);
   const { sidebarCollapse } = useLayout();
+
+  useEffect(() => {
+    const saved = readOpenSections()[section.id];
+    setIsOpen(active || saved === true);
+  }, [active, section.id]);
+
+  const toggle = (open: boolean) => {
+    setIsOpen(open);
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...readOpenSections(), [section.id]: open }),
+      );
+    } catch {
+      // stockage indisponible : l'état reste valable pour la page en cours
+    }
+  };
 
   // Sidebar repliée : on garde uniquement les icônes des entrées
   if (sidebarCollapse) {
@@ -129,11 +162,11 @@ function NavGroup({ section }: { section: NavSection }) {
   return (
     <Collapsible
       open={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={toggle}
       className="px-(--sidebar-space-x)"
     >
-      <CollapsibleTrigger className="flex w-full items-center justify-start h-8 px-2 gap-2.5 text-sm text-muted-foreground hover:text-foreground">
-        <ChevronRight className="ms-0.25 size-3.5 in-data-[state=open]:rotate-90" />
+      <CollapsibleTrigger className="group/section flex w-full items-center justify-start h-8 px-2 gap-2.5 text-sm text-muted-foreground hover:text-foreground">
+        <ChevronRight className="ms-0.25 size-3.5 group-data-[state=open]/section:rotate-90" />
         <span>{section.title}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>

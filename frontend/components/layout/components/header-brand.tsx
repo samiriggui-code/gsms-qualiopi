@@ -51,7 +51,7 @@ export function HeaderBrand() {
             <SheetHeader className="p-0 space-y-0">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
             </SheetHeader>
-            <SheetBody className="flex flex-col grow p-0 [--sidebar-space-x:calc(var(--spacing)*2.5)]">
+            <SheetBody className="flex flex-col grow min-h-0 p-0 [--sidebar-space-x:calc(var(--spacing)*2.5)]">
               <SidebarContent />
             </SheetBody>
           </SheetContent>
