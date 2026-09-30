@@ -11,6 +11,7 @@ import {
   BookOpenCheck,
   ChevronLeft,
   ChevronRight,
+  Info,
   Printer,
   Sparkles,
   Target,
@@ -19,6 +20,13 @@ import { formatDate } from '@/lib/format';
 import { useCarnet, type Carnet, type CarnetFiche } from '@/lib/gsms/carnet';
 import { useSessions } from '@/lib/gsms/sessions';
 import { cn } from '@/lib/utils';
+import {
+  Alert,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -41,13 +49,13 @@ const PANE =
 const SCROLL_FIX = '[&_[data-radix-scroll-area-viewport]>div]:!block';
 const ORG = 'organisme';
 const DOT: Record<string, string> = {
-  DEMONTRABLE: 'bg-emerald-500',
-  A_RISQUE: 'bg-amber-500',
-  PREUVES_INSUFFISANTES: 'bg-red-500',
+  DEMONTRABLE: 'bg-green-500',
+  A_RISQUE: 'bg-yellow-500',
+  PREUVES_INSUFFISANTES: 'bg-destructive',
   NON_EVALUABLE: 'bg-sky-500',
   NON_EVALUE: 'bg-zinc-400',
   NON_APPLICABLE: 'bg-zinc-200 dark:bg-zinc-700',
-  A_VENIR: 'bg-blue-500',
+  A_VENIR: 'bg-primary',
 };
 
 type Filter = 'tous' | 'a_traiter' | 'v10';
@@ -191,13 +199,18 @@ function Rail({
                       {f.titre || f.evolution?.enonce}
                     </span>
                     {f.ecarts.length > 0 && (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-1.5 text-[11px] font-medium text-amber-700 tabular-nums dark:bg-amber-950 dark:text-amber-300">
+                      <Badge
+                        size="xs"
+                        variant="warning"
+                        appearance="light"
+                        className="shrink-0"
+                      >
                         {f.ecarts.length}
-                      </span>
+                      </Badge>
                     )}
                     {changes(f) && (
                       <Sparkles
-                        className="size-3 shrink-0 text-blue-500"
+                        className="size-3 shrink-0 text-primary"
                         aria-label="Change à la prochaine version"
                       />
                     )}
@@ -242,18 +255,26 @@ function Welcome({ data }: { data: Carnet }) {
         </p>
       </div>
       {data.prochaine_version && (
-        <div className="flex max-w-lg items-start gap-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 p-4 text-start text-sm">
-          <Badge variant="primary" size="sm" className="shrink-0">
-            {data.prochaine_version.version}
-          </Badge>
-          <span className="text-foreground">
-            Au {formatDate(data.prochaine_version.en_vigueur_le)} : {deep}{' '}
-            exigence{deep > 1 ? 's' : ''} modifiée
-            {deep > 1 ? 's' : ''} sur le fond
-            {created ? `, ${created} indicateur créé` : ''}. Filtre «{' '}
-            {data.prochaine_version.version} » pour les voir.
-          </span>
-        </div>
+        <Alert
+          variant="info"
+          appearance="light"
+          size="sm"
+          className="max-w-lg text-start"
+        >
+          <AlertIcon>
+            <Info />
+          </AlertIcon>
+          <AlertContent>
+            <AlertTitle>{data.prochaine_version.version}</AlertTitle>
+            <AlertDescription>
+              Au {formatDate(data.prochaine_version.en_vigueur_le)} : {deep}{' '}
+              exigence{deep > 1 ? 's' : ''} modifiée
+              {deep > 1 ? 's' : ''} sur le fond
+              {created ? `, ${created} indicateur créé` : ''}. Filtre «{' '}
+              {data.prochaine_version.version} » pour les voir.
+            </AlertDescription>
+          </AlertContent>
+        </Alert>
       )}
       <p className="flex max-w-lg items-start gap-2 text-start text-xs text-muted-foreground">
         <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />{' '}

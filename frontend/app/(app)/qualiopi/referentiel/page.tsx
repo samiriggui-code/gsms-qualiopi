@@ -12,25 +12,30 @@ import {
   BookOpenCheck,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
   ClipboardList,
-  FileCheck2,
   GraduationCap,
   Info,
   ListChecks,
   Megaphone,
   MessagesSquare,
   Network,
-  Sparkles,
   Target,
   Users,
   Wrench,
 } from 'lucide-react';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardHeading,
+  CardTitle,
+  CardToolbar,
+} from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -49,61 +54,32 @@ import {
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
-import { STATE_BAR, stateBadge } from '../carnet/fiche';
+import { stateBadge } from '../carnet/fiche';
 import { IndicatorBody } from '../carnet/indicator-body';
 
 // Nom court et pictogramme de chaque critère (repères d'interface ; le titre officiel reste affiché dessous).
-const CRITERIA: Record<
-  number,
-  { name: string; icon: React.ElementType; tone: string }
-> = {
-  1: {
-    name: 'Informer le public',
-    icon: Megaphone,
-    tone: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-  },
-  2: {
-    name: 'Concevoir la formation',
-    icon: Target,
-    tone: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
-  },
-  3: {
-    name: 'Accueillir, suivre, évaluer',
-    icon: Users,
-    tone: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  },
-  4: {
-    name: 'Moyens et encadrement',
-    icon: Wrench,
-    tone: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  },
-  5: {
-    name: 'Compétences des équipes',
-    icon: GraduationCap,
-    tone: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300',
-  },
-  6: {
-    name: 'Environnement professionnel',
-    icon: Network,
-    tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
-  },
-  7: {
-    name: 'Appréciations et réclamations',
-    icon: MessagesSquare,
-    tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
-  },
+// Nom court et pictogramme de chaque critère (repères d'interface ; le titre officiel reste affiché dessous).
+const CRITERIA: Record<number, { name: string; icon: React.ElementType }> = {
+  1: { name: 'Informer le public', icon: Megaphone },
+  2: { name: 'Concevoir la formation', icon: Target },
+  3: { name: 'Accueillir, suivre, évaluer', icon: Users },
+  4: { name: 'Moyens et encadrement', icon: Wrench },
+  5: { name: 'Compétences des équipes', icon: GraduationCap },
+  6: { name: 'Environnement professionnel', icon: Network },
+  7: { name: 'Appréciations et réclamations', icon: MessagesSquare },
 };
 
-const ACCENT: Record<string, string> = {
-  DEMONTRABLE: 'border-t-emerald-500',
-  A_RISQUE: 'border-t-amber-500',
-  PREUVES_INSUFFISANTES: 'border-t-red-500',
-  NON_EVALUABLE: 'border-t-sky-500',
-  NON_EVALUE: 'border-t-zinc-400',
-  NON_APPLICABLE: 'border-t-zinc-200 dark:border-t-zinc-700',
-  A_VENIR: 'border-t-blue-500',
+const DOT: Record<string, string> = {
+  DEMONTRABLE: 'bg-green-500',
+  A_RISQUE: 'bg-yellow-500',
+  PREUVES_INSUFFISANTES: 'bg-destructive',
+  NON_EVALUABLE: 'bg-violet-500',
+  NON_EVALUE: 'bg-muted-foreground',
+  NON_APPLICABLE: 'bg-muted-foreground/40',
+  A_VENIR: 'bg-primary',
 };
 
+// Carte compacte de la démo (app/ai/components/chat-starter-actions.tsx), quatre par rangée.
 function IndicatorCard({
   fiche,
   onOpen,
@@ -112,109 +88,98 @@ function IndicatorCard({
   onOpen: () => void;
 }) {
   const s = stateBadge(fiche.etat);
-  const na = fiche.etat === 'NON_APPLICABLE';
-  const text = fiche.enonce || fiche.evolution?.enonce || '';
+  const Icon = CRITERIA[fiche.critere.numero]?.icon ?? ClipboardList;
+  const meta = [
+    `Indicateur ${fiche.numero}`,
+    fiche.etat !== 'NON_APPLICABLE' && fiche.etat !== 'A_VENIR'
+      ? `${fiche.preuves.exploitables} preuves`
+      : s.label,
+    fiche.ecarts.length
+      ? `${fiche.ecarts.length} écart${fiche.ecarts.length > 1 ? 's' : ''}`
+      : null,
+  ].filter(Boolean);
   return (
-    <button type="button" onClick={onOpen} className="text-start group">
-      <Card
-        className={cn(
-          'h-full border-t-4 transition-shadow group-hover:shadow-md group-focus-visible:ring-2 group-focus-visible:ring-ring',
-          ACCENT[fiche.etat],
-          na && 'opacity-60',
-        )}
-      >
-        <CardContent className="flex h-full flex-col gap-2.5 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-sm font-semibold leading-snug text-foreground">
-              {fiche.titre || 'Nouvel indicateur'}
-            </span>
-            {fiche.evolution && fiche.evolution.ampleur !== 'REDACTION' && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Sparkles className="size-3.5 shrink-0 text-blue-500" />
-                </TooltipTrigger>
-                <TooltipContent>Change au 1er novembre 2026</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-          <p className="line-clamp-3 text-xs text-muted-foreground">{text}</p>
-          <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 text-xs text-muted-foreground">
-            <Badge size="sm" className={s.color}>
-              {s.label}
-            </Badge>
-            {!na && fiche.etat !== 'A_VENIR' && (
-              <span className="inline-flex items-center gap-1">
-                <FileCheck2 className="size-3" /> {fiche.preuves.exploitables}
-              </span>
-            )}
-            {fiche.ecarts.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-amber-600">
-                <CircleAlert className="size-3" /> {fiche.ecarts.length}
-              </span>
-            )}
-            <span className="ms-auto tabular-nums">
-              Indicateur {fiche.numero}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+      className={cn(
+        'flex flex-row items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-none',
+        fiche.etat === 'NON_APPLICABLE' && 'opacity-60',
+      )}
+    >
+      <div className="flex items-center justify-center size-9 shrink-0 bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <Icon className="size-4 text-gray-700 dark:text-white" />
+      </div>
+      <div className="flex flex-col gap-0.5 min-w-0 grow">
+        <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+          {fiche.titre || 'Nouvel indicateur'}
+        </h3>
+        <p className="text-xs text-muted-foreground truncate">
+          {meta.join(' · ')}
+        </p>
+      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <BadgeDot className={cn('size-2 shrink-0', DOT[fiche.etat])} />
+        </TooltipTrigger>
+        <TooltipContent>{s.label}</TooltipContent>
+      </Tooltip>
+    </Card>
   );
 }
 
-function CriterionHeader({
+function CriterionCard({
   numero,
   titre,
   fiches,
+  onOpen,
 }: {
   numero: number;
   titre: string | null;
   fiches: CarnetFiche[];
+  onOpen: (n: number) => void;
 }) {
-  const c = CRITERIA[numero] ?? {
-    name: `Critère ${numero}`,
-    icon: ClipboardList,
-    tone: 'bg-muted text-foreground',
-  };
   const applicable = fiches.filter(
     (f) => f.etat !== 'NON_APPLICABLE' && f.etat !== 'A_VENIR',
   );
   const ok = applicable.filter((f) => f.etat === 'DEMONTRABLE').length;
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div
-        className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-lg',
-          c.tone,
-        )}
-      >
-        <c.icon className="size-5" />
-      </div>
-      <div className="min-w-0 grow">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <h2 className="text-base font-semibold text-foreground">{c.name}</h2>
-          <span className="text-xs text-muted-foreground">
-            Critère {numero}
-          </span>
+    <Card>
+      <CardHeader>
+        <CardHeading>
+          <CardTitle>
+            {CRITERIA[numero]?.name ?? `Critère ${numero}`}{' '}
+            <span className="text-sm font-normal text-muted-foreground">
+              · Critère {numero}
+            </span>
+          </CardTitle>
+          {titre && (
+            <CardDescription className="line-clamp-1">{titre}</CardDescription>
+          )}
+        </CardHeading>
+        <CardToolbar>
+          <Badge
+            variant={ok === applicable.length ? 'success' : 'secondary'}
+            appearance="light"
+          >
+            {ok}/{applicable.length} démontrables
+          </Badge>
+        </CardToolbar>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {fiches.map((f) => (
+            <IndicatorCard
+              key={f.numero}
+              fiche={f}
+              onOpen={() => onOpen(f.numero)}
+            />
+          ))}
         </div>
-        {titre && (
-          <p className="line-clamp-1 text-xs text-muted-foreground">{titre}</p>
-        )}
-      </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <div className="flex h-1.5 w-24 gap-0.5 overflow-hidden rounded-full bg-muted">
-          {STATE_BAR.map((s) => {
-            const n = applicable.filter((f) => f.etat === s.key).length;
-            return n ? (
-              <div key={s.key} className={s.bar} style={{ flexGrow: n }} />
-            ) : null;
-          })}
-        </div>
-        <span className="tabular-nums">
-          {ok}/{applicable.length}
-        </span>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -258,6 +223,12 @@ export default function IndicateursPage() {
             </Badge>
           )}
           {data && (
+            <span className="text-xs font-normal text-muted-foreground">
+              {applicable.filter((f) => f.etat === 'DEMONTRABLE').length}{' '}
+              démontrables sur {applicable.length}
+            </span>
+          )}
+          {data && (
             <Tooltip>
               <TooltipTrigger>
                 <Info className="size-3.5 text-muted-foreground" />
@@ -275,50 +246,25 @@ export default function IndicateursPage() {
         </Button>
       </ContentHeader>
       <Content className="block">
-        <div className="container-fluid space-y-8">
+        <div className="container-fluid space-y-5">
           <Refusal error={error} />
           {isLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-40" />
-              ))}
-            </div>
-          )}
-          {data && (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-              <span>
-                <span className="text-base font-semibold text-foreground tabular-nums">
-                  {applicable.filter((f) => f.etat === 'DEMONTRABLE').length}
-                </span>{' '}
-                démontrables sur {applicable.length} applicables
-              </span>
-              {STATE_BAR.map((s) => (
-                <span key={s.key} className="inline-flex items-center gap-1.5">
-                  <span className={cn('size-2 rounded-full', s.bar)} />
-                  {s.label}
-                </span>
+                <Skeleton key={i} className="h-16" />
               ))}
             </div>
           )}
           {groups.map((n) => {
             const items = fiches.filter((f) => f.critere.numero === n);
             return (
-              <section key={n} className="space-y-4">
-                <CriterionHeader
-                  numero={n}
-                  titre={items[0]?.critere.titre ?? null}
-                  fiches={items}
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                  {items.map((f) => (
-                    <IndicatorCard
-                      key={f.numero}
-                      fiche={f}
-                      onOpen={() => open(f.numero)}
-                    />
-                  ))}
-                </div>
-              </section>
+              <CriterionCard
+                key={n}
+                numero={n}
+                titre={items[0]?.critere.titre ?? null}
+                fiches={items}
+                onOpen={open}
+              />
             );
           })}
         </div>

@@ -8,14 +8,22 @@ import {
   ArrowUpRight,
   CircleAlert,
   FileCheck2,
-  Sparkles,
+  Info,
+  TriangleAlert,
   Wrench,
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import { type CarnetFiche } from '@/lib/gsms/carnet';
 import { READINESS, TONE } from '@/lib/gsms/labels';
 import { cn } from '@/lib/utils';
-import { Badge, BadgeDot } from '@/components/ui/badge';
+import {
+  Alert,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -32,12 +40,12 @@ import {
 } from '@/components/ui/collapsible';
 
 export const STATE_BAR: { key: string; label: string; bar: string }[] = [
-  { key: 'DEMONTRABLE', label: 'Démontrables', bar: 'bg-emerald-500' },
-  { key: 'A_RISQUE', label: 'À risque', bar: 'bg-amber-500' },
+  { key: 'DEMONTRABLE', label: 'Démontrables', bar: 'bg-green-500' },
+  { key: 'A_RISQUE', label: 'À risque', bar: 'bg-yellow-500' },
   {
     key: 'PREUVES_INSUFFISANTES',
     label: 'Preuves insuffisantes',
-    bar: 'bg-red-500',
+    bar: 'bg-destructive',
   },
   { key: 'NON_EVALUABLE', label: 'Revue humaine', bar: 'bg-sky-500' },
   { key: 'NON_EVALUE', label: 'Non évalués', bar: 'bg-zinc-400' },
@@ -73,21 +81,24 @@ export function GuideBlock({
   section: string;
   texte: string;
 }) {
-  const nc = section === 'Non-conformité';
+  if (section === 'Non-conformité') {
+    return (
+      <Alert variant="destructive" appearance="light" size="sm">
+        <AlertIcon>
+          <TriangleAlert />
+        </AlertIcon>
+        <AlertContent>
+          <AlertTitle>Non-conformité</AlertTitle>
+          <AlertDescription className="whitespace-pre-line">
+            {texte}
+          </AlertDescription>
+        </AlertContent>
+      </Alert>
+    );
+  }
   return (
-    <div
-      className={cn(
-        'space-y-1',
-        nc &&
-          'rounded-md border border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 p-3',
-      )}
-    >
-      <div
-        className={cn(
-          'text-xs font-medium uppercase tracking-wide',
-          nc ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground',
-        )}
-      >
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-muted-foreground">
         {GUIDE_TITLES[section] ?? section}
       </div>
       <div className="text-sm text-secondary-foreground whitespace-pre-line">
@@ -115,34 +126,44 @@ export function Evolution({
         ? `Exigence modifiée au ${formatDate(date)}`
         : `Rédaction ajustée au ${formatDate(date)}`;
   return (
-    <div className="rounded-md border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 p-3 space-y-1.5 break-inside-avoid">
-      <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-blue-700 dark:text-blue-300">
-        <Sparkles className="size-3.5" /> {label} ({version})
-      </div>
-      <p className="text-sm text-foreground">
-        {e.segments?.length
-          ? e.segments.map((s, i) =>
-              s.ajout ? (
-                <React.Fragment key={i}>
-                  <mark className="bg-blue-200/70 dark:bg-blue-800/60 text-foreground rounded-sm px-0.5">
-                    {s.texte}
-                  </mark>{' '}
-                </React.Fragment>
-              ) : (
-                <span key={i}>{s.texte} </span>
-              ),
-            )
-          : e.enonce}
-      </p>
-      {e.prestations && e.type === 'NOUVEAU' && (
-        <p className="text-xs text-muted-foreground">{e.prestations}</p>
-      )}
-      {e.segments?.some((s) => s.ajout) && (
-        <p className="text-xs text-muted-foreground">
-          Surligné : ce qui est ajouté ou reformulé dans le nouveau texte.
-        </p>
-      )}
-    </div>
+    <Alert
+      variant="info"
+      appearance="light"
+      size="sm"
+      className="break-inside-avoid"
+    >
+      <AlertIcon>
+        <Info />
+      </AlertIcon>
+      <AlertContent>
+        <AlertTitle>
+          {label} ({version})
+        </AlertTitle>
+        <AlertDescription>
+          <p>
+            {e.segments?.length
+              ? e.segments.map((s, i) =>
+                  s.ajout ? (
+                    <React.Fragment key={i}>
+                      <strong className="font-semibold text-foreground">
+                        {s.texte}
+                      </strong>{' '}
+                    </React.Fragment>
+                  ) : (
+                    <span key={i}>{s.texte} </span>
+                  ),
+                )
+              : e.enonce}
+          </p>
+          {e.prestations && e.type === 'NOUVEAU' && (
+            <p className="mt-1">{e.prestations}</p>
+          )}
+          {e.segments?.some((s) => s.ajout) && (
+            <p className="mt-1">En gras : ce qui est ajouté ou reformulé.</p>
+          )}
+        </AlertDescription>
+      </AlertContent>
+    </Alert>
   );
 }
 
@@ -246,17 +267,9 @@ export function Fiche({
                         <Badge
                           key={p.type}
                           size="sm"
-                          variant="outline"
-                          className={cn(
-                            p.disponibles === 0 &&
-                              'border-red-300 text-red-700 dark:text-red-300',
-                          )}
+                          variant={p.disponibles ? 'success' : 'destructive'}
+                          appearance="light"
                         >
-                          <BadgeDot
-                            className={
-                              p.disponibles ? 'bg-emerald-500' : 'bg-red-500'
-                            }
-                          />
                           {p.libelle} · {p.disponibles}
                         </Badge>
                       ))}
@@ -308,10 +321,10 @@ export function Fiche({
               </div>
 
               {fiche.ecarts.length > 0 && (
-                <div className="rounded-md border border-amber-200 dark:border-amber-900">
-                  <div className="flex items-center gap-2 border-b border-amber-200 dark:border-amber-900 px-3 py-2 text-sm font-medium text-foreground">
-                    <CircleAlert className="size-4 text-amber-500" /> Écarts
-                    ouverts ({fiche.ecarts.length})
+                <div className="rounded-md border border-border">
+                  <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-sm font-medium text-foreground">
+                    <CircleAlert className="size-4 text-muted-foreground" />{' '}
+                    Écarts ouverts ({fiche.ecarts.length})
                   </div>
                   <ul className="p-3 space-y-2">
                     {fiche.ecarts.map((e) => (

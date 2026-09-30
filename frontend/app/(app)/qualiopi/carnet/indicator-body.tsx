@@ -14,7 +14,7 @@ import {
 import { formatDate } from '@/lib/format';
 import type { Carnet, CarnetFiche } from '@/lib/gsms/carnet';
 import { cn } from '@/lib/utils';
-import { Badge, BadgeDot } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVIDENCE_STATUS, Evolution, GuideBlock } from './fiche';
@@ -111,17 +111,9 @@ export function IndicatorBody({
                   <Badge
                     key={p.type}
                     size="sm"
-                    variant="outline"
-                    className={cn(
-                      p.disponibles === 0 &&
-                        'border-red-300 text-red-700 dark:text-red-300',
-                    )}
+                    variant={p.disponibles ? 'success' : 'destructive'}
+                    appearance="light"
                   >
-                    <BadgeDot
-                      className={
-                        p.disponibles ? 'bg-emerald-500' : 'bg-red-500'
-                      }
-                    />
                     {p.libelle} · {p.disponibles}
                   </Badge>
                 ))}
@@ -176,7 +168,7 @@ export function IndicatorBody({
               className="rounded-md border border-border p-3 space-y-1.5"
             >
               <div className="flex items-start gap-2">
-                <CircleAlert className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                <CircleAlert className="size-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div className="min-w-0 text-sm text-foreground">
                   {e.titre}
                   <div className="text-xs text-muted-foreground">
