@@ -2,6 +2,7 @@
 
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
@@ -258,6 +259,22 @@ def list_actions(db: DB, user: QualityReader, statut: str | None = None, en_reta
     rows = [a for a in db.scalars(q) if not en_retard or is_late(a, policy.today)]
     findings = {f.id: f for f in db.scalars(select(Finding).where(Finding.id.in_([a.finding_id for a in rows])))} if rows else {}
     return [capa_view(a, findings.get(a.finding_id), policy) for a in rows]
+
+
+@router.get("/qualiopi/ecarts")
+def list_findings(db: DB, user: QualityReader, statut: Annotated[list[str], Query()] = ["OUVERT", "EN_TRAITEMENT"]) -> list[dict]:  # noqa: B006
+    """Écarts (constats) à traiter, pour ouvrir une action corrective depuis le plan d'actions."""
+    policy = CapaPolicy(db, user)
+    rows = list(db.scalars(select(Finding).where(Finding.status.in_(statut))
+                           .order_by(Finding.indicator_number, Finding.reference)))
+    sessions = {s.id: s.reference for s in db.scalars(select(t.TrainingSession).where(
+        t.TrainingSession.id.in_({f.session_id for f in rows if f.session_id})))} if rows else {}
+    return [{
+        "id": f.id, "reference": f.reference, "origine": f.origin, "indicateur": f.indicator_number,
+        "titre": f.title, "explication": f.explanation, "remediation": f.remediation, "gravite": f.severity,
+        "statut": f.status, "session": sessions.get(f.session_id or ""), "constate_le": f.first_seen_at.isoformat(),
+        "ouvrir_action": policy.can_open(f).to_dict(),
+    } for f in rows]
 
 
 def _capa(db, capa_id: str) -> CapaAction:  # noqa: ANN001

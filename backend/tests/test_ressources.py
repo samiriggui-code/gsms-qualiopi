@@ -88,3 +88,18 @@ def test_coordonnees_dans_la_fiche_stagiaire(client, demo: Session) -> None:  # 
     contact = client.get(f"/api/v1/inscriptions/{paul.id}/parcours", headers=h).json()["contact"]
     assert contact["email"] == "paul.lambert@acme.exemple"
     assert set(contact) == {"email", "telephone", "entreprise", "financement", "inscrit_le"}
+
+
+def test_plan_d_actions_depuis_les_ecarts(client, demo: Session) -> None:  # noqa: ANN001
+    _, h = make_user(demo, "qualite")
+    assert client.post("/api/v1/qualiopi/evaluate", headers=h).status_code == 200
+    ecarts = client.get("/api/v1/qualiopi/ecarts", headers=h).json()
+    assert ecarts and ecarts[0]["ouvrir_action"]["allowed"] is True
+    body = {"titre": "Compléter les convocations", "plan": "Relancer et joindre", "responsable": "Mme Qualité",
+            "echeance": "2099-01-01"}
+    capa = client.post(f"/api/v1/qualiopi/ecarts/{ecarts[0]['id']}/actions", json=body, headers=h).json()
+    assert capa["statut"] == "OUVERTE" and capa["capabilities"]["demarrer"]["allowed"]
+    r = client.post(f"/api/v1/qualiopi/actions/{capa['id']}/demarrer", json={}, headers=h)
+    assert r.json()["statut"] == "EN_COURS"
+    suivants = client.get("/api/v1/qualiopi/ecarts", headers=h).json()
+    assert next(e for e in suivants if e["id"] == ecarts[0]["id"])["statut"] == "EN_TRAITEMENT"
