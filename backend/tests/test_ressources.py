@@ -116,3 +116,19 @@ def test_carnet_d_audit(client, demo: Session) -> None:  # noqa: ANN001
     assert {g["section"] for g in i4["guide"]} >= {"Exemples de preuves", "Non-conformité"}
     assert all(set(p) >= {"reference", "statut", "type"} for p in i4["preuves"]["liste"])
     assert any(f["ecarts"] for f in fiches.values())
+
+
+def test_carnet_d_une_session(client, demo: Session) -> None:  # noqa: ANN001
+    from tests.conftest import find_session
+
+    _, h = make_user(demo, "qualite")
+    client.post("/api/v1/qualiopi/evaluate", headers=h)
+    s = find_session(demo, "SST-2026-02")
+    book = client.get("/api/v1/qualiopi/carnet", params={"session_id": s.id}, headers=h).json()
+    assert book["session"]["reference"] == "SST-2026-02"
+    whole = {f["numero"]: f for f in client.get("/api/v1/qualiopi/carnet", headers=h).json()["fiches"]}
+    for f in book["fiches"]:
+        assert f["preuves"]["total"] <= whole[f["numero"]]["preuves"]["total"]
+    i4 = next(f for f in book["fiches"] if f["numero"] == 4)
+    assert i4["preuves"]["liste"] and all("SST-2026-02" in p["libelle"] for p in i4["preuves"]["liste"])
+    assert client.get("/api/v1/qualiopi/carnet", params={"session_id": "inconnue"}, headers=h).status_code == 404

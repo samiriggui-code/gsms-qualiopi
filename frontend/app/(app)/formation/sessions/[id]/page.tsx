@@ -3,7 +3,7 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Ellipsis, LoaderCircleIcon, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { BookOpenCheck, CalendarDays, Ellipsis, LoaderCircleIcon, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SESSION_STATUS, SESSION_TRANSITIONS } from '@/lib/gsms/labels';
 import { useDeleteSession, useSession, useSessionTransition } from '@/lib/gsms/sessions';
@@ -116,6 +116,11 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled={!caps.edit?.allowed} onSelect={() => setEditOpen(true)}>
                   <Pencil /> Modifier la session
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/qualiopi/carnet?session=${session.id}`}>
+                    <BookOpenCheck /> Carnet d’audit de la session
+                  </Link>
                 </DropdownMenuItem>
                 {TRANSITION_ORDER.filter((a) => a !== nextTransition && caps[a]?.allowed).map((a) => (
                   <DropdownMenuItem key={a} onSelect={() => run(a)}>

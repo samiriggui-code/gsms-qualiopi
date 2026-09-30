@@ -252,9 +252,16 @@ def indicator(number: int, db: DB, user: QualityReader) -> dict:
 
 
 @router.get("/qualiopi/carnet")
-def audit_book(db: DB, _: QualityReader) -> dict:
-    """Carnet d'audit : une fiche par indicateur (textes officiels, état, preuves réunies, écarts, évolutions)."""
-    return carnet(db, active_version(db))
+def audit_book(db: DB, _: QualityReader, session_id: str | None = None) -> dict:
+    """Carnet d'audit : une fiche par indicateur (textes officiels, état, preuves réunies, écarts, évolutions).
+
+    Avec `session_id` : le carnet de l'audit de cette session (ses preuves et celles héritées)."""
+    session = None
+    if session_id:
+        session = db.get(t.TrainingSession, session_id)
+        if session is None:
+            raise NotFoundError("Session introuvable")
+    return carnet(db, active_version(db), session=session)
 
 
 @router.get("/qualiopi/actions")

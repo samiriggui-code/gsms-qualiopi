@@ -64,9 +64,21 @@ def upcoming_version(db: Session, active: ReferentialVersion, today: date) -> Re
         ReferentialVersion.effective_from > today).order_by(ReferentialVersion.effective_from))
 
 
-def carnet(db: Session, active: ReferentialVersion, today: date | None = None) -> dict:
+def _in_session(s: t.TrainingSession, *, session_id: str | None, scope: str, program_id: str | None = None,
+                trainer_id: str | None = None) -> bool:
+    """Élément à présenter pour l'audit de cette session : le sien, celui de sa formation, de son formateur,
+    ou celui de l'organisme (hérité)."""
+    return (session_id == s.id or scope == "ORGANISME"
+            or (scope == "FORMATION" and program_id == s.program_id)
+            or (scope == "FORMATEUR" and trainer_id is not None and trainer_id == s.trainer_id))
+
+
+def carnet(db: Session, active: ReferentialVersion, today: date | None = None,
+           session: t.TrainingSession | None = None) -> dict:
+    """Carnet de l'organisme ; avec `session`, celui de l'audit d'une session (ses éléments et ceux hérités
+    de sa formation, de son formateur et de l'organisme)."""
     today = today or date.today()
-    readiness = {r["number"]: r for r in indicator_readiness(db, active)}
+    readiness = {r["number"]: r for r in indicator_readiness(db, active, session=session)}
     criteria = {c.number: c.title for c in active.criteria}
     upcoming = upcoming_version(db, active, today)
     next_by_number = {i.number: i for i in upcoming.indicators} if upcoming else {}
@@ -79,11 +91,18 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None) -
                Evidence.status != "RETIREE")
         .order_by(Evidence.produced_on.desc().nullslast(), Evidence.reference.desc()))
     for number, ev in rows:
-        evidence[number].append(ev)
+        if session is None or _in_session(session, session_id=ev.session_id, scope=ev.scope,
+                                          program_id=ev.program_id, trainer_id=ev.trainer_id):
+            evidence[number].append(ev)
 
     findings: dict[int, list[Finding]] = defaultdict(list)
     open_findings = list(db.scalars(select(Finding).where(Finding.status.in_(("OUVERT", "EN_TRAITEMENT")))
                                     .order_by(Finding.first_seen_at)))
+    if session is not None:
+        open_findings = [f for f in open_findings if _in_session(
+            session, session_id=f.session_id, scope=f.target_type,
+            program_id=f.target_id if f.target_type == "FORMATION" else None,
+            trainer_id=f.target_id if f.target_type == "FORMATEUR" else None)]
     for f in open_findings:
         findings[f.indicator_number].append(f)
     capas: dict[str, list[CapaAction]] = defaultdict(list)
@@ -157,6 +176,9 @@ def carnet(db: Session, active: ReferentialVersion, today: date | None = None) -
                         "source": active.source_label},
         "prochaine_version": {"version": upcoming.version, "en_vigueur_le": upcoming.effective_from.isoformat(),
                               "source": upcoming.source_label} if upcoming else None,
+        "session": {"id": session.id, "reference": session.reference,
+                    "formation": session.program.title if session.program else None,
+                    "debut": session.start_date.isoformat(), "fin": session.end_date.isoformat()} if session else None,
         "edite_le": today.isoformat(),
         "fiches": fiches,
         "avertissement": "État de préparation calculé à partir des preuves disponibles. Ne constitue pas une décision "

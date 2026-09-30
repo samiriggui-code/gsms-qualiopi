@@ -68,13 +68,25 @@ export interface Carnet {
     en_vigueur_le: string;
     source: string;
   } | null;
+  session: {
+    id: string;
+    reference: string;
+    formation: string | null;
+    debut: string;
+    fin: string;
+  } | null;
   edite_le: string;
   fiches: CarnetFiche[];
   avertissement: string;
 }
 
-export const useCarnet = () =>
+export const useCarnet = (sessionId?: string) =>
   useQuery({
-    queryKey: ['qualiopi', 'carnet'],
-    queryFn: () => api.get<Carnet>('qualiopi/carnet'),
+    queryKey: ['qualiopi', 'carnet', sessionId ?? 'organisme'],
+    queryFn: () =>
+      api.get<Carnet>(
+        sessionId
+          ? `qualiopi/carnet?session_id=${encodeURIComponent(sessionId)}`
+          : 'qualiopi/carnet',
+      ),
   });
