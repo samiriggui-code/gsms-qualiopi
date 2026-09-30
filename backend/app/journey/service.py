@@ -274,6 +274,14 @@ def _timing(step: dict, e: t.Enrollment, today: date) -> dict:
     return {"etat": state, "echeance": due.isoformat()}
 
 
+def _contact(db: Session, e: t.Enrollment) -> dict:
+    """Coordonnées affichées dans la fiche stagiaire."""
+    company_id = e.company_id or e.learner.company_id
+    company = db.get(t.Company, company_id) if company_id else None
+    return {"email": e.learner.email, "telephone": e.learner.phone, "entreprise": company.name if company else None,
+            "financement": e.funding, "inscrit_le": _d(e.created_at.date()) if e.created_at else None}
+
+
 def journey_view(db: Session, e: t.Enrollment, user: User | None, today: date | None = None) -> dict:
     """Où en est le stagiaire, étape par étape, ce qui est possible maintenant, et les documents émis."""
     today = today or date.today()
@@ -308,6 +316,7 @@ def journey_view(db: Session, e: t.Enrollment, user: User | None, today: date | 
         step.update(_timing(step, e, today))
     return {
         "inscription": e.id, "stagiaire": e.learner.full_name, "session": s.reference, "statut": e.status,
+        "contact": _contact(db, e),
         "abandon": {"le": _d(e.abandoned_on), "motif": e.abandon_reason} if e.status in ("ABANDON", "ANNULE") else None,
         "etapes": steps,
         "assiduite": documents.attendance_summary(e),

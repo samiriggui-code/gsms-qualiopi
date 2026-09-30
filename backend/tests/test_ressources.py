@@ -78,3 +78,13 @@ def test_activite_d_une_session(client, demo: Session) -> None:  # noqa: ANN001
     last = after[0]
     assert last["evenement"] == "assessment.completed" and last["qui"].startswith("Test gestion")
     assert last["action"] == "a évalué" and last["stagiaire"] == "Noah Clement"
+
+
+def test_coordonnees_dans_la_fiche_stagiaire(client, demo: Session) -> None:  # noqa: ANN001
+    from tests.conftest import find_session
+
+    _, h = make_user(demo, "gestion")
+    paul = next(e for e in find_session(demo, "SST-2026-04").enrollments if e.learner.first_name == "Paul")
+    contact = client.get(f"/api/v1/inscriptions/{paul.id}/parcours", headers=h).json()["contact"]
+    assert contact["email"] == "paul.lambert@acme.exemple"
+    assert set(contact) == {"email", "telephone", "entreprise", "financement", "inscrit_le"}

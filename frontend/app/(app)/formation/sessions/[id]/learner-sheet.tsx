@@ -1,10 +1,11 @@
 'use client';
 
+import * as React from 'react';
 import { useState } from 'react';
-import { ChevronLeft, ExternalLink, FileText, User } from 'lucide-react';
+import { Building2, ChevronLeft, ExternalLink, FileText, Mail, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { documentUrl } from '@/lib/api';
-import { formatDate } from '@/lib/format';
+import { formatDate, percent } from '@/lib/format';
 import {
   ACTIONS,
   CONFIRM_TEXT,
@@ -13,18 +14,22 @@ import {
   STEP_ACTIONS,
 } from '@/lib/gsms/journey-actions';
 import { ENROLLMENT_STATUS, STEP_LABEL, STEP_STATE } from '@/lib/gsms/labels';
-import { useJourneyAction, useLearnerJourney } from '@/lib/gsms/sessions';
+import { useJourneyAction, useLearnerJourney, useSessionActivity } from '@/lib/gsms/sessions';
 import type { Decision, GeneratedDocument, JourneyStep, LearnerJourney } from '@/lib/gsms/types';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardToolbar } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ActionForm } from '@/components/gsms/action-form';
 import { ActionGate } from '@/components/gsms/action-gate';
 import { Refusal } from '@/components/gsms/refusal';
 import { StepMark } from '@/components/gsms/step-mark';
+import { ActivityList } from './session-overview';
 
 // Refus qui n'apportent rien à l'utilisateur à cet endroit : le bouton est simplement masqué.
 const HIDDEN = new Set([
@@ -50,117 +55,243 @@ export function LearnerSheet({
   const query = useLearnerJourney(enrollmentId);
   const data = query.data;
 
+  // Grand panneau latéral repris de « Customer Details » (store-inventory/components/customer-details-sheet).
   return (
     <Sheet open={!!enrollmentId} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:w-[600px] sm:max-w-none inset-5 start-auto max-sm:inset-2 max-sm:w-auto h-auto rounded-lg p-0 [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
+      <SheetContent className="gap-0 lg:w-[1160px] sm:max-w-none inset-5 border start-auto max-sm:inset-2 max-sm:w-auto h-auto rounded-lg p-0 [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
         <SheetHeader className="border-b py-3.5 px-5 border-border">
-          <SheetTitle className="flex items-center gap-2.5">
-            <User className="text-primary size-4" />
-            {data ? data.stagiaire : 'Stagiaire'}
-            {data && (
-              <Badge className={ENROLLMENT_STATUS[data.statut].color}>{ENROLLMENT_STATUS[data.statut].label}</Badge>
-            )}
-          </SheetTitle>
+          <SheetTitle className="font-medium">Fiche stagiaire</SheetTitle>
         </SheetHeader>
-        <SheetBody className="p-0">
-          <ScrollArea className="h-[calc(100dvh-7.5rem)]">
-            <div className="p-5">
-              {query.isPending && enrollmentId && (
-                <div className="flex flex-col gap-2">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12" />
-                  ))}
-                </div>
-              )}
-              {query.isError && <Refusal error={query.error} />}
-              {data && enrollmentId && <Body key={enrollmentId} sessionId={sessionId} journey={data} />}
+        <SheetBody className="p-0 grow flex flex-col min-h-0">
+          {query.isPending && enrollmentId && (
+            <div className="flex flex-col gap-2 p-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
             </div>
-          </ScrollArea>
+          )}
+          {query.isError && (
+            <div className="p-5">
+              <Refusal error={query.error} />
+            </div>
+          )}
+          {data && enrollmentId && <Body key={enrollmentId} sessionId={sessionId} journey={data} onClose={onClose} />}
         </SheetBody>
       </SheetContent>
     </Sheet>
   );
 }
 
-// Vue d'ensemble ou saisie d'une étape ; remis à zéro quand on change de stagiaire (key).
-function Body({ sessionId, journey }: { sessionId: string; journey: LearnerJourney }) {
-  const [action, setAction] = useState<string | null>(null);
-  return action ? (
-    <ActionPanel sessionId={sessionId} journey={journey} action={action} onDone={() => setAction(null)} />
-  ) : (
-    <Overview journey={journey} onAction={setAction} />
+function Meta({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <>
+      <span className="font-normal text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
+    </>
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function SideCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border px-3 py-2.5">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold tabular-nums text-mono">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground tabular-nums">{sub}</div>}
+    <Card className="rounded-md shadow-none">
+      <CardHeader className="min-h-[34px] bg-accent/50">
+        <CardTitle className="text-2sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="py-3 space-y-2.5 text-2sm">{children}</CardContent>
+    </Card>
+  );
+}
+
+function Line({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="truncate text-foreground">{children}</span>
     </div>
   );
 }
 
-function Overview({ journey, onAction }: { journey: LearnerJourney; onAction: (a: string) => void }) {
+// En-tête (identité, statut, actions), colonne de coordonnées, onglets ; la saisie d'une étape remplace
+// les onglets. Remis à zéro quand on change de stagiaire (key).
+function Body({ sessionId, journey, onClose }: { sessionId: string; journey: LearnerJourney; onClose: () => void }) {
+  const [action, setAction] = useState<string | null>(null);
   const caps = journey.capabilities;
-  const done = journey.etapes.filter((s) => s.fait).length;
   const statusActions = STATUS_ACTIONS.filter((a) => shown(caps[a]));
+  const done = journey.etapes.filter((s) => s.fait).length;
+  const c = journey.contact;
+  const presence = percent(journey.assiduite.suivies, journey.assiduite.prevues);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="text-sm text-muted-foreground">Session {journey.session}</div>
-      <div className="grid grid-cols-2 gap-3">
-        <Stat label="Étapes faites" value={`${done} / ${journey.etapes.length}`} />
-        <Stat
-          label="Demi-journées suivies"
-          value={`${journey.assiduite.suivies} / ${journey.assiduite.prevues}`}
-          sub={
-            journey.assiduite.heures_suivies
-              ? `${journey.assiduite.heures_suivies} h sur ${journey.assiduite.heures_prevues} h`
-              : undefined
-          }
-        />
+    <>
+      <div className="flex justify-between flex-wrap gap-2 border-b border-border px-5 py-4">
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg lg:text-[22px] font-semibold text-foreground leading-none">{journey.stagiaire}</span>
+            <Badge size="sm" className={ENROLLMENT_STATUS[journey.statut].color}>
+              {ENROLLMENT_STATUS[journey.statut].label}
+            </Badge>
+          </div>
+          <div className="flex items-center flex-wrap gap-2 text-2sm">
+            <Meta label="Session" value={journey.session} />
+            {c?.inscrit_le && (
+              <>
+                <BadgeDot className="bg-muted-foreground size-1" />
+                <Meta label="Inscrit le" value={formatDate(c.inscrit_le)} />
+              </>
+            )}
+            {c?.financement && (
+              <>
+                <BadgeDot className="bg-muted-foreground size-1" />
+                <Meta label="Financement" value={c.financement} />
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center flex-wrap gap-2.5">
+          {statusActions.map((a) => (
+            <ActionGate
+              key={a}
+              decision={caps[a]}
+              size="sm"
+              variant={a === 'annuler' || a === 'abandonner' ? 'destructive' : 'outline'}
+              onRun={() => setAction(a)}
+            >
+              {ACTIONS[a].label}
+            </ActionGate>
+          ))}
+        </div>
       </div>
 
-      {journey.abandon && (
-        <p className="rounded-md bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
-          {journey.statut === 'ANNULE' ? 'Annulée' : `Abandon le ${formatDate(journey.abandon.le)}`}
-          {journey.abandon.motif ? ` — ${journey.abandon.motif}` : ' — motif non renseigné'}
-        </p>
-      )}
-
-      <section>
-        <h3 className="mb-2 text-sm font-semibold text-mono">Parcours</h3>
-        <ol className="flex flex-col divide-y divide-border rounded-lg border border-border">
-          {journey.etapes.map((step) => (
-            <StepRow key={step.etape} step={step} caps={caps} onAction={onAction} />
-          ))}
-        </ol>
-      </section>
-
-      <Documents journey={journey} />
-
-      {statusActions.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-mono">Statut de l’inscription</h3>
-          <div className="flex flex-wrap gap-2">
-            {statusActions.map((a) => (
-              <ActionGate
-                key={a}
-                decision={caps[a]}
-                size="sm"
-                variant={a === 'annuler' || a === 'abandonner' ? 'destructive' : 'outline'}
-                onRun={() => onAction(a)}
-              >
-                {ACTIONS[a].label}
-              </ActionGate>
-            ))}
+      <ScrollArea
+        className="flex flex-col lg:h-[calc(100dvh-15.8rem)] max-lg:flex-1 max-lg:min-h-0 mx-1.5 [&_[data-radix-scroll-area-viewport]>div]:!block"
+      >
+        <div className="flex flex-wrap lg:flex-nowrap px-3.5 grow">
+          <div className="w-full shrink-0 lg:w-[280px] py-5 lg:pe-5 space-y-4">
+            <SideCard title="Coordonnées">
+              <Line icon={Mail}>{c?.email ?? 'E-mail non renseigné'}</Line>
+              <Line icon={Phone}>{c?.telephone ?? 'Téléphone non renseigné'}</Line>
+              <Line icon={Building2}>{c?.entreprise ?? 'Sans entreprise'}</Line>
+            </SideCard>
+            <SideCard title="Avancement du parcours">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Étapes faites</span>
+                <span className="font-semibold text-foreground tabular-nums">
+                  {done} / {journey.etapes.length}
+                </span>
+              </div>
+              <Progress value={percent(done, journey.etapes.length)} className="h-1.5" />
+            </SideCard>
+            <SideCard title="Assiduité">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Demi-journées suivies</span>
+                <span className="font-semibold text-foreground tabular-nums">
+                  {journey.assiduite.suivies} / {journey.assiduite.prevues}
+                </span>
+              </div>
+              <Progress value={presence} className="h-1.5" />
+              {journey.assiduite.heures_suivies && (
+                <div className="text-muted-foreground tabular-nums">
+                  {journey.assiduite.heures_suivies} h sur {journey.assiduite.heures_prevues} h
+                </div>
+              )}
+            </SideCard>
+            {journey.abandon && (
+              <p className="rounded-md bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+                {journey.statut === 'ANNULE' ? 'Annulée' : `Abandon le ${formatDate(journey.abandon.le)}`}
+                {journey.abandon.motif ? ` — ${journey.abandon.motif}` : ' — motif non renseigné'}
+              </p>
+            )}
           </div>
-        </section>
-      )}
+
+          <div className="grow min-w-0 lg:border-s border-border space-y-5 py-5 lg:ps-5">
+            {action ? (
+              <ActionPanel sessionId={sessionId} journey={journey} action={action} onDone={() => setAction(null)} />
+            ) : (
+              <Tabs defaultValue="journey" className="w-auto text-sm text-muted-foreground">
+                <TabsList className="inline-flex w-auto max-w-full grow-0 mb-2.5 overflow-x-auto [scrollbar-width:none]">
+                  <TabsTrigger value="journey">Parcours</TabsTrigger>
+                  <TabsTrigger value="documents">Documents ({journey.documents.length})</TabsTrigger>
+                  <TabsTrigger value="questionnaires">Questionnaires ({journey.questionnaires?.length ?? 0})</TabsTrigger>
+                  <TabsTrigger value="activity">Activité</TabsTrigger>
+                </TabsList>
+                <TabsContent value="journey">
+                  <ol className="flex flex-col divide-y divide-border rounded-lg border border-border">
+                    {journey.etapes.map((step) => (
+                      <StepRow key={step.etape} step={step} caps={caps} onAction={setAction} />
+                    ))}
+                  </ol>
+                </TabsContent>
+                <TabsContent value="documents">
+                  {journey.documents.length ? (
+                    <Documents journey={journey} />
+                  ) : (
+                    <p className="text-muted-foreground">Aucun document émis pour l’instant.</p>
+                  )}
+                </TabsContent>
+                <TabsContent value="questionnaires">
+                  <Questionnaires journey={journey} />
+                </TabsContent>
+                <TabsContent value="activity">
+                  <LearnerActivity sessionId={sessionId} name={journey.stagiaire} />
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+        </div>
+      </ScrollArea>
+
+      <SheetFooter className="flex-row border-t pb-4 p-5 border-border gap-2.5 lg:gap-0">
+        <Button variant="ghost" onClick={onClose}>
+          Fermer
+        </Button>
+      </SheetFooter>
+    </>
+  );
+}
+
+function Questionnaires({ journey }: { journey: LearnerJourney }) {
+  const list = journey.questionnaires ?? [];
+  if (!list.length) return <p className="text-muted-foreground">Aucun questionnaire envoyé en ligne.</p>;
+  return (
+    <div className="flex flex-col gap-4">
+      {list.map((q) => (
+        <Card key={q.type} className="rounded-md shadow-none">
+          <CardHeader className="min-h-[34px] bg-accent/50">
+            <CardTitle className="text-2sm">{q.questionnaire}</CardTitle>
+            <CardToolbar>
+              {q.repondu_le ? (
+                <Badge variant="success" appearance="light" size="sm">
+                  Répondu le {formatDate(q.repondu_le)}
+                </Badge>
+              ) : (
+                <Badge variant="warning" appearance="light" size="sm">
+                  {q.ouvert_le ? 'Ouvert, sans réponse' : 'Pas encore ouvert'}
+                </Badge>
+              )}
+            </CardToolbar>
+          </CardHeader>
+          {q.reponses.length > 0 && (
+            <CardContent className="py-3">
+              <dl className="grid gap-2 text-2sm">
+                {q.reponses.map((r) => (
+                  <div key={r.question} className="grid gap-0.5 sm:grid-cols-[1fr_auto] sm:gap-4">
+                    <dt className="text-muted-foreground">{r.question}</dt>
+                    <dd className="font-medium text-foreground sm:text-end">{String(r.reponse)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          )}
+        </Card>
+      ))}
     </div>
   );
+}
+
+function LearnerActivity({ sessionId, name }: { sessionId: string; name: string }) {
+  const { data, isLoading } = useSessionActivity(sessionId);
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  return <ActivityList items={(data ?? []).filter((a) => a.stagiaire === name || a.qui === name)} />;
 }
 
 function buttonLabel(action: string, step: JourneyStep) {

@@ -114,6 +114,21 @@ export interface LearnerJourney {
   assiduite: { prevues: number; suivies: number; heures_prevues: string | null; heures_suivies: string | null };
   documents: GeneratedDocument[];
   capabilities: Capabilities;
+  contact?: {
+    email: string | null;
+    telephone: string | null;
+    entreprise: string | null;
+    financement: string | null;
+    inscrit_le: string | null;
+  };
+  questionnaires?: {
+    questionnaire: string;
+    type: string;
+    envoye_le: string | null;
+    ouvert_le: string | null;
+    repondu_le: string | null;
+    reponses: { question: string; reponse: string | number }[];
+  }[];
 }
 
 export interface AttendanceCell {
