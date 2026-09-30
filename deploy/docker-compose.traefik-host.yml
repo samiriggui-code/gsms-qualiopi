@@ -1,0 +1,12 @@
+# Traefik en mode « host » : il joint les conteneurs sur leurs propres réseaux. Le front reste sur le réseau
+# de l'application (aucun réseau partagé avec les autres applications du serveur) et s'y déclare par étiquettes.
+services:
+  web:
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK}
+      traefik.http.routers.gsms-qualiopi.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.gsms-qualiopi.entrypoints: ${TRAEFIK_ENTRYPOINT}
+      traefik.http.routers.gsms-qualiopi.tls: "true"
+      traefik.http.routers.gsms-qualiopi.tls.certresolver: ${TRAEFIK_CERTRESOLVER}
+      traefik.http.services.gsms-qualiopi.loadbalancer.server.port: "3000"

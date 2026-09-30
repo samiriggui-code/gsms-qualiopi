@@ -83,6 +83,12 @@ if [[ -n "$traefik" ]]; then
   if [[ -z "$resolver" ]]; then  # traefik.yml : « certificatesResolvers: <nom>: »
     resolver="$(printf '%s\n' "$conf" | awk '/^certificatesResolvers:/ {f=1; next} f && /^[ \t]+[A-Za-z0-9_-]+:/ {sub(":","",$1); print $1; exit}')"
   fi
+  traefik_file=deploy/docker-compose.traefik.yml
+  if [[ -z "$network" && "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$traefik")" == "host" ]]; then
+    # Traefik en mode host : il joint le réseau propre à l'application, sans réseau partagé.
+    network="$(basename "$PWD")_default"
+    traefik_file=deploy/docker-compose.traefik-host.yml
+  fi
   if [[ -z "$network" || -z "$entrypoint" || -z "$resolver" ]]; then
     echo "Traefik ($traefik) détecté, mais sa configuration n'a pas pu être lue entièrement :" >&2
     echo "  réseau=${network:-?} entrée 443=${entrypoint:-?} résolveur de certificats=${resolver:-?}" >&2
@@ -94,7 +100,7 @@ if [[ -n "$traefik" ]]; then
   set_env TRAEFIK_NETWORK "$network"
   set_env TRAEFIK_ENTRYPOINT "$entrypoint"
   set_env TRAEFIK_CERTRESOLVER "$resolver"
-  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:deploy/docker-compose.traefik.yml"
+  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:$traefik_file"
 else
   if ss -ltn 2>/dev/null | grep -qE '[:.]80[[:space:]]' && ! docker ps --format '{{.Names}}' | grep -q 'caddy'; then
     echo "Le port 80 est déjà utilisé par un programme autre que Traefik :" >&2
