@@ -32,6 +32,8 @@ const VALIDITY = {
   PERMANENTE: { label: 'Sans échéance', variant: 'secondary' as const },
 };
 
+const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
 const config: ResourceConfig<Qualification> = {
   path: 'trainer-qualifications',
   title: 'Qualifications & habilitations',
@@ -41,6 +43,12 @@ const config: ResourceConfig<Qualification> = {
   permission: 'write_trainers',
   defaultSort: { id: 'valid_until', desc: false },
   search: (r) => [r.label, r.trainer_name].join(' '),
+  tabs: [
+    { id: 'all', label: 'Toutes', test: () => true },
+    { id: 'valid', label: 'Valides', test: (r) => !r.valid_until || r.valid_until >= inDays(60) },
+    { id: 'soon', label: 'À renouveler sous 60 jours', test: (r) => !!r.valid_until && r.valid_until >= inDays(0) && r.valid_until < inDays(60) },
+    { id: 'expired', label: 'Expirées', test: (r) => !!r.valid_until && r.valid_until < inDays(0) },
+  ],
   facets: [
     { id: 'trainer', title: 'Formateur', icon: Presentation, value: (r) => r.trainer_name },
     {

@@ -33,6 +33,11 @@ const config: ResourceConfig<WatchItem> = {
   permission: 'write_quality',
   defaultSort: { id: 'noted_on', desc: true },
   search: (r) => [r.title, r.source, r.exploitation].join(' '),
+  tabs: [
+    { id: 'all', label: 'Toutes', test: () => true },
+    { id: 'todo', label: 'À exploiter', test: (r) => !r.exploited_on },
+    { id: 'done', label: 'Exploitées', test: (r) => !!r.exploited_on },
+  ],
   facets: [
     { id: 'domain', title: 'Domaine', icon: Tag, value: (r) => r.domain, options: DOMAINS },
     {

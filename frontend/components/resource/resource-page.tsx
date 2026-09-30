@@ -40,6 +40,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { FacetFilter } from '@/components/facet-filter';
 import { Content } from '@/components/layout/components/content';
+import { CountedTabs } from './counted-tabs';
 import { ContentHeader } from '@/components/layout/components/content-header';
 import { ConfirmDialog } from './confirm-dialog';
 import { ResourceFormSheet } from './resource-form-sheet';
@@ -57,6 +58,7 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
   const [editing, setEditing] = useState<T | null>(null);
   const [deleting, setDeleting] = useState<T | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState(config.tabs?.[0]?.id ?? '');
   const [facetValues, setFacetValues] = useState<Record<string, string[]>>({});
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
   const [sorting, setSorting] = useState<SortingState>(config.defaultSort ? [config.defaultSort] : []);
@@ -130,14 +132,16 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
 
   const filtered = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
+    const tab = config.tabs?.find((t) => t.id === activeTab);
     return data.filter((row) => {
+      if (tab && !tab.test(row)) return false;
       for (const facet of config.facets ?? []) {
         const selected = facetValues[facet.id];
         if (selected?.length && !selected.includes(String(facet.value(row) ?? ''))) return false;
       }
       return !search || config.search(row).toLowerCase().includes(search);
     });
-  }, [data, searchQuery, facetValues, config]);
+  }, [data, activeTab, searchQuery, facetValues, config]);
 
   const table = useReactTable({
     columns,
@@ -189,6 +193,13 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
           }}
         >
           <Card className="border-none shadow-none">
+            {config.tabs && (
+              <CountedTabs
+                tabs={config.tabs.map((t) => ({ id: t.id, label: t.label, count: data.filter(t.test).length }))}
+                value={activeTab}
+                onChange={setActiveTab}
+              />
+            )}
             <CardHeader className="px-4 py-3">
               <CardHeading>
                 <div className="flex items-center gap-2.5">

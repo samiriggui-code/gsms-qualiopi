@@ -36,6 +36,11 @@ const config: ResourceConfig<Survey> = {
   permission: 'write_quality',
   defaultSort: { id: 'sent_on', desc: true },
   search: (r) => [r.session_reference, r.learner_name, r.comment].join(' '),
+  tabs: [
+    { id: 'all', label: 'Toutes', test: () => true },
+    { id: 'waiting', label: 'En attente de réponse', test: (r) => !r.answered_on },
+    { id: 'answered', label: 'Répondues', test: (r) => !!r.answered_on },
+  ],
   facets: [
     { id: 'audience', title: 'Public', icon: Users, value: (r) => r.audience, options: AUDIENCES },
     { id: 'session', title: 'Session', icon: CalendarDays, value: (r) => r.session_reference },

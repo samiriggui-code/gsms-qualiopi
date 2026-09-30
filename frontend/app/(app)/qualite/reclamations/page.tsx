@@ -57,6 +57,12 @@ const config: ResourceConfig<Complaint> = {
   permission: 'write_quality',
   defaultSort: { id: 'received_on', desc: true },
   search: (r) => [r.description, r.resolution, r.session_reference].join(' '),
+  tabs: [
+    { id: 'all', label: 'Toutes', test: () => true },
+    { id: 'todo', label: 'À accuser réception', test: (r) => !r.acknowledged_on && !r.resolved_on },
+    { id: 'open', label: 'En traitement', test: (r) => !!r.acknowledged_on && !r.resolved_on },
+    { id: 'resolved', label: 'Résolues', test: (r) => !!r.resolved_on },
+  ],
   facets: [
     { id: 'state', title: 'État', icon: CircleDot, value: state, options: STATES },
     { id: 'kind', title: 'Type', icon: Tag, value: (r) => r.kind, options: KINDS },

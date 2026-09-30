@@ -26,6 +26,11 @@ const config: ResourceConfig<Action> = {
   permission: 'write_trainers',
   defaultSort: { id: 'planned_on', desc: true },
   search: (r) => [r.label, r.trainer_name].join(' '),
+  tabs: [
+    { id: 'all', label: 'Toutes', test: () => true },
+    { id: 'planned', label: 'Prévues', test: (r) => !r.completed_on },
+    { id: 'done', label: 'Réalisées', test: (r) => !!r.completed_on },
+  ],
   facets: [
     {
       id: 'state',

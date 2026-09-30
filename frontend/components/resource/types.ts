@@ -46,6 +46,8 @@ export interface ResourceConfig<T extends Row> {
   fields: FieldDef[];
   search: (row: T) => string;
   facets?: FacetDef<T>[];
+  // Onglets comptés au-dessus du tableau (motif store-inventory/order-list de la démo)
+  tabs?: { id: string; label: string; test: (row: T) => boolean }[];
   // Lien vers la fiche détail (sinon la ligne ouvre le formulaire de modification)
   detailHref?: (row: T) => string;
   // Phrase de confirmation de suppression
