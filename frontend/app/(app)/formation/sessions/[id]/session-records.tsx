@@ -343,7 +343,7 @@ export function SessionRecords({
         </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="w-full h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
         <div className="px-5 py-3">
           <TabsContent value="journey">
             <Journey sessionId={sessionId} onOpenLearner={onOpenLearner} />

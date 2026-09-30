@@ -24,7 +24,7 @@ export function HeaderNew() {
           className="text-white hover:text-white hover:bg-zinc-800 hover:border-zinc-800 data-[state=open]:bg-zinc-800"
         >
           <CirclePlus className="size-4 text-white" />
-          Nouveau
+          <span className="max-sm:sr-only">Nouveau</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">

@@ -75,7 +75,7 @@ export function SessionDetails({ sessionId, session }: { sessionId: string; sess
           <Info /> Détails
         </TabsTrigger>
       </TabsList>
-      <ScrollArea className="w-full h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
         <div className="px-5 py-2">
           <TabsContent value="details" className="space-y-4">
             {!session ? (

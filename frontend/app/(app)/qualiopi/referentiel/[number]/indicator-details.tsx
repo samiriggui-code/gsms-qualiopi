@@ -166,7 +166,7 @@ export function IndicatorDetails({
           <Building2 /> Détails
         </TabsTrigger>
       </TabsList>
-      <ScrollArea className="w-full h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
         <div className="px-5 py-2">
           <TabsContent value="details">
             {indicator ? (

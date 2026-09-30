@@ -117,7 +117,7 @@ export function IndicatorRecords({
         </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="w-full h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
         <div className="px-5 py-4">
           {!indicator ? (
             <div className="space-y-3">

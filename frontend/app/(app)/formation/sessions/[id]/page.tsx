@@ -83,13 +83,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             </Link>
           </Button>
           {session ? (
-            <h1 className="inline-flex items-center gap-2.5 text-sm font-semibold min-w-0">
-              <span>{session.reference}</span>
-              <span className="text-muted-foreground font-normal truncate">{session.program_title}</span>
+            <h1 className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm font-semibold min-w-0">
+              <span className="whitespace-nowrap">{session.reference}</span>
+              <span className="text-muted-foreground font-normal truncate max-sm:hidden">{session.program_title}</span>
               <Badge className={SESSION_STATUS[session.status].color}>{SESSION_STATUS[session.status].label}</Badge>
             </h1>
           ) : (
-            <Skeleton className="h-5 w-96" />
+            <Skeleton className="h-5 w-48 lg:w-96" />
           )}
         </div>
         {caps && session && (
@@ -152,9 +152,9 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             <Refusal error={error} />
           </div>
         ) : (
-          <div className="grow overflow-x-auto">
-            <div className="p-0 flex grow">
-              <div className="flex grow min-w-0 border-e border-border">
+          <div className="grow min-w-0">
+            <div className="p-0 flex flex-col lg:flex-row grow">
+              <div className="flex lg:grow min-w-0 border-b lg:border-b-0 lg:border-e border-border">
                 <SessionRecords
                   sessionId={id}
                   capabilities={caps}
@@ -162,7 +162,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                   onOpenLearner={setLearner}
                 />
               </div>
-              <div className="flex shrink-0 w-[380px]">
+              <div className="flex min-w-0 lg:shrink-0 lg:w-[380px]">
                 <SessionDetails sessionId={id} session={session} />
               </div>
             </div>

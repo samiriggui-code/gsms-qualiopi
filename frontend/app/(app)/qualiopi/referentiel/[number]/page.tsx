@@ -85,12 +85,12 @@ export default function IndicatorPage({
         {error ? (
           <div className="p-5 text-sm text-destructive">{error.message}</div>
         ) : (
-          <div className="grow overflow-x-auto">
-            <div className="p-0 flex grow">
-              <div className="flex grow min-w-0 border-e border-border">
+          <div className="grow min-w-0">
+            <div className="p-0 flex flex-col lg:flex-row grow">
+              <div className="flex lg:grow min-w-0 border-b lg:border-b-0 lg:border-e border-border">
                 <IndicatorRecords indicator={indicator} />
               </div>
-              <div className="flex shrink-0 w-[420px]">
+              <div className="flex min-w-0 lg:shrink-0 lg:w-[420px]">
                 <IndicatorDetails indicator={indicator} />
               </div>
             </div>
