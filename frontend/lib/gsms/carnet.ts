@@ -83,8 +83,9 @@ export interface Carnet {
   avertissement: string;
 }
 
-export const useCarnet = (sessionId?: string) =>
+export const useCarnet = (sessionId?: string, enabled = true) =>
   useQuery({
+    enabled,
     queryKey: ['qualiopi', 'carnet', sessionId ?? 'organisme'],
     queryFn: () =>
       api.get<Carnet>(

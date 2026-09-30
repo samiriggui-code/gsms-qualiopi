@@ -73,10 +73,11 @@ const keys = {
   findings: ['qualiopi', 'ecarts'] as const,
 };
 
-export const useCapaActions = () =>
+export const useCapaActions = (enabled = true) =>
   useQuery({
     queryKey: keys.actions,
     queryFn: () => api.get<CapaAction[]>('qualiopi/actions'),
+    enabled,
   });
 
 export const useOpenFindings = (enabled = true) =>

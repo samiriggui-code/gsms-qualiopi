@@ -13,11 +13,13 @@ const API_PERMISSIONS = {
   manage_users: 'users.manage',
   manage_communications: 'communications.manage',
   manage_settings: 'settings.manage',
+  read_staff: 'staff.read',
 } as const;
 
 export type Permission = keyof typeof API_PERMISSIONS;
 
 export function useCan() {
   const { data: user } = useCurrentUser();
-  return (permission: Permission) => !!user && user.permissions.includes(API_PERMISSIONS[permission]);
+  return (permission: Permission) =>
+    !!user && user.permissions.includes(API_PERMISSIONS[permission]);
 }

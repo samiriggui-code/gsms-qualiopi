@@ -1,5 +1,11 @@
 // Vocabulaire métier affiché : un seul endroit pour les libellés et la couleur de chaque état.
-import type { EnrollmentStatus, JourneyStepKey, ReadinessStatus, SessionStatus, StepState } from './types';
+import type {
+  EnrollmentStatus,
+  JourneyStepKey,
+  ReadinessStatus,
+  SessionStatus,
+  StepState,
+} from './types';
 
 // Couleurs de badge : exactement celles du Badge Metronic en apparence « light »
 // (components/ui/badge.tsx), comme les statuts de la démo store-inventory. Cinq tons, pas davantage.
@@ -43,7 +49,10 @@ export const ENROLLMENT_STATUS: Record<EnrollmentStatus, Label> = {
   ANNULE: { label: 'Annulé', color: TONE.danger },
 };
 
-export const STEP_LABEL: Record<JourneyStepKey, { label: string; short: string }> = {
+export const STEP_LABEL: Record<
+  JourneyStepKey,
+  { label: string; short: string }
+> = {
   analyse_besoin: { label: 'Analyse du besoin', short: 'Besoin' },
   positionnement: { label: 'Positionnement', short: 'Position.' },
   convention: { label: 'Convention ou contrat', short: 'Convention' },
@@ -97,7 +106,15 @@ export const ATTENDANCE: Record<string, Label> = {
   NON_ATTENDU: { label: 'Non attendu', color: TONE.neutral },
 };
 
-export const PERIOD: Record<string, string> = { MATIN: 'Matin', APRES_MIDI: 'Après-midi' };
+export const QUALIFICATION_DEADLINE: Record<string, Label> = {
+  EXPIRE: { label: 'Expiré', color: TONE.danger },
+  A_RENOUVELER: { label: 'À renouveler', color: TONE.warn },
+};
+
+export const PERIOD: Record<string, string> = {
+  MATIN: 'Matin',
+  APRES_MIDI: 'Après-midi',
+};
 
 export const OWNER: Record<string, string> = {
   gestion: 'Gestion',
