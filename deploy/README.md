@@ -20,8 +20,8 @@ Internet ──443──> Caddy ──> web (Next.js) ──> api (FastAPI) ─�
 ```bash
 git clone https://github.com/samiriggui-code/gsms-qualiopi.git
 cd gsms-qualiopi
-./deploy/deploy.sh gsms.exemple.fr            # base vide, référentiels Qualiopi V9 et V10 importés
-# ou : ./deploy/deploy.sh gsms.exemple.fr --demo   (organisme de démonstration, pour essayer)
+./deploy/deploy.sh formssi.global-it-ss.com            # base vide, référentiels Qualiopi V9 et V10 importés
+# ou : ./deploy/deploy.sh formssi.global-it-ss.com --demo   (organisme de démonstration, pour essayer)
 ```
 
 Le script :
@@ -40,7 +40,7 @@ docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
 ## Mettre à jour
 
 ```bash
-cd gsms-qualiopi && git pull && ./deploy/deploy.sh gsms.exemple.fr
+cd gsms-qualiopi && git pull && ./deploy/deploy.sh formssi.global-it-ss.com
 ```
 
 Les données (base, documents, certificats) sont dans des volumes Docker et survivent aux mises à jour.
@@ -49,7 +49,7 @@ Les données (base, documents, certificats) sont dans des volumes Docker et surv
 
 Les relances sont désactivées par défaut. Avant de les activer, renseignez le serveur SMTP de
 l'organisme dans `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`), puis
-relancez `./deploy/deploy.sh gsms.exemple.fr`.
+relancez `./deploy/deploy.sh formssi.global-it-ss.com`. Hostinger : `smtp.hostinger.com`, port 465, SSL (déjà renseignés).
 
 ## Exploitation
 

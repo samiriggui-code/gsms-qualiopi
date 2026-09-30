@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Installe ou met à jour GSMS Qualiopi sur un serveur (Docker + HTTPS automatique).
 #
-#   ./deploy/deploy.sh gsms.exemple.fr            installe ou met à jour
-#   ./deploy/deploy.sh gsms.exemple.fr --demo     première installation avec l'organisme de démonstration
+#   ./deploy/deploy.sh formssi.global-it-ss.com            installe ou met à jour
+#   ./deploy/deploy.sh formssi.global-it-ss.com --demo     première installation avec l'organisme de démonstration
 #
 # À lancer depuis la racine du dépôt cloné. Le premier lancement crée .env avec des secrets tirés au hasard
 # (jamais committé) ; les lancements suivants le conservent et ne font que reconstruire et redémarrer.
@@ -42,15 +42,16 @@ DOMAIN=$DOMAIN
 APP_ENV=production
 POSTGRES_PASSWORD=$(secret)
 JWT_SECRET=$(secret)
-# Envoi des e-mails (relances, désactivées par défaut) : serveur SMTP de l'organisme.
+# Envoi des e-mails (relances, désactivées par défaut) : SMTP Hostinger. Renseigner la boîte et son mot de passe.
 # 587 + SMTP_STARTTLS=true, ou 465 + SMTP_SSL=true.
-SMTP_HOST=localhost
-SMTP_PORT=587
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
 SMTP_USER=
 SMTP_PASSWORD=
-SMTP_STARTTLS=true
-SMTP_SSL=false
-SMTP_FROM=no-reply@$DOMAIN
+SMTP_STARTTLS=false
+SMTP_SSL=true
+# Adresse d'expédition = la boîte Hostinger (SMTP_USER).
+SMTP_FROM=
 ENV
   echo ".env créé (secrets générés, lisible par vous seul)."
 else
