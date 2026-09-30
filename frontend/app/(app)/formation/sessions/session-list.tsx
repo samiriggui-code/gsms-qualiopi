@@ -13,12 +13,9 @@ import {
 } from '@tanstack/react-table';
 import { BookOpen, CircleDot, Search, Settings2, X } from 'lucide-react';
 import { formatDateRange, percent } from '@/lib/format';
-import {
-  SESSION_STATUS,
-  SessionRow,
-  SessionStatus,
-  useSessions,
-} from '@/lib/formation/sessions';
+import { SESSION_STATUS } from '@/lib/gsms/labels';
+import { useSessions } from '@/lib/gsms/sessions';
+import type { SessionRow, SessionStatus } from '@/lib/gsms/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -90,7 +87,7 @@ export function SessionList() {
         enableHiding: false,
       },
       {
-        accessorFn: (row) => row.program.title,
+        accessorFn: (row) => row.program_title ?? '',
         id: 'program',
         header: ({ column }) => (
           <DataGridColumnHeader title="Formation" visibility={true} column={column} />
@@ -99,12 +96,12 @@ export function SessionList() {
           <Link
             href={`/formation/sessions/${row.original.id}`}
             className="flex items-center gap-2 min-w-0 hover:text-primary"
-            title={row.original.program.title}
+            title={row.original.program_title ?? ''}
           >
             <Badge variant="outline" className="shrink-0">
-              {row.original.program.code}
+              {row.original.program_code}
             </Badge>
-            <span className="truncate">{row.original.program.title}</span>
+            <span className="truncate">{row.original.program_title}</span>
           </Link>
         ),
         size: 320,
@@ -136,50 +133,32 @@ export function SessionList() {
         size: 120,
       },
       {
-        accessorFn: (row) => row.trainer?.full_name ?? '',
+        accessorFn: (row) => row.trainer_name ?? '',
         id: 'trainer',
         header: ({ column }) => (
           <DataGridColumnHeader title="Formateur" visibility={true} column={column} />
         ),
         cell: ({ row }) =>
-          row.original.trainer ? (
-            <span className="whitespace-nowrap">
-              {row.original.trainer.full_name}
-              {row.original.trainer.is_external && (
-                <Badge variant="outline" size="sm" className="ms-1.5">
-                  Externe
-                </Badge>
-              )}
-            </span>
+          row.original.trainer_name ? (
+            <span className="whitespace-nowrap">{row.original.trainer_name}</span>
           ) : (
             <span className="text-destructive">À affecter</span>
           ),
         size: 180,
       },
       {
-        accessorKey: 'enrolled',
+        accessorKey: 'learners_count',
         id: 'enrolled',
         header: ({ column }) => (
           <DataGridColumnHeader title="Inscrits" visibility={true} column={column} />
         ),
         cell: ({ row }) =>
           row.original.capacity ? (
-            <Ratio value={row.original.enrolled} total={row.original.capacity} />
+            <Ratio value={row.original.learners_count} total={row.original.capacity} />
           ) : (
-            row.original.enrolled
+            row.original.learners_count
           ),
         size: 140,
-      },
-      {
-        accessorKey: 'slots_signed',
-        id: 'attendance',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Émargement" visibility={true} column={column} />
-        ),
-        cell: ({ row }) => (
-          <Ratio value={row.original.slots_signed} total={row.original.slots_total} />
-        ),
-        size: 150,
       },
       {
         accessorKey: 'location',
@@ -195,22 +174,6 @@ export function SessionList() {
         ),
         size: 260,
       },
-      {
-        accessorKey: 'subcontracted',
-        id: 'subcontracted',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Sous-traitée" visibility={true} column={column} />
-        ),
-        cell: ({ row }) =>
-          row.original.subcontracted ? (
-            <Badge variant="warning" appearance="light">
-              Oui
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground">Non</span>
-          ),
-        size: 120,
-      },
     ],
     [],
   );
@@ -223,10 +186,10 @@ export function SessionList() {
     const search = searchQuery.trim().toLowerCase();
     return sessions.filter((item) => {
       const matchesStatus = !selectedStatuses.length || selectedStatuses.includes(item.status);
-      const matchesProgram = !selectedPrograms.length || selectedPrograms.includes(item.program.id);
+      const matchesProgram = !selectedPrograms.length || selectedPrograms.includes(item.program_id);
       const matchesSearch =
         !search ||
-        [item.reference, item.program.title, item.program.code, item.trainer?.full_name, item.location]
+        [item.reference, item.program_title, item.program_code, item.trainer_name, item.location]
           .join(' ')
           .toLowerCase()
           .includes(search);
@@ -246,14 +209,14 @@ export function SessionList() {
   );
 
   const programOptions = useMemo(() => {
-    const programs = new Map(sessions.map((s) => [s.program.id, s.program]));
-    return Array.from(programs.values())
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .map((p) => ({
-        value: p.id,
+    const programs = new Map(sessions.map((s) => [s.program_id, { code: s.program_code ?? '', title: s.program_title ?? '' }]));
+    return Array.from(programs.entries())
+      .sort((a, b) => a[1].title.localeCompare(b[1].title))
+      .map(([id, p]) => ({
+        value: id,
         label: <span className="block truncate">{p.title}</span>,
         searchText: `${p.code} ${p.title}`,
-        count: sessions.filter((s) => s.program.id === p.id).length,
+        count: sessions.filter((s) => s.program_id === id).length,
       }));
   }, [sessions]);
 

@@ -6,7 +6,7 @@ import { CalendarDays, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
-import { NewSessionSheet } from './new-session-sheet';
+import { SessionFormSheet } from './session-form-sheet';
 import { SessionList } from './session-list';
 
 export default function SessionsPage() {
@@ -37,7 +37,7 @@ export default function SessionsPage() {
       <Content className="block py-0">
         <SessionList />
       </Content>
-      <NewSessionSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <SessionFormSheet open={sheetOpen} onOpenChange={setSheetOpen} />
     </>
   );
 }
