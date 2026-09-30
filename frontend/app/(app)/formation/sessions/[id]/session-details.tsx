@@ -70,12 +70,12 @@ export function SessionDetails({ sessionId, session }: { sessionId: string; sess
 
   return (
     <Tabs defaultValue="details" className="grow text-sm">
-      <TabsList variant="line" className="px-5 gap-6 bg-transparent [&_button]:border-b [&_button_svg]:size-3.5">
+      <TabsList variant="line" className="px-5 gap-6 bg-transparent max-lg:w-full max-lg:justify-start max-lg:overflow-x-auto max-lg:overflow-y-hidden max-lg:[scrollbar-width:none] [&_button]:border-b [&_button_svg]:size-3.5">
         <TabsTrigger value="details">
           <Info /> Détails
         </TabsTrigger>
       </TabsList>
-      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)] [&_[data-radix-scroll-area-viewport]>div]:!block">
         <div className="px-5 py-2">
           <TabsContent value="details" className="space-y-4">
             {!session ? (

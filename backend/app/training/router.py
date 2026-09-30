@@ -7,8 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.auth.security import DB, AllSessionsReader, SessionsReader, SessionsWriter
+from app.training import activity, service
 from app.training import models as t
-from app.training import service
 from app.training.access import own_trainer_ids, sees_all, visible_session
 from app.training.policy import TrainingPolicy
 from app.training.schemas import LearnerOut, ProgramOut, SessionOut, TrainerOut
@@ -82,6 +82,12 @@ def get_session(session_id: str, db: DB, user: SessionsReader) -> dict:
                           "statut": e.status, "financement": e.funding} for e in s.enrollments],
         "capabilities": TrainingPolicy(db, user).capabilities(s),
     }
+
+
+@router.get("/sessions/{session_id}/activite")
+def session_activity(session_id: str, db: DB, user: SessionsReader) -> list[dict]:
+    """Ce qui s'est passé sur la session (inscriptions, émargements, évaluations…), du plus récent au plus ancien."""
+    return activity.session_activity(db, visible_session(db, user, session_id))
 
 
 @router.get("/sessions/{session_id}/capabilities")

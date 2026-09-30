@@ -157,6 +157,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
               <div className="flex lg:grow min-w-0 border-b lg:border-b-0 lg:border-e border-border">
                 <SessionRecords
                   sessionId={id}
+                  session={session}
                   capabilities={caps}
                   learnersCount={data?.inscriptions.length}
                   onOpenLearner={setLearner}

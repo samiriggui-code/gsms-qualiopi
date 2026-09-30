@@ -14,8 +14,8 @@ export function ContentHeader({
 }) {
   const { setSidebarCollapse } = useLayout();
   return (
-    <div className="bg-background flex items-center border-b lg:fixed top-[var(--header-height)] start-(--sidebar-width) end-0 in-data-[sidebar-collapsed]:start-(--sidebar-width-collapsed) z-[10] min-h-(--content-header-height) py-2 lg:py-0 lg:h-(--content-header-height) pe-[var(--removed-body-scroll-bar-size,0px)]">
-      <div className="container-fluid flex items-center min-w-0">
+    <div className="bg-background flex items-center border-b lg:fixed top-[var(--header-height)] start-(--sidebar-width) end-0 in-data-[sidebar-collapsed]:start-(--sidebar-width-collapsed) z-[10] h-(--content-header-height) max-lg:h-auto max-lg:min-h-(--content-header-height) max-lg:py-2 pe-[var(--removed-body-scroll-bar-size,0px)]">
+      <div className="container-fluid flex items-center max-lg:min-w-0">
         <Button
           variant="ghost"
           size="icon"
@@ -26,7 +26,7 @@ export function ContentHeader({
         </Button>
         <div
           className={cn(
-            'flex flex-wrap items-center justify-between gap-2 grow min-w-0',
+            'flex items-center justify-between grow max-lg:flex-wrap max-lg:gap-2 max-lg:min-w-0',
             className,
           )}
         >

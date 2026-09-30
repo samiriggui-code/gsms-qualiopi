@@ -102,7 +102,7 @@ export function IndicatorRecords({
     <Tabs defaultValue="guide" className="grow text-sm">
       <TabsList
         variant="line"
-        className="px-5 gap-6 bg-transparent [&_button]:border-b [&_button_svg]:size-4 [&_button]:text-secondary-foreground"
+        className="px-5 gap-6 bg-transparent max-lg:w-full max-lg:justify-start max-lg:overflow-x-auto max-lg:overflow-y-hidden max-lg:[scrollbar-width:none] [&_button]:border-b [&_button_svg]:size-4 [&_button]:text-secondary-foreground"
       >
         <TabsTrigger value="guide">
           <BookOpenText /> Guide de lecture
@@ -117,7 +117,7 @@ export function IndicatorRecords({
         </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)] [&_[data-radix-scroll-area-viewport]>div]:!block">
         <div className="px-5 py-4">
           {!indicator ? (
             <div className="space-y-3">

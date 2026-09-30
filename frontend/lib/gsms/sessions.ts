@@ -20,6 +20,7 @@ export const keys = {
   journey: (id: string) => ['session', id, 'parcours'] as const,
   attendance: (id: string) => ['session', id, 'emargement'] as const,
   dossier: (id: string) => ['session', id, 'dossier'] as const,
+  activity: (id: string) => ['session', id, 'activite'] as const,
   learner: (id: string) => ['inscription', id] as const,
 };
 
@@ -41,6 +42,19 @@ export const useAttendance = (id: string, enabled = true) =>
 
 export const useDossier = (id: string, enabled = true) =>
   useQuery({ queryKey: keys.dossier(id), queryFn: () => api.get<SessionDossier>(`sessions/${id}/dossier`), enabled });
+
+export interface SessionActivity {
+  id: number;
+  evenement: string;
+  qui: string;
+  action: string;
+  stagiaire: string | null;
+  le: string;
+  en_ligne: boolean;
+}
+
+export const useSessionActivity = (id: string) =>
+  useQuery({ queryKey: keys.activity(id), queryFn: () => api.get<SessionActivity[]>(`sessions/${id}/activite`) });
 
 export const useLearnerJourney = (enrollmentId: string | null) =>
   useQuery({

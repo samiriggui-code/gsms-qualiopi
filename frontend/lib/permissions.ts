@@ -6,6 +6,7 @@ const API_PERMISSIONS = {
   read: 'sessions.read',
   write_training: 'sessions.write',
   write_trainers: 'trainers.write',
+  read_quality: 'quality.read',
   write_quality: 'quality.write',
   validate_evidence: 'evidence.validate',
   manage_referential: 'referential.manage',

@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import {
+  Activity,
   CalendarCheck,
   CalendarPlus,
   Check,
   Clock,
   Minus,
+  LayoutDashboard,
   ShieldCheck,
   TriangleAlert,
   Users,
@@ -16,7 +18,7 @@ import { toast } from 'sonner';
 import { formatDate } from '@/lib/format';
 import { ATTENDANCE, ENROLLMENT_STATUS, MILESTONE, OWNER, PERIOD, READINESS, STEP_LABEL } from '@/lib/gsms/labels';
 import { useAttendance, useDossier, usePlanSlots, useSessionJourney } from '@/lib/gsms/sessions';
-import type { AttendanceCell, Capabilities, ReadinessStatus } from '@/lib/gsms/types';
+import type { AttendanceCell, Capabilities, ReadinessStatus, SessionRow } from '@/lib/gsms/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ActionGate } from '@/components/gsms/action-gate';
 import { Refusal } from '@/components/gsms/refusal';
 import { StepMark } from '@/components/gsms/step-mark';
+import { SessionActivityTab, SessionOverview } from './session-overview';
 
 function Loading() {
   return (
@@ -312,21 +315,27 @@ function Qualiopi({ sessionId }: { sessionId: string }) {
 
 export function SessionRecords({
   sessionId,
+  session,
   capabilities,
   learnersCount,
   onOpenLearner,
 }: {
   sessionId: string;
+  session?: SessionRow;
   capabilities: Capabilities | undefined;
   learnersCount: number | undefined;
   onOpenLearner: (enrollmentId: string) => void;
 }) {
+  const [tab, setTab] = useState('overview');
   return (
-    <Tabs defaultValue="journey" className="grow text-sm min-w-0">
+    <Tabs value={tab} onValueChange={setTab} className="grow text-sm min-w-0">
       <TabsList
         variant="line"
-        className="px-5 gap-6 bg-transparent [&_button]:border-b [&_button_svg]:size-4 [&_button]:text-secondary-foreground"
+        className="px-5 gap-6 bg-transparent max-lg:w-full max-lg:justify-start max-lg:overflow-x-auto max-lg:overflow-y-hidden max-lg:[scrollbar-width:none] [&_button]:border-b [&_button_svg]:size-4 [&_button]:text-secondary-foreground"
       >
+        <TabsTrigger value="overview">
+          <LayoutDashboard /> Vue d’ensemble
+        </TabsTrigger>
         <TabsTrigger value="journey">
           <Users /> Parcours
           {learnersCount !== undefined && (
@@ -341,10 +350,16 @@ export function SessionRecords({
         <TabsTrigger value="qualiopi">
           <ShieldCheck /> Qualiopi
         </TabsTrigger>
+        <TabsTrigger value="activity">
+          <Activity /> Activité
+        </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)]">
+      <ScrollArea className="w-full lg:h-[calc(100vh-10rem)] [&_[data-radix-scroll-area-viewport]>div]:!block">
         <div className="px-5 py-3">
+          <TabsContent value="overview">
+            <SessionOverview sessionId={sessionId} session={session} onOpenTab={setTab} />
+          </TabsContent>
           <TabsContent value="journey">
             <Journey sessionId={sessionId} onOpenLearner={onOpenLearner} />
           </TabsContent>
@@ -353,6 +368,9 @@ export function SessionRecords({
           </TabsContent>
           <TabsContent value="qualiopi">
             <Qualiopi sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="activity">
+            <SessionActivityTab sessionId={sessionId} />
           </TabsContent>
         </div>
       </ScrollArea>

@@ -61,3 +61,20 @@ def test_nom_de_fichier_accentue_dans_l_en_tete() -> None:
     assert header.startswith('attachment; filename="Procedure reclamations  uvre.pdf"')
     assert "filename*=UTF-8''Proc%C3%A9dure%20r%C3%A9clamations%20%E2%80%94%20%C5%93uvre.pdf" in header
     assert content_disposition("attestation.html", inline=True).startswith("inline;")
+
+
+def test_activite_d_une_session(client, demo: Session) -> None:  # noqa: ANN001
+    from tests.conftest import find_session
+
+    _, h = make_user(demo, "gestion")
+    s = find_session(demo, "SST-2026-02")
+    before = client.get(f"/api/v1/sessions/{s.id}/activite", headers=h).json()
+    noah = next(e for e in s.enrollments if e.learner.first_name == "Noah")
+    r = client.post(f"/api/v1/inscriptions/{noah.id}/parcours/evaluation",
+                    json={"nature": "SOMMATIVE", "intitule": "QCM final", "reussi": True}, headers=h)
+    assert r.status_code == 200, r.text
+    after = client.get(f"/api/v1/sessions/{s.id}/activite", headers=h).json()
+    assert len(after) == len(before) + 1
+    last = after[0]
+    assert last["evenement"] == "assessment.completed" and last["qui"].startswith("Test gestion")
+    assert last["action"] == "a évalué" and last["stagiaire"] == "Noah Clement"
