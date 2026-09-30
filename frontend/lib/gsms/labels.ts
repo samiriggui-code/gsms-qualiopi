@@ -1,14 +1,27 @@
 // Vocabulaire métier affiché : un seul endroit pour les libellés et la couleur de chaque état.
 import type { EnrollmentStatus, JourneyStepKey, ReadinessStatus, SessionStatus, StepState } from './types';
 
-// Couleurs de badge (thème clair et sombre)
+// Couleurs de badge : exactement celles du Badge Metronic en apparence « light »
+// (components/ui/badge.tsx), comme les statuts de la démo store-inventory. Cinq tons, pas davantage.
+const LIGHT = {
+  secondary: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground',
+  primary:
+    'text-[var(--color-primary-accent,var(--color-blue-700))] bg-[var(--color-primary-soft,var(--color-blue-50))] dark:bg-[var(--color-primary-soft,var(--color-blue-950))] dark:text-[var(--color-primary-soft,var(--color-blue-600))]',
+  success:
+    'text-[var(--color-success-accent,var(--color-green-800))] bg-[var(--color-success-soft,var(--color-green-100))] dark:bg-[var(--color-success-soft,var(--color-green-950))] dark:text-[var(--color-success-soft,var(--color-green-600))]',
+  warning:
+    'text-[var(--color-warning-accent,var(--color-yellow-700))] bg-[var(--color-warning-soft,var(--color-yellow-100))] dark:bg-[var(--color-warning-soft,var(--color-yellow-950))] dark:text-[var(--color-warning-soft,var(--color-yellow-600))]',
+  destructive:
+    'text-[var(--color-destructive-accent,var(--color-red-700))] bg-[var(--color-destructive-soft,var(--color-red-50))] dark:bg-[var(--color-destructive-soft,var(--color-red-950))] dark:text-[var(--color-destructive-soft,var(--color-red-600))]',
+};
+
 export const TONE = {
-  neutral: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-  info: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-  brand: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  warn: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  ok: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  danger: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  neutral: LIGHT.secondary,
+  info: LIGHT.primary,
+  brand: LIGHT.primary,
+  warn: LIGHT.warning,
+  ok: LIGHT.success,
+  danger: LIGHT.destructive,
 } as const;
 
 type Label = { label: string; color: string };

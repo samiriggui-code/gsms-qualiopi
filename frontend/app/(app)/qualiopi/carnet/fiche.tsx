@@ -47,7 +47,7 @@ export const STATE_BAR: { key: string; label: string; bar: string }[] = [
     label: 'Preuves insuffisantes',
     bar: 'bg-destructive',
   },
-  { key: 'NON_EVALUABLE', label: 'Revue humaine', bar: 'bg-sky-500' },
+  { key: 'NON_EVALUABLE', label: 'Revue humaine', bar: 'bg-primary' },
   { key: 'NON_EVALUE', label: 'Non évalués', bar: 'bg-zinc-400' },
 ];
 

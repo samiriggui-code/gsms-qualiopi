@@ -95,9 +95,9 @@ export function countCol<T extends Row>(id: string, title: string): ColumnDef<T>
 // Couleurs de badge réutilisées
 export const TONE = {
   gray: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-  blue: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-  amber: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  violet: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  blue: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground',
+  amber: 'text-[var(--color-warning-accent,var(--color-yellow-700))] bg-[var(--color-warning-soft,var(--color-yellow-100))] dark:bg-[var(--color-warning-soft,var(--color-yellow-950))] dark:text-[var(--color-warning-soft,var(--color-yellow-600))]',
+  green: 'text-[var(--color-success-accent,var(--color-green-800))] bg-[var(--color-success-soft,var(--color-green-100))] dark:bg-[var(--color-success-soft,var(--color-green-950))] dark:text-[var(--color-success-soft,var(--color-green-600))]',
+  violet: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground',
   red: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
 };

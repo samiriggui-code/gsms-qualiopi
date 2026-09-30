@@ -73,7 +73,7 @@ const DOT: Record<string, string> = {
   DEMONTRABLE: 'bg-green-500',
   A_RISQUE: 'bg-yellow-500',
   PREUVES_INSUFFISANTES: 'bg-destructive',
-  NON_EVALUABLE: 'bg-violet-500',
+  NON_EVALUABLE: 'bg-primary',
   NON_EVALUE: 'bg-muted-foreground',
   NON_APPLICABLE: 'bg-muted-foreground/40',
   A_VENIR: 'bg-primary',

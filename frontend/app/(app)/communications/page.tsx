@@ -189,7 +189,7 @@ function MessageList({
                 </span>
                 {m.statut === 'A_VALIDER' && (
                   <Badge appearance="ghost" className="px-0">
-                    <BadgeDot className="size-2 bg-amber-500" />
+                    <BadgeDot className="size-2 bg-yellow-500" />
                   </Badge>
                 )}
               </div>

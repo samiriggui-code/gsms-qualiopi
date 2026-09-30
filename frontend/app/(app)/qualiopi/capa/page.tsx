@@ -123,7 +123,7 @@ function CapaCard({
               >
                 <BadgeDot
                   className={
-                    action.type === 'CORRECTIVE' ? 'bg-red-500' : 'bg-blue-500'
+                    action.type === 'CORRECTIVE' ? 'bg-red-500' : 'bg-primary'
                   }
                 />
                 {action.type === 'CORRECTIVE' ? 'Corrective' : 'Préventive'}
@@ -350,8 +350,8 @@ export default function CapaBoardPage() {
             />
             <StatCard
               visual={
-                <RingIcon className="border-amber-400">
-                  <CircleCheck className="size-5 text-amber-500" />
+                <RingIcon className="border-yellow-400">
+                  <CircleCheck className="size-5 text-yellow-500" />
                 </RingIcon>
               }
               value={`${toVerify} à vérifier`}

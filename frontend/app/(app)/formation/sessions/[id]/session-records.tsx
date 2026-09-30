@@ -93,9 +93,9 @@ function Journey({ sessionId, onOpenLearner }: { sessionId: string; onOpenLearne
 // --- Émargement : grille stagiaires × demi-journées ---
 
 const CELL_ICON: Record<AttendanceCell['etat'], { icon: typeof Check; className: string }> = {
-  PRESENT: { icon: Check, className: 'text-emerald-600' },
+  PRESENT: { icon: Check, className: 'text-green-600' },
   ABSENT: { icon: X, className: 'text-destructive' },
-  MANQUANT: { icon: TriangleAlert, className: 'text-amber-600' },
+  MANQUANT: { icon: TriangleAlert, className: 'text-yellow-600' },
   A_VENIR: { icon: Clock, className: 'text-muted-foreground' },
   NON_ATTENDU: { icon: Minus, className: 'text-muted-foreground/60' },
 };
@@ -144,7 +144,7 @@ function Attendance({ sessionId, capabilities }: { sessionId: string; capabiliti
                   {slot.contre_validee && (
                     <Tooltip>
                       <TooltipTrigger>
-                        <ShieldCheck className="inline size-3.5 ms-1 text-emerald-600" />
+                        <ShieldCheck className="inline size-3.5 ms-1 text-green-600" />
                       </TooltipTrigger>
                       <TooltipContent>
                         Contre-validée le {formatDate(slot.contre_validee.le, 'd MMM HH:mm')} par {slot.contre_validee.par}

@@ -196,7 +196,7 @@ function Body({ sessionId, journey, onClose }: { sessionId: string; journey: Lea
               )}
             </SideCard>
             {journey.abandon && (
-              <p className="rounded-md bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+              <p className="rounded-md bg-muted px-3 py-2 text-sm text-foreground">
                 {journey.statut === 'ANNULE' ? 'Annulée' : `Abandon le ${formatDate(journey.abandon.le)}`}
                 {journey.abandon.motif ? ` — ${journey.abandon.motif}` : ' — motif non renseigné'}
               </p>
@@ -343,7 +343,7 @@ function StepRow({
           )}
           {blocked && (
             <p className="mt-1 text-xs text-muted-foreground">
-              <span className={cn('font-medium', step.etat !== 'A_VENIR' && 'text-amber-600')}>
+              <span className={cn('font-medium', step.etat !== 'A_VENIR' && 'text-yellow-600')}>
                 {step.etat === 'A_VENIR' ? 'Pas encore : ' : 'Bloqué : '}
               </span>
               {blocked}

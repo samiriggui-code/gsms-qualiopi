@@ -7,9 +7,9 @@ export const CAPA_STATUS: Record<
   { label: string; color: string; dot: string }
 > = {
   OUVERTE: { label: 'Ouverte', color: TONE.neutral, dot: 'bg-zinc-400' },
-  EN_COURS: { label: 'En cours', color: TONE.brand, dot: 'bg-blue-500' },
-  A_VERIFIER: { label: 'À vérifier', color: TONE.warn, dot: 'bg-amber-500' },
-  CLOTUREE: { label: 'Clôturée', color: TONE.ok, dot: 'bg-emerald-500' },
+  EN_COURS: { label: 'En cours', color: TONE.brand, dot: 'bg-primary' },
+  A_VERIFIER: { label: 'À vérifier', color: TONE.warn, dot: 'bg-yellow-500' },
+  CLOTUREE: { label: 'Clôturée', color: TONE.ok, dot: 'bg-green-500' },
   ANNULEE: { label: 'Annulée', color: TONE.danger, dot: 'bg-red-500' },
 };
 

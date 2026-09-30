@@ -4,9 +4,9 @@ import type { StepState } from '@/lib/gsms/types';
 import { cn } from '@/lib/utils';
 
 const ICONS: Record<StepState, { icon: typeof CircleCheck; color: string }> = {
-  FAIT: { icon: CircleCheck, color: 'text-emerald-600' },
+  FAIT: { icon: CircleCheck, color: 'text-green-600' },
   A_VENIR: { icon: CircleDashed, color: 'text-muted-foreground' },
-  A_ECHEANCE: { icon: Clock, color: 'text-amber-600' },
+  A_ECHEANCE: { icon: Clock, color: 'text-yellow-600' },
   EN_RETARD: { icon: CircleX, color: 'text-destructive' },
   SANS_OBJET: { icon: CircleMinus, color: 'text-muted-foreground/60' },
 };

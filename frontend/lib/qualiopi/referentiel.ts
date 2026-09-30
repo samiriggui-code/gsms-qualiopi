@@ -90,9 +90,9 @@ export function useIndicator(number: number) {
 // --- Libellés ---
 
 export const SCOPE_LABELS: Record<Scope, { label: string; color: string }> = {
-  ORGANISME: { label: 'Organisme', color: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' },
-  FORMATION: { label: 'Formation', color: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300' },
-  SESSION: { label: 'Session', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
+  ORGANISME: { label: 'Organisme', color: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground' },
+  FORMATION: { label: 'Formation', color: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground' },
+  SESSION: { label: 'Session', color: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground' },
 };
 
 export const EVIDENCE_TYPE_LABELS: Record<string, string> = {

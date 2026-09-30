@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const PERIODS: Record<string, string> = {
@@ -170,36 +171,27 @@ export function SettingField({
   }
 
   if (schema.type === 'array' && schema.items?.enum) {
-    const days = (value as number[]) ?? [];
+    const days = ((value as number[]) ?? []).map(String);
     return (
-      <div className="flex flex-wrap gap-1.5">
-        {schema.items.enum.map((d) => {
-          const on = days.includes(Number(d));
-          return (
-            <button
-              key={String(d)}
-              type="button"
-              disabled={disabled}
-              aria-pressed={on}
-              onClick={() =>
-                onChange(
-                  on
-                    ? days.filter((x) => x !== d)
-                    : [...days, Number(d)].sort(),
-                )
-              }
-              className={cn(
-                'h-8 min-w-11 rounded-md border px-2 text-sm',
-                on
-                  ? 'border-primary bg-primary/10 text-primary font-medium'
-                  : 'border-input text-muted-foreground',
-              )}
-            >
-              {WEEKDAYS[Number(d) - 1]}
-            </button>
-          );
-        })}
-      </div>
+      <ToggleGroup
+        type="multiple"
+        variant="outline"
+        size="sm"
+        className="flex-wrap justify-start gap-1.5"
+        value={days}
+        disabled={disabled}
+        onValueChange={(v) => onChange(v.map(Number).sort())}
+      >
+        {schema.items.enum.map((d) => (
+          <ToggleGroupItem
+            key={String(d)}
+            value={String(d)}
+            className="min-w-11 text-muted-foreground data-[state=on]:text-foreground data-[state=on]:bg-transparent data-[state=on]:border-zinc-950 dark:data-[state=on]:border-zinc-50"
+          >
+            {WEEKDAYS[Number(d) - 1]}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
     );
   }
 

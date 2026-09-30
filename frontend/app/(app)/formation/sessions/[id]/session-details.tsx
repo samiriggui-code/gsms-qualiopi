@@ -135,14 +135,14 @@ export function SessionDetails({ sessionId, session }: { sessionId: string; sess
                         <div key={c.label} className="space-y-1">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-secondary-foreground">{c.label}</span>
-                            <span className={cn('text-xs font-medium', complete ? 'text-emerald-600' : 'text-destructive')}>
+                            <span className={cn('text-xs font-medium', complete ? 'text-green-600' : 'text-destructive')}>
                               {c.done}/{c.total}
                             </span>
                           </div>
                           <Progress
                             value={percent(c.done, c.total)}
                             className="h-1.5"
-                            indicatorClassName={complete ? 'bg-emerald-500' : 'bg-destructive'}
+                            indicatorClassName={complete ? 'bg-green-500' : 'bg-destructive'}
                           />
                         </div>
                       );

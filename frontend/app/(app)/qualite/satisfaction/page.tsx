@@ -62,7 +62,7 @@ const config: ResourceConfig<Survey> = {
         r.score == null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          <span className={cn('font-semibold tabular-nums', r.score >= 4 ? 'text-emerald-600' : r.score >= 3 ? 'text-amber-600' : 'text-destructive')}>
+          <span className={cn('font-semibold tabular-nums', r.score >= 4 ? 'text-green-600' : r.score >= 3 ? 'text-yellow-600' : 'text-destructive')}>
             {r.score.toFixed(1)}
           </span>
         ),

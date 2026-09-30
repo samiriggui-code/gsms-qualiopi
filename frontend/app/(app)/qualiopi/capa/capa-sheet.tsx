@@ -110,7 +110,7 @@ export function CapaSheet({
 
                   {a.ecart && (
                     <div className="flex items-start gap-3 rounded-lg border border-border p-3.5">
-                      <CircleAlert className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                      <CircleAlert className="size-4 text-yellow-500 mt-0.5 shrink-0" />
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
                           Écart {a.ecart.reference}
