@@ -39,6 +39,7 @@ FEATURES: dict[str, Feature] = {f.code: f for f in (
     Feature("funding.opco", "OPCO", False, ("funding",)),
     Feature("funding.france_travail", "France Travail (AIF, POEI)", False, ("funding",)),
     Feature("relances", "Relances et communications automatiques", False, ("training",)),
+    Feature("edof", "Référencement CPF (EDOF) : dossiers de l'établissement et des formations", True, ("training",)),
     Feature("signature", "Signature électronique et preuve", False, built=False),
     Feature("lms", "Formation à distance", False, ("training",), built=False),
     Feature("agents", "Agents IA", False, built=False),

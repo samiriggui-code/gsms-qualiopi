@@ -152,6 +152,126 @@ class Program(TimestampMixin, Base):
     public_info_reviewed_on: Mapped[date | None] = mapped_column(Date)
     success_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     satisfaction_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    # Fiche formation unique : alimente programme, catalogue, contrôles Qualiopi et dossier EDOF.
+    audience: Mapped[str | None] = mapped_column(Text)  # public visé
+    skills: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")  # compétences visées
+    delivery_mode: Mapped[str | None] = mapped_column(String(20))  # DELIVERY_MODES
+    # Modules : [{"code", "title", "details": [...], "hours"}] ; `content` reste le résumé libre.
+    modules: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    teaching_means: Mapped[str | None] = mapped_column(Text)  # moyens pédagogiques et techniques
+    catalog_slug: Mapped[str | None] = mapped_column(String(80), unique=True)  # fiche du catalogue Form'SSI
+    # Points à arbitrer par une personne : [{"champ", "message", "source"}] (sources divergentes, manques).
+    review_notes: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+
+
+DELIVERY_MODES = ("PRESENTIEL", "DISTANCE", "MIXTE")
+
+# Fondement de l'éligibilité au CPF (code du travail, L. 6323-6) : à identifier formation par formation.
+CERTIFICATION_BASES = {
+    "A_DETERMINER": "À déterminer",
+    "RNCP": "Certification inscrite au RNCP",
+    "RS": "Certification ou habilitation inscrite au répertoire spécifique (RS)",
+    "AUTRE_ELIGIBLE": "Autre action éligible (permis, bilan, VAE, création d'entreprise…)",
+    "NON_CERTIFIANTE": "Non certifiante : pas éligible au CPF à ce titre",
+}
+# Ce que le certificateur autorise l'établissement (SIRET) à faire.
+HABILITATIONS = {
+    "A_VERIFIER": "À vérifier auprès du certificateur",
+    "FORMER": "Habilité à former (évaluation par un organisme habilité)",
+    "FORMER_ET_EVALUER": "Habilité à former et à organiser l'évaluation",
+    "AUCUNE": "Pas d'habilitation",
+}
+
+
+class ProgramCertification(TimestampMixin, Base):
+    """Certification visée et habilitations de l'établissement : déclarées, puis vérifiées par une personne.
+
+    Rien n'est déduit : un contenu acheté ou repris n'apporte ni certification ni habilitation.
+    """
+
+    __tablename__ = "program_certification"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"), unique=True)
+    basis: Mapped[str] = mapped_column(String(20), default="A_DETERMINER", server_default="A_DETERMINER")
+    code: Mapped[str | None] = mapped_column(String(20))  # ex. RNCP36648, RS5642
+    title: Mapped[str | None] = mapped_column(String(250))
+    certifier: Mapped[str | None] = mapped_column(String(250))
+    registration_end: Mapped[date | None] = mapped_column(Date)  # échéance de l'enregistrement (France compétences)
+    source_url: Mapped[str | None] = mapped_column(String(400))
+    checked_on: Mapped[date | None] = mapped_column(Date)  # fiche relue sur France compétences
+    checked_by: Mapped[str | None] = mapped_column(String(200))
+    habilitation: Mapped[str] = mapped_column(String(20), default="A_VERIFIER", server_default="A_VERIFIER")
+    partner_siret: Mapped[str | None] = mapped_column(String(20))  # SIRET référencé chez le certificateur
+    habilitation_checked_on: Mapped[date | None] = mapped_column(Date)
+    habilitation_checked_by: Mapped[str | None] = mapped_column(String(200))
+    evaluator_name: Mapped[str | None] = mapped_column(String(250))  # organisme qui organise l'évaluation
+    # Correspondance [{"competence", "modules": [...], "evaluation"}] : programme ↔ référentiel ↔ évaluation.
+    competence_mapping: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # Autres autorisations propres au métier (ex. autorisation d'exercice CNAPS de l'organisme).
+    other_requirements: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+PROGRAM_TRAINER_ROLES = ("FORMATEUR", "EVALUATEUR", "RESPONSABLE_PEDAGOGIQUE")
+
+
+class ProgramTrainer(TimestampMixin, Base):
+    """Intervenant prévu sur une formation (le programme le cite, le dossier EDOF le justifie)."""
+
+    __tablename__ = "program_trainer"
+    __table_args__ = (UniqueConstraint("program_id", "trainer_id"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"))
+    trainer_id: Mapped[str] = mapped_column(fk("trainer"))
+    role: Mapped[str] = mapped_column(String(30), default="FORMATEUR")
+    modules: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")  # codes de modules
+
+
+RESOURCE_KINDS = ("COURS", "QUIZ", "CAS_PRATIQUE", "EVALUATION", "SUPPORT", "AUTRE")
+RESOURCE_ORIGINS = ("INTERNE", "ACHETE", "GSMS_SCHOOL", "AUTRE")
+RESOURCE_RIGHTS = ("PROPRIETAIRE", "LICENCE", "A_VERIFIER", "INTERDIT")
+RESOURCE_STATUSES = ("A_REDIGER", "BROUILLON", "VALIDE")
+
+
+class ProgramResource(TimestampMixin, Base):
+    """Contenu pédagogique d'une formation : d'où il vient, qui peut le réutiliser, où il en est."""
+
+    __tablename__ = "program_resource"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"), index=True)
+    title: Mapped[str] = mapped_column(String(250))
+    kind: Mapped[str] = mapped_column(String(20), default="SUPPORT")
+    module_code: Mapped[str | None] = mapped_column(String(20))
+    origin: Mapped[str] = mapped_column(String(20), default="INTERNE")
+    source_ref: Mapped[str | None] = mapped_column(String(300))  # ex. identifiant du cours LMS
+    rights: Mapped[str] = mapped_column(String(20), default="A_VERIFIER")
+    rights_note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="BROUILLON")
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class ProgramVersion(TimestampMixin, Base):
+    """Version validée d'une fiche formation, figée : un dossier déposé ou une session y renvoie.
+
+    Modifier la fiche ne change jamais une version : il faut en valider une nouvelle.
+    """
+
+    __tablename__ = "program_version"
+    __table_args__ = (UniqueConstraint("program_id", "version"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    sha256: Mapped[str] = mapped_column(String(64))
+    validated_by: Mapped[str] = mapped_column(String(200))
+    validated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(Text)
 
 
 SESSION_STATUSES = ("PLANIFIEE", "CONFIRMEE", "EN_COURS", "TERMINEE", "CLOTUREE", "ANNULEE")

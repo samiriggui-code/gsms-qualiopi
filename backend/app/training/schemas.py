@@ -1,7 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class ORM(BaseModel):
@@ -31,6 +32,19 @@ class OrganizationOut(ORM):
     mobility_referent_name: str | None
 
 
+class ProgramModule(BaseModel):
+    """Module du programme : code (UV1…), intitulé, points de contenu, durée."""
+
+    code: str = Field(min_length=1, max_length=20)
+    title: str = Field(min_length=1, max_length=250)
+    details: list[str] = Field(default_factory=list)
+    hours: Decimal | None = None
+
+    @field_serializer("hours")
+    def _hours(self, v: Decimal | None) -> float | None:
+        return float(v) if v is not None else None
+
+
 class ProgramIn(BaseModel):
     code: str | None = None
     title: str | None = None
@@ -50,6 +64,13 @@ class ProgramIn(BaseModel):
     public_info_reviewed_on: date | None = None
     success_rate: Decimal | None = None
     satisfaction_rate: Decimal | None = None
+    audience: str | None = None
+    skills: list[str] | None = None
+    delivery_mode: Literal["PRESENTIEL", "DISTANCE", "MIXTE"] | None = None
+    modules: list[ProgramModule] | None = None
+    teaching_means: str | None = None
+    catalog_slug: str | None = None
+    review_notes: list[dict] | None = None
 
 
 class ProgramOut(ORM):

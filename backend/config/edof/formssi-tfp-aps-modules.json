@@ -1,0 +1,127 @@
+{
+  "source": "gsms-school-aps, packages/database/prisma/data/formations-tfp-program.json (copie du 02/10/2026)",
+  "modules": [
+    {
+      "code": "UV1",
+      "title": "Secourisme",
+      "details": [
+        "Gestes élémentaires de premiers secours (SST).",
+        "Prévention des risques professionnels.",
+        "Mise en œuvre des secours en cas d’accident du travail."
+      ]
+    },
+    {
+      "code": "UV2",
+      "title": "Environnement juridique de la sécurité privée",
+      "details": [
+        "Livre VI du Code de la sécurité intérieure.",
+        "Responsabilité civile et pénale.",
+        "Respect des libertés publiques et privées, vie privée, droit de propriété.",
+        "Principes de la République, neutralité et déontologie professionnelle."
+      ]
+    },
+    {
+      "code": "UV3",
+      "title": "Gestion des conflits",
+      "details": [
+        "Analyse des comportements agressifs.",
+        "Prévention des situations conflictuelles.",
+        "Gestion du stress et maîtrise émotionnelle.",
+        "Techniques verbales et comportementales de désescalade."
+      ]
+    },
+    {
+      "code": "UV4",
+      "title": "Module stratégique",
+      "details": [
+        "Transmission des consignes et informations.",
+        "Connaître les outils de transmission.",
+        "Savoir transmettre des consignes."
+      ]
+    },
+    {
+      "code": "UV5",
+      "title": "Module incendie",
+      "details": [
+        "Connaissance des vecteurs d’incendie : Initiation au risque incendie."
+      ]
+    },
+    {
+      "code": "UV6",
+      "title": "Modalités d’appréhension",
+      "details": [
+        "Application de l’article 73 du code de procédure pénale dans le cadre des missions de l’APS."
+      ]
+    },
+    {
+      "code": "UV7",
+      "title": "Prévention des risques terroristes",
+      "details": [
+        "Identification des menaces et comportements suspects.",
+        "Réactions en cas d’attaque ou d’incident majeur.",
+        "Sécurisation des zones et facilitation de l’intervention des forces de l’ordre.",
+        "Premiers gestes face aux blessés (secourisme tactique)."
+      ]
+    },
+    {
+      "code": "UV8",
+      "title": "Module professionnel surveillance et gardiennage",
+      "details": [
+        "Appliquer les techniques d’information et de communication.",
+        "Préparer la mise en œuvre des missions de l’agent de prévention et de sécurité (APS).",
+        "Savoir contrôler les accès.",
+        "Connaître les éléments d’un poste de sécurité.",
+        "Rondes de surveillance et systèmes de contrôle des rondes."
+      ]
+    },
+    {
+      "code": "UV9",
+      "title": "Module palpation et inspection visuelle des bagages",
+      "details": [
+        "Effectuer une inspection visuelle des bagages et une palpation de sécurité."
+      ]
+    },
+    {
+      "code": "UV10",
+      "title": "Module surveillance par moyens électroniques de sécurité",
+      "details": [
+        "Les systèmes de télésurveillance et de Vidéoprotection."
+      ]
+    },
+    {
+      "code": "UV11",
+      "title": "Module gestion des risques",
+      "details": [
+        "Protéger le travailleur isolé.",
+        "Sensibilisation au risque électrique.",
+        "Maitriser la gestion des alarmes."
+      ]
+    },
+    {
+      "code": "UV12",
+      "title": "Module évènementiel spécifique",
+      "details": [
+        "Maîtriser le cadre légal des grands rassemblements.",
+        "Identifier les acteurs d’un grand événement.",
+        "Gérer les spécificités du contrôle d’accès et du filtrage."
+      ]
+    },
+    {
+      "code": "UV13",
+      "title": "Module gestion de situations conflictuelles dégradées",
+      "details": [
+        "Gestion des risques et des situations conflictuelles dégradées."
+      ]
+    },
+    {
+      "code": "UV14",
+      "title": "Module industriel spécifique",
+      "details": [
+        "Evaluer les risques professionnels.",
+        "Situer le risque industriel majeur au sein des installations classées pour la protection de l’environnement (ICPE).",
+        "Adapter le rôle et les missions de l’agent de sécurité aux particularités d’un site industriel.",
+        "Être capable d’identifier les risques particuliers."
+      ]
+    }
+  ]
+}

@@ -77,10 +77,15 @@ def get_dossier(subject: str, subject_id: str, db: DB, _: QualityReader) -> dict
 
 
 @router.get("/documents/{document_id}/contenu")
-def download(document_id: str, db: DB, _: QualityReader) -> Response:
+def download(document_id: str, db: DB, user: QualityReader) -> Response:
     doc = db.get(t.Document, document_id)
     if doc is None or not doc.storage_path:
         raise NotFoundError("Document introuvable")
+    if doc.entity_type == "EDOF":
+        # Pièces de référencement : droits EDOF, et pièces d'identité ou d'honorabilité réservées.
+        needed = "edof.sensitive" if doc.kind == "EDOF_SENSIBLE" else "edof.read"
+        if needed not in permissions_of(db, user):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Pièce de référencement EDOF : accès réservé")
     content = storage.read(doc.storage_path, expected_sha256=doc.sha256)
     name = (doc.original_name or doc.title).replace('"', "")
     return Response(content, media_type=doc.mime_type,
