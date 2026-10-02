@@ -71,6 +71,8 @@ def get_fiche(program_id: str, db: DB, user: ProgramReader) -> dict:
             {"allowed": False, "code": "PERMISSION", "message": "Permission « formations » requise."},
             "validate": can.to_dict() if "programs.validate" in perms else
             {"allowed": False, "code": "PERMISSION", "message": "Permission « valider une fiche formation » requise."},
+            "verify": {"allowed": True} if "programs.validate" in perms else
+            {"allowed": False, "code": "PERMISSION", "message": "Seule une personne habilitée à valider les fiches atteste une vérification."},
         },
         "dossier": {"id": dossier.id} if dossier else None,
     }

@@ -105,6 +105,9 @@ def test_etablissement_pieces_selon_la_situation(formssi: Session) -> None:
     identity = next(a for a in found if a.cible.get("code") == "IDENTITE_REPRESENTANT")
     assert identity.code == "APPLICABILITE_A_DETERMINER" and identity.niveau == "A_VERIFIER"
     assert not any("association" in msg.lower() for msg in messages), "pièces d'association non applicables"
+    states = {row["code"]: row["state"] for row in service.pieces_view(formssi, d, found, frozenset())}
+    assert states["ATTESTATION_VIGILANCE"] == "A_PREPARER", "non demandée par la CDC : à préparer, pas manquante"
+    assert states["STATUTS_ASSOCIATION"] == "NON_APPLICABLE" and states["KBIS"] == "MANQUANTE"
 
 
 def test_justificatif_expire_et_siret_different(formssi: Session) -> None:

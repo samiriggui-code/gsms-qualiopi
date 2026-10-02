@@ -8,7 +8,7 @@ Le moteur transforme les données du quotidien (inscriptions, positionnements, �
 chaque écart. Il ne prononce jamais de conformité : seul l'organisme certificateur en décide.
 
 **Statut : jalons 1 et 1 bis terminés, jalon 2 en cours** — backend : socle de configuration, Formation,
-Émargement, RH, Financement, Parcours du stagiaire, chaîne Qualiopi, actions correctives, relances et questionnaires en ligne (155 tests). Front : premier parcours complet
+Émargement, RH, Financement, Parcours du stagiaire, chaîne Qualiopi, actions correctives, relances, questionnaires en ligne, fiche formation versionnée et référencement EDOF (182 tests). Front : premier parcours complet
 (connexion, sessions, détail, parcours des stagiaires, émargement, Qualiopi de la session), testé par
 Playwright sur ordinateur et mobile. Voir [`frontend/README.md`](frontend/README.md).
 
@@ -43,6 +43,7 @@ Un monolithe, un worker, une base.
 | `app/platform/` | Socle de configuration : fonctionnalités activables (une fonctionnalité inactive retire ses droits), réglages typés déclarés par chaque domaine, datés et journalisés (`ConfigurationService`), décisions motivées (`Decision`), `GET /api/v1/bootstrap` pour le front |
 | `app/qualiopi/review/` | Revue humaine attestée par indicateur (conclusion, justification, validité) |
 | `app/qualiopi/cycle/` | Cycle de certification : période évaluée pour l'état global et l'échantillon d'audit |
+| `app/edof/` + `config/edof/` | Fiche formation unique (certification, habilitations, intervenants, contenus) validée en versions figées ; programme rédigé et aperçu public tirés d'une version. Référencement CPF : dossier de l'établissement et dossier par formation, pièces du référentiel EDOF relu le 02/10/2026 (conditions, ancienneté, SIRET, pièces sensibles, pièce commune jamais copiée), contrôles avec niveau et cible, cycle déclaratif (dépôt, compléments, décision saisis par une personne), accompagnement CDC. Voir `docs/edof/` |
 | `app/core/journal.py` | Journal des modifications métier : qui, quoi, quand, champ par champ |
 
 ## Démarrer en local

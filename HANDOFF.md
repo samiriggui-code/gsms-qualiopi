@@ -1,7 +1,7 @@
 # Handoff — GSMS Qualiopi (reprise en local)
 
-Dernière mise à jour : 29/09/2026. Branche de travail : `claude/publish-gsms-qualiopi-v0ta5n`
-(dernier commit : `7d7531d`). À lire en entier avant de toucher au code.
+Dernière mise à jour : 02/10/2026 (parcours EDOF, §5 ter, branche `claude/parcours-edof-formssi`).
+À lire en entier avant de toucher au code.
 
 ## 1. Le produit
 
@@ -30,9 +30,9 @@ Dernière mise à jour : 29/09/2026. Branche de travail : `claude/publish-gsms-q
 
 ## 3. Pile et architecture
 
-- **Backend** : FastAPI, SQLAlchemy 2, Alembic (migrations `0001` → `0016`), PostgreSQL 16,
+- **Backend** : FastAPI, SQLAlchemy 2, Alembic (migrations `0001` → `0017`), PostgreSQL 16,
   Pydantic 2, Jinja2.
-  - Schémas : `iam`, `config`, `formation`, `qualite`, `rh`, `financement`, `communication`.
+  - Schémas : `iam`, `config`, `formation`, `qualite`, `rh`, `financement`, `communication`, `edof`.
   - Un worker (`app/worker.py`) lit l'outbox des événements, réévalue le moteur, planifie et envoie les
     relances.
 - **Front** : Next.js 16 (App Router, `proxy.ts` et non `middleware.ts`, `params` asynchrones),
@@ -72,7 +72,7 @@ VPS : un vrai SMTP (`SMTP_*` dans `.env`).
 **Vérifications avant chaque commit** (toutes vertes au dernier commit) :
 
 ```bash
-cd backend && ruff check . && python -m pytest && alembic check        # 155 tests
+cd backend && ruff check . && python -m pytest && alembic check        # 182 tests au 02/10
 cd frontend && npm run typecheck && npm run lint && npm run format:check && npm run build
 npm run test:e2e     # 18 passés, 4 ignorés (écritures sur mobile) ; captures dans e2e-results/captures/
 ```
@@ -148,6 +148,39 @@ réintroduire.
 - Local : base `gsms_qualiopi` recréée avec ces migrations (l'ancienne est gardée en
   `gsms_qualiopi_old`) ; administrateur `admin@gsms.local` / `admin-gsms-2026` (préremplis en dev).
 
+## 5 ter. Parcours « Référencement CPF (EDOF) » (02/10/2026)
+
+Documentation : `docs/edof/PARCOURS.md` (parcours, contrôles, informations à obtenir de Form'SSI),
+`docs/edof/INVENTAIRE.md` (ce qui existe dans gsms-qualiopi et gsms-school-aps), `docs/edof/SOURCES.md`
+(sources officielles relues le 02/10/2026 et leurs divergences).
+
+- **Backend** `app/edof/` + migration `0017` :
+  - fiche formation unique (`formation.program` complété, `program_certification`, `program_trainer`,
+    `program_resource`) et **versions validées figées** (`program_version`, empreinte) ; programme
+    rédigé (`config/documents_generes/programme.html`) et aperçu public lus dans une version ;
+  - schéma `edof` : profil de l'établissement, dossiers établissement et formation, pièces rattachées
+    à des `formation.document` (une pièce commune n'est jamais copiée), compléments de la CDC,
+    accompagnement de la CDC ;
+  - référentiel des pièces `config/edof/referencement.yaml` (conditions, ancienneté, SIRET, pièces
+    sensibles) ; contrôles `app/edof/checks.py` avec niveau et cible ;
+  - cycle **déclaratif** : aucune API de dépôt EDOF n'existe, GSMS ne transmet rien ;
+  - permissions `edof.read|write|validate|sensitive`, `programs.validate` ; fonctionnalité `edof`
+    (active par défaut) ; les événements `edof.*` ne relancent pas le moteur Qualiopi ;
+  - `python -m app.cli import-formssi` : identité de Form'SSI et formation TFP APS, sans rien écraser.
+- **Front** : `/formation/edof` (établissement) et `/formation/edof/[programId]` (onglets Contrôles,
+  Programme, Contenus, Certification, Documents et aperçu, Transmission, Suivi pédagogique) ;
+  composants `components/edof/`, requêtes `lib/gsms/edof.ts`.
+- **Vérifications faites** : 182 tests backend, `ruff`, `alembic check` ; `tsc`, `eslint` (avec le
+  contournement ci-dessous), `next build` ; parcours relu dans l'application réelle par un script
+  Playwright hors dépôt : ordinateur 1440 px et téléphone 390 px, aucun débordement, axe-core sans
+  violation propre aux écrans EDOF (restent les contrastes du bleu du thème, communs à tout le front),
+  dépôt et validation d'un Kbis de bout en bout à travers le proxy.
+- **Attention, outillage du front sur `main`** : les scripts `typecheck`, `format:check` et `test:e2e`
+  cités plus bas n'existent plus dans `package.json`, ni le dossier `e2e/` ; `npm run lint` plante
+  (surcharges `ajv >=8.18` et `minimatch ^10` incompatibles avec `@eslint/eslintrc`). Contournement local
+  utilisé : copier `ajv@6` dans `node_modules/@eslint/eslintrc/node_modules` et
+  `node_modules/eslint/node_modules`, et `minimatch@3` dans le premier. À corriger dans `package.json`.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
@@ -194,7 +227,7 @@ qui contient du Metronic.
    - **certificat de réalisation** (demandé par les financeurs) ;
    - feuille d'émargement ;
    - convention ou contrat de formation ;
-   - programme de formation.
+   - ~~programme de formation~~ : fait le 02/10 (rédigé depuis une version validée de la fiche).
 3. Sortie PDF des documents.
 4. Écran chaîne Qualiopi (critères, indicateur, actions correctives ; l'API existe).
 5. **Landing de Form'SSI** : c'est la vitrine de l'école avec son catalogue de formations, alimentée

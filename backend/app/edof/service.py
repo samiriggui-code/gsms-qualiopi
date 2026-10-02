@@ -410,12 +410,15 @@ def pieces_view(db: Session, dossier: m.Dossier, found: list[checks.Anomaly], pe
         if a.cible.get("type") == "piece":
             by_target.setdefault(a.cible["code"], []).append(a.to_dict())
     can_see = "edof.sensitive" in perms
+    requested = {c.requirement for c in dossier.complements if c.status == "DEMANDEE" and c.requirement}
     out = []
     for spec in load().for_scope(dossier.kind):
         applies = spec.applies(facts)
         piece = current.get(spec.code)
         if spec.generated:
             state = "GENEREE"
+        elif piece is None and spec.stage in ("COMPLEMENT", "SUIVI") and spec.code not in requested:
+            state = "NON_APPLICABLE" if applies is False else "A_PREPARER"
         elif piece is None:
             state = "NON_APPLICABLE" if applies is False else "A_DETERMINER" if applies is None else "MANQUANTE"
         else:

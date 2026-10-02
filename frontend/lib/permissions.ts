@@ -14,6 +14,11 @@ const API_PERMISSIONS = {
   manage_communications: 'communications.manage',
   manage_settings: 'settings.manage',
   read_staff: 'staff.read',
+  validate_programs: 'programs.validate',
+  read_edof: 'edof.read',
+  write_edof: 'edof.write',
+  validate_edof: 'edof.validate',
+  sensitive_edof: 'edof.sensitive',
 } as const;
 
 export type Permission = keyof typeof API_PERMISSIONS;

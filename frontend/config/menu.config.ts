@@ -157,6 +157,12 @@ export const MAIN_NAV: NavConfig = [
         },
       },
       {
+        id: 'edof',
+        title: 'Référencement CPF',
+        icon: Landmark,
+        path: '/formation/edof',
+      },
+      {
         id: 'sessions',
         title: 'Sessions',
         icon: CalendarDays,
