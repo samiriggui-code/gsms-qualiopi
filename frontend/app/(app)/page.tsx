@@ -5,11 +5,9 @@
 // ne fait que les compter et les ranger.
 import Link from 'next/link';
 import {
-  AlertTriangle,
   ArrowUpRight,
   BookOpenCheck,
   CalendarDays,
-  ClipboardList,
   Home,
   ListChecks,
   ShieldCheck,
@@ -17,7 +15,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { formatDate, formatDateRange, percent } from '@/lib/format';
-import { useCapaActions, useOpenFindings } from '@/lib/gsms/capa';
+import {
+  useCapaActions,
+  useOpenFindings,
+  type CapaAction,
+  type Finding,
+} from '@/lib/gsms/capa';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
 import { useMilestones, useQualificationDeadlines } from '@/lib/gsms/dashboard';
 import {
@@ -27,7 +30,9 @@ import {
 } from '@/lib/gsms/labels';
 import { useSessions } from '@/lib/gsms/sessions';
 import { useCan } from '@/lib/permissions';
-import { CRITERION_ICONS } from '@/lib/qualiopi/criteres';
+import { ActionPlan } from '@/components/audit/ActionPlan';
+import type { AuditStatus } from '@/components/audit/status';
+import { VerdictGrid } from '@/components/audit/VerdictGrid';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,7 +43,6 @@ import {
   CardTitle,
   CardToolbar,
 } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
@@ -97,47 +101,53 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-muted-foreground py-2">{children}</p>;
 }
 
-function CriteriaCard({ fiches }: { fiches: CarnetFiche[] }) {
+// État du moteur → statut des composants d'audit (vert, orange, rouge). Sans objet et à venir : non affichés.
+const AUDIT_STATUS: Record<string, AuditStatus> = {
+  DEMONTRABLE: 'ok',
+  A_RISQUE: 'warn',
+  NON_EVALUABLE: 'warn',
+  NON_EVALUE: 'warn',
+  PREUVES_INSUFFISANTES: 'ko',
+};
+
+function verdictCriteres(fiches: CarnetFiche[]) {
   const numbers = Array.from(new Set(fiches.map((f) => f.critere.numero))).sort(
     (a, b) => a - b,
   );
-  return (
-    <div className="flex flex-col gap-4">
-      {numbers.map((n) => {
-        const items = fiches.filter((f) => f.critere.numero === n);
-        const applicable = items.filter(counted);
-        const ok = applicable.filter((f) => f.etat === 'DEMONTRABLE').length;
-        const ecarts = items.reduce((sum, f) => sum + f.ecarts.length, 0);
-        const Icon = CRITERION_ICONS[n] ?? ClipboardList;
-        return (
-          <Link
-            key={n}
-            href="/qualiopi/referentiel"
-            className="flex items-center gap-3 group"
-          >
-            <Icon className="size-4 shrink-0 text-muted-foreground" />
-            <div className="flex flex-col gap-1.5 grow min-w-0">
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium text-foreground truncate group-hover:text-primary">
-                  {items[0]?.critere.nom ?? `Critère ${n}`}
-                </span>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {ok}/{applicable.length}
-                  {ecarts > 0 && ` · ${ecarts} écart${ecarts > 1 ? 's' : ''}`}
-                </span>
-              </div>
-              <Progress
-                value={percent(ok, applicable.length)}
-                indicatorClassName={
-                  ok === applicable.length ? 'bg-green-500' : 'bg-primary'
-                }
-              />
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  );
+  return numbers.map((n) => ({
+    id: `C${n}`,
+    statuses: fiches
+      .filter((f) => f.critere.numero === n)
+      .map((f) => AUDIT_STATUS[f.etat])
+      .filter((s): s is AuditStatus => !!s),
+  }));
+}
+
+// Écarts ouverts, les majeurs d'abord, chacun avec sa prochaine action corrective.
+function planActions(
+  findings: Finding[],
+  actions: CapaAction[],
+  fiches: CarnetFiche[],
+) {
+  const nom = (n: number) =>
+    fiches.find((f) => f.numero === n)?.nom ?? `Indicateur ${n}`;
+  return findings
+    .map((f) => {
+      const next = actions
+        .filter((a) => a.ecart?.id === f.id && OPEN_CAPA.has(a.statut))
+        .sort((a, b) => a.echeance.localeCompare(b.echeance))[0];
+      return {
+        severity: (f.gravite === 'majeure' ? 'ko' : 'warn') as AuditStatus,
+        ref: `${nom(f.indicateur)} · ${f.reference}`,
+        task: f.titre,
+        detail: next
+          ? `${next.reference} · ${next.statut_libelle} · échéance ${formatDate(next.echeance)}${next.en_retard ? ' (en retard)' : ''}`
+          : 'Pas encore d’action corrective',
+      };
+    })
+    .sort((a, b) =>
+      a.severity === b.severity ? 0 : a.severity === 'ko' ? -1 : 1,
+    );
 }
 
 export default function TableauDeBordPage() {
@@ -184,7 +194,7 @@ export default function TableauDeBordPage() {
         <div className="container-fluid space-y-5">
           <Refusal error={carnet.error ?? sessions.error} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {quality && (
               <StatCard
                 icon={ListChecks}
@@ -201,20 +211,6 @@ export default function TableauDeBordPage() {
                 }
                 href="/qualiopi/referentiel"
                 loading={carnet.isLoading}
-              />
-            )}
-            {quality && (
-              <StatCard
-                icon={AlertTriangle}
-                label="Écarts ouverts"
-                value={findings.data?.length}
-                hint={
-                  findings.data
-                    ? `dont ${majors.length} majeur${majors.length > 1 ? 's' : ''}`
-                    : undefined
-                }
-                href="/qualiopi/capa"
-                loading={findings.isLoading}
               />
             )}
             {quality && (
@@ -262,11 +258,11 @@ export default function TableauDeBordPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {carnet.isLoading ? (
-                    Array.from({ length: 7 }).map((_, i) => (
-                      <Skeleton key={i} className="h-8" />
-                    ))
+                    <Skeleton className="h-40" />
                   ) : (
-                    <CriteriaCard fiches={fiches} />
+                    <div className="overflow-x-auto [&>section]:border-0 [&>section]:p-0 [&>section]:bg-transparent">
+                      <VerdictGrid criteres={verdictCriteres(fiches)} />
+                    </div>
                   )}
                   {carnet.data && (
                     <p className="text-xs text-muted-foreground">
@@ -379,8 +375,52 @@ export default function TableauDeBordPage() {
               </Card>
             )}
 
+            {quality && (
+              <Card>
+                <CardHeader>
+                  <CardHeading>
+                    <CardTitle>
+                      Plan d’action{' '}
+                      {findings.data && (
+                        <span className="text-sm font-normal text-muted-foreground">
+                          · {findings.data.length} écart
+                          {findings.data.length > 1 ? 's' : ''}, dont{' '}
+                          {majors.length} majeur{majors.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeading>
+                  <CardToolbar>
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href="/qualiopi/capa">
+                        Tous <ArrowUpRight />
+                      </Link>
+                    </Button>
+                  </CardToolbar>
+                </CardHeader>
+                <CardContent>
+                  <Refusal error={findings.error} />
+                  {findings.isLoading && <Skeleton className="h-40" />}
+                  {findings.data?.length === 0 && (
+                    <EmptyLine>Aucun écart ouvert.</EmptyLine>
+                  )}
+                  {findings.data && findings.data.length > 0 && (
+                    <div className="[&_li]:border-0 [&_li]:bg-transparent [&_li]:p-0 [&_li]:py-1.5 [&_ol]:gap-1">
+                      <ActionPlan
+                        actions={planActions(
+                          findings.data,
+                          actions.data ?? [],
+                          fiches,
+                        ).slice(0, 6)}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {staff && (
-              <Card className={quality ? '' : 'lg:col-span-3'}>
+              <Card className={quality ? 'lg:col-span-2' : 'lg:col-span-3'}>
                 <CardHeader>
                   <CardHeading>
                     <CardTitle>Habilitations à renouveler</CardTitle>
