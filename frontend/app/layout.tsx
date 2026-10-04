@@ -1,5 +1,5 @@
 import { ReactNode, Suspense } from 'react';
-import { Inter } from 'next/font/google';
+import { Inter, Inter_Tight, JetBrains_Mono } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -9,6 +9,9 @@ import { QueryProvider } from '@/components/query-provider';
 
 import '@/styles/globals.css';
 const inter = Inter({ subsets: ['latin'] });
+// Polices des composants d'audit (components/audit) : exposées en variables, sans changer celle de l'application.
+const interTight = Inter_Tight({ subsets: ['latin'], variable: '--next-font-inter-tight' });
+const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--next-font-jetbrains-mono' });
 
 export const metadata: Metadata = {
   title: {
@@ -27,7 +30,7 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="fr" className="h-full" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="fr" className={cn('h-full', interTight.variable, jetbrainsMono.variable)} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body
         className={cn(
           'antialiased flex h-full text-base text-foreground bg-background',
