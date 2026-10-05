@@ -274,6 +274,33 @@ class WatchIn(BaseModel):
     exploited_on: date | None = None
 
 
+class PremisesIn(BaseModel):
+    code: str | None = None
+    name: str | None = None
+    kind: str | None = None
+    parent_id: str | None = None
+    address: str | None = None
+    floor: str | None = None
+    capacity: int | None = Field(default=None, ge=0)
+    accessibility: str | None = None
+    status: str | None = None
+    checked_on: date | None = None
+    note: str | None = None
+
+
+class EquipmentIn(BaseModel):
+    code: str | None = None
+    label: str | None = None
+    category: str | None = None
+    quantity: int | None = Field(default=None, ge=0)
+    premises_id: str | None = None
+    regulatory_ref: str | None = None
+    status: str | None = None
+    last_check_on: date | None = None
+    next_check_on: date | None = None
+    note: str | None = None
+
+
 class SubcontractorIn(BaseModel):
     name: str | None = None
     siret: str | None = None

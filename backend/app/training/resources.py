@@ -4,6 +4,8 @@ Droits (app/auth/permissions.py) : lecture sessions.read (qualité : quality.rea
 sessions.write pour l'offre et les clients, trainers.write pour les formateurs, quality.write pour la qualité.
 """
 
+from datetime import date
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -13,8 +15,10 @@ from app.training import models as t
 from app.training.schemas import (
     CompanyIn,
     ComplaintIn,
+    EquipmentIn,
     PartnerIn,
     PersonIn,
+    PremisesIn,
     ProgramIn,
     QualificationIn,
     StaffDevelopmentIn,
@@ -136,6 +140,33 @@ def serialize_surveys(db: Session, rows: list) -> list[dict]:
     return [{**b, "learner_name": learner_by_enrollment.get(r.enrollment_id)} for b, r in zip(base, rows, strict=True)]
 
 
+def _labels(field: str, labels: dict, label: str):
+    return _one_of(field, tuple(labels), label)
+
+
+def _premises_parent(db: Session, data: dict) -> None:
+    parent = data.get("parent_id")
+    if parent and parent == data.get("id"):
+        raise InvalidStateError("Un lieu ne peut pas être rattaché à lui-même")
+
+
+def serialize_premises(db: Session, rows: list) -> list[dict]:
+    ids = [r.id for r in rows]
+    parents = _names(db, t.Premises, {r.parent_id for r in rows})
+    equipment = dict(db.execute(select(t.Equipment.premises_id, func.count()).where(t.Equipment.premises_id.in_(ids))
+                                .group_by(t.Equipment.premises_id)).all()) if ids else {}
+    return [{**to_dict(r), "kind_label": t.PREMISES_KINDS.get(r.kind, r.kind), "status_label": t.PLACE_STATUSES.get(r.status, r.status),
+             "parent_name": parents.get(r.parent_id), "equipment": equipment.get(r.id, 0)} for r in rows]
+
+
+def serialize_equipment(db: Session, rows: list) -> list[dict]:
+    names = _names(db, t.Premises, {r.premises_id for r in rows})
+    today = date.today()
+    return [{**to_dict(r), "category_label": t.EQUIPMENT_CATEGORIES.get(r.category, r.category),
+             "status_label": t.PLACE_STATUSES.get(r.status, r.status), "premises_name": names.get(r.premises_id),
+             "check_overdue": r.next_check_on is not None and r.next_check_on < today} for r in rows]
+
+
 # --- Déclaration des ressources ---
 
 QUALITY_READ = ("sessions.read", "quality.read")
@@ -172,6 +203,24 @@ ROUTERS = [
         label="Action de développement", write_permission="trainers.write",
         order_by=[t.StaffDevelopmentAction.planned_on.desc()], updated_event="staff_development.updated",
         serialize=_with_trainer, validate=_exists("trainer_id", t.Trainer, "Formateur"),
+    ),
+    crud_router(
+        model=t.Premises, path="premises", schema_in=PremisesIn, label="Lieu",
+        write_permission="sessions.write", read_permissions=QUALITY_READ, order_by=[t.Premises.code],
+        serialize=serialize_premises,
+        validate=_all(
+            _labels("kind", t.PREMISES_KINDS, "Type de lieu"), _labels("status", t.PLACE_STATUSES, "Statut"),
+            _exists("parent_id", t.Premises, "Site"), _premises_parent,
+        ),
+    ),
+    crud_router(
+        model=t.Equipment, path="equipment", schema_in=EquipmentIn, label="Équipement",
+        write_permission="sessions.write", read_permissions=QUALITY_READ, order_by=[t.Equipment.category, t.Equipment.label],
+        serialize=serialize_equipment,
+        validate=_all(
+            _labels("category", t.EQUIPMENT_CATEGORIES, "Catégorie"), _labels("status", t.PLACE_STATUSES, "Statut"),
+            _exists("premises_id", t.Premises, "Lieu"),
+        ),
     ),
     crud_router(
         model=t.Subcontractor, path="subcontractors", schema_in=SubcontractorIn, label="Sous-traitant",

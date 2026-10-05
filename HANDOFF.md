@@ -198,6 +198,31 @@ La rubrique Qualiopi du menu n'a plus de page « À construire ».
 - Le composant de démonstration `MockAuditChat` (« Eve ») n'est branché nulle part : aucune auditrice simulée
   n'existe côté API.
 
+## 5 quinquies. Offre de formation reprise de GSMS School (05/10/2026)
+
+La rubrique « Offre de formation » n'a plus de page « À construire ».
+
+- **Import** `python -m app.cli import-gsms-school` (`app/training/import_school.py`) lit
+  `config/catalogue/gsms-school.yaml`, produit par lecture du dépôt gsms-school-aps (fiches vitrine, catalogue,
+  sites et salles, inventaire). Il crée 29 formations (TFP APS reste à `import-formssi` ; « Commission de
+  sécurité » et « Formation intra-entreprise » écartées : conseil et sur-mesure), 10 lieux et 43 équipements.
+  Il ne modifie jamais l'existant. Chaque écart ou manque est dans `review_notes` (prix « à partir de » à
+  confirmer, durées en fourchette, textes sans accents rétablis, programmes de recyclage SSIAP à rédiger, RNCP/RS à
+  vérifier). **Jamais repris** : les taux écrits en dur (87 à 100 %), les notes et avis, le texte « SI.Groupe »
+  d'un autre organisme, les fournisseurs et factures fictifs de l'inventaire, les sessions de démonstration.
+  Lieux et équipements arrivent « à vérifier sur place ».
+- **Tables** (migration 0018) : `formation.premises` (site, salle, plateau technique, stockage) et
+  `formation.equipment` (article, quantité, lieu, vérifications) ; `program.results_basis` garde la période et
+  les effectifs d'un taux publié. `satisfaction_rate` est une part de répondants satisfaits, en %.
+- **API** `app/training/offre.py` : `GET /formation/resultats?mois=` (réussite à l'examen, abandons,
+  satisfaction à chaud mesurés par formation, écarts avec les taux publiés), `POST
+  /formation/resultats/{id}/publication` (refus motivé `NOTHING_MEASURED`), `GET /formation/ressources`.
+  CRUD `premises` et `equipment` (`app/training/resources.py`). Tests : `tests/test_offre_formation.py`.
+- **Front** : `/formation/resultats`, `/formation/ressources` (même formulaire que l'onglet Contenus de la fiche,
+  `components/edof/resource-fields.ts`), `/formation/locaux`, `/formation/moyens`.
+- Pas encore fait : affecter un lieu et du matériel à une session (la session garde ses champs texte), débouchés
+  et taux d'insertion (aucune donnée).
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,

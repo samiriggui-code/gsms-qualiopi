@@ -75,7 +75,8 @@ def detect_program(p: t.Program) -> Iterator[EvidenceSpec]:
         yield EvidenceSpec(
             evidence_type="RESULTS_PUBLISHED",
             label=f"Indicateurs de résultats — {p.code}",
-            facts={"satisfaction_rate": _num(p.satisfaction_rate), "success_rate": _num(p.success_rate)},
+            facts={"satisfaction_rate": _num(p.satisfaction_rate), "success_rate": _num(p.success_rate),
+                   "basis": p.results_basis},
             produced_on=p.public_info_reviewed_on,
             **base,
         )

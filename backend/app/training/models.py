@@ -151,7 +151,7 @@ class Program(TimestampMixin, Base):
     certification_alignment: Mapped[str | None] = mapped_column(Text)
     public_info_reviewed_on: Mapped[date | None] = mapped_column(Date)
     success_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    satisfaction_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    satisfaction_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))  # part des répondants satisfaits, en %
     # Fiche formation unique : alimente programme, catalogue, contrôles Qualiopi et dossier EDOF.
     audience: Mapped[str | None] = mapped_column(Text)  # public visé
     skills: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")  # compétences visées
@@ -162,6 +162,8 @@ class Program(TimestampMixin, Base):
     catalog_slug: Mapped[str | None] = mapped_column(String(80), unique=True)  # fiche du catalogue Form'SSI
     # Points à arbitrer par une personne : [{"champ", "message", "source"}] (sources divergentes, manques).
     review_notes: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # Base des taux publiés (success_rate, satisfaction_rate) : période, effectifs, date et auteur de la publication.
+    results_basis: Mapped[dict | None] = mapped_column(JSON)
 
 
 DELIVERY_MODES = ("PRESENTIEL", "DISTANCE", "MIXTE")
@@ -561,6 +563,72 @@ class PartnerNetwork(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20))  # HANDICAP | SOCIO_ECONOMIQUE
     name: Mapped[str] = mapped_column(String(200))
     last_contact_on: Mapped[date | None] = mapped_column(Date)
+
+
+PREMISES_KINDS = {
+    "SITE": "Site",
+    "SALLE": "Salle de formation",
+    "PLATEAU_TECHNIQUE": "Plateau technique",
+    "STOCKAGE": "Stockage du matériel",
+    "AUTRE": "Autre",
+}
+# Statut d'un lieu ou d'un équipement : une donnée reprise d'ailleurs reste « à vérifier » tant que personne ne l'a vue.
+PLACE_STATUSES = {
+    "A_VERIFIER": "À vérifier sur place",
+    "EN_SERVICE": "En service",
+    "EN_MAINTENANCE": "En maintenance",
+    "HORS_SERVICE": "Hors service",
+}
+EQUIPMENT_CATEGORIES = {
+    "SECOURISME": "Secourisme",
+    "INCENDIE": "Incendie",
+    "SECURITE_PRIVEE": "Sécurité privée",
+    "EPI": "Équipements de protection",
+    "INFORMATIQUE": "Informatique et audiovisuel",
+    "MOBILIER": "Mobilier",
+    "AUTRE": "Autre",
+}
+
+
+class Premises(TimestampMixin, Base):
+    """Lieu de formation (I17) : site, salle, plateau technique. Une salle appartient à un site."""
+
+    __tablename__ = "premises"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(20), default="SALLE")  # PREMISES_KINDS
+    parent_id: Mapped[str | None] = mapped_column(ForeignKey("formation.premises.id", ondelete="SET NULL"))
+    address: Mapped[str | None] = mapped_column(String(300))
+    floor: Mapped[str | None] = mapped_column(String(120))
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    accessibility: Mapped[str | None] = mapped_column(Text)  # accès des personnes en situation de handicap
+    status: Mapped[str] = mapped_column(String(20), default="A_VERIFIER", server_default="A_VERIFIER")
+    checked_on: Mapped[date | None] = mapped_column(Date)
+    source: Mapped[str | None] = mapped_column(String(300))
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class Equipment(TimestampMixin, Base):
+    """Moyen technique (I17) : matériel pédagogique, compté par article, rangé dans un lieu."""
+
+    __tablename__ = "equipment"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    code: Mapped[str] = mapped_column(String(80), unique=True)
+    label: Mapped[str] = mapped_column(String(250))
+    category: Mapped[str] = mapped_column(String(20), default="AUTRE")  # EQUIPMENT_CATEGORIES
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    premises_id: Mapped[str | None] = mapped_column(ForeignKey("formation.premises.id", ondelete="SET NULL"))
+    regulatory_ref: Mapped[str | None] = mapped_column(String(300))
+    status: Mapped[str] = mapped_column(String(20), default="A_VERIFIER", server_default="A_VERIFIER")
+    last_check_on: Mapped[date | None] = mapped_column(Date)  # dernière vérification ou maintenance
+    next_check_on: Mapped[date | None] = mapped_column(Date)
+    source: Mapped[str | None] = mapped_column(String(300))
+    note: Mapped[str | None] = mapped_column(Text)
 
 
 class Document(TimestampMixin, Base):

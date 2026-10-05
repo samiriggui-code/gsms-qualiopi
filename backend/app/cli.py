@@ -4,6 +4,7 @@
   python -m app.cli import-referential [qualiopi/v9 | qualiopi/v10]
   python -m app.cli seed-demo                      organisme de démo + réévaluation (base vide uniquement)
   python -m app.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
+  python -m app.cli import-gsms-school             offre reprise de GSMS School (29 formations, lieux, équipements)
 """
 
 import argparse
@@ -77,6 +78,19 @@ def import_formssi() -> None:
         print(f"  - {line}")
 
 
+def import_gsms_school() -> None:
+    from app.training.import_school import import_gsms_school as run
+
+    with session_factory()() as db:
+        set_actor(db, "cli")
+        out = run(db)
+        db.commit()
+    print(f"Formations créées ({len(out['formations'])}) : {', '.join(out['formations']) or 'aucune'}.")
+    print(f"Lieux créés : {len(out['lieux'])} ; équipements créés : {out['equipements']} (statut « à vérifier sur place »).")
+    for line in out["report"]:
+        print(f"  - {line}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -87,11 +101,14 @@ def main() -> None:
     r.add_argument("folder", nargs="?", default="qualiopi/v9")
     sub.add_parser("seed-demo")
     sub.add_parser("import-formssi")
+    sub.add_parser("import-gsms-school")
     args = parser.parse_args()
     if args.cmd == "create-admin":
         create_admin(args.email, args.full_name)
     elif args.cmd == "import-formssi":
         import_formssi()
+    elif args.cmd == "import-gsms-school":
+        import_gsms_school()
     elif args.cmd == "import-referential":
         import_ref(args.folder)
     elif args.cmd == "seed-demo":

@@ -20,6 +20,7 @@ from app.qualiopi.ecrans import router as qualiopi_screens_router
 from app.qualiopi.router import router as qualiopi_router
 from app.questionnaires.router import router as public_router
 from app.relances.router import router as relances_router
+from app.training.offre import router as offer_router
 from app.training.resources import ROUTERS as training_resources
 from app.training.router import router as training_router
 
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(edof_router)
     app.include_router(platform_router)
     app.include_router(training_router)
+    app.include_router(offer_router)
     app.include_router(attendance_router)
     app.include_router(hr_router)
     app.include_router(funding_router)
