@@ -2,7 +2,7 @@ import { FileText, Flag } from 'lucide-react';
 
 export interface MockAuditChatProps {
   messages: {
-    from: 'kali' | 'user';
+    from: 'eve' | 'user';
     type: 'text' | 'file' | 'flag';
     content: string;
   }[];
@@ -15,21 +15,21 @@ function bubbleClass(m: Message): string {
     return 'self-start border border-corriger/60 bg-[#3A1A1A] text-[#F6D4D1]';
   if (m.type === 'file')
     return 'self-end bg-audit-accent/90 font-jetbrains text-xs text-white';
-  return m.from === 'kali'
+  return m.from === 'eve'
     ? 'self-start bg-[#1E2735] text-[#E6E9EF]'
     : 'self-end bg-audit-accent text-white';
 }
 
-/** Simulation d'échange avec Kali, l'auditeur simulé : questions, réponses, pièces et preuves rejetées. */
+/** Simulation d'échange avec Eve, l'auditrice simulée : questions, réponses, pièces et preuves rejetées. */
 export function MockAuditChat({ messages }: MockAuditChatProps) {
   return (
     <section className="rounded-xl bg-navy p-5 font-inter-tight">
       <header className="flex items-center gap-3 border-b border-white/10 pb-4">
         <span className="flex size-9 items-center justify-center rounded-full bg-audit-accent text-sm font-semibold text-white">
-          K
+          E
         </span>
         <div>
-          <p className="text-sm font-semibold text-white">Kali</p>
+          <p className="text-sm font-semibold text-white">Eve</p>
           <p className="font-jetbrains text-[11px] tracking-wider text-[#8B95A7]">
             AUDIT BLANC · SIMULATION
           </p>

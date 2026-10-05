@@ -124,7 +124,7 @@ const ACTIONS: ActionPlanProps['actions'] = [
 
 const CHAT: MockAuditChatProps['messages'] = [
   {
-    from: 'kali',
+    from: 'eve',
     type: 'text',
     content: 'Où publiez-vous vos indicateurs de résultats ?',
   },
@@ -134,14 +134,14 @@ const CHAT: MockAuditChatProps['messages'] = [
     content: 'Sur notre site, dans la fiche de chaque formation.',
   },
   {
-    from: 'kali',
+    from: 'eve',
     type: 'text',
     content:
       'Pouvez-vous me donner le libellé exact de l’indicateur et une pièce datée qui le montre ?',
   },
   { from: 'user', type: 'file', content: 'attestation.pdf' },
   {
-    from: 'kali',
+    from: 'eve',
     type: 'flag',
     content:
       'Cette attestation prouve un résultat, pas l’analyse du besoin. Envoyez plutôt un questionnaire de recueil des besoins daté.',
