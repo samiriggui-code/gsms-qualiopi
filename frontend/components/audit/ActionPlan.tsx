@@ -1,4 +1,9 @@
-import { STATUS_DOT, STATUS_LABEL, type AuditStatus } from './status';
+import {
+  STATUS_DOT,
+  statusLabel,
+  type AuditStatus,
+  type StatusLabels,
+} from './status';
 
 export interface ActionPlanProps {
   actions: {
@@ -7,10 +12,12 @@ export interface ActionPlanProps {
     task: string;
     detail: string;
   }[];
+  /** Libellés de sévérité lus par les lecteurs d'écran (par défaut ceux de la maquette). */
+  labels?: StatusLabels;
 }
 
-/** Plan d'action : une carte par tâche, avec sa sévérité et l'indicateur concerné. */
-export function ActionPlan({ actions }: ActionPlanProps) {
+/** Plan d'action : une carte par tâche, avec sa sévérité et sa référence. */
+export function ActionPlan({ actions, labels }: ActionPlanProps) {
   return (
     <ol className="flex flex-col gap-2.5 font-inter-tight text-ink">
       {actions.map((a, i) => (
@@ -24,7 +31,9 @@ export function ActionPlan({ actions }: ActionPlanProps) {
           />
           <div className="min-w-0">
             <p className="font-jetbrains text-xs text-ink-soft">
-              <span className="sr-only">{STATUS_LABEL[a.severity]} · </span>
+              <span className="sr-only">
+                {statusLabel(a.severity, labels)} ·{' '}
+              </span>
               {a.ref}
             </p>
             <p className="mt-0.5 text-sm font-semibold">{a.task}</p>

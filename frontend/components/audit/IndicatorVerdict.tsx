@@ -1,9 +1,10 @@
 import {
   STATUS_DOT,
-  STATUS_LABEL,
   STATUS_SOFT_BG,
   STATUS_TEXT,
+  statusLabel,
   type AuditStatus,
+  type StatusLabels,
 } from './status';
 
 export interface IndicatorVerdictProps {
@@ -11,6 +12,8 @@ export interface IndicatorVerdictProps {
   indicatorLabel: string;
   note?: string;
   citation?: string;
+  /** Libellés des statuts (par défaut ceux de la maquette). */
+  labels?: StatusLabels;
 }
 
 /** Verdict d'un indicateur : statut, libellé, remarque éventuelle et preuve citée. */
@@ -19,6 +22,7 @@ export function IndicatorVerdict({
   indicatorLabel,
   note,
   citation,
+  labels,
 }: IndicatorVerdictProps) {
   return (
     <article className="rounded-xl border border-line bg-audit-surface p-5 font-inter-tight text-ink">
@@ -29,7 +33,7 @@ export function IndicatorVerdict({
           className={`size-2 rounded-full ${STATUS_DOT[status]}`}
           aria-hidden
         />
-        {STATUS_LABEL[status]}
+        {statusLabel(status, labels)}
       </span>
       <h3 className="mt-3 text-base font-semibold leading-snug">
         {indicatorLabel}

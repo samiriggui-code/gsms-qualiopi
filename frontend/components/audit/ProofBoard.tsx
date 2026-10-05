@@ -1,14 +1,21 @@
-import { STATUS_BORDER_LEFT, STATUS_LABEL, type AuditStatus } from './status';
+import {
+  STATUS_BORDER_LEFT,
+  statusLabel,
+  type AuditStatus,
+  type StatusLabels,
+} from './status';
 
 export interface ProofBoardProps {
   columns: {
     critereId: string;
     items: { status: AuditStatus; title: string; detail: string }[];
   }[];
+  /** Libellés des statuts lus par les lecteurs d'écran (par défaut ceux de la maquette). */
+  labels?: StatusLabels;
 }
 
 /** Tableau des preuves : une colonne par critère, défilement horizontal. */
-export function ProofBoard({ columns }: ProofBoardProps) {
+export function ProofBoard({ columns, labels }: ProofBoardProps) {
   return (
     <section className="font-inter-tight text-ink">
       <div
@@ -32,7 +39,7 @@ export function ProofBoard({ columns }: ProofBoardProps) {
                   className={`rounded-md border border-line border-l-4 bg-audit-surface px-3 py-2 ${STATUS_BORDER_LEFT[item.status]}`}
                 >
                   <span className="sr-only">
-                    {STATUS_LABEL[item.status]} :{' '}
+                    {statusLabel(item.status, labels)} :{' '}
                   </span>
                   <p className="text-sm font-semibold leading-snug">
                     {item.title}

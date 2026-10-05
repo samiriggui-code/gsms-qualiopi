@@ -30,9 +30,12 @@ import {
 } from '@/lib/gsms/labels';
 import { useSessions } from '@/lib/gsms/sessions';
 import { useCan } from '@/lib/permissions';
-import { ActionPlan } from '@/components/audit/ActionPlan';
-import type { AuditStatus } from '@/components/audit/status';
-import { VerdictGrid } from '@/components/audit/VerdictGrid';
+import {
+  FINDING_LABELS,
+  findingStatus,
+  READINESS_LABELS,
+  READINESS_STATUS,
+} from '@/lib/qualiopi/audit';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +47,9 @@ import {
   CardToolbar,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ActionPlan } from '@/components/audit/ActionPlan';
+import type { AuditStatus } from '@/components/audit/status';
+import { VerdictGrid } from '@/components/audit/VerdictGrid';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
@@ -101,15 +107,6 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-muted-foreground py-2">{children}</p>;
 }
 
-// État du moteur → statut des composants d'audit (vert, orange, rouge). Sans objet et à venir : non affichés.
-const AUDIT_STATUS: Record<string, AuditStatus> = {
-  DEMONTRABLE: 'ok',
-  A_RISQUE: 'warn',
-  NON_EVALUABLE: 'warn',
-  NON_EVALUE: 'warn',
-  PREUVES_INSUFFISANTES: 'ko',
-};
-
 function verdictCriteres(fiches: CarnetFiche[]) {
   const numbers = Array.from(new Set(fiches.map((f) => f.critere.numero))).sort(
     (a, b) => a - b,
@@ -118,7 +115,7 @@ function verdictCriteres(fiches: CarnetFiche[]) {
     id: `C${n}`,
     statuses: fiches
       .filter((f) => f.critere.numero === n)
-      .map((f) => AUDIT_STATUS[f.etat])
+      .map((f) => READINESS_STATUS[f.etat])
       .filter((s): s is AuditStatus => !!s),
   }));
 }
@@ -137,12 +134,14 @@ function planActions(
         .filter((a) => a.ecart?.id === f.id && OPEN_CAPA.has(a.statut))
         .sort((a, b) => a.echeance.localeCompare(b.echeance))[0];
       return {
-        severity: (f.gravite === 'majeure' ? 'ko' : 'warn') as AuditStatus,
-        ref: `${nom(f.indicateur)} · ${f.reference}`,
+        severity: findingStatus(f.gravite),
+        ref: f.reference,
         task: f.titre,
-        detail: next
-          ? `${next.reference} · ${next.statut_libelle} · échéance ${formatDate(next.echeance)}${next.en_retard ? ' (en retard)' : ''}`
-          : 'Pas encore d’action corrective',
+        detail: `${nom(f.indicateur)} · ${
+          next
+            ? `${next.reference} · ${next.statut_libelle} · échéance ${formatDate(next.echeance)}${next.en_retard ? ' (en retard)' : ''}`
+            : 'pas encore d’action corrective'
+        }`,
       };
     })
     .sort((a, b) =>
@@ -261,7 +260,10 @@ export default function TableauDeBordPage() {
                     <Skeleton className="h-40" />
                   ) : (
                     <div className="overflow-x-auto [&>section]:border-0 [&>section]:p-0 [&>section]:bg-transparent">
-                      <VerdictGrid criteres={verdictCriteres(fiches)} />
+                      <VerdictGrid
+                        criteres={verdictCriteres(fiches)}
+                        labels={READINESS_LABELS}
+                      />
                     </div>
                   )}
                   {carnet.data && (
@@ -412,6 +414,7 @@ export default function TableauDeBordPage() {
                           actions.data ?? [],
                           fiches,
                         ).slice(0, 6)}
+                        labels={FINDING_LABELS}
                       />
                     </div>
                   )}

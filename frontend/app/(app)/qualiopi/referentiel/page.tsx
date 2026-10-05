@@ -17,6 +17,11 @@ import {
   Search,
 } from 'lucide-react';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
+import {
+  isUsableEvidence,
+  READINESS_LABELS,
+  READINESS_STATUS,
+} from '@/lib/qualiopi/audit';
 import { CRITERION_ICONS, matchesIndicator } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
@@ -47,7 +52,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { IndicatorVerdict } from '@/components/audit/IndicatorVerdict';
-import type { AuditStatus } from '@/components/audit/status';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
@@ -64,28 +68,27 @@ const DOT: Record<string, string> = {
   A_VENIR: 'bg-primary',
 };
 
-// État du moteur → statut du verdict. Sans objet et à venir gardent leur badge et le titre habituel.
-const AUDIT_STATUS: Record<string, AuditStatus> = {
-  DEMONTRABLE: 'ok',
-  A_RISQUE: 'warn',
-  NON_EVALUABLE: 'warn',
-  NON_EVALUE: 'warn',
-  PREUVES_INSUFFISANTES: 'ko',
-};
-
-// En-tête du volet : verdict de l'indicateur, ses écarts (ou ses preuves exploitables) et la première preuve.
+// En-tête du volet : verdict de l'indicateur (libellés du moteur), ses écarts ou ses preuves exploitables.
+// « Preuve citée » seulement si l'indicateur est démontrable, et seulement avec une preuve exploitable.
 function FicheVerdict({ fiche }: { fiche: CarnetFiche }) {
-  const status = AUDIT_STATUS[fiche.etat];
+  const status = READINESS_STATUS[fiche.etat];
+  if (!status) return null;
   const n = fiche.preuves.exploitables;
-  const preuve = fiche.preuves.liste[0];
+  const preuve =
+    status === 'ok'
+      ? fiche.preuves.liste.find((p) => isUsableEvidence(p.statut))
+      : undefined;
   return (
     <IndicatorVerdict
       status={status}
+      labels={READINESS_LABELS}
       indicatorLabel={fiche.nom}
       note={
         fiche.ecarts.length
           ? fiche.ecarts.map((e) => `${e.reference} · ${e.titre}`).join(' — ')
-          : `${n} preuve${n > 1 ? 's' : ''} exploitable${n > 1 ? 's' : ''} sur ${fiche.preuves.total}`
+          : status === 'info' && fiche.revue_humaine
+            ? fiche.revue_humaine
+            : `${n} preuve${n > 1 ? 's' : ''} exploitable${n > 1 ? 's' : ''} sur ${fiche.preuves.total}`
       }
       citation={preuve ? `${preuve.reference} · ${preuve.libelle}` : undefined}
     />
@@ -318,7 +321,7 @@ export default function IndicateursPage() {
                   <span className="text-xs font-normal text-muted-foreground shrink-0">
                     Indicateur {fiche.numero}
                   </span>
-                  {!AUDIT_STATUS[fiche.etat] && (
+                  {!READINESS_STATUS[fiche.etat] && (
                     <Badge
                       className={cn('shrink-0', stateBadge(fiche.etat).color)}
                     >
@@ -333,7 +336,7 @@ export default function IndicateursPage() {
                     fiche={fiche}
                     data={data}
                     header={
-                      AUDIT_STATUS[fiche.etat] ? (
+                      READINESS_STATUS[fiche.etat] ? (
                         <FicheVerdict fiche={fiche} />
                       ) : undefined
                     }
