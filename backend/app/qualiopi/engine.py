@@ -36,7 +36,12 @@ ORG_EVENTS = {
 }
 
 
-PLATFORM_EVENTS = {"settings.changed", "feature.changed", "funding.source_changed"}
+PLATFORM_EVENTS = {"settings.changed", "feature.changed", "funding.source_changed", "program.version_validated"}
+
+
+def _no_evidence_change(name: str) -> bool:
+    """Réglages, fonctionnalités et démarches EDOF ne changent aucune preuve Qualiopi."""
+    return name in PLATFORM_EVENTS or name.startswith("edof.")
 
 
 def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None) -> dict:
@@ -65,8 +70,8 @@ def scope_of(db: Session, events: list[OutboxEvent]) -> Scope:
     trainer_ids: set[str] = set()
     organization = False
     for ev in events:
-        if ev.name in PLATFORM_EVENTS:
-            continue  # un réglage ou une fonctionnalité ne change aucune preuve : pas de réévaluation
+        if _no_evidence_change(ev.name):
+            continue  # pas de réévaluation
         if ev.session_id:
             session_ids.add(ev.session_id)
         # Un événement de session porte son program_id pour contexte : ce n'est pas un changement de formation.

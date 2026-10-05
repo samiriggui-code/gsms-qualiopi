@@ -25,7 +25,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       cache: 'no-store',
       ...init,
       headers: {
-        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        // Un FormData (dépôt de fichier) fixe lui-même son type multipart
+        ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,
       },
     });

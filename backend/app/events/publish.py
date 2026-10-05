@@ -36,6 +36,18 @@ EVENT_NAMES = {
     "document.signed",
     "capa.verification_requested",
     "capa.closed",
+    # Fiche formation et référencement EDOF : préparation administrative, sans effet sur les preuves Qualiopi.
+    "program.version_validated",
+    "edof.dossier_created",
+    "edof.establishment_updated",
+    "edof.piece_attached",
+    "edof.piece_reviewed",
+    "edof.valider",
+    "edof.rouvrir",
+    "edof.declarer_depot",
+    "edof.enregistrer_complements",
+    "edof.declarer_complements_transmis",
+    "edof.enregistrer_decision",
 }
 
 

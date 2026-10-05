@@ -1,0 +1,217 @@
+# Pièces du référencement Mon Compte Formation (EDOF), relues le 02/10/2026 sur les sources officielles.
+# Une nouvelle lecture des sources = une nouvelle version de ce fichier (voir docs/edof/SOURCES.md).
+#
+#   scope        ETABLISSEMENT (une fois pour le SIRET) | FORMATION (par formation)
+#   stage        FORMULAIRE  : demandée dans le formulaire de référencement (bloquante avant dépôt)
+#                AVANT_DEPOT : condition à justifier avant de déposer (habilitation…)
+#                COMPLEMENT  : peut être demandée par la Caisse des Dépôts pendant l'instruction ;
+#                              à préparer, jamais bloquante tant qu'elle n'est pas demandée
+#                SUIVI       : reçue de la Caisse des Dépôts après le dépôt (courrier de décision)
+#   when         conditions nommées (app/edof/requirements.py) ; toutes doivent être vraies
+#   group        pièces interchangeables : une seule du groupe suffit
+#   max_age_days le document doit dater de moins de N jours à la date de référence
+#                (date du dépôt une fois déposé, sinon aujourd'hui)
+#   expires      le document porte une date de fin de validité à saisir
+#   siret        le SIRET lu sur le document doit être celui de l'établissement
+#   sensitive    pièce d'identité ou d'honorabilité : permission edof.sensitive pour la voir
+#   generated    produite par GSMS depuis les données (aucun dépôt)
+#   provided_by  qui doit fournir la pièce : GSMS ne fabrique ni attestation, ni signature, ni habilitation
+
+version: "2026-10-02"
+sources:
+  demarrer: "Démarrer sur EDOF, of.moncompteformation.gouv.fr (mise à jour du 24/09/2026)"
+  cpof: "Conditions particulières organismes de formation, version 15 (5 mai 2026), article 2"
+  verification: "Vérification des conditions de référencement des OF présents sur MCF (avril 2026)"
+
+pieces:
+  # ── Établissement : formulaire de référencement ────────────────────────────────
+  - code: KBIS
+    label: Extrait Kbis de moins de 3 mois
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [entreprise]
+    group: IMMATRICULATION
+    max_age_days: 90
+    siret: true
+    provided_by: Greffe du tribunal de commerce (extrait téléchargé par le dirigeant)
+    source: demarrer
+  - code: EXTRAIT_RNE
+    label: Extrait du registre national des entreprises (RNE)
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [entreprise_ou_artisanale]
+    group: IMMATRICULATION
+    max_age_days: 90
+    siret: true
+    provided_by: Guichet unique / INPI (extrait téléchargé par le dirigeant)
+    source: demarrer
+  - code: STATUTS_ASSOCIATION
+    label: Statuts à jour précisant les membres du bureau et leurs fonctions
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [association]
+    provided_by: Bureau de l'association
+    source: demarrer
+  - code: PV_AG_ASSOCIATION
+    label: Dernier procès-verbal d'assemblée générale
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [association]
+    provided_by: Bureau de l'association
+    source: demarrer
+  - code: RECEPISSE_JOAFE
+    label: Récépissé d'inscription au JOAFE (ou attestation d'inscription au RNA)
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [association]
+    provided_by: Journal officiel / préfecture
+    source: cpof
+  - code: IDENTITE_REPRESENTANT
+    label: Pièce d'identité du représentant légal en cours de validité (CNI recto verso, passeport ou titre de séjour)
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [representant_personne_physique]
+    expires: true
+    sensitive: true
+    provided_by: Représentant légal
+    source: demarrer
+  - code: DECLARATION_NON_CONDAMNATION
+    label: Déclaration de non-condamnation et de filiation signée de moins de 3 mois (art. A. 123-51 du code de commerce)
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [representant_personne_physique]
+    max_age_days: 90
+    sensitive: true
+    provided_by: Représentant légal (modèle officiel sur service-public.gouv.fr, signé de sa main)
+    source: demarrer
+  - code: IMMATRICULATION_REPRESENTANT_PM
+    label: Kbis, extrait RNE ou récépissé JOAFE de moins de 3 mois du représentant légal personne morale
+    scope: ETABLISSEMENT
+    stage: FORMULAIRE
+    when: [representant_personne_morale]
+    max_age_days: 90
+    provided_by: Représentant légal personne morale
+    source: demarrer
+
+  # ── Établissement : pièces complémentaires pouvant être demandées ─────────────
+  - code: DELEGATION_POUVOIR
+    label: Délégation de pouvoir de la personne qui fait la demande
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    provided_by: Représentant légal
+    source: cpof
+    note: Seulement si la demande n'est pas faite par le représentant légal.
+  - code: DECLARATION_INTERDICTION_GERER
+    label: Déclaration attestant l'absence d'interdiction de gérer du ou des représentants légaux
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    sensitive: true
+    provided_by: Représentant légal
+    source: cpof
+  - code: AVIS_SITUATION_SIREN
+    label: Avis de situation au répertoire SIRENE
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    siret: true
+    provided_by: INSEE (avis téléchargé sur le site officiel)
+    source: cpof
+  - code: STATUTS
+    label: Statuts de l'établissement
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    when: [entreprise_ou_artisanale]
+    provided_by: Direction
+    source: cpof
+  - code: ATTESTATION_VIGILANCE
+    label: Attestation de vigilance (URSSAF ou MSA)
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    max_age_days: 180
+    siret: true
+    provided_by: URSSAF ou MSA
+    source: cpof
+    note: Durée de 6 mois retenue par GSMS d'après la validité habituelle de l'attestation ; à confirmer sur le document.
+  - code: ATTESTATION_REGULARITE_FISCALE
+    label: Attestation de régularité fiscale
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    provided_by: Service des impôts des entreprises (espace professionnel impots.gouv.fr)
+    source: cpof
+  - code: LIASSE_FISCALE
+    label: Dernière liasse fiscale
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    provided_by: Expert-comptable ou direction
+    source: cpof
+  - code: BILAN_COMPTE_RESULTAT
+    label: Dernier bilan et compte de résultat
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    provided_by: Expert-comptable ou direction
+    source: cpof
+  - code: GRILLE_TARIFAIRE
+    label: Grille des gammes de tarifs prévus
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    provided_by: Direction (GSMS prépare un relevé des tarifs des fiches formation, à relire)
+    source: cpof
+  - code: CONTRAT_SOUS_TRAITANCE
+    label: Contrats de sous-traitance et justificatifs des sous-traitants (identité, NDA, titres des formateurs, formations confiées)
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    when: [sous_traitance]
+    provided_by: Direction et sous-traitants
+    source: cpof
+  - code: BUSINESS_PLAN
+    label: Business plan
+    scope: ETABLISSEMENT
+    stage: COMPLEMENT
+    provided_by: Direction
+    source: cpof
+    note: Cité dans la demande du propriétaire ; absent de l'extrait de l'article 2 des CP V15 relu le 02/10/2026 (paragraphe 3° non relu en entier). À ne préparer que sur demande de la Caisse des Dépôts.
+
+  - code: COURRIER_DECISION
+    label: Courrier de décision de la Caisse des Dépôts
+    scope: ETABLISSEMENT
+    stage: SUIVI
+    provided_by: Caisse des Dépôts (téléchargé depuis l'espace EDOF)
+    source: demarrer
+
+  # ── Formation ─────────────────────────────────────────────────────────────────
+  - code: PROGRAMME_DETAILLE
+    label: Programme détaillé de la formation
+    scope: FORMATION
+    stage: FORMULAIRE
+    generated: true
+    provided_by: GSMS, depuis la version validée de la fiche formation
+    source: cpof
+  - code: JUSTIFICATIF_HABILITATION
+    label: Justificatif d'habilitation délivré par le certificateur (ou extrait de la liste des organismes préparant à la certification)
+    scope: FORMATION
+    stage: AVANT_DEPOT
+    when: [certifiante]
+    siret: true
+    provided_by: Organisme certificateur
+    source: demarrer
+  - code: CONVENTION_EVALUATEUR
+    label: Convention de partenariat avec l'organisme évaluateur
+    scope: FORMATION
+    stage: AVANT_DEPOT
+    when: [certifiante, habilite_former_seulement]
+    provided_by: Organisme évaluateur habilité et direction (signée par les deux parties)
+    source: cpof
+  - code: AUTORISATION_EXERCICE
+    label: Autorisation d'exercice ou agrément exigé pour ce métier (ex. autorisation CNAPS de l'organisme de formation)
+    scope: FORMATION
+    stage: AVANT_DEPOT
+    when: [autorisation_metier]
+    expires: true
+    provided_by: Autorité compétente (ex. CNAPS)
+    source: demarrer
+    note: Exigence propre au métier, déclarée sur la fiche certification de la formation ; pas une pièce du formulaire EDOF.
+  - code: JUSTIFICATIFS_INTERVENANTS
+    label: Titres et qualités des intervenants et liens juridiques avec l'organisme (contrat de travail, de prestation)
+    scope: FORMATION
+    stage: COMPLEMENT
+    provided_by: Intervenants et direction
+    source: cpof

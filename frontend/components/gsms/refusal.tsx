@@ -7,6 +7,7 @@ export function Refusal({ error }: { error: unknown }) {
   if (!(error instanceof Error)) return null;
   const details = error instanceof ApiError ? error.details : [];
   const items = details.flatMap((d) => {
+    if (typeof d === 'string') return [d]; // motifs déjà rédigés par l'API (ex. pièces manquantes)
     const list = (d as { demi_journees?: string[] }).demi_journees;
     return list ? list.map((x) => `Demi-journée sans présence ni absence : ${x}`) : [];
   });

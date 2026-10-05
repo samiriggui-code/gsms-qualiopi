@@ -3,6 +3,7 @@
   python -m app.cli create-admin EMAIL "NOM"      mot de passe lu dans GSMS_ADMIN_PASSWORD ou demandé
   python -m app.cli import-referential [qualiopi/v9 | qualiopi/v10]
   python -m app.cli seed-demo                      organisme de démo + réévaluation (base vide uniquement)
+  python -m app.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
 """
 
 import argparse
@@ -64,6 +65,18 @@ def seed_demo() -> None:
     print(f"{len(PLANTED_GAPS)} trous plantés à retrouver dans les dossiers de session.")
 
 
+def import_formssi() -> None:
+    from app.edof.formssi import import_formssi as run
+
+    with session_factory()() as db:
+        set_actor(db, "cli")
+        out = run(db)
+        db.commit()
+    print(f"{out['organisme']} : formations créées {', '.join(out['formations']) or 'aucune'}.")
+    for line in out["report"]:
+        print(f"  - {line}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -73,9 +86,12 @@ def main() -> None:
     r = sub.add_parser("import-referential")
     r.add_argument("folder", nargs="?", default="qualiopi/v9")
     sub.add_parser("seed-demo")
+    sub.add_parser("import-formssi")
     args = parser.parse_args()
     if args.cmd == "create-admin":
         create_admin(args.email, args.full_name)
+    elif args.cmd == "import-formssi":
+        import_formssi()
     elif args.cmd == "import-referential":
         import_ref(args.folder)
     elif args.cmd == "seed-demo":

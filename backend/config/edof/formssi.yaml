@@ -1,0 +1,91 @@
+# Données réelles de Form'SSI reprises pour la première tranche EDOF (import : python -m app.cli import-formssi).
+# Chaque valeur a sa source. Ce qui n'a pas été trouvé reste vide : les contrôles le signalent.
+# L'import ne remplace jamais une valeur déjà saisie dans GSMS : il signale l'écart.
+
+releve_le: "2026-10-02"
+sources:
+  annuaire: "Annuaire des entreprises (annuaire-entreprises.data.gouv.fr), fiche SIREN 853 725 844, consultée le 02/10/2026"
+  school_seed: "GSMS School (dépôt gsms-school-aps), données d'amorçage packages/database/prisma/data"
+  school_vitrine: "GSMS School, fiche vitrine TFP APS (apps/lms-crm/i18n/landing-content/sheet-content/tfp.ts)"
+  school_catalogue: "GSMS School, catalogue des formations (formations-catalog.snapshot.json)"
+  france_competences: "France compétences, recherche « Agent de prévention et de sécurité », consultée le 02/10/2026"
+
+organisme:
+  name: "FORM' SSI"
+  siret: "85372584400015"  # annuaire : SIRET du siège ; identique dans school_seed
+  nda_number: null  # non publié sur l'annuaire, absent de GSMS School : à saisir depuis le récépissé
+
+etablissement:
+  legal_name: "FORM' SSI"  # annuaire
+  legal_form: "Société à responsabilité limitée"  # annuaire
+  structure_type: ENTREPRISE  # SARL : société commerciale, Kbis
+  address: "9 avenue Alexandre Maistrasse, 92500 Rueil-Malmaison"  # annuaire
+  naf_code: "85.59A"  # annuaire
+  identity_source: annuaire
+  note: >-
+    Repris de l'Annuaire des entreprises le 02/10/2026 : à confirmer sur un Kbis récent.
+    L'annuaire indique une structure certifiée Qualiopi, sans numéro de certificat, certificateur,
+    échéance ni catégories : à saisir depuis le certificat. Le représentant légal n'est pas repris
+    (donnée personnelle) : à saisir par la direction. GSMS School cite aussi le « 5 avenue Alexandre
+    Maistrasse » comme lieu de session : à clarifier (second local ou erreur).
+
+formations:
+  - catalog_slug: tfp-aps
+    code: TFP-APS
+    title: "Agent de prévention et de sécurité (TFP APS)"
+    action_category: AF
+    audience: "Futurs agents de prévention et de sécurité"  # school_vitrine : « Futurs agents APS »
+    delivery_mode: PRESENTIEL  # school_vitrine : « En centre »
+    prerequisites:  # school_vitrine, tableau des prérequis (savoir-être exclu : ce n'est pas un prérequis)
+      - "Être majeur (18 ans révolus)"
+      - "Casier judiciaire compatible avec l'enquête administrative du CNAPS"
+      - "Numéro d'autorisation préalable du CNAPS ou carte professionnelle en cours de validité"
+      - "Maîtrise du français, niveau B1 minimum"
+    teaching_methods: >-
+      Alternance d'apports théoriques et de mises en situation pratiques (répartition annoncée sur la
+      vitrine : 50 % théorie, 50 % pratique).
+    modules_file: formssi-tfp-aps-modules.json  # school_seed, formations-tfp-program.json : UV1 à UV14
+    review_notes:
+      - champ: duration_hours
+        message: "Durée à arbitrer : « 140 h à 175 h » au catalogue, « 175 h » sur la fiche vitrine. Les modules ne portent pas de durée."
+        source: school_catalogue
+      - champ: objectives
+        message: "Aucun objectif opérationnel dans les sources : à rédiger à partir du référentiel de la certification retenue."
+        source: school_vitrine
+      - champ: basis
+        message: >-
+          Plusieurs fiches RNCP « Agent de prévention et de sécurité » sont actives (dont RNCP36648, échéance
+          de l'enregistrement le 01/07/2027), avec des certificateurs différents. Retenir celle dont Form'SSI
+          est partenaire, d'après sa convention avec le certificateur.
+        source: france_competences
+      - champ: basis
+        message: "La vitrine GSMS School affiche « Éligible CPF » sans fondement enregistré : badge à retirer ou à confirmer avant toute publication."
+        source: school_vitrine
+      - champ: evaluation_methods
+        message: "La vitrine cite un « examen final » sans modalités : à décrire selon le référentiel de certification."
+        source: school_vitrine
+      - champ: price_eur
+        message: "Aucun tarif dans GSMS School pour cette formation."
+        source: school_catalogue
+    certification:
+      basis: A_DETERMINER
+      habilitation: A_VERIFIER
+      other_requirements:
+        - label: "Autorisation d'exercice CNAPS de l'organisme de formation"
+          reference: "FOP-092-2023-09-13-20230855451"
+          source: "GSMS School, paramètres école (données d'amorçage) : à confirmer sur l'autorisation et sa date de fin"
+    resources:
+      - title: "Cours en ligne UV1 à UV14 (LMS GSMS School)"
+        kind: COURS
+        origin: GSMS_SCHOOL
+        source_ref: "Cours lms-tfp-aps, un chapitre par UV"
+        rights: PROPRIETAIRE
+        status: A_REDIGER
+        note: "Chapitres générés automatiquement à l'amorçage du LMS à partir des intitulés d'UV : texte générique, à rédiger par un formateur."
+      - title: "Quiz de fin d'UV (LMS GSMS School)"
+        kind: QUIZ
+        origin: GSMS_SCHOOL
+        source_ref: "Activités quiz du cours lms-tfp-aps"
+        rights: PROPRIETAIRE
+        status: A_REDIGER
+        note: "Deux questions génériques par UV produites automatiquement : elles ne constituent pas une évaluation des acquis."

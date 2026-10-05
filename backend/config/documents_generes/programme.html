@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Programme — {{ formation.intitule }}</title>
+<style>
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c1f24; max-width: 760px; margin: 32px auto; padding: 0 24px; line-height: 1.5; font-size: 14px; }
+  header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #1c1f24; padding-bottom: 12px; }
+  header .of { font-weight: 700; font-size: 16px; }
+  header small, footer, .muted { color: #555; font-size: 12px; }
+  h1 { font-size: 22px; margin: 28px 0 4px; }
+  h2 { font-size: 15px; margin: 22px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #c9ccd1; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f1f2f4; font-weight: 600; width: 34%; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  footer { margin-top: 36px; border-top: 1px solid #c9ccd1; padding-top: 8px; }
+  ul { margin: 4px 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="of">{{ organisme.nom or "Organisme de formation" }}</div>
+    <small>{% if organisme.siret %}SIRET {{ organisme.siret }}{% endif %}{% if organisme.nda %} · Déclaration d'activité n° {{ organisme.nda }}{% endif %}</small>
+  </div>
+  <small>Programme {{ formation.code }}, version {{ version }}</small>
+</header>
+
+<h1>{{ formation.intitule }}</h1>
+{% if certification and certification.code %}
+<p class="muted">Certification visée : {{ certification.code }}{% if certification.intitule %} — {{ certification.intitule }}{% endif %}{% if certification.certificateur %} (certificateur : {{ certification.certificateur }}){% endif %}</p>
+{% endif %}
+
+<h2>Informations générales</h2>
+<table>
+  <tr><th>Public visé</th><td>{{ formation.public or "Non précisé" }}</td></tr>
+  <tr><th>Prérequis</th><td>{% if formation.prerequis %}<ul>{% for x in formation.prerequis %}<li>{{ x }}</li>{% endfor %}</ul>{% else %}Non précisés{% endif %}</td></tr>
+  <tr><th>Durée</th><td>{% if formation.duree_heures %}{{ formation.duree_heures | round(2) }} heures{% else %}Non précisée{% endif %}</td></tr>
+  <tr><th>Modalité</th><td>{{ modalite }}</td></tr>
+  <tr><th>Délai d'accès</th><td>{{ formation.delai_acces or "Non précisé" }}</td></tr>
+  <tr><th>Tarif</th><td>{% if formation.tarif_eur is not none %}{{ "%.2f" | format(formation.tarif_eur) }} €{% else %}Non précisé{% endif %}</td></tr>
+  <tr><th>Accessibilité</th><td>{{ formation.accessibilite or "Non précisée" }}</td></tr>
+</table>
+
+<h2>Objectifs</h2>
+<ul>{% for o in formation.objectifs %}<li>{{ o }}</li>{% else %}<li>Non précisés</li>{% endfor %}</ul>
+
+<h2>Compétences visées</h2>
+<ul>{% for c in formation.competences %}<li>{{ c }}</li>{% else %}<li>Non précisées</li>{% endfor %}</ul>
+
+<h2>Contenu</h2>
+{% if formation.modules %}
+<table>
+  <tr><th>Module</th><th>Contenu</th><th class="num">Durée</th></tr>
+  {% for m in formation.modules %}
+  <tr>
+    <td>{{ m.code }} — {{ m.title }}</td>
+    <td>{% if m.get('details') %}<ul>{% for d in m.get('details') %}<li>{{ d }}</li>{% endfor %}</ul>{% endif %}</td>
+    <td class="num">{% if m.get('hours') %}{{ m.get('hours') }} h{% else %}—{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>{{ formation.contenu or "Non précisé" }}</p>
+{% endif %}
+
+<h2>Méthodes et moyens pédagogiques</h2>
+<table>
+  <tr><th>Méthodes</th><td>{{ formation.methodes or "Non précisées" }}</td></tr>
+  <tr><th>Moyens pédagogiques et techniques</th><td>{{ formation.moyens or "Non précisés" }}</td></tr>
+  <tr><th>Intervenants</th><td>{% if intervenants %}<ul>{% for i in intervenants %}<li>{{ i.nom }} ({{ roles.get(i.role, i.role) }})</li>{% endfor %}</ul>{% else %}Non précisés{% endif %}</td></tr>
+</table>
+
+<h2>Évaluation</h2>
+<p>{{ formation.evaluation or "Non précisée" }}</p>
+
+<footer>
+  Programme rédigé par GSMS le {{ edite_le }} depuis la version {{ version }} de la fiche formation, validée par
+  {{ valide_par }} le {{ valide_le }}. Empreinte de la version : {{ empreinte }}.
+</footer>
+</body>
+</html>
