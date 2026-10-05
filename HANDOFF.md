@@ -181,6 +181,23 @@ Documentation : `docs/edof/PARCOURS.md` (parcours, contrôles, informations à o
   utilisé : copier `ajv@6` dans `node_modules/@eslint/eslintrc/node_modules` et
   `node_modules/eslint/node_modules`, et `minimatch@3` dans le premier. À corriger dans `package.json`.
 
+## 5 quater. Pages Preuves, Évaluations et Audits (05/10/2026)
+
+La rubrique Qualiopi du menu n'a plus de page « À construire ».
+
+- **API** `app/qualiopi/ecrans.py` (lectures prêtes à afficher, décisions motivées) :
+  `GET /qualiopi/preuves[/{id}]`, `GET /qualiopi/evaluations`, `/qualiopi/evaluations/resultats`,
+  `/qualiopi/constats`, et les audits internes `GET|POST /qualiopi/audits`, `/audits/echantillon`,
+  `/audits/comparaison`, `GET /audits/{id}`, `POST /audits/{id}/indicateurs/{n}`, `POST /audits/{id}/cloture`.
+  La validation d'une preuve reste `POST /evidence/{id}/validation`. Tests : `tests/test_ecrans_qualiopi.py`.
+- **Front** : `/qualiopi/preuves` (liste filtrable, fiche, valider ou rejeter avec la grille de relecture),
+  `/qualiopi/evaluations` (état par indicateur, résultats des contrôles, constats, historique, « Tout
+  réévaluer »), `/qualiopi/audits` et `/qualiopi/audits/[id]` (ouverture avec échantillon proposé, jugement
+  indicateur par indicateur sur la photo figée, clôture qui crée les constats, évolution entre audits).
+- Le jugement d'audit stocké `CONFORME` s'affiche « Satisfait » : l'application n'écrit jamais « conforme ».
+- Le composant de démonstration `MockAuditChat` (« Eve ») n'est branché nulle part : aucune auditrice simulée
+  n'existe côté API.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
