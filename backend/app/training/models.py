@@ -320,6 +320,18 @@ class TrainingSession(TimestampMixin, Base):
         return self.program.title if self.program else None
 
     @property
+    def program_track(self) -> str | None:
+        return self.program.track if self.program else None
+
+    @property
+    def program_track_label(self) -> str | None:
+        return TRACKS.get(self.program_track) if self.program_track else None
+
+    @property
+    def program_slug(self) -> str | None:
+        return self.program.catalog_slug if self.program else None
+
+    @property
     def trainer_name(self) -> str | None:
         return self.trainer.full_name if self.trainer else None
 

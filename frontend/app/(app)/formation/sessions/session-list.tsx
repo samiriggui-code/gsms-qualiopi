@@ -11,7 +11,20 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { BookOpen, CircleDot, Search, Settings2, X } from 'lucide-react';
+import {
+  BookOpen,
+  CalendarClock,
+  CalendarRange,
+  CircleDot,
+  DoorOpen,
+  LayoutGrid,
+  List,
+  Search,
+  Settings2,
+  Users,
+  UserX,
+  X,
+} from 'lucide-react';
 import { formatDateRange, percent } from '@/lib/format';
 import { SESSION_STATUS } from '@/lib/gsms/labels';
 import { useSessions } from '@/lib/gsms/sessions';
@@ -21,7 +34,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardContent,
   CardFooter,
   CardHeader,
   CardHeading,
@@ -36,68 +48,32 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { FacetFilter } from '@/components/facet-filter';
+import type { KpiItem } from '@/components/page/kpi-row';
 import { CountedTabs } from '@/components/resource/counted-tabs';
+import { SessionCard } from './session-card';
 
 const EMPTY: SessionRow[] = [];
 
 // Onglets comptés par statut, comme la liste des commandes de la démo (store-inventory/order-list).
-const TABS: { id: string; label: string; statuses: SessionStatus[] | null }[] = [
-  { id: 'all', label: 'Toutes', statuses: null },
-  { id: 'upcoming', label: 'À venir', statuses: ['PLANIFIEE', 'CONFIRMEE'] },
-  { id: 'running', label: 'En cours', statuses: ['EN_COURS'] },
-  { id: 'done', label: 'Terminées', statuses: ['TERMINEE', 'CLOTUREE'] },
-  { id: 'cancelled', label: 'Annulées', statuses: ['ANNULEE'] },
-];
-
-// Bandeau de synthèse, comme « Total Asset Value » de la démo (store-inventory/all-stock).
-function SessionSummary({ sessions }: { sessions: SessionRow[] }) {
-  const active = sessions.filter((s) => s.status !== 'ANNULEE');
-  const seats = active.reduce((n, s) => n + (s.capacity ?? 0), 0);
-  const learners = active.reduce((n, s) => n + s.learners_count, 0);
-  const segments = [
-    { label: 'À venir', count: sessions.filter((s) => s.status === 'PLANIFIEE' || s.status === 'CONFIRMEE').length, color: 'bg-zinc-300 dark:bg-zinc-600' },
-    { label: 'En cours', count: sessions.filter((s) => s.status === 'EN_COURS').length, color: 'bg-primary' },
-    { label: 'Terminées', count: sessions.filter((s) => s.status === 'TERMINEE' || s.status === 'CLOTUREE').length, color: 'bg-green-500' },
-    { label: 'Annulées', count: sessions.filter((s) => s.status === 'ANNULEE').length, color: 'bg-destructive' },
+const TABS: { id: string; label: string; statuses: SessionStatus[] | null }[] =
+  [
+    { id: 'all', label: 'Toutes', statuses: null },
+    { id: 'upcoming', label: 'À venir', statuses: ['PLANIFIEE', 'CONFIRMEE'] },
+    { id: 'running', label: 'En cours', statuses: ['EN_COURS'] },
+    { id: 'done', label: 'Terminées', statuses: ['TERMINEE', 'CLOTUREE'] },
+    { id: 'cancelled', label: 'Annulées', statuses: ['ANNULEE'] },
   ];
-  return (
-    <CardContent className="flex max-sm:flex-col gap-4 lg:gap-6 px-4 py-4 border-b">
-      <div className="flex flex-col gap-1.5 shrink-0">
-        <span className="text-sm font-normal text-muted-foreground">Stagiaires inscrits</span>
-        <span className="text-3xl font-semibold text-foreground">
-          {learners}
-          <span className="text-base font-medium text-muted-foreground"> / {seats} places</span>
-        </span>
-      </div>
-      <Separator className="mx-2 max-sm:hidden" orientation="vertical" />
-      <div className="flex flex-col gap-2 w-full min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-semibold text-foreground">{sessions.length}</span>
-          <span className="text-sm font-medium text-muted-foreground">sessions</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {segments
-            .filter((s) => s.count > 0)
-            .map((s) => (
-              <div key={s.label} className={cn('h-2 rounded-xs', s.color)} style={{ flexGrow: s.count }} />
-            ))}
-        </div>
-        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-          {segments.map((s) => (
-            <span key={s.label} className="flex items-center gap-1.5 text-sm text-secondary-foreground">
-              <span className={cn('size-2 rounded-full', s.color)} />
-              {s.label} :<span className="font-semibold text-foreground">{s.count}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-    </CardContent>
-  );
-}
 
-function Ratio({ value, total, label }: { value: number; total: number; label?: string }) {
+function Ratio({
+  value,
+  total,
+  label,
+}: {
+  value: number;
+  total: number;
+  label?: string;
+}) {
   if (!total) return <span className="text-muted-foreground">—</span>;
   return (
     <div className="flex items-center gap-2 min-w-0">
@@ -124,6 +100,21 @@ export function SessionList() {
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'dates', desc: true },
   ]);
+  const [track, setTrack] = useState('all');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+
+  // Filières présentes dans les sessions (libellés fournis par l'API)
+  const tracks = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const x of sessions)
+      if (x.program_track)
+        m.set(x.program_track, x.program_track_label ?? x.program_track);
+    return Array.from(m, ([value, label]) => ({
+      value,
+      label,
+      count: sessions.filter((x) => x.program_track === value).length,
+    }));
+  }, [sessions]);
 
   const columns = useMemo<ColumnDef<SessionRow>[]>(
     () => [
@@ -131,7 +122,11 @@ export function SessionList() {
         accessorKey: 'reference',
         id: 'reference',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Référence" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Référence"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <Link
@@ -149,7 +144,11 @@ export function SessionList() {
         accessorFn: (row) => row.program_title ?? '',
         id: 'program',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Formation" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Formation"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <Link
@@ -170,7 +169,11 @@ export function SessionList() {
         accessorKey: 'start_date',
         id: 'dates',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Dates" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Dates"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="whitespace-nowrap">
@@ -183,11 +186,19 @@ export function SessionList() {
         accessorKey: 'status',
         id: 'status',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Statut" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Statut"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => {
           const status = SESSION_STATUS[row.original.status];
-          return <Badge className={cn('shrink-0', status.color)}>{status.label}</Badge>;
+          return (
+            <Badge className={cn('shrink-0', status.color)}>
+              {status.label}
+            </Badge>
+          );
         },
         size: 120,
       },
@@ -195,11 +206,17 @@ export function SessionList() {
         accessorFn: (row) => row.trainer_name ?? '',
         id: 'trainer',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Formateur" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Formateur"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) =>
           row.original.trainer_name ? (
-            <span className="whitespace-nowrap">{row.original.trainer_name}</span>
+            <span className="whitespace-nowrap">
+              {row.original.trainer_name}
+            </span>
           ) : (
             <span className="text-destructive">À affecter</span>
           ),
@@ -209,11 +226,18 @@ export function SessionList() {
         accessorKey: 'learners_count',
         id: 'enrolled',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Inscrits" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Inscrits"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) =>
           row.original.capacity ? (
-            <Ratio value={row.original.learners_count} total={row.original.capacity} />
+            <Ratio
+              value={row.original.learners_count}
+              total={row.original.capacity}
+            />
           ) : (
             row.original.learners_count
           ),
@@ -223,7 +247,11 @@ export function SessionList() {
         accessorKey: 'location',
         id: 'location',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Lieu" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title="Lieu"
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="truncate block" title={row.original.location ?? ''}>
@@ -246,23 +274,43 @@ export function SessionList() {
     const tabStatuses = TABS.find((t) => t.id === activeTab)?.statuses;
     return sessions.filter((item) => {
       if (tabStatuses && !tabStatuses.includes(item.status)) return false;
-      const matchesStatus = !selectedStatuses.length || selectedStatuses.includes(item.status);
-      const matchesProgram = !selectedPrograms.length || selectedPrograms.includes(item.program_id);
+      if (track !== 'all' && item.program_track !== track) return false;
+      const matchesStatus =
+        !selectedStatuses.length || selectedStatuses.includes(item.status);
+      const matchesProgram =
+        !selectedPrograms.length || selectedPrograms.includes(item.program_id);
       const matchesSearch =
         !search ||
-        [item.reference, item.program_title, item.program_code, item.trainer_name, item.location]
+        [
+          item.reference,
+          item.program_title,
+          item.program_code,
+          item.trainer_name,
+          item.location,
+        ]
           .join(' ')
           .toLowerCase()
           .includes(search);
       return matchesStatus && matchesProgram && matchesSearch;
     });
-  }, [sessions, activeTab, searchQuery, selectedStatuses, selectedPrograms]);
+  }, [
+    sessions,
+    activeTab,
+    track,
+    searchQuery,
+    selectedStatuses,
+    selectedPrograms,
+  ]);
 
   const statusOptions = useMemo(
     () =>
       (Object.keys(SESSION_STATUS) as SessionStatus[]).map((status) => ({
         value: status,
-        label: <Badge className={SESSION_STATUS[status].color}>{SESSION_STATUS[status].label}</Badge>,
+        label: (
+          <Badge className={SESSION_STATUS[status].color}>
+            {SESSION_STATUS[status].label}
+          </Badge>
+        ),
         searchText: SESSION_STATUS[status].label,
         count: sessions.filter((s) => s.status === status).length,
       })),
@@ -270,7 +318,12 @@ export function SessionList() {
   );
 
   const programOptions = useMemo(() => {
-    const programs = new Map(sessions.map((s) => [s.program_id, { code: s.program_code ?? '', title: s.program_title ?? '' }]));
+    const programs = new Map(
+      sessions.map((s) => [
+        s.program_id,
+        { code: s.program_code ?? '', title: s.program_title ?? '' },
+      ]),
+    );
     return Array.from(programs.entries())
       .sort((a, b) => a[1].title.localeCompare(b[1].title))
       .map(([id, p]) => ({
@@ -314,13 +367,14 @@ export function SessionList() {
         columnsVisibility: true,
       }}
     >
-      <Card className="border-none shadow-none">
-        {!isLoading && sessions.length > 0 && <SessionSummary sessions={sessions} />}
+      <Card className="overflow-hidden shadow-none">
         <CountedTabs
           tabs={TABS.map((tab) => ({
             id: tab.id,
             label: tab.label,
-            count: tab.statuses ? sessions.filter((x) => tab.statuses!.includes(x.status)).length : sessions.length,
+            count: tab.statuses
+              ? sessions.filter((x) => tab.statuses!.includes(x.status)).length
+              : sessions.length,
           }))}
           value={activeTab}
           onChange={(v) => {
@@ -330,15 +384,15 @@ export function SessionList() {
         />
         <CardHeader className="px-4 py-3">
           <CardHeading>
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
+            <div className="flex items-center gap-2.5 max-lg:flex-wrap">
+              <div className="relative max-sm:w-full">
                 <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
                 <Input
                   variant="sm"
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="ps-9 w-52"
+                  className="ps-9 w-52 max-sm:w-full"
                 />
                 {searchQuery.length > 0 && (
                   <Button
@@ -369,29 +423,168 @@ export function SessionList() {
             </div>
           </CardHeading>
           <CardToolbar>
-            <DataGridColumnVisibility
-              table={table}
-              trigger={
-                <Button size="sm" variant="outline">
-                  <Settings2 />
-                  Colonnes
+            <div className="flex h-8.5 items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
+              {(
+                [
+                  ['grid', LayoutGrid, 'Vue en grille'],
+                  ['list', List, 'Vue en liste'],
+                ] as const
+              ).map(([v, Icon, label]) => (
+                <Button
+                  key={v}
+                  type="button"
+                  size="sm"
+                  mode="icon"
+                  variant={view === v ? 'secondary' : 'ghost'}
+                  aria-label={label}
+                  aria-pressed={view === v}
+                  className={cn(
+                    'h-7 w-7',
+                    view === v && 'bg-background shadow-xs',
+                  )}
+                  onClick={() => setView(v)}
+                >
+                  <Icon />
                 </Button>
-              }
-            />
+              ))}
+            </div>
+            {view === 'list' && (
+              <DataGridColumnVisibility
+                table={table}
+                trigger={
+                  <Button size="sm" variant="outline">
+                    <Settings2 />
+                    Colonnes
+                  </Button>
+                }
+              />
+            )}
           </CardToolbar>
         </CardHeader>
+        {tracks.length > 1 && (
+          <div className="border-t border-border px-4 py-3">
+            <div
+              role="group"
+              aria-label="Filtrer par filière"
+              className="flex flex-wrap gap-1 rounded-lg border border-border bg-accent p-1 sm:inline-flex"
+            >
+              {[
+                {
+                  value: 'all',
+                  label: 'Toutes filières',
+                  count: sessions.length,
+                },
+                ...tracks,
+              ].map((t) => (
+                <Button
+                  key={t.value}
+                  type="button"
+                  size="sm"
+                  variant={track === t.value ? 'outline' : 'ghost'}
+                  aria-pressed={track === t.value}
+                  className={cn(
+                    'h-8 gap-1.5',
+                    track === t.value && 'bg-background shadow-xs',
+                  )}
+                  onClick={() => {
+                    setTrack(t.value);
+                    setPagination((p) => ({ ...p, pageIndex: 0 }));
+                  }}
+                >
+                  {t.label}
+                  <span className="text-xs text-secondary-foreground tabular-nums">
+                    {t.count}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        <CardTable>
-          <ScrollArea>
-            <DataGridTable />
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardTable>
+        {view === 'grid' ? (
+          <div className="border-t border-border bg-muted/20 p-4">
+            {table.getSortedRowModel().rows.length ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                {table.getSortedRowModel().rows.map((r) => (
+                  <SessionCard key={r.id} s={r.original} />
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {isLoading
+                  ? 'Chargement…'
+                  : error
+                    ? `Impossible de charger les sessions : ${error.message}`
+                    : 'Aucune session ne correspond aux filtres.'}
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            <CardTable>
+              <ScrollArea>
+                <DataGridTable />
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </CardTable>
 
-        <CardFooter className="px-4 py-0">
-          <DataGridPagination className="py-1" sizes={[10, 25, 50, 100]} />
-        </CardFooter>
+            <CardFooter className="px-4 py-0">
+              <DataGridPagination className="py-1" sizes={[10, 25, 50, 100]} />
+            </CardFooter>
+          </>
+        )}
       </Card>
     </DataGrid>
   );
+}
+
+const ACTIVE: SessionStatus[] = ['PLANIFIEE', 'CONFIRMEE', 'EN_COURS'];
+
+// Cartes KPI de la page Sessions (GSMS School : SessionsSummary), comptées sur la liste de l'API.
+export function sessionKpis(sessions: SessionRow[]): KpiItem[] {
+  const active = sessions.filter((s) => ACTIVE.includes(s.status));
+  const upcoming = sessions.filter(
+    (s) => s.status === 'PLANIFIEE' || s.status === 'CONFIRMEE',
+  );
+  const seats = active.reduce((n, s) => n + (s.capacity ?? 0), 0);
+  const noTrainer = active.filter((s) => !s.trainer_id).length;
+  const noRoom = active.filter((s) => !s.room).length;
+  return [
+    {
+      label: 'À venir',
+      value: upcoming.length,
+      subtitle: `dont ${upcoming.filter((s) => s.status === 'CONFIRMEE').length} confirmée(s)`,
+      icon: CalendarRange,
+    },
+    {
+      label: 'En cours',
+      value: sessions.filter((s) => s.status === 'EN_COURS').length,
+      subtitle: 'sessions démarrées',
+      icon: CalendarClock,
+    },
+    {
+      label: 'Inscrits',
+      value: active.reduce((n, s) => n + s.learners_count, 0),
+      subtitle: seats
+        ? `sur ${seats} places (à venir et en cours)`
+        : 'à venir et en cours',
+      icon: Users,
+    },
+    {
+      label: 'Sans formateur',
+      value: noTrainer,
+      subtitle: noTrainer
+        ? 'à affecter (à venir et en cours)'
+        : 'toutes les sessions sont couvertes',
+      icon: UserX,
+    },
+    {
+      label: 'Sans salle',
+      value: noRoom,
+      subtitle: noRoom
+        ? 'salle non renseignée'
+        : 'toutes les sessions ont une salle',
+      icon: DoorOpen,
+    },
+  ];
 }

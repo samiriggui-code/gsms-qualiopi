@@ -247,6 +247,13 @@ Qualité/Documents, Tableau de bord.
 - Programmes utilise les mêmes briques ; 5 cartes par ligne à partir de 1536 px. Attention : en Tailwind 4 un
   point d'arrêt arbitraire (`min-[1600px]:`) sort avant `xl:` dans la CSS et perd ; utiliser `2xl:`.
 
+Étape 2 (Sessions et Agenda) :
+- la liste des sessions (`GET /sessions`) porte `program_track`, `program_track_label` et `program_slug` (visuel) ;
+- `/formation/sessions` : bandeau de titre, 5 KPI (à venir, en cours, inscrits, sans formateur, sans salle), filtre
+  par filière, vue grille (`session-card.tsx`) ou tableau ; la fiche reste `/formation/sessions/[id]` ;
+- `/agenda` (nouvelle page) : planning semaine (une ligne par session, lun.–sam.) ou mois, KPI de la période,
+  jour par jour sur téléphone ; lecture seule, rien n'y est créé.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
