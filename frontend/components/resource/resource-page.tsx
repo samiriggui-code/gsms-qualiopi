@@ -12,9 +12,21 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { Ellipsis, Eye, Pencil, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
+import {
+  Ellipsis,
+  Eye,
+  LayoutGrid,
+  List,
+  Pencil,
+  Plus,
+  Search,
+  Settings2,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useCan } from '@/lib/permissions';
 import { Row, useResourceList, useResourceMutations } from '@/lib/resource';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,17 +52,27 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { FacetFilter } from '@/components/facet-filter';
 import { Content } from '@/components/layout/components/content';
-import { CountedTabs } from './counted-tabs';
 import { ContentHeader } from '@/components/layout/components/content-header';
+import { KpiRow } from '@/components/page/kpi-row';
+import { PageHero } from '@/components/page/page-hero';
 import { ConfirmDialog } from './confirm-dialog';
+import { CountedTabs } from './counted-tabs';
+import { RecordCard } from './record-card';
 import { ResourceFormSheet } from './resource-form-sheet';
 import type { ResourceConfig } from './types';
 
 // Page liste générique : en-tête, tableau (recherche, filtres, colonnes, pagination),
 // actions par ligne, panneau de création/modification, confirmation de suppression.
-export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig<T> }) {
+export function ResourcePage<T extends Row>({
+  config,
+}: {
+  config: ResourceConfig<T>;
+}) {
   const { data = [], isLoading, error } = useResourceList<T>(config.path);
-  const { create, update, remove } = useResourceMutations<T>(config.path, config.labels);
+  const { create, update, remove } = useResourceMutations<T>(
+    config.path,
+    config.labels,
+  );
   const can = useCan();
   const canWrite = can(config.permission);
 
@@ -60,8 +82,16 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState(config.tabs?.[0]?.id ?? '');
   const [facetValues, setFacetValues] = useState<Record<string, string[]>>({});
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
-  const [sorting, setSorting] = useState<SortingState>(config.defaultSort ? [config.defaultSort] : []);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
+  const [sorting, setSorting] = useState<SortingState>(
+    config.defaultSort ? [config.defaultSort] : [],
+  );
+  const [view, setView] = useState<'list' | 'grid'>(
+    config.card ? (config.defaultView ?? 'list') : 'list',
+  );
 
   // ?nouveau=1 (bouton « Nouveau » de la barre du haut) ouvre le formulaire
   const searchParams = useSearchParams();
@@ -90,33 +120,41 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
       header: '',
       cell: ({ row }) => (
         <div onClick={(e) => e.stopPropagation()}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" mode="icon" size="sm" aria-label="Actions">
-              <Ellipsis />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            {config.detailHref && (
-              <DropdownMenuItem asChild>
-                <Link href={config.detailHref(row.original)}>
-                  <Eye /> Voir la fiche
-                </Link>
-              </DropdownMenuItem>
-            )}
-            {canWrite && (
-              <>
-                <DropdownMenuItem onSelect={() => openEdit(row.original)}>
-                  <Pencil /> Modifier
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                mode="icon"
+                size="sm"
+                aria-label="Actions"
+              >
+                <Ellipsis />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {config.detailHref && (
+                <DropdownMenuItem asChild>
+                  <Link href={config.detailHref(row.original)}>
+                    <Eye /> Voir la fiche
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(row.original)}>
-                  <Trash2 /> Supprimer
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              {canWrite && (
+                <>
+                  <DropdownMenuItem onSelect={() => openEdit(row.original)}>
+                    <Pencil /> Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setDeleting(row.original)}
+                  >
+                    <Trash2 /> Supprimer
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
       size: 56,
@@ -124,7 +162,9 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
       enableHiding: false,
       enableResizing: false,
     };
-    return config.detailHref || canWrite ? [...config.columns, actions] : config.columns;
+    return config.detailHref || canWrite
+      ? [...config.columns, actions]
+      : config.columns;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, canWrite]);
 
@@ -137,7 +177,11 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
       if (tab && !tab.test(row)) return false;
       for (const facet of config.facets ?? []) {
         const selected = facetValues[facet.id];
-        if (selected?.length && !selected.includes(String(facet.value(row) ?? ''))) return false;
+        if (
+          selected?.length &&
+          !selected.includes(String(facet.value(row) ?? ''))
+        )
+          return false;
       }
       return !search || config.search(row).toLowerCase().includes(search);
     });
@@ -169,109 +213,215 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
             </Badge>
           )}
         </h1>
-        {canWrite && (
+        {canWrite && !config.description && (
           <Button size="sm" onClick={openCreate}>
             <Plus /> {config.newLabel}
           </Button>
         )}
       </ContentHeader>
 
-      <Content className="block py-0">
-        <DataGrid
-          table={table}
-          recordCount={filtered.length}
-          isLoading={isLoading}
-          emptyMessage={error ? `Chargement impossible : ${error.message}` : 'Aucun élément.'}
-          onRowClick={(row) => (config.detailHref ? router.push(config.detailHref(row)) : canWrite && openEdit(row))}
-          tableClassNames={{ bodyRow: 'group/row cursor-pointer' }}
-          tableLayout={{
-            dense: true,
-            columnsPinnable: true,
-            columnsResizable: true,
-            columnsMovable: true,
-            columnsVisibility: true,
-          }}
-        >
-          <Card className="border-none shadow-none">
-            {config.tabs && (
-              <CountedTabs
-                tabs={config.tabs.map((t) => ({ id: t.id, label: t.label, count: data.filter(t.test).length }))}
-                value={activeTab}
-                onChange={setActiveTab}
-              />
-            )}
-            <CardHeader className="px-4 py-3">
-              <CardHeading>
-                <div className="flex items-center gap-2.5 max-lg:flex-wrap">
-                  <div className="relative max-sm:w-full">
-                    <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      variant="sm"
-                      placeholder="Rechercher..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="ps-9 w-52 max-sm:w-full"
-                    />
-                    {searchQuery.length > 0 && (
-                      <Button
-                        mode="icon"
-                        variant="ghost"
-                        className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
-                        onClick={() => setSearchQuery('')}
-                        aria-label="Effacer la recherche"
-                      >
-                        <X />
-                      </Button>
-                    )}
-                  </div>
-                  {config.facets?.map((facet) => {
-                    const values = Array.from(new Set(data.map((row) => String(facet.value(row) ?? ''))))
-                      .filter(Boolean)
-                      .sort();
-                    return (
-                      <FacetFilter
-                        key={facet.id}
-                        title={facet.title}
-                        icon={facet.icon}
-                        options={values.map((v) => {
-                          const label = facet.options?.find((o) => o.value === v)?.label ?? v;
-                          return {
-                            value: v,
-                            label,
-                            searchText: label,
-                            count: data.filter((row) => String(facet.value(row) ?? '') === v).length,
-                          };
-                        })}
-                        selected={facetValues[facet.id] ?? []}
-                        onChange={(selected) => setFacetValues((prev) => ({ ...prev, [facet.id]: selected }))}
-                      />
-                    );
-                  })}
-                </div>
-              </CardHeading>
-              <CardToolbar>
-                <DataGridColumnVisibility
-                  table={table}
-                  trigger={
-                    <Button size="sm" variant="outline">
-                      <Settings2 />
-                      Colonnes
-                    </Button>
-                  }
+      <Content className="block">
+        <div className="container-fluid space-y-5">
+          {config.description && (
+            <PageHero
+              eyebrow={config.eyebrow}
+              icon={config.icon}
+              title={config.title}
+              description={config.description}
+              actions={
+                canWrite && (
+                  <Button onClick={openCreate}>
+                    <Plus /> {config.newLabel}
+                  </Button>
+                )
+              }
+            />
+          )}
+          {config.kpis && (
+            <KpiRow items={config.kpis(data)} loading={isLoading} />
+          )}
+          <DataGrid
+            table={table}
+            recordCount={filtered.length}
+            isLoading={isLoading}
+            emptyMessage={
+              error
+                ? `Chargement impossible : ${error.message}`
+                : 'Aucun élément.'
+            }
+            onRowClick={(row) =>
+              config.detailHref
+                ? router.push(config.detailHref(row))
+                : canWrite && openEdit(row)
+            }
+            tableClassNames={{ bodyRow: 'group/row cursor-pointer' }}
+            tableLayout={{
+              dense: true,
+              columnsPinnable: true,
+              columnsResizable: true,
+              columnsMovable: true,
+              columnsVisibility: true,
+            }}
+          >
+            <Card className="shadow-none overflow-hidden">
+              {config.tabs && (
+                <CountedTabs
+                  tabs={config.tabs.map((t) => ({
+                    id: t.id,
+                    label: t.label,
+                    count: data.filter(t.test).length,
+                  }))}
+                  value={activeTab}
+                  onChange={setActiveTab}
                 />
-              </CardToolbar>
-            </CardHeader>
-            <CardTable>
-              <ScrollArea>
-                <DataGridTable />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </CardTable>
-            <CardFooter className="px-4 py-0">
-              <DataGridPagination className="py-1" sizes={[10, 25, 50, 100]} />
-            </CardFooter>
-          </Card>
-        </DataGrid>
+              )}
+              <CardHeader className="px-4 py-3">
+                <CardHeading>
+                  <div className="flex items-center gap-2.5 max-lg:flex-wrap">
+                    <div className="relative max-sm:w-full">
+                      <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        variant="sm"
+                        placeholder="Rechercher..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="ps-9 w-52 max-sm:w-full"
+                      />
+                      {searchQuery.length > 0 && (
+                        <Button
+                          mode="icon"
+                          variant="ghost"
+                          className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
+                          onClick={() => setSearchQuery('')}
+                          aria-label="Effacer la recherche"
+                        >
+                          <X />
+                        </Button>
+                      )}
+                    </div>
+                    {config.facets?.map((facet) => {
+                      const values = Array.from(
+                        new Set(
+                          data.map((row) => String(facet.value(row) ?? '')),
+                        ),
+                      )
+                        .filter(Boolean)
+                        .sort();
+                      return (
+                        <FacetFilter
+                          key={facet.id}
+                          title={facet.title}
+                          icon={facet.icon}
+                          options={values.map((v) => {
+                            const label =
+                              facet.options?.find((o) => o.value === v)
+                                ?.label ?? v;
+                            return {
+                              value: v,
+                              label,
+                              searchText: label,
+                              count: data.filter(
+                                (row) => String(facet.value(row) ?? '') === v,
+                              ).length,
+                            };
+                          })}
+                          selected={facetValues[facet.id] ?? []}
+                          onChange={(selected) =>
+                            setFacetValues((prev) => ({
+                              ...prev,
+                              [facet.id]: selected,
+                            }))
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                </CardHeading>
+                <CardToolbar>
+                  {config.card && (
+                    <div className="flex h-8.5 items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
+                      {(
+                        [
+                          ['grid', LayoutGrid, 'Vue en grille'],
+                          ['list', List, 'Vue en liste'],
+                        ] as const
+                      ).map(([v, Icon, label]) => (
+                        <Button
+                          key={v}
+                          type="button"
+                          size="sm"
+                          mode="icon"
+                          variant={view === v ? 'secondary' : 'ghost'}
+                          aria-label={label}
+                          aria-pressed={view === v}
+                          className={cn(
+                            'h-7 w-7',
+                            view === v && 'bg-background shadow-xs',
+                          )}
+                          onClick={() => setView(v)}
+                        >
+                          <Icon />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {view === 'list' && (
+                    <DataGridColumnVisibility
+                      table={table}
+                      trigger={
+                        <Button size="sm" variant="outline">
+                          <Settings2 />
+                          Colonnes
+                        </Button>
+                      }
+                    />
+                  )}
+                </CardToolbar>
+              </CardHeader>
+              {view === 'grid' && config.card ? (
+                <div className="border-t border-border bg-muted/20 p-4">
+                  {filtered.length ? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                      {filtered.map((row) => (
+                        <RecordCard
+                          key={row.id}
+                          content={config.card!(row)}
+                          icon={config.icon}
+                          onOpen={
+                            config.detailHref
+                              ? () => router.push(config.detailHref!(row))
+                              : canWrite
+                                ? () => openEdit(row)
+                                : undefined
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      {isLoading ? 'Chargement…' : 'Aucun élément.'}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <CardTable>
+                    <ScrollArea>
+                      <DataGridTable />
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  </CardTable>
+                  <CardFooter className="px-4 py-0">
+                    <DataGridPagination
+                      className="py-1"
+                      sizes={[10, 25, 50, 100]}
+                    />
+                  </CardFooter>
+                </>
+              )}
+            </Card>
+          </DataGrid>
+        </div>
       </Content>
 
       <ResourceFormSheet
@@ -283,7 +433,9 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
         row={editing}
         pending={create.isPending || update.isPending}
         onSubmit={(payload) =>
-          editing ? update.mutateAsync({ id: editing.id, payload }) : create.mutateAsync(payload)
+          editing
+            ? update.mutateAsync({ id: editing.id, payload })
+            : create.mutateAsync(payload)
         }
       />
 
@@ -293,12 +445,14 @@ export function ResourcePage<T extends Row>({ config }: { config: ResourceConfig
         title="Confirmer la suppression"
         description={
           deleting
-            ? (config.deleteMessage?.(deleting) ?? 'Cette suppression est définitive.')
+            ? (config.deleteMessage?.(deleting) ??
+              'Cette suppression est définitive.')
             : ''
         }
         pending={remove.isPending}
         onConfirm={() =>
-          deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+          deleting &&
+          remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
         }
       />
     </>

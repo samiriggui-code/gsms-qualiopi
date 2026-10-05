@@ -17,7 +17,6 @@ import {
   Plus,
   Search,
   X,
-  type LucideIcon,
 } from 'lucide-react';
 import {
   euros,
@@ -50,126 +49,48 @@ import { FormationVisual } from '@/components/catalogue/formation-visual';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
+import { KpiRow, type KpiItem } from '@/components/page/kpi-row';
+import { PageHero } from '@/components/page/page-hero';
 import { ConfirmDialog } from '@/components/resource/confirm-dialog';
 import { ResourceFormSheet } from '@/components/resource/resource-form-sheet';
 import type { FieldDef } from '@/components/resource/types';
 
 const ALL = 'toutes';
 
-const ACCENTS = [
-  {
-    orb: 'bg-blue-500/10',
-    box: 'border-blue-500/20 bg-blue-500/10',
-    icon: 'text-blue-600',
-  },
-  {
-    orb: 'bg-emerald-500/10',
-    box: 'border-emerald-500/20 bg-emerald-500/10',
-    icon: 'text-emerald-600',
-  },
-  {
-    orb: 'bg-violet-500/10',
-    box: 'border-violet-500/20 bg-violet-500/10',
-    icon: 'text-violet-600',
-  },
-  {
-    orb: 'bg-sky-500/10',
-    box: 'border-sky-500/20 bg-sky-500/10',
-    icon: 'text-sky-600',
-  },
-  {
-    orb: 'bg-amber-500/10',
-    box: 'border-amber-500/20 bg-amber-500/10',
-    icon: 'text-amber-600',
-  },
-];
-
-function Stat({
-  icon: Icon,
-  title,
-  value,
-  subtitle,
-  index,
-}: {
-  icon: LucideIcon;
-  title: string;
-  value: number;
-  subtitle: string;
-  index: number;
-}) {
-  const a = ACCENTS[index % ACCENTS.length];
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-4 py-4">
-      <div
-        className={cn('absolute -end-8 -top-8 size-24 rounded-full', a.orb)}
-        aria-hidden
-      />
-      <div className="relative flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs uppercase tracking-wide text-muted-foreground">
-            {title}
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-foreground tabular-nums">
-            {value}
-          </p>
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-            {subtitle}
-          </p>
-        </div>
-        <div
-          className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-lg border',
-            a.box,
-          )}
-        >
-          <Icon className={cn('size-5', a.icon)} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Stats({ data }: { data: Catalogue }) {
+function kpis(data: Catalogue): KpiItem[] {
   const t = data.totaux;
-  const items = [
+  return [
     {
       icon: BookOpen,
-      title: 'Formations',
+      label: 'Formations',
       value: t.formations,
       subtitle: `${data.filieres.length} filière${data.filieres.length > 1 ? 's' : ''} au catalogue`,
     },
     {
       icon: CalendarDays,
-      title: 'Sessions à venir',
+      label: 'Sessions à venir',
       value: t.sessions_a_venir,
       subtitle: 'Planifiées ou confirmées',
     },
     {
       icon: Award,
-      title: 'Certification identifiée',
+      label: 'Certification identifiée',
       value: t.certification_identifiee,
       subtitle: `RNCP ou RS déclaré, sur ${t.formations}`,
     },
     {
       icon: CircleCheckBig,
-      title: 'Fiches validées',
+      label: 'Fiches validées',
       value: t.fiches_validees,
       subtitle: `Version figée à jour, sur ${t.formations}`,
     },
     {
       icon: AlertTriangle,
-      title: 'Points à arbitrer',
+      label: 'Points à arbitrer',
       value: t.points_a_arbitrer,
       subtitle: `Sur ${t.formations_a_arbitrer} formation${t.formations_a_arbitrer > 1 ? 's' : ''}`,
     },
   ];
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 [&>*:last-child]:max-lg:col-span-2">
-      {items.map((s, i) => (
-        <Stat key={s.title} index={i} {...s} />
-      ))}
-    </div>
-  );
 }
 
 function NextSession({ f }: { f: CatalogueFormation }) {
@@ -206,7 +127,7 @@ function FormationCard({
           slug={f.catalog_slug}
           track={f.track}
           code={f.code}
-          className="aspect-[4/3] w-full border-b border-border"
+          className="aspect-[16/10] w-full border-b border-border"
         />
       </button>
       <CardContent className="p-4 sm:p-5 flex flex-col gap-3">
@@ -446,23 +367,25 @@ export default function ProgrammesPage() {
             </span>
           )}
         </h1>
-        {canEdit && (
-          <Button size="sm" onClick={() => setEditing(null)}>
-            <Plus /> Nouvelle formation
-          </Button>
-        )}
       </ContentHeader>
       <Content className="block">
         <div className="container-fluid space-y-5 lg:space-y-7">
           <Refusal error={error} />
-          {isLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              {Array.from({ length: 5 }, (_, i) => (
-                <Skeleton key={i} className="h-24" />
-              ))}
-            </div>
-          ) : (
-            data && <Stats data={data} />
+          <PageHero
+            eyebrow="Offre de formation"
+            icon={BookOpen}
+            title="Catalogue des formations"
+            description="Chaque fiche réunit le programme, les prérequis, l’évaluation, les sessions et les points encore à arbitrer."
+            actions={
+              canEdit && (
+                <Button onClick={() => setEditing(null)}>
+                  <Plus /> Nouvelle formation
+                </Button>
+              )
+            }
+          />
+          {(isLoading || data) && (
+            <KpiRow items={data ? kpis(data) : []} loading={isLoading} />
           )}
 
           <Card className="shadow-none">
@@ -472,9 +395,8 @@ export default function ProgrammesPage() {
                   Liste des formations
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Chaque fiche réunit le programme, les prérequis, l’évaluation,
-                  les sessions et les points encore à arbitrer. Les formations
-                  reprises de GSMS School gardent leurs écarts à trancher.
+                  Les formations reprises de GSMS School gardent leurs écarts à
+                  trancher.
                 </p>
               </div>
               <div className="relative">
@@ -587,7 +509,7 @@ export default function ProgrammesPage() {
           </Card>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {Array.from({ length: 4 }, (_, i) => (
                 <Skeleton key={i} className="h-80" />
               ))}
@@ -606,7 +528,7 @@ export default function ProgrammesPage() {
               </Card>
             )
           ) : view === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {shown.map((f) => (
                 <FormationCard
                   key={f.id}

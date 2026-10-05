@@ -2,17 +2,27 @@
 
 // Moyens techniques (indicateur 17) : matériel pédagogique par article, avec sa quantité, son lieu et ses
 // vérifications. L'inventaire repris de GSMS School arrive « à vérifier sur place » : à compter et à confirmer.
-import { CircleCheck, Tags, Wrench } from 'lucide-react';
+import {
+  CalendarClock,
+  CircleCheck,
+  Package,
+  Tags,
+  TriangleAlert,
+  Wrench,
+} from 'lucide-react';
+import { formatDate } from '@/lib/format';
 import {
   EQUIPMENT_CATEGORIES,
   PLACE_STATUSES,
   STATUS_OPTIONS,
 } from '@/lib/gsms/moyens';
 import type { Row } from '@/lib/resource';
+import { cn } from '@/lib/utils';
 import {
   badgeCol,
   col,
   dateCol,
+  OptionBadge,
   titleCol,
 } from '@/components/resource/columns';
 import { ResourcePage } from '@/components/resource/resource-page';
@@ -78,6 +88,60 @@ const config: ResourceConfig<Equipment> = {
       options: STATUS_OPTIONS,
     },
   ],
+  eyebrow: 'Offre de formation',
+  description:
+    'Le matériel pédagogique par article : quantité, lieu de rangement et vérifications.',
+  kpis: (rows) => [
+    {
+      label: 'Articles',
+      value: rows.length,
+      subtitle: 'dans l’inventaire',
+      icon: Wrench,
+    },
+    {
+      label: 'Unités',
+      value: rows.reduce((n, r) => n + r.quantity, 0),
+      subtitle: 'quantité totale',
+      icon: Package,
+    },
+    {
+      label: 'En service',
+      value: rows.filter((r) => r.status === 'EN_SERVICE').length,
+      subtitle: 'articles vérifiés',
+      icon: CircleCheck,
+    },
+    {
+      label: 'À vérifier',
+      value: rows.filter((r) => r.status === 'A_VERIFIER').length,
+      subtitle: 'à compter et confirmer',
+      icon: TriangleAlert,
+    },
+    {
+      label: 'Vérification dépassée',
+      value: rows.filter((r) => r.check_overdue).length,
+      subtitle: 'date de vérification passée',
+      icon: CalendarClock,
+    },
+  ],
+  defaultView: 'grid',
+  card: (r) => ({
+    title: r.label,
+    subtitle: r.category_label,
+    badges: <OptionBadge options={PLACE_STATUSES} value={r.status} />,
+    meta: [
+      { label: 'Quantité', value: r.quantity },
+      { label: 'Lieu', value: r.premises_name },
+      {
+        label: 'Prochaine vérification',
+        value: r.next_check_on ? (
+          <span className={cn(r.check_overdue && 'text-destructive')}>
+            {formatDate(r.next_check_on)}
+          </span>
+        ) : null,
+      },
+      { label: 'Référence', value: r.regulatory_ref },
+    ],
+  }),
   columns: [
     titleCol('label', 'Équipement', undefined, 280),
     col('category', 'Catégorie', { value: (r) => r.category_label, size: 170 }),

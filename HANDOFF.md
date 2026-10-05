@@ -231,6 +231,22 @@ La rubrique « Offre de formation » n'a plus de page « À construire ».
   `pathway`, `evaluation_steps`. Relancer `import-gsms-school` (et `import-formssi` pour TFP-APS) complète les
   formations déjà importées sur ces rubriques vides, sans rien remplacer.
 
+## 5 sexies. Mise en page GSMS School sur toutes les pages (05/10/2026, étape 1)
+
+Cartographie page par page : `/mnt/project-files/cartographie/gsms-school-vers-qualiopi.md` (dossier partagé du
+projet). Ordre : briques communes, Sessions + Agenda, Apprenants, RH/Locaux/Moyens, Entreprises/financeurs,
+Qualité/Documents, Tableau de bord.
+
+Étape 1 (briques communes) :
+- `components/page/page-hero.tsx` (bandeau de titre) et `components/page/kpi-row.tsx` (bandeau de cartes KPI) ;
+- `ResourceConfig` accepte `eyebrow`, `description`, `kpis(rows)`, `card(row)` et `defaultView` ; `ResourcePage`
+  affiche alors le bandeau, les KPI et une bascule grille/liste (`components/resource/record-card.tsx`) ;
+- les 12 pages génériques (apprenants, entreprises, locaux, moyens, formateurs, qualifications, développement,
+  sous-traitants, partenaires, veille, réclamations, satisfaction) en profitent ; les KPI sont comptés sur la liste
+  chargée, rien d'inventé ;
+- Programmes utilise les mêmes briques ; 5 cartes par ligne à partir de 1536 px. Attention : en Tailwind 4 un
+  point d'arrêt arbitraire (`min-[1600px]:`) sort avant `xl:` dans la CSS et perd ; utiliser `2xl:`.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,

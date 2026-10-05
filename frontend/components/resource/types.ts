@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { LucideIcon } from 'lucide-react';
 import type { Permission } from '@/lib/permissions';
 import type { ResourceLabels, Row } from '@/lib/resource';
+import type { KpiItem } from '@/components/page/kpi-row';
 
 export interface Option {
   value: string;
@@ -12,7 +14,16 @@ export interface Option {
 export interface FieldDef {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'textarea' | 'date' | 'number' | 'boolean' | 'select' | 'tags';
+  type:
+    | 'text'
+    | 'email'
+    | 'tel'
+    | 'textarea'
+    | 'date'
+    | 'number'
+    | 'boolean'
+    | 'select'
+    | 'tags';
   required?: boolean;
   placeholder?: string;
   help?: string;
@@ -53,4 +64,21 @@ export interface ResourceConfig<T extends Row> {
   // Phrase de confirmation de suppression
   deleteMessage?: (row: T) => string;
   defaultSort?: { id: string; desc: boolean };
+  // Mise en page des pages de module (GSMS School) : rubrique et description du bandeau de titre,
+  // cartes KPI comptées sur la liste chargée, vue en grille (une carte par ligne).
+  eyebrow?: string;
+  description?: string;
+  kpis?: (rows: T[]) => KpiItem[];
+  card?: (row: T) => RecordCardContent;
+  // Vue affichée à l'ouverture quand `card` est défini (liste par défaut)
+  defaultView?: 'list' | 'grid';
+}
+
+export interface RecordCardContent {
+  title: string;
+  subtitle?: string | null;
+  // Initiales ou court code affichés dans la pastille, sinon l'icône de la page
+  monogram?: string | null;
+  badges?: ReactNode;
+  meta?: { label: string; value: ReactNode }[];
 }
