@@ -16,6 +16,7 @@ from app.funding.router import router as funding_router
 from app.hr.router import router as hr_router
 from app.journey.router import router as journey_router
 from app.platform.router import router as platform_router
+from app.qualiopi.ecrans import router as qualiopi_screens_router
 from app.qualiopi.router import router as qualiopi_router
 from app.questionnaires.router import router as public_router
 from app.relances.router import router as relances_router
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(qualiopi_router)
+    app.include_router(qualiopi_screens_router)
     app.include_router(journal_router)
     app.include_router(documents_router)
     app.include_router(edof_router)
