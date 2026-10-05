@@ -1,6 +1,6 @@
 # Handoff — GSMS Qualiopi (reprise en local)
 
-Dernière mise à jour : 02/10/2026 (parcours EDOF, §5 ter, branche `claude/parcours-edof-formssi`).
+Dernière mise à jour : 05/10/2026 (parcours EDOF fusionné dans `main` ; données réelles de Form'SSI complétées, §5 ter).
 À lire en entier avant de toucher au code.
 
 ## 1. Le produit
