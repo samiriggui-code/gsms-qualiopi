@@ -53,8 +53,10 @@ def import_formssi(db: Session, actor: str = "import Form'SSI") -> dict:
 
     created = []
     for f in data["formations"]:
-        if db.scalar(select(t.Program).where(t.Program.catalog_slug == f["catalog_slug"])):
-            report.append(f"Formation {f['code']} déjà présente : non modifiée")
+        existing = db.scalar(select(t.Program).where(t.Program.catalog_slug == f["catalog_slug"]))
+        if existing:
+            _fill(existing, {"track": f.get("track"), "pathway": f.get("pathway")}, report, f["code"])
+            report.append(f"Formation {f['code']} déjà présente : seules la filière et le parcours vides sont complétés")
             continue
         if db.scalar(select(t.Program).where(t.Program.code == f["code"])):
             report.append(f"Code {f['code']} déjà utilisé par une autre formation : import ignoré")
@@ -67,7 +69,7 @@ def import_formssi(db: Session, actor: str = "import Form'SSI") -> dict:
             teaching_methods=" ".join(f["teaching_methods"].split()), modules=modules, review_notes=notes,
             duration_hours=f.get("duration_hours"), price_eur=f.get("price_eur"),
             evaluation_methods=" ".join(f["evaluation_methods"].split()) if f.get("evaluation_methods") else None,
-            objectives=[], skills=[], created_by=actor,
+            objectives=[], skills=[], track=f.get("track"), pathway=f.get("pathway"), created_by=actor,
         )
         db.add(p)
         db.flush()

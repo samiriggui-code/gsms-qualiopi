@@ -36,6 +36,8 @@ etablissement:
 
 formations:
   - catalog_slug: tfp-aps
+    track: SURETE  # filière et parcours de la vitrine GSMS School
+    pathway: INITIAL
     code: TFP-APS
     title: "Agent de prévention et de sécurité (TFP APS)"
     action_category: AF

@@ -164,7 +164,16 @@ class Program(TimestampMixin, Base):
     review_notes: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     # Base des taux publiés (success_rate, satisfaction_rate) : période, effectifs, date et auteur de la publication.
     results_basis: Mapped[dict | None] = mapped_column(JSON)
+    track: Mapped[str | None] = mapped_column(String(20))  # filière du catalogue (TRACKS)
+    pathway: Mapped[str | None] = mapped_column(String(10))  # INITIAL, MAC, RAN ou AUTRE (PATHWAYS)
+    # Épreuves et attestations, dans l'ordre : [{"title", "description", "kind"}] ; evaluation_methods reste le résumé.
+    evaluation_steps: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
 
+
+TRACKS = {"SURETE": "Sûreté", "INCENDIE": "Incendie", "HABILITATION": "Habilitation électrique",
+          "SST": "Secourisme (SST)", "ENTREPRISE": "Formations en entreprise", "AUTRES": "Autres"}
+PATHWAYS = {"INITIAL": "Formation initiale", "MAC": "Maintien et actualisation (MAC)", "RAN": "Remise à niveau",
+            "AUTRE": "Autre parcours"}
 
 DELIVERY_MODES = ("PRESENTIEL", "DISTANCE", "MIXTE")
 

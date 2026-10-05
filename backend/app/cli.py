@@ -86,6 +86,7 @@ def import_gsms_school() -> None:
         out = run(db)
         db.commit()
     print(f"Formations créées ({len(out['formations'])}) : {', '.join(out['formations']) or 'aucune'}.")
+    print(f"Formations déjà présentes complétées ({len(out['completees'])}) : {', '.join(out['completees']) or 'aucune'}.")
     print(f"Lieux créés : {len(out['lieux'])} ; équipements créés : {out['equipements']} (statut « à vérifier sur place »).")
     for line in out["report"]:
         print(f"  - {line}")

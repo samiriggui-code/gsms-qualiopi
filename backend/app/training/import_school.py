@@ -1,8 +1,9 @@
 """Import de l'offre de Form'SSI reprise de GSMS School (config/catalogue/gsms-school.yaml).
 
-Formations, lieux et équipements. Idempotent et prudent, comme app.edof.formssi : ce qui existe déjà
-n'est jamais modifié, tout ce qui est créé garde sa source, et les lieux et équipements arrivent
+Formations, lieux et équipements. Idempotent et prudent, comme app.edof.formssi : une valeur déjà saisie
+n'est jamais remplacée, tout ce qui est créé garde sa source, et les lieux et équipements arrivent
 « à vérifier sur place » : une donnée d'amorçage ne prouve pas qu'une salle ou un mannequin existe.
+Une formation déjà importée n'est que complétée, sur les rubriques encore vides (COMPLETABLE).
 """
 
 from __future__ import annotations
@@ -25,6 +26,11 @@ LMS_RESOURCES = (
 )
 
 
+# Rubriques ajoutées au fichier après un premier import : remplies seulement si elles sont encore vides.
+COMPLETABLE = {"track": "filière", "pathway": "parcours", "skills": "compétences visées",
+               "evaluation_steps": "épreuves d'évaluation"}
+
+
 def load() -> dict:
     return yaml.safe_load(CATALOGUE.read_text(encoding="utf-8"))
 
@@ -35,20 +41,35 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
     report: list[str] = [f"Formation {n['catalog_slug']} non importée : {n['raison']}" for n in data["non_importees"]]
 
     created: list[str] = []
+    completed: list[str] = []
     for f in data["formations"]:
-        if db.scalar(select(t.Program).where(t.Program.catalog_slug == f["catalog_slug"])):
-            report.append(f"Formation {f['code']} déjà présente : non modifiée")
+        notes = [{**n, "source": sources.get(n["source"], n["source"])} for n in f["review_notes"]]
+        existing = db.scalar(select(t.Program).where(t.Program.catalog_slug == f["catalog_slug"]))
+        if existing:
+            filled = [label for key, label in COMPLETABLE.items() if f.get(key) and not getattr(existing, key)]
+            for key, label in COMPLETABLE.items():
+                if label in filled:
+                    setattr(existing, key, f[key])
+            known = {(n.get("champ"), n.get("message")) for n in existing.review_notes or []}
+            added = [n for n in notes if n["champ"] in COMPLETABLE and (n["champ"], n["message"]) not in known]
+            if added:
+                existing.review_notes = [*(existing.review_notes or []), *added]
+            if filled or added:
+                completed.append(existing.code)
+                report.append(f"Formation {existing.code} complétée : {', '.join(filled) or 'points à arbitrer'}")
+            else:
+                report.append(f"Formation {f['code']} déjà présente : non modifiée")
             continue
         if db.scalar(select(t.Program).where(t.Program.code == f["code"])):
             report.append(f"Code {f['code']} déjà utilisé par une autre formation : import ignoré")
             continue
-        notes = [{**n, "source": sources.get(n["source"], n["source"])} for n in f["review_notes"]]
         p = t.Program(
             code=f["code"], title=f["title"], action_category="AF", catalog_slug=f["catalog_slug"],
             audience=f["audience"], delivery_mode=f["delivery_mode"], prerequisites=f["prerequisites"],
             content=f["content"], teaching_methods=f["teaching_methods"], evaluation_methods=f["evaluation_methods"],
             duration_hours=f["duration_hours"], price_eur=f["price_eur"], modules=f["modules"], review_notes=notes,
-            objectives=[], skills=[], created_by=actor,
+            objectives=[], skills=f.get("skills") or [], track=f.get("track"), pathway=f.get("pathway"),
+            evaluation_steps=f.get("evaluation_steps") or [], created_by=actor,
         )
         db.add(p)
         db.flush()
@@ -85,4 +106,4 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
                            source=sources["school_inventaire"], status="A_VERIFIER", created_by=actor))
         equipment += 1
     db.flush()
-    return {"formations": created, "lieux": places, "equipements": equipment, "report": report, "releve_le": data["releve_le"]}
+    return {"formations": created, "completees": completed, "lieux": places, "equipements": equipment, "report": report, "releve_le": data["releve_le"]}

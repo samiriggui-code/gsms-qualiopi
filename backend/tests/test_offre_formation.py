@@ -102,3 +102,41 @@ def test_ressources_pedagogiques(client, demo: Session) -> None:  # noqa: ANN001
     assert len(data["ressources"]) == 58 and data["ressources"][0]["program_code"]
     assert data["capabilities"]["ecrire"]["code"] == "PERMISSION_MISSING"
     assert sum(f["ressources"] for f in data["formations"]) == 58
+
+
+def test_import_complete_une_formation_deja_importee_sans_rien_remplacer(demo: Session) -> None:
+    import_gsms_school(demo)
+    ssiap = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI"))
+    assert (ssiap.track, ssiap.pathway) == ("INCENDIE", "INITIAL") and ssiap.skills and ssiap.evaluation_steps
+    # Base importée avant l'ajout des rubriques : vides, sauf une compétence saisie à la main.
+    ssiap.track = ssiap.pathway = None
+    ssiap.evaluation_steps = []
+    ssiap.skills = ["Saisie par la direction"]
+    demo.flush()
+    out = import_gsms_school(demo)
+    assert "SSIAP1-INI" in out["completees"] and out["formations"] == []
+    assert (ssiap.track, ssiap.pathway) == ("INCENDIE", "INITIAL") and ssiap.evaluation_steps
+    assert ssiap.skills == ["Saisie par la direction"], "une valeur saisie n'est jamais remplacée"
+    ssiap2 = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP2-INI"))
+    assert ssiap2.skills == [] and any(n["champ"] == "skills" for n in ssiap2.review_notes)
+    assert import_gsms_school(demo)["completees"] == []
+
+
+def test_catalogue_et_fiche(client, demo: Session) -> None:  # noqa: ANN001
+    import_gsms_school(demo)
+    demo.commit()
+    _, hl = make_user(demo, "lecture")
+    _, hg = make_user(demo, "gestion")
+    data = client.get(f"{API}/formation/catalogue", headers=hl).json()
+    assert data["capabilities"]["ecrire"]["allowed"] is False
+    assert client.get(f"{API}/formation/catalogue", headers=hg).json()["capabilities"]["ecrire"]["allowed"] is True
+    row = next(f for f in data["formations"] if f["code"] == "SSIAP1-INI")
+    assert row["track_label"] == "Incendie" and row["pathway"] == "INITIAL" and row["modules"] == 5
+    assert row["ressources"] == {"total": 2, "a_rediger": 2} and row["points_a_arbitrer"] >= 1
+    assert row["publie"]["taux_reussite"] is None and row["fiche"] == "JAMAIS_VALIDEE"
+    assert data["totaux"]["formations"] == len(data["formations"])
+    assert {f["value"] for f in data["filieres"]} >= {"INCENDIE", "SURETE", "SST"}
+    demo_ssiap = next(f for f in data["formations"] if f["code"] == "SSIAP1")
+    item = client.get(f"{API}/formation/catalogue/{demo_ssiap['id']}", headers=hl).json()
+    assert item["sessions"] and all("learners" in s for s in item["sessions"])
+    assert client.get(f"{API}/formation/catalogue/inconnu", headers=hl).status_code == 404
