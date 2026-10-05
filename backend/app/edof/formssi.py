@@ -65,6 +65,8 @@ def import_formssi(db: Session, actor: str = "import Form'SSI") -> dict:
             code=f["code"], title=f["title"], action_category=f["action_category"], catalog_slug=f["catalog_slug"],
             audience=f["audience"], delivery_mode=f["delivery_mode"], prerequisites=f["prerequisites"],
             teaching_methods=" ".join(f["teaching_methods"].split()), modules=modules, review_notes=notes,
+            duration_hours=f.get("duration_hours"), price_eur=f.get("price_eur"),
+            evaluation_methods=" ".join(f["evaluation_methods"].split()) if f.get("evaluation_methods") else None,
             objectives=[], skills=[], created_by=actor,
         )
         db.add(p)

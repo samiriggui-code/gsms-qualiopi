@@ -51,11 +51,18 @@ def _upload(db: Session, dossier: m.Dossier, code: str, **meta) -> m.Piece:
 
 def test_import_formssi_reprend_les_sources_sans_inventer(formssi: Session) -> None:
     org = formssi.scalar(select(t.Organization))
-    assert (org.name, org.siret, org.nda_number) == ("FORM' SSI", SIRET, None)
+    assert (org.name, org.siret, org.nda_number) == ("FORM' SSI", SIRET, "11922308992")
+    est = formssi.scalar(select(m.Establishment))
+    assert (est.qualiopi_categories, est.bpf_last_year) == (["AF"], 2025), "liste publique DGEFP"
+    assert est.nda_checked_on is None and est.qualiopi_certificate is None, "rien d'attesté à la place d'une personne"
     p = _tfp(formssi)
     assert [mod["code"] for mod in p.modules] == [f"UV{i}" for i in range(1, 15)]
-    assert p.duration_hours is None and p.price_eur is None and p.objectives == []
-    assert any("140 h à 175 h" in n["message"] for n in p.review_notes), "la divergence de durée est visible"
+    assert (p.duration_hours, p.price_eur) == (175, 1190)
+    assert p.evaluation_methods.startswith("Évaluation continue") and p.objectives == []
+    assert p.success_rate is None and p.satisfaction_rate is None, "taux de la vitrine non repris"
+    notes = {n["champ"]: n["message"] for n in p.review_notes}
+    assert "140 h à 175 h" in notes["duration_hours"], "la divergence de durée reste visible"
+    assert "à confirmer" in notes["price_eur"] and "success_rate" in notes
     cert = fiche.certification_of(formssi, p.id)
     assert (cert.basis, cert.habilitation) == ("A_DETERMINER", "A_VERIFIER")
     assert all(r.status == "A_REDIGER" for r in fiche.resources_of(formssi, p.id)), "contenus générés : à rédiger"
@@ -81,23 +88,24 @@ def test_formation_importee_dossier_incomplet_avec_messages_exploitables(formssi
     d = service.formation_dossier(formssi, _tfp(formssi).id)
     found = checks.anomalies(formssi, d, TODAY)
     messages = [a.message for a in found]
-    for expected in ("Programme non validé", "Fondement d'éligibilité CPF non identifié", "Modalités d'évaluation manquantes",
-                     "Tarif manquant", "Objectifs manquants", "Aucun intervenant associé",
-                     "Dossier de l'établissement incomplet"):
+    for expected in ("Programme non validé", "Fondement d'éligibilité CPF non identifié", "Objectifs manquants",
+                     "Aucun intervenant associé", "Dossier de l'établissement incomplet"):
         assert expected in messages, expected
+    assert not {"Tarif manquant", "Durée manquante", "Modalités d'évaluation manquantes"} & set(messages), "repris de la fiche"
     assert any(msg.startswith("Contenu à rédiger") for msg in messages)
     assert any(msg.startswith("Autorisation à vérifier") for msg in messages)
     assert service.display_status(d, found) == "INCOMPLET"
     # Chaque anomalie mène à ce qu'il faut corriger.
-    evaluation = next(a for a in found if a.message == "Modalités d'évaluation manquantes")
-    assert (evaluation.etape, evaluation.cible) == ("programme", {"type": "champ", "champ": "evaluation_methods"})
+    objectives = next(a for a in found if a.message == "Objectifs manquants")
+    assert (objectives.etape, objectives.cible) == ("programme", {"type": "champ", "champ": "objectives"})
 
 
 def test_etablissement_pieces_selon_la_situation(formssi: Session) -> None:
     d = service.establishment_dossier(formssi)
     found = checks.anomalies(formssi, d, TODAY)
     messages = [a.message for a in found]
-    assert "NDA non renseigné" in messages
+    assert "NDA actif à vérifier" in messages and "NDA non renseigné" not in messages
+    assert not any(msg.startswith("Qualiopi ne couvre pas") for msg in messages), "actions de formation couvertes"
     assert "Accès EFP Connect habilité à EDOF manquant" in messages
     kbis = [msg for msg in messages if "Kbis" in msg and msg.startswith("Pièce manquante")]
     assert kbis == ["Pièce manquante : Extrait Kbis de moins de 3 mois ou Extrait du registre national des entreprises (RNE)"]
@@ -184,7 +192,7 @@ def test_validation_figee_et_modification_ulterieure(formssi: Session) -> None:
     p = _tfp(formssi)
     with pytest.raises(PolicyDenied) as refused:
         fiche.validate_version(formssi, p, _admin(formssi))
-    assert "Modalités d'évaluation manquantes" in refused.value.details
+    assert "Objectifs manquants" in refused.value.details
     _complete_program(formssi, p)
     v1 = fiche.validate_version(formssi, p, _admin(formssi))
     formssi.commit()

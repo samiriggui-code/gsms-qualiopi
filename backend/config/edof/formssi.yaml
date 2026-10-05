@@ -2,18 +2,20 @@
 # Chaque valeur a sa source. Ce qui n'a pas été trouvé reste vide : les contrôles le signalent.
 # L'import ne remplace jamais une valeur déjà saisie dans GSMS : il signale l'écart.
 
-releve_le: "2026-10-02"
+releve_le: "2026-10-05"
 sources:
   annuaire: "Annuaire des entreprises (annuaire-entreprises.data.gouv.fr), fiche SIREN 853 725 844, consultée le 02/10/2026"
   school_seed: "GSMS School (dépôt gsms-school-aps), données d'amorçage packages/database/prisma/data"
   school_vitrine: "GSMS School, fiche vitrine TFP APS (apps/lms-crm/i18n/landing-content/sheet-content/tfp.ts)"
   school_catalogue: "GSMS School, catalogue des formations (formations-catalog.snapshot.json)"
   france_competences: "France compétences, recherche « Agent de prévention et de sécurité », consultée le 02/10/2026"
+  dgefp: "Liste publique des organismes de formation (DGEFP, dgefp.opendatasoft.com, jeu liste-publique-des-of-v2), fiche SIREN 853725844, consultée le 05/10/2026"
+  school_formations: "GSMS School, fiche TFP APS des données d'amorçage (packages/database/prisma/data/formations-seed.js, branche chantier/qualiopi-q0-q3)"
 
 organisme:
   name: "FORM' SSI"
   siret: "85372584400015"  # annuaire : SIRET du siège ; identique dans school_seed
-  nda_number: null  # non publié sur l'annuaire, absent de GSMS School : à saisir depuis le récépissé
+  nda_number: "11922308992"  # dgefp : déclaration active, région Île-de-France ; « actif » reste à attester dans GSMS
 
 etablissement:
   legal_name: "FORM' SSI"  # annuaire
@@ -22,10 +24,13 @@ etablissement:
   address: "9 avenue Alexandre Maistrasse, 92500 Rueil-Malmaison"  # annuaire
   naf_code: "85.59A"  # annuaire
   identity_source: annuaire
+  qualiopi_categories: [AF]  # dgefp : certification « Actions de formation » seulement (ni bilans, ni VAE, ni apprentissage)
+  bpf_last_year: 2025  # dgefp : dernière déclaration le 31/05/2026, exercice du 01/01/2025 au 31/12/2025
   note: >-
     Repris de l'Annuaire des entreprises le 02/10/2026 : à confirmer sur un Kbis récent.
-    L'annuaire indique une structure certifiée Qualiopi, sans numéro de certificat, certificateur,
-    échéance ni catégories : à saisir depuis le certificat. Le représentant légal n'est pas repris
+    La liste publique DGEFP (05/10/2026) confirme le NDA 11922308992, l'adresse du 9 avenue Alexandre
+    Maistrasse et la certification Qualiopi pour les actions de formation ; le numéro de certificat, le
+    certificateur et l'échéance ne sont pas publiés : à saisir depuis le certificat. Le représentant légal n'est pas repris
     (donnée personnelle) : à saisir par la direction. GSMS School cite aussi le « 5 avenue Alexandre
     Maistrasse » comme lieu de session : à clarifier (second local ou erreur).
 
@@ -41,14 +46,24 @@ formations:
       - "Casier judiciaire compatible avec l'enquête administrative du CNAPS"
       - "Numéro d'autorisation préalable du CNAPS ou carte professionnelle en cours de validité"
       - "Maîtrise du français, niveau B1 minimum"
+    duration_hours: 175  # school_formations : « 175h », badge « Min » ; voir review_notes
+    price_eur: 1190  # school_formations : « 1190 € à partir de » ; voir review_notes
+    evaluation_methods: >-
+      Évaluation continue : mises en situation et exercices pratiques tout au long de la formation (PC de
+      sécurité, rondes, interventions). Examen théorique : questionnaire à choix unique sur l'ensemble des
+      modules. Certification finale : validation devant un jury de professionnels.
     teaching_methods: >-
       Alternance d'apports théoriques et de mises en situation pratiques (répartition annoncée sur la
       vitrine : 50 % théorie, 50 % pratique).
     modules_file: formssi-tfp-aps-modules.json  # school_seed, formations-tfp-program.json : UV1 à UV14
     review_notes:
       - champ: duration_hours
-        message: "Durée à arbitrer : « 140 h à 175 h » au catalogue, « 175 h » sur la fiche vitrine. Les modules ne portent pas de durée."
-        source: school_catalogue
+        message: >-
+          175 h reprises de la fiche TFP APS (indiquées comme minimum) ; le catalogue affichait « 140 h à 175 h ».
+          À confirmer avec le cahier des charges de la certification retenue et l'arrêté du 1er septembre 2025
+          (formation initiale aux activités privées de sécurité, en vigueur le 01/10/2025, durées par module).
+          Les modules ne portent pas de durée.
+        source: school_formations
       - champ: objectives
         message: "Aucun objectif opérationnel dans les sources : à rédiger à partir du référentiel de la certification retenue."
         source: school_vitrine
@@ -62,11 +77,14 @@ formations:
         message: "La vitrine GSMS School affiche « Éligible CPF » sans fondement enregistré : badge à retirer ou à confirmer avant toute publication."
         source: school_vitrine
       - champ: evaluation_methods
-        message: "La vitrine cite un « examen final » sans modalités : à décrire selon le référentiel de certification."
-        source: school_vitrine
+        message: "Modalités reprises de la fiche TFP APS (évaluation continue, QCU, jury) : à confirmer selon le référentiel de la certification retenue et le rôle de Form'SSI (former seulement, ou former et évaluer)."
+        source: school_formations
       - champ: price_eur
-        message: "Aucun tarif dans GSMS School pour cette formation."
-        source: school_catalogue
+        message: "1 190 € affichés « à partir de » sur la fiche TFP APS : tarif réel, ce qu'il comprend (examen, carte professionnelle, TVA) et gammes de prix à confirmer par la direction."
+        source: school_formations
+      - champ: success_rate
+        message: "Taux de réussite (97 %) et de satisfaction (94 %) de la fiche TFP APS non repris : valeurs écrites en dur dans les données d'amorçage, sans calcul ni période. À publier seulement à partir de résultats mesurés."
+        source: school_formations
     certification:
       basis: A_DETERMINER
       habilitation: A_VERIFIER
