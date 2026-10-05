@@ -12,6 +12,7 @@ ces sources. Une nouvelle lecture des sources donne une nouvelle version du fich
 | [Version 15 des conditions d'utilisation : ce qui change](https://of.moncompteformation.gouv.fr/espace-public/version-15-des-conditions-dutilisation-ce-qui-change) | 05/05/2026, mis à jour le 05/08/2026 | Version en vigueur des CGU : 15. Nouvelles pièces (RNE pour artisans et libéraux, RNA ou JOAFE pour les associations) ; déclaration annuelle de la sous-traitance |
 | [Vérification des conditions de référencement des OF présents sur MCF](https://of.moncompteformation.gouv.fr/espace-public/sites/of/files/2026-04/V%C3%A9rification-enregistrement-OF-sur-MCF_0.pdf) | avril 2026 | Liste des conditions de maintien : NDA, Qualiopi, habilitation, absence de condamnation des responsables, éligibilité, obligations fiscales et sociales, capacité technique et pédagogique, BPF, justificatifs, CGU |
 | [Guide EDOF « Importer un catalogue par fichier XML »](https://of.moncompteformation.gouv.fr/espace-public/sites/of/files/2023-01/Guide_EDOF_Import_catalogue_fichier_XML_20220826.pdf) | V4 du 26/08/2022 | Voir § Export XML |
+| [Import catalogue de formations par fichier xml : mise à jour des documents](https://of.moncompteformation.gouv.fr/espace-public/import-catalogue-de-formations-par-fichier-xml-mise-jour-des-documents) | publié le 17/09/2024, mis à jour le 12/06/2026 | Trois documents mis à jour : « Spécifications import xml », « Exemple de catalogue à importer », `Lheo_import_fichier_xml_optimise`. Téléchargeables dans EDOF (page « Transfert XML ») **ou publiquement** dans le [kit XML de juin 2026](https://of.moncompteformation.gouv.fr/espace-public/sites/of/files/2026-06/kit_XML_062026.zip) (ZIP, 863 Ko). Règles relevées sur la page : téléphone composé uniquement de chiffres, éventuellement précédé de `+`, 15 caractères au plus (rejet du fichier sinon) ; balises de blocs de compétences optionnelles, seulement pour une certification RNCP qui en comporte |
 | France compétences, fiches « Agent de prévention et de sécurité » | consultées le 02/10/2026 | Plusieurs fiches RNCP actives (dont RNCP36648, échéance le 01/07/2027), certificateurs différents |
 | Annuaire des entreprises, SIREN 853 725 844 | consulté le 02/10/2026 | FORM' SSI, SARL, SIRET du siège 853 725 844 00015, 9 avenue Alexandre Maistrasse 92500 Rueil-Malmaison, NAF 85.59A, déclarée organisme de formation et certifiée Qualiopi (sans détail du certificat) |
 
@@ -29,8 +30,9 @@ ces sources. Une nouvelle lecture des sources donne une nouvelle version du fich
    bloquante sans demande de la CDC.
 4. **Attestation de vigilance.** La durée de 6 mois est une valeur GSMS (validité habituelle de
    l'attestation), marquée comme telle dans le référentiel.
-5. **Guide XML.** La dernière version publique trouvée date de 2022 ; le schéma et les spécifications à
-   jour ne se téléchargent que depuis l'espace EDOF connecté (page « Transfert XML »).
+5. **Guide XML.** Le guide pas à pas public date de 2022. Le schéma et les spécifications à jour sont
+   publics : kit XML de juin 2026 sur le portail des organismes (corrigé le 05/10/2026 ; la version du
+   02/10/2026 de ce document les disait téléchargeables seulement depuis EDOF).
 
 ## Transmission : ce qui n'existe pas
 
@@ -38,9 +40,10 @@ ces sources. Une nouvelle lecture des sources donne une nouvelle version du fich
   remplit sur EDOF, les pièces complémentaires s'y transmettent. GSMS prépare, contrôle et trace ;
   chaque étape externe (dépôt, compléments, décision) est saisie par une personne et datée.
 - **Export XML du catalogue** : démarche distincte du référencement. Elle suppose un organisme déjà
-  référencé et un accès EDOF habilité, et un schéma (« Spécifications Import XML offre formation »,
-  modèle `lheo_import_fichier_xml_optimise`) téléchargeable seulement dans EDOF. Champs relevés dans le
-  guide de 2022 : code RNCP ou RS, SIRET, numéros internes de formation, d'action et de session, intitulé,
-  objectifs, contenu, résumé, résultats attendus, heures en centre et en entreprise, dates de session,
-  frais pédagogiques, contacts et lieux. **Non développé** : il faut d'abord le schéma en vigueur. La
-  fiche formation versionnée contient déjà l'essentiel de ces informations.
+  référencé et un accès EDOF habilité pour importer le fichier. Le schéma
+  (`lheo_import_fichier_xml_optimise`) et les spécifications en vigueur sont publics (kit XML de juin
+  2026, voir Sources). Champs relevés dans le guide de 2022 : code RNCP ou RS, SIRET, numéros internes de
+  formation, d'action et de session, intitulé, objectifs, contenu, résumé, résultats attendus, heures en
+  centre et en entreprise, dates de session, frais pédagogiques, contacts et lieux. **Non développé** :
+  le kit de 2026 n'a pas encore été relu en détail. La fiche formation versionnée contient déjà
+  l'essentiel de ces informations.
