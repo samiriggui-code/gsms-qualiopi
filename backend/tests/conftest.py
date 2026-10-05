@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import uuid
 from collections.abc import Iterator
 from datetime import date
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
     from fastapi.testclient import TestClient
 
     from app.auth.models import User
+
+# Les dates « du jour » des tests et de la démo (date.today()) doivent tomber le même jour que celles de l'API,
+# qui raisonne dans le fuseau de l'organisme (Europe/Paris par défaut) : sinon, entre 22 h et minuit UTC,
+# demain côté Paris passe pour « aujourd'hui » côté test.
+os.environ["TZ"] = "Europe/Paris"
+time.tzset()
 
 os.environ.setdefault("JWT_SECRET", "secret-de-test-assez-long-pour-hs256-0123456789")
 os.environ.setdefault("DOCUMENTS_DIR", tempfile.mkdtemp(prefix="gsms-docs-"))
