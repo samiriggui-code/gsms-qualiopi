@@ -17,6 +17,11 @@ import {
   Search,
 } from 'lucide-react';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
+import {
+  isUsableEvidence,
+  READINESS_LABELS,
+  READINESS_STATUS,
+} from '@/lib/qualiopi/audit';
 import { CRITERION_ICONS, matchesIndicator } from '@/lib/qualiopi/criteres';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
@@ -46,6 +51,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { IndicatorVerdict } from '@/components/audit/IndicatorVerdict';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
@@ -61,6 +67,33 @@ const DOT: Record<string, string> = {
   NON_APPLICABLE: 'bg-muted-foreground/40',
   A_VENIR: 'bg-primary',
 };
+
+// En-tête du volet : verdict de l'indicateur (libellés du moteur), ses écarts ou ses preuves exploitables.
+// « Preuve citée » seulement si l'indicateur est démontrable, et seulement avec une preuve exploitable.
+function FicheVerdict({ fiche }: { fiche: CarnetFiche }) {
+  const status = READINESS_STATUS[fiche.etat];
+  if (!status) return null;
+  const n = fiche.preuves.exploitables;
+  const preuve =
+    status === 'ok'
+      ? fiche.preuves.liste.find((p) => isUsableEvidence(p.statut))
+      : undefined;
+  return (
+    <IndicatorVerdict
+      status={status}
+      labels={READINESS_LABELS}
+      indicatorLabel={fiche.nom}
+      note={
+        fiche.ecarts.length
+          ? fiche.ecarts.map((e) => `${e.reference} · ${e.titre}`).join(' — ')
+          : status === 'info' && fiche.revue_humaine
+            ? fiche.revue_humaine
+            : `${n} preuve${n > 1 ? 's' : ''} exploitable${n > 1 ? 's' : ''} sur ${fiche.preuves.total}`
+      }
+      citation={preuve ? `${preuve.reference} · ${preuve.libelle}` : undefined}
+    />
+  );
+}
 
 // Carte compacte de la démo (app/ai/components/chat-starter-actions.tsx), quatre par rangée.
 function IndicatorCard({
@@ -288,16 +321,26 @@ export default function IndicateursPage() {
                   <span className="text-xs font-normal text-muted-foreground shrink-0">
                     Indicateur {fiche.numero}
                   </span>
-                  <Badge
-                    className={cn('shrink-0', stateBadge(fiche.etat).color)}
-                  >
-                    {stateBadge(fiche.etat).label}
-                  </Badge>
+                  {!READINESS_STATUS[fiche.etat] && (
+                    <Badge
+                      className={cn('shrink-0', stateBadge(fiche.etat).color)}
+                    >
+                      {stateBadge(fiche.etat).label}
+                    </Badge>
+                  )}
                 </SheetTitle>
               </SheetHeader>
               <SheetBody className="p-0 grow flex flex-col min-h-0">
                 <ScrollArea className="h-[calc(100dvh-11.5rem)] max-sm:h-[calc(100dvh-9.5rem)] [&_[data-radix-scroll-area-viewport]>div]:!block">
-                  <IndicatorBody fiche={fiche} data={data} />
+                  <IndicatorBody
+                    fiche={fiche}
+                    data={data}
+                    header={
+                      READINESS_STATUS[fiche.etat] ? (
+                        <FicheVerdict fiche={fiche} />
+                      ) : undefined
+                    }
+                  />
                 </ScrollArea>
               </SheetBody>
               <SheetFooter className="flex flex-row items-center gap-2 border-t border-border py-3 px-5">

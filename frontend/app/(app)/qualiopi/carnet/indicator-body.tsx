@@ -39,21 +39,28 @@ export function IndicatorBody({
   fiche,
   data,
   className,
+  header,
 }: {
   fiche: CarnetFiche;
   data: Carnet;
   className?: string;
+  /** Remplace le titre (nom, indicateur, critère), par exemple par le verdict de l'indicateur. */
+  header?: React.ReactNode;
 }) {
   const upcoming = fiche.etat === 'A_VENIR';
   return (
     <div className={cn('space-y-4 p-4 lg:p-5', className)}>
-      <div className="space-y-0.5">
-        <h2 className="text-base font-semibold text-foreground">{fiche.nom}</h2>
-        <p className="text-xs text-muted-foreground">
-          Indicateur {fiche.numero} · Critère {fiche.critere.numero} —{' '}
-          {fiche.critere.nom}
-        </p>
-      </div>
+      {header ?? (
+        <div className="space-y-0.5">
+          <h2 className="text-base font-semibold text-foreground">
+            {fiche.nom}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Indicateur {fiche.numero} · Critère {fiche.critere.numero} —{' '}
+            {fiche.critere.nom}
+          </p>
+        </div>
+      )}
       {fiche.enonce && (
         <div className="space-y-1">
           <div className="text-xs font-medium text-muted-foreground">

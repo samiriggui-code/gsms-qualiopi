@@ -64,6 +64,27 @@
   --ring: var(--color-zinc-600);
 }
 
+/** Composants d'audit (components/audit) : palette et polices dédiées.
+ * `accent` est déjà le jeton des composants Metronic : le bleu d'audit s'appelle `audit-accent`. **/
+@theme inline {
+  --color-conforme: #1c7a4c;
+  --color-conforme-bg: #e7f5ec;
+  --color-clarifier: #a9610a;
+  --color-clarifier-bg: #fbeedc;
+  --color-corriger: #bb352c;
+  --color-corriger-bg: #fbe7e5;
+  --color-navy: #0d1420;
+  --color-audit-accent: #2457d6;
+  --color-audit-bg: #f4f5f7;
+  --color-audit-surface: #ffffff;
+  --color-ink: #10141b;
+  --color-ink-soft: #636b78;
+  --color-ink-faint: #9aa1ac;
+  --color-line: #dee1e6;
+  --font-inter-tight: var(--next-font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-jetbrains: var(--next-font-jetbrains-mono), ui-monospace, monospace;
+}
+
 /** Theme Setup **/
 @theme inline {
   /** Base Colors **/
