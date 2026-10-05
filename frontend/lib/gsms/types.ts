@@ -15,7 +15,13 @@ export type Decision =
 
 export type Capabilities = Record<string, Decision>;
 
-export type SessionStatus = 'PLANIFIEE' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'CLOTUREE' | 'ANNULEE';
+export type SessionStatus =
+  | 'PLANIFIEE'
+  | 'CONFIRMEE'
+  | 'EN_COURS'
+  | 'TERMINEE'
+  | 'CLOTUREE'
+  | 'ANNULEE';
 
 export interface SessionRow {
   id: string;
@@ -23,6 +29,9 @@ export interface SessionRow {
   program_id: string;
   program_code: string | null;
   program_title: string | null;
+  program_track: string | null;
+  program_track_label: string | null;
+  program_slug: string | null;
   start_date: string;
   end_date: string;
   location: string | null;
@@ -35,7 +44,12 @@ export interface SessionRow {
   cancel_reason: string | null;
 }
 
-export type EnrollmentStatus = 'INSCRIT' | 'CONFIRME' | 'TERMINE' | 'ABANDON' | 'ANNULE';
+export type EnrollmentStatus =
+  | 'INSCRIT'
+  | 'CONFIRME'
+  | 'TERMINE'
+  | 'ABANDON'
+  | 'ANNULE';
 
 export interface SessionDetail {
   session: SessionRow;
@@ -63,7 +77,12 @@ export const JOURNEY_STEPS = [
 export type JourneyStepKey = (typeof JOURNEY_STEPS)[number];
 
 // État d'une étape pour un stagiaire, calculé par l'API avec les échéances de l'échéancier.
-export type StepState = 'FAIT' | 'A_VENIR' | 'A_ECHEANCE' | 'EN_RETARD' | 'SANS_OBJET';
+export type StepState =
+  | 'FAIT'
+  | 'A_VENIR'
+  | 'A_ECHEANCE'
+  | 'EN_RETARD'
+  | 'SANS_OBJET';
 
 export interface SessionJourney {
   session: string;
@@ -111,7 +130,12 @@ export interface LearnerJourney {
   statut: EnrollmentStatus;
   abandon: { le: string | null; motif: string | null } | null;
   etapes: JourneyStep[];
-  assiduite: { prevues: number; suivies: number; heures_prevues: string | null; heures_suivies: string | null };
+  assiduite: {
+    prevues: number;
+    suivies: number;
+    heures_prevues: string | null;
+    heures_suivies: string | null;
+  };
   documents: GeneratedDocument[];
   capabilities: Capabilities;
   contact?: {
@@ -175,7 +199,13 @@ export interface SessionDossier {
     program: { id: string; code: string; title: string; certifying: boolean };
     learners: number;
   };
-  checklist: { label: string; done: number; total: number; applicable: boolean; complete?: boolean }[];
+  checklist: {
+    label: string;
+    done: number;
+    total: number;
+    applicable: boolean;
+    complete?: boolean;
+  }[];
   echeancier: {
     key: string;
     label: string;
@@ -242,7 +272,12 @@ export interface Formateur {
   email: string | null;
   is_external: boolean;
   specialties: string[];
-  qualifications: { id: string; label: string; obtained_on: string | null; valid_until: string | null }[];
+  qualifications: {
+    id: string;
+    label: string;
+    obtained_on: string | null;
+    valid_until: string | null;
+  }[];
 }
 
 export interface Stagiaire {

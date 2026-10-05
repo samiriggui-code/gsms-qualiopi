@@ -35,6 +35,9 @@ class SessionView(SessionOut):
     cancel_reason: str | None = None
     program_code: str | None = None
     program_title: str | None = None
+    program_track: str | None = None
+    program_track_label: str | None = None
+    program_slug: str | None = None
     trainer_name: str | None = None
     learners_count: int = 0
 

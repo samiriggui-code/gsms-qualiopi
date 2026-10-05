@@ -140,3 +140,13 @@ def test_catalogue_et_fiche(client, demo: Session) -> None:  # noqa: ANN001
     item = client.get(f"{API}/formation/catalogue/{demo_ssiap['id']}", headers=hl).json()
     assert item["sessions"] and all("learners" in s for s in item["sessions"])
     assert client.get(f"{API}/formation/catalogue/inconnu", headers=hl).status_code == 404
+
+
+def test_liste_des_sessions_porte_la_filiere(client, demo: Session) -> None:  # noqa: ANN001
+    demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1")).track = "INCENDIE"
+    demo.commit()
+    _, h = make_user(demo, "gestion")
+    rows = client.get(f"{API}/sessions", headers=h).json()
+    ssiap = next(r for r in rows if r["program_code"] == "SSIAP1")
+    assert ssiap["program_track"] == "INCENDIE" and ssiap["program_track_label"] == "Incendie"
+    assert "program_slug" in ssiap
