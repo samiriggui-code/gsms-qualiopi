@@ -182,7 +182,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
         access_delay="Inscription jusqu'à 10 jours avant le démarrage",
         accessibility_info="Locaux accessibles ; adaptations étudiées avec la référente handicap.",
         certification_alignment="Correspondance module par module avec le référentiel de certification.",
-        public_info_reviewed_on=d(-30), success_rate=Decimal("92"), satisfaction_rate=Decimal("4.6"),
+        public_info_reviewed_on=d(-30), success_rate=Decimal("92"), satisfaction_rate=Decimal("90"),
         created_by=ACTOR,
     )
     sst = t.Program(

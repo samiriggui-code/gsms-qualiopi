@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   BellRing,
   BookOpen,
+  BookOpenCheck,
   Briefcase,
   Building2,
   CalendarCheck,
@@ -31,6 +32,7 @@ import {
   Radar,
   ScanSearch,
   School,
+  Settings,
   ShieldCheck,
   Smile,
   Sprout,
@@ -40,8 +42,6 @@ import {
   UserX,
   Warehouse,
   Wrench,
-  Settings,
-  BookOpenCheck,
 } from 'lucide-react';
 import { type NavConfig, type NavItem } from './types';
 
@@ -69,7 +69,8 @@ export const MAIN_NAV: NavConfig = [
         icon: CalendarRange,
         path: '/agenda',
         spec: {
-          description: 'Planning des sessions, des formateurs et des salles (vue mois, semaine, jour).',
+          description:
+            'Planning des sessions, des formateurs et des salles (vue mois, semaine, jour).',
           indicators: [9, 17],
           source: 'formation.session, formation.attendance_slot',
           data: 'existant',
@@ -107,7 +108,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Building2,
         path: '/commercial/entreprises',
         spec: {
-          description: 'Entreprises clientes, contacts, salariés inscrits et historique des sessions.',
+          description:
+            'Entreprises clientes, contacts, salariés inscrits et historique des sessions.',
           source: 'formation.company',
           data: 'existant',
         },
@@ -120,7 +122,8 @@ export const MAIN_NAV: NavConfig = [
         spec: {
           description:
             'OPCO, CPF, France Travail, Région, entreprises : prises en charge, accords, montants, pièces demandées.',
-          source: 'Aujourd’hui un simple texte (enrollment.funding) : tables financeurs et prises en charge à créer',
+          source:
+            'Aujourd’hui un simple texte (enrollment.funding) : tables financeurs et prises en charge à créer',
           data: 'a-creer',
         },
       },
@@ -130,7 +133,8 @@ export const MAIN_NAV: NavConfig = [
         icon: FileSignature,
         path: '/commercial/conventions',
         spec: {
-          description: 'Conventions et contrats de formation : envoi, signature, relances.',
+          description:
+            'Conventions et contrats de formation : envoi, signature, relances.',
           indicators: [9],
           source: 'formation.agreement',
           data: 'existant',
@@ -167,43 +171,38 @@ export const MAIN_NAV: NavConfig = [
         title: 'Sessions',
         icon: CalendarDays,
         path: '/formation/sessions',
-        new: { tooltip: 'Nouvelle session', path: '/formation/sessions?nouveau=1' },
+        new: {
+          tooltip: 'Nouvelle session',
+          path: '/formation/sessions?nouveau=1',
+        },
       },
       {
         id: 'resultats',
         title: 'Résultats & taux',
         icon: TrendingUp,
         path: '/formation/resultats',
-        spec: {
-          description:
-            'Taux de satisfaction, de réussite, d’obtention de la certification, d’abandon et débouchés, par formation.',
-          indicators: [2, 3],
-          source: 'Calcul à partir des évaluations, attestations, enquêtes et abandons',
-          data: 'calcule',
-        },
       },
       {
         id: 'ressources',
         title: 'Ressources pédagogiques',
         icon: Library,
         path: '/formation/ressources',
-        spec: {
-          description: 'Supports, plateformes et ressources mis à disposition des apprenants.',
-          indicators: [19],
-          source: 'Table des ressources pédagogiques à créer',
-          data: 'a-creer',
-        },
+      },
+      {
+        id: 'locaux',
+        title: 'Locaux',
+        icon: Building2,
+        path: '/formation/locaux',
+        new: { tooltip: 'Nouveau lieu', path: '/formation/locaux?nouveau=1' },
       },
       {
         id: 'moyens',
-        title: 'Locaux & moyens techniques',
+        title: 'Moyens techniques',
         icon: Warehouse,
         path: '/formation/moyens',
-        spec: {
-          description: 'Salles, équipements (bac à feu, extincteurs, mannequins…) et affectation aux sessions.',
-          indicators: [17],
-          source: 'Table des moyens techniques à créer',
-          data: 'a-creer',
+        new: {
+          tooltip: 'Nouvel équipement',
+          path: '/formation/moyens?nouveau=1',
         },
       },
     ],
@@ -219,7 +218,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Users,
         path: '/apprenants',
         spec: {
-          description: 'Fiche apprenant : coordonnées, entreprise, parcours, documents, historique.',
+          description:
+            'Fiche apprenant : coordonnées, entreprise, parcours, documents, historique.',
           source: 'formation.learner',
           data: 'existant',
         },
@@ -230,7 +230,8 @@ export const MAIN_NAV: NavConfig = [
         icon: ClipboardList,
         path: '/apprenants/inscriptions',
         spec: {
-          description: 'Inscriptions aux sessions : statut, financement, avancement du dossier.',
+          description:
+            'Inscriptions aux sessions : statut, financement, avancement du dossier.',
           indicators: [12],
           source: 'formation.enrollment',
           data: 'existant',
@@ -242,7 +243,8 @@ export const MAIN_NAV: NavConfig = [
         icon: ScanSearch,
         path: '/apprenants/analyses-besoin',
         spec: {
-          description: 'Recueil du besoin de chaque bénéficiaire et adaptations décidées.',
+          description:
+            'Recueil du besoin de chaque bénéficiaire et adaptations décidées.',
           indicators: [4, 10],
           source: 'formation.needs_analysis',
           data: 'existant',
@@ -254,7 +256,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Crosshair,
         path: '/apprenants/positionnements',
         spec: {
-          description: 'Positionnement et évaluation des acquis à l’entrée, vérification des prérequis.',
+          description:
+            'Positionnement et évaluation des acquis à l’entrée, vérification des prérequis.',
           indicators: [8],
           source: 'formation.positioning',
           data: 'existant',
@@ -266,7 +269,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Mail,
         path: '/apprenants/convocations',
         spec: {
-          description: 'Convocations et informations sur les conditions de déroulement.',
+          description:
+            'Convocations et informations sur les conditions de déroulement.',
           indicators: [9],
           source: 'formation.convocation',
           data: 'existant',
@@ -278,7 +282,8 @@ export const MAIN_NAV: NavConfig = [
         icon: CalendarCheck,
         path: '/apprenants/emargements',
         spec: {
-          description: 'Feuilles d’émargement par demi-journée, signatures, absences.',
+          description:
+            'Feuilles d’émargement par demi-journée, signatures, absences.',
           indicators: [12],
           source: 'formation.attendance_slot, formation.attendance_signature',
           data: 'existant',
@@ -302,7 +307,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Award,
         path: '/apprenants/certification',
         spec: {
-          description: 'Présentation des apprenants aux épreuves de certification et résultats.',
+          description:
+            'Présentation des apprenants aux épreuves de certification et résultats.',
           indicators: [16, 3],
           source: 'formation.assessment (examens)',
           data: 'existant',
@@ -314,7 +320,8 @@ export const MAIN_NAV: NavConfig = [
         icon: BadgeCheck,
         path: '/apprenants/attestations',
         spec: {
-          description: 'Attestations de fin de formation et certificats délivrés.',
+          description:
+            'Attestations de fin de formation et certificats délivrés.',
           indicators: [11],
           source: 'formation.certificate',
           data: 'existant',
@@ -345,7 +352,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Presentation,
         path: '/rh/formateurs',
         spec: {
-          description: 'Formateurs internes et externes : spécialités, sessions animées, dossier.',
+          description:
+            'Formateurs internes et externes : spécialités, sessions animées, dossier.',
           indicators: [21],
           source: 'formation.trainer',
           data: 'existant',
@@ -357,7 +365,8 @@ export const MAIN_NAV: NavConfig = [
         icon: ShieldCheck,
         path: '/rh/qualifications',
         spec: {
-          description: 'Diplômes, cartes professionnelles, habilitations (SSIAP, SST, CNAPS…) et validités.',
+          description:
+            'Diplômes, cartes professionnelles, habilitations (SSIAP, SST, CNAPS…) et validités.',
           indicators: [21],
           source: 'formation.trainer_qualification',
           data: 'existant',
@@ -369,7 +378,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Sprout,
         path: '/rh/developpement',
         spec: {
-          description: 'Plan de développement des compétences des salariés et formateurs.',
+          description:
+            'Plan de développement des compétences des salariés et formateurs.',
           indicators: [22],
           source: 'formation.staff_development_action',
           data: 'existant',
@@ -381,7 +391,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Network,
         path: '/rh/coordination',
         spec: {
-          description: 'Réunions pédagogiques, comptes rendus, coordination des intervenants.',
+          description:
+            'Réunions pédagogiques, comptes rendus, coordination des intervenants.',
           indicators: [18],
           source: 'Table des réunions / comptes rendus à créer',
           data: 'a-creer',
@@ -393,7 +404,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Handshake,
         path: '/rh/sous-traitants',
         spec: {
-          description: 'Sous-traitants et portage salarial : contrats, Qualiopi, revues annuelles.',
+          description:
+            'Sous-traitants et portage salarial : contrats, Qualiopi, revues annuelles.',
           indicators: [27],
           source: 'formation.subcontractor',
           data: 'existant',
@@ -412,7 +424,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Smile,
         path: '/qualite/satisfaction',
         spec: {
-          description: 'Enquêtes de satisfaction (apprenants, entreprises, financeurs, formateurs).',
+          description:
+            'Enquêtes de satisfaction (apprenants, entreprises, financeurs, formateurs).',
           indicators: [30],
           source: 'formation.satisfaction_survey',
           data: 'existant',
@@ -424,7 +437,8 @@ export const MAIN_NAV: NavConfig = [
         icon: MessageSquareWarning,
         path: '/qualite/reclamations',
         spec: {
-          description: 'Réclamations, difficultés et aléas : réception, réponse, résolution.',
+          description:
+            'Réclamations, difficultés et aléas : réception, réponse, résolution.',
           indicators: [31],
           source: 'formation.complaint',
           data: 'existant',
@@ -436,7 +450,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Radar,
         path: '/qualite/veille',
         spec: {
-          description: 'Veille légale, métiers et pédagogique : sources et exploitation.',
+          description:
+            'Veille légale, métiers et pédagogique : sources et exploitation.',
           indicators: [23, 24, 25],
           source: 'formation.watch_item',
           data: 'existant',
@@ -448,7 +463,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Accessibility,
         path: '/qualite/handicap',
         spec: {
-          description: 'Référent handicap et mobilité, adaptations réalisées, réseau handicap.',
+          description:
+            'Référent handicap et mobilité, adaptations réalisées, réseau handicap.',
           indicators: [20, 26],
           source: 'formation.organization, formation.partner (HANDICAP)',
           data: 'existant',
@@ -460,7 +476,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Network,
         path: '/qualite/partenaires',
         spec: {
-          description: 'Partenaires socio-économiques et réseaux professionnels.',
+          description:
+            'Partenaires socio-économiques et réseaux professionnels.',
           indicators: [28],
           source: 'formation.partner (SOCIO_ECONOMIQUE)',
           data: 'existant',
@@ -472,7 +489,8 @@ export const MAIN_NAV: NavConfig = [
         icon: FolderOpen,
         path: '/qualite/documents',
         spec: {
-          description: 'Procédures, modèles, documents émis et signés, versions.',
+          description:
+            'Procédures, modèles, documents émis et signés, versions.',
           source: 'formation.document',
           data: 'existant',
         },
@@ -502,8 +520,10 @@ export const MAIN_NAV: NavConfig = [
         icon: FileCheck2,
         path: '/qualiopi/preuves',
         spec: {
-          description: 'Preuves détectées, documentées, validées ou rejetées ; rattachement aux indicateurs.',
-          source: 'qualite.evidence, evidence_indicator_link, evidence_validation',
+          description:
+            'Preuves détectées, documentées, validées ou rejetées ; rattachement aux indicateurs.',
+          source:
+            'qualite.evidence, evidence_indicator_link, evidence_validation',
           data: 'existant',
         },
       },
@@ -513,7 +533,8 @@ export const MAIN_NAV: NavConfig = [
         icon: ClipboardCheck,
         path: '/qualiopi/evaluations',
         spec: {
-          description: 'Contrôles automatisés, résultats par indicateur et par session, constats.',
+          description:
+            'Contrôles automatisés, résultats par indicateur et par session, constats.',
           source: 'qualite.evaluation_run, control_result, finding',
           data: 'existant',
         },
@@ -524,7 +545,8 @@ export const MAIN_NAV: NavConfig = [
         icon: ScanSearch,
         path: '/qualiopi/audits',
         spec: {
-          description: 'Audits blancs et réels figés et comparables, dossier d’audit.',
+          description:
+            'Audits blancs et réels figés et comparables, dossier d’audit.',
           source: 'qualite.audit, audit_item',
           data: 'existant',
         },
@@ -535,7 +557,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Wrench,
         path: '/qualiopi/capa',
         spec: {
-          description: 'Actions correctives et d’amélioration, vérification d’efficacité.',
+          description:
+            'Actions correctives et d’amélioration, vérification d’efficacité.',
           indicators: [32],
           source: 'qualite.capa_action, capa_event',
           data: 'existant',
@@ -554,7 +577,8 @@ export const MAIN_NAV: NavConfig = [
         icon: Landmark,
         path: '/administration/organisme',
         spec: {
-          description: 'NDA, SIRET, catégories d’actions, nouvel entrant, référents handicap et mobilité.',
+          description:
+            'NDA, SIRET, catégories d’actions, nouvel entrant, référents handicap et mobilité.',
           indicators: [20],
           source: 'formation.organization',
           data: 'existant',
@@ -566,7 +590,8 @@ export const MAIN_NAV: NavConfig = [
         icon: UserRound,
         path: '/administration/utilisateurs',
         spec: {
-          description: 'Comptes, rôles et permissions (admin, qualité, gestion, lecture seule).',
+          description:
+            'Comptes, rôles et permissions (admin, qualité, gestion, lecture seule).',
           source: 'iam.user',
           data: 'existant',
         },
@@ -577,7 +602,8 @@ export const MAIN_NAV: NavConfig = [
         icon: BookOpen,
         path: '/administration/referentiels',
         spec: {
-          description: 'Versions du référentiel Qualiopi, empreintes, activation.',
+          description:
+            'Versions du référentiel Qualiopi, empreintes, activation.',
           source: 'qualite.referential_version',
           data: 'existant',
         },
@@ -594,7 +620,8 @@ export const MAIN_NAV: NavConfig = [
         icon: History,
         path: '/administration/journal',
         spec: {
-          description: 'Traçabilité des événements métier (qui a fait quoi, quand).',
+          description:
+            'Traçabilité des événements métier (qui a fait quoi, quand).',
           source: 'outbox_event',
           data: 'existant',
         },
@@ -610,7 +637,11 @@ export const ACCOUNT_PAGES: NavItem[] = [
     title: 'Mon profil',
     icon: UserRound,
     path: '/compte/profil',
-    spec: { description: 'Nom, email, rôle.', source: 'iam.user', data: 'existant' },
+    spec: {
+      description: 'Nom, email, rôle.',
+      source: 'iam.user',
+      data: 'existant',
+    },
   },
   {
     id: 'securite',

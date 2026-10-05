@@ -1,0 +1,1882 @@
+# Offre de formation de Form'SSI reprise de GSMS School (import : python -m app.cli import-gsms-school).
+# Fichier produit le 05/10/2026 par lecture du dépôt gsms-school-aps : fiches vitrine, catalogue, lieux, inventaire.
+# Ne sont jamais repris : les taux de réussite et de satisfaction écrits en dur, les notes et avis affichés,
+# les fournisseurs, factures et prix d'achat de l'inventaire (fictifs), les sessions de démonstration.
+# Chaque écart ou manque est noté dans review_notes ; l'import ne remplace jamais une valeur déjà saisie.
+
+releve_le: '2026-10-05'
+sources:
+  school_vitrine: GSMS School, fiches vitrine des formations (apps/lms-crm/i18n/landing-content/sheet-content/*.ts)
+  school_catalogue: GSMS School, catalogue des formations (packages/database/prisma/data/formations-catalog.snapshot.json)
+  school_lieux: GSMS School, données d'amorçage des sites et salles (school-sites-seed.js, formation-venue-rooms-seed.js)
+  school_inventaire: GSMS School, inventaire du matériel pédagogique (equipment-school-inventory-seed.js)
+  school_lms: GSMS School, cours en ligne générés à l'amorçage (portal-lms-seed.js)
+non_importees:
+- catalog_slug: tfp-aps
+  raison: importée séparément, avec sa fiche complète, par import-formssi
+- catalog_slug: commission-securite
+  raison: prestation de conseil (préparation aux commissions de sécurité), pas une action de formation ; texte de
+    la vitrine repris d'un autre organisme (« SI.Groupe »)
+- catalog_slug: intra-entreprise-securite
+  raison: 'offre sur mesure sans programme ni durée : à créer formation par formation quand une demande arrive'
+formations:
+- catalog_slug: mac-aps
+  code: MAC-APS
+  title: Maintien et actualisation des compétences — Agent de prévention et de sécurité (MAC APS)
+  audience: Agents de sécurité (APS)
+  delivery_mode: PRESENTIEL
+  duration_hours: null
+  price_eur: 325
+  prerequisites:
+  - 'Carte Professionnelle : En cours de validité ou numéro préalable du CNAPS'
+  - 'Secourisme : Diplôme SST ou equivalent en cours de validité (pour parcours 27h)'
+  - 'SST à renouveler : Certificat SST à renouveler pour le parcours de 34h'
+  - 'Moralité : Vérification administrative par le CNAPS'
+  content: 'Formation réglementaire obligatoire tous les 5 ans pour le renouvellement de la carte professionnelle
+    CNAPS. Répartition: 20% théorique / 80% pratique.'
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 20% théorie, 80% pratique).'
+  evaluation_methods: 'Évaluation continue : Auto-évaluations quotidiennes et mises en situation réelles sur cas
+    pratiques (incendie, filtrage). Test de connaissances : Évaluation écrite finale (QCM/QCU) validant la mise
+    à jour des connaissances juridiques et techniques. Attestation de suivi : Remise d''une attestation de suivi
+    de formation MAC APS indispensable pour le renouvellement de la carte CNAPS.'
+  modules:
+  - code: M1
+    title: Principes de la République
+    details:
+    - Liberté, égalité, fraternité, laïcité, non-discrimination.
+    - Prévention de la violence, respect de la dignité humaine.
+    - Symboles républicains et respect qui leur est dû.
+    - État de droit et ordre public.
+  - code: M2
+    title: Cadre juridique d'intervention
+    details:
+    - Évolutions du Livre VI et code de déontologie.
+    - Port des uniformes et insignes, détention et usage des armes.
+    - Légitime défense, atteintes à l'intégrité physique.
+    - Obligations et responsabilités (articles 53 et 73 du CPP).
+  - code: M3
+    title: Compétences opérationnelles générales
+    details:
+    - 'Gérer les conflits : techniques verbales et maîtrise des émotions.'
+    - 'Maîtriser les mesures d''inspection-filtrage : palpations et inspection de bagages.'
+    - Modalités d'agrément et cadre législatif.
+  - code: M4
+    title: Prévention des risques terroristes
+    details:
+    - Typologie des menaces et niveaux de risques.
+    - Vigilance, détection, réflexes de sécurité, profiling.
+    - Gestion des foules, réactions adaptées (courir / se cacher / combattre).
+    - 'Secourisme tactique : blessures par balles/explosions, gestes de survie.'
+  - code: M5
+    title: Secourisme - MAC SST
+    details:
+    - Actualisation des gestes et procédures de secours.
+    - Structure d'intervention, analyse des risques, actions de protection.
+    - Utilisation du matériel INRS, mannequins, défibrillateur.
+  review_notes:
+  - champ: duration_hours
+    message: 'Durée affichée « 27-34h » (catalogue : « 27h a 34h ») : fourchette non reprise, durée à fixer.'
+    source: school_vitrine
+  - champ: price_eur
+    message: '325 € affichés « a partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction. La même fiche annonce aussi 650 € dans son encart financement.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (100%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: content
+    message: 'Textes de la vitrine écrits sans accents : accents rétablis à l''import, à relire.'
+    source: school_vitrine
+- catalog_slug: asra-d
+  code: ASRA-D
+  title: Agent de sécurité renforcée armé, catégorie D (ASRA D)
+  audience: APS, Militaires, Policiers
+  delivery_mode: PRESENTIEL
+  duration_hours: null
+  price_eur: 2590
+  prerequisites:
+  - 'Carte Pro APS : En cours de validité (enquête administrative CNAPS)'
+  - 'Médical : Certificat médical récent d''aptitude à l''armement'
+  - 'Secourisme : SST / PSE1 / PSC1 en cours de validité'
+  - 'Langue : Maîtrise du français (niveau B1 minimum)'
+  - 'Psychologie : Tests psychotechniques et d''aptitude au stress'
+  content: 'Maîtrisez l''usage professionnel des armes de catégorie D (bâton, tonfa, aérosol) dans le respect du
+    Livre VI du CSI. Répartition: 25% théorique / 75% pratique.'
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 25% théorie, 75% pratique).'
+  evaluation_methods: 'Contrôle des postures : Observation continue des réflexes de sécurité, des positions de garde
+    et de la prise de décision. Évaluation de la force : Validation de la capacité à justifier ses actes et à respecter
+    la gradation de la force avant et après action. Certification UFACS : Examen final valide par le certificateur
+    UFACS permettant l''exercice des missions armées.'
+  modules:
+  - code: UV1
+    title: Cadre juridique et déontologique
+    details:
+    - Livre VI du CSI et ses décrets.
+    - Réglementation sur l'acquisition, la détention et l'usage des armes.
+    - Principes de légitime défense, absolue nécessité et proportionnalité.
+    - Préparation mentale et physique à l'intervention.
+  - code: UV2
+    title: Connaissance technique des armes de catégorie D
+    details:
+    - Caractéristiques et entretien des armes d'impact et aérosols.
+    - Règles de sécurité, stockage et transport des armes.
+    - Utilisation des aérosols de défense (poivre, lacrymogène).
+    - 'Maîtrise des armes d''impact : bâton télescopique et tonfa.'
+  - code: UV3
+    title: Techniques d'intervention et maniement des armes
+    details:
+    - Maîtrise de la violence sans arme (frappes, contrôle, déplacements).
+    - Techniques de garde et de mise au sol.
+    - Utilisation d'armes d'impact en situation réelle.
+    - Gestion d'individus violents, entraves et contrôles au sol.
+  - code: UV4
+    title: Tactique et gestion opérationnelle
+    details:
+    - Utiliser son arme dans le strict respect de la gradation de la force.
+    - Coordination avec les forces de l'ordre et gestion post-intervention.
+    - Gestion du stress et prévention du risque post-traumatique.
+    - Justification écrite et orale de ses actes (rapports).
+  review_notes:
+  - champ: duration_hours
+    message: 'Durée affichée « 70-100h » (catalogue : « 3 a 4 semaines ») : fourchette non reprise, durée à fixer.'
+    source: school_vitrine
+  - champ: price_eur
+    message: '2590 € affichés « a partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à
+      confirmer par la direction.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (94%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+  - champ: content
+    message: 'Textes de la vitrine écrits sans accents : accents rétablis à l''import, à relire.'
+    source: school_vitrine
+- catalog_slug: ovt
+  code: OVT
+  title: Opérateur en vidéoprotection et télésurveillance (OVT)
+  audience: Demandeurs d'emploi, Salariés
+  delivery_mode: PRESENTIEL
+  duration_hours: 283
+  price_eur: 3390
+  prerequisites:
+  - 'CNAPS : Autorisation préalable d''acces à la formation (valide)'
+  - 'Casier Judiciaire : Bulletin n°3 vierge (moralité irréprochable)'
+  - 'Français : Maîtrise de la langue française (Niveau B1 minimum)'
+  - 'Savoirs de base : Maîtrise du calcul et de l''outil informatique'
+  - 'SÉLECTION : Tests de positionnement et entretien individuel'
+  content: Devenez un expert en vidéosurveillance et télésurveillance. Apprenez à exploiter les systèmes de sécurité
+    électronique et à coordonner les interventions.
+  teaching_methods: null
+  evaluation_methods: 'Contrôles continus (ECF) : Validation des acquis tout au long de la formation par des mises
+    en situation pratiques sur PC de sécurité. Dossier professionnel : Rédaction d''un mémoire technique décrivant
+    les activités réalisées lors du stage de 2 semaines en entreprise. Examen devant jury : Mise en situation finale
+    sur système réel et entretien de 30 minutes devant des professionnels habilités.'
+  modules:
+  - code: CCP1
+    title: 'Vidéoprotection : Sécurisation des personnes et des biens'
+    details:
+    - Cadre réglementaire de la vidéoprotection (Loi 95-73, RGPD).
+    - Exploitation des murs d'images et postes de contrôle.
+    - Analyse comportementale et détection d'incidents.
+    - Extraction et sauvegarde des données pour les services officiels.
+  - code: CCP2
+    title: 'Télésurveillance : Gestion des alarmes et interventions'
+    details:
+    - Traitement des flux d'alarmes (intrusion, incendie, technique).
+    - Protocoles de levée de doute (vidéo, audio, physique).
+    - Coordination des intervenants sur site et des forces de l'ordre.
+    - Gestion des appels d'urgence et assistance aux personnes.
+  - code: CCP3
+    title: Gestion opérationnelle du centre d'exploitation
+    details:
+    - Organisation et fonctionnement d'un PC de sécurité.
+    - Maintenance préventive des systèmes de sécurité électronique.
+    - Rédaction des mains courantes informatisées et rapports.
+    - Gestion des situations de crise et procédures de sauvegarde.
+  - code: STG
+    title: Période d'application en entreprise
+    details:
+    - Mise en situation réelle en centre de télésurveillance ou PC urbain.
+    - Pratique de l'exploitation sous supervision professionnelle.
+    - Préparation du dossier professionnel pour l'examen.
+    - Immersion dans le rythme de travail opérationnel (vacations).
+  review_notes:
+  - champ: price_eur
+    message: '3390 € affichés « a partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à
+      confirmer par la direction. Les données d''amorçage calculaient 890 € par une règle sur la durée.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (95%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+  - champ: content
+    message: 'Textes de la vitrine écrits sans accents : accents rétablis à l''import, à relire.'
+    source: school_vitrine
+- catalog_slug: mac-ovt
+  code: MAC-OVT
+  title: Maintien et actualisation des compétences — Opérateur en vidéoprotection (MAC OVT)
+  audience: Opérateurs en poste
+  delivery_mode: PRESENTIEL
+  duration_hours: 31
+  price_eur: 490
+  prerequisites:
+  - 'Carte Pro : Carte professionnelle Vidéoprotection en cours de validité'
+  - 'Secourisme : Diplôme SST ou equivalent à jour (validité < 2 ans)'
+  - 'Français : Compréhension et expression écrite/orale (Niveau B1)'
+  - 'Moralité : Absence de condamnation incompatible (enquête CNAPS)'
+  content: Actualisez vos compétences professionnelles pour le renouvellement de votre carte CNAPS. Ce stage couvre
+    les évolutions juridiques et technologiques du secteur.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 20% théorie, 80% pratique).'
+  evaluation_methods: 'Actualisation juridique : Validation des connaissances sur les évolutions du Livre VI du
+    Code de la Sécurité Intérieure et du RGPD. Contrôle continu : Évaluation des aptitudes techniques lors des mises
+    en situation pratique sur PC de vidéoprotection. Attestation MAC : Délivrance de l''attestation de suivi permettant
+    le renouvellement de la carte professionnelle auprès du CNAPS.'
+  modules:
+  - code: UV1
+    title: Principes de la République
+    details:
+    - Liberté, égalité, fraternité, laïcité, non-discrimination.
+    - Prévention de la violence et respect de la dignité humaine.
+    - Symboles républicains et État de droit.
+  - code: UV2
+    title: Actualisation des connaissances juridiques
+    details:
+    - Évolutions récentes du Livre VI du CSI.
+    - Code de déontologie de la sécurité privée.
+    - Respect de la vie privée et droit de propriété.
+    - Dispositions spécifiques à la vidéoprotection.
+  - code: UV3
+    title: Actualisation des pratiques opérationnelles
+    details:
+    - Évolution des menaces et de la délinquance.
+    - Analyse des comportements à risque.
+    - Conséquences économiques des actes répréhensibles.
+  - code: UV4
+    title: Maîtrise des outils de travail
+    details:
+    - Réglages cameras analogiques et numériques.
+    - Logiciels d'exploitation vidéo et VMS.
+    - Interconnexions (contrôle d'acces, anti-intrusion).
+    - Techniques de maintenance de premier niveau.
+  - code: UV5
+    title: Prévention des risques terroristes
+    details:
+    - Bons réflexes face aux menaces terroristes.
+    - Alerte des forces de l'ordre et facilitation de l'intervention.
+    - Alerte des secours.
+  review_notes:
+  - champ: price_eur
+    message: '490 € affichés « a partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (100%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: content
+    message: 'Textes de la vitrine écrits sans accents : accents rétablis à l''import, à relire.'
+    source: school_vitrine
+- catalog_slug: asc-cynophile
+  code: ASC-CYNO
+  title: Agent de sécurité cynophile (ASC)
+  audience: Futurs agents cynophiles (titre ASC)
+  delivery_mode: PRESENTIEL
+  duration_hours: 315
+  price_eur: null
+  prerequisites:
+  - 'Autorisation CNAPS : Autorisation préalable en cours de validité ou carte professionnelle en cours de validité
+    selon le cas.'
+  - 'Âge : 18 ans révolus à l''entrée en formation.'
+  - 'Chien : Chien inscrit au LOF ou conforme aux races autorisées au mordant ; identification ; carnet de santé
+    et vaccinations à jour.'
+  - 'Propriété du chien : Le stagiaire doit être propriétaire du chien dans les délais fixés par le référentiel
+    avant les épreuves finales.'
+  - 'Assurance : Attestation de responsabilité civile couvrant la détention et la manipulation du chien en formation.'
+  - 'Catégories de chiens : Respect des restrictions réglementaires pour les catégories concernées (tests et formalités
+    complémentaires si requis).'
+  content: 'Formation initiale pour exercer le métier d''agent de sécurité cynophile : binôme maître-chien, prévention
+    des risques, interventions avec chien et conformité au cadre CNAPS / titre professionnel.'
+  teaching_methods: null
+  evaluation_methods: 'Épreuves théoriques (UV 1 et 2) : Questionnaires à choix unique (QCU) couvrant la réglementation,
+    les connaissances cynophiles et les fondamentaux du métier. Épreuves pratiques (UV 3 à 5) : Mises en situation
+    avec tirage au sort de contextes ; démonstration du binôme maître-chien sur les compétences du titre. Titre
+    ASC niveau III : Validation du titre permettant la demande de carte professionnelle CNAPS pour missions cynophiles
+    dans le cadre légal.'
+  modules:
+  - code: UV1
+    title: Législation et réglementations cynophiles
+    details:
+    - Cadre juridique du métier d'agent cynophile et responsabilités du maître-chien.
+    - Déontologie, obligations CNAPS et environnement de travail.
+    - Réglementation transport et présence du chien sur les missions.
+    hours: 35
+  - code: UV2
+    title: Connaissances générales du chien
+    details:
+    - Comportement, éducation de base, bien-être animal.
+    - Identification, santé et documents obligatoires.
+    - Relations avec le public et prévention des incidents.
+    hours: 35
+  - code: UV3
+    title: Obéissance et sociabilité
+    details:
+    - Exercices d'obéissance appliqués aux missions de sécurité.
+    - Socialisation et gestion des stimuli en environnement urbain.
+    - Renforcement du binôme opérateur / chien.
+    hours: 54
+  - code: UV4
+    title: Maîtrise du chien dans le cadre de la légitime défense
+    details:
+    - Techniques de protection et usage maîtrise du mordant.
+    - Analyse de situation, gradation de la réponse et sécurisation.
+    - Équipements de protection et protocoles Form'SSI.
+    hours: 92
+  - code: UV5
+    title: Détection avec chien
+    details:
+    - Principes de recherche olfactive et protocoles opérationnels.
+    - Mises en situation sur contextes variés.
+    - Coordination avec les équipes et compte rendu d'intervention.
+    hours: 99
+  review_notes:
+  - champ: duration_hours
+    message: '315 h indiquées « hors examen » sur la vitrine (« 315 h minimum » au catalogue) : durée à confirmer
+      avec le référentiel du titre ASC.'
+    source: school_vitrine
+  - champ: price_eur
+    message: 'Tarif affiché « non renseigné » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+  - champ: content
+    message: 'Textes de la vitrine écrits sans accents : accents rétablis à l''import, à relire.'
+    source: school_vitrine
+- catalog_slug: h0-b0
+  code: H0B0
+  title: Habilitation électrique H0/B0 (non-électricien)
+  audience: Personnel non électricien
+  delivery_mode: PRESENTIEL
+  duration_hours: 7
+  price_eur: 125
+  prerequisites:
+  - 'Français : Savoir lire et écrire en français'
+  - 'Aptitude : Pas de contre-indication médicale'
+  content: Formation destinée au personnel non-électricien réalisant des opérations d'ordre non électrique à proximité
+    d'installations. Conforme à la norme NF C 18-510 garantissant la sécurité lors des opérations électriques.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 30% théorie, 70% pratique).'
+  evaluation_methods: 'Évaluation Théorique : QCM de validation des acquis sur les risques électriques et les distances
+    de sécurité. Évaluation Pratique : Mise en situation réelle ou simulée sur une installation électrique pour
+    valider les procédures. Attestation de Formation : Délivrance de l''attestation NF C 18-510 permettant à l''employeur
+    d''habiliter le salarié.'
+  modules:
+  - code: MOD1
+    title: Notions élémentaires d'électricité
+    details:
+    - Différence de potentiel, intensité, résistance, loi d'Ohm.
+    - Effets du courant électrique sur le corps humain.
+  - code: MOD2
+    title: Sensibilisation aux risques électriques
+    details:
+    - Responsabilités et obligations.
+    - Statistiques et typologie des accidents.
+  - code: MOD3
+    title: Prévention des risques électriques
+    details:
+    - Moyens de protection directe/indirecte.
+    - Conduite à tenir en cas d'accident.
+  - code: MOD4
+    title: Normes et définitions (NF C 18-510)
+    details:
+    - Prescriptions applicables au personnel.
+    - Définitions essentielles.
+  - code: MOD5
+    title: Opérations dans l'environnement électrique
+    details:
+    - Zones de voisinage.
+    - Évaluation des risques et comportements adaptés.
+  review_notes:
+  - champ: price_eur
+    message: '125 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: bs-be-manoeuvre
+  code: BS-BE
+  title: Habilitation électrique BS / BE Manœuvre
+  audience: Personnel technique
+  delivery_mode: PRESENTIEL
+  duration_hours: 14
+  price_eur: 220
+  prerequisites:
+  - 'Français : Savoir lire et écrire en français'
+  - 'Aptitude : Pas de contre-indication médicale'
+  content: Habilitation pour réaliser des opérations simples ou des manoeuvres de réarmement en basse tension. Conforme
+    à la norme NF C 18-510 garantissant la sécurité lors des opérations électriques.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: 'Évaluation Théorique : QCM de validation des acquis sur les risques électriques et les distances
+    de sécurité. Évaluation Pratique : Mise en situation réelle ou simulée sur une installation électrique pour
+    valider les procédures. Attestation de Formation : Délivrance de l''attestation NF C 18-510 permettant à l''employeur
+    d''habiliter le salarié.'
+  modules:
+  - code: MOD1
+    title: Notions élémentaires d'électricité
+    details:
+    - Le courant électrique.
+    - Les dangers de l'électricité.
+  - code: MOD2
+    title: Risques électriques
+    details:
+    - Analyse des risques spécifiques.
+    - Distances de sécurité.
+  - code: MOD3
+    title: Manoeuvres et interventions simples
+    details:
+    - Remplacement de fusibles, lampes.
+    - Raccordement de matériel simple.
+  - code: MOD4
+    title: Moyens de protection
+    details:
+    - EPI et outillage électro-portatif.
+    - Utilisation conforme du matériel.
+  review_notes:
+  - champ: price_eur
+    message: '220 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction. Une seconde fiche BS/BE de la vitrine annonce 290 € pour 1 à 2 jours.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: br
+  code: BR
+  title: Habilitation électrique BR
+  audience: Techniciens / Électriciens
+  delivery_mode: PRESENTIEL
+  duration_hours: 21
+  price_eur: 290
+  prerequisites:
+  - 'Électricité : Être électricien ou titulaire H0/B0'
+  - 'Français : Savoir lire et écrire en français'
+  - 'Aptitude : Pas de contre-indication médicale'
+  content: Formation pour techniciens réalisant des interventions en basse tension (dépannage, connexion) nécessitant
+    la consignation. Conforme à la norme NF C 18-510 garantissant la sécurité lors des opérations électriques.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: 'Évaluation Théorique : QCM de validation des acquis sur les risques électriques et les distances
+    de sécurité. Évaluation Pratique : Mise en situation réelle ou simulée sur une installation électrique pour
+    valider les procédures. Attestation de Formation : Délivrance de l''attestation NF C 18-510 permettant à l''employeur
+    d''habiliter le salarié.'
+  modules:
+  - code: MOD1
+    title: Bases de l'électricité
+    details:
+    - Domaines de tension, distances de sécurité.
+    - Grandeurs électriques, types de courant.
+  - code: MOD2
+    title: Sensibilisation aux risques électriques
+    details:
+    - Statistiques, effets du courant sur le corps.
+    - Responsabilités des acteurs.
+  - code: MOD3
+    title: Opérations dans l'environnement électrique
+    details:
+    - Zones d’environnement.
+    - Travaux au voisinage, règles de sécurité.
+  - code: MOD4
+    title: Moyens de protection
+    details:
+    - Équipements de protection individuelle (EPI).
+    - Équipements de protection collective (EPC).
+  - code: MOD5
+    title: Mise en sécurité et consignation
+    details:
+    - Procédures de consignation et déconsignation.
+    - Attestation de mise hors tension.
+  review_notes:
+  - champ: price_eur
+    message: '290 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssiap-1-initial
+  code: SSIAP1-INI
+  title: SSIAP 1 — Agent de service de sécurité incendie, formation initiale
+  audience: Agents de sécurité
+  delivery_mode: PRESENTIEL
+  duration_hours: 67
+  price_eur: 990
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Formation complète pour acquérir les compétences nécessaires à l'exercice de la fonction. Cette formation
+    est conforme à l'arrêté du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de
+    sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules:
+  - code: UV1
+    title: Le feu et ses conséquences
+    details:
+    - Le feu
+    - Comportement au feu
+  - code: UV2
+    title: Sécurité incendie
+    details:
+    - Principes de classement
+    - Desserte des bâtiments
+    - Cloisonnement
+    - Évacuation
+  - code: UV3
+    title: Installations techniques
+    details:
+    - Installations électriques
+    - Ascenseurs
+    - Système de Sécurité Incendie (SSI)
+  - code: UV4
+    title: Rôle et missions des agents
+    details:
+    - Le service de sécurité
+    - Le poste de contrôle
+    - Rondes de sécurité
+    - Appel des secours
+  - code: UV5
+    title: Concrétisation des acquis
+    details:
+    - Visite applicative
+    - Mises en situation d'urgence
+  review_notes:
+  - champ: price_eur
+    message: '990 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction. Les données d''amorçage calculaient 590 € par une règle sur la durée.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+- catalog_slug: ssiap-1-recyclage
+  code: SSIAP1-MAC
+  title: SSIAP 1 — Recyclage
+  audience: Agents de sécurité
+  delivery_mode: PRESENTIEL
+  duration_hours: 14
+  price_eur: 450
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Diplôme : Diplôme SSIAP correspondant'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Maintien et actualisation des compétences (MAC) obligatoire tous les 3 ans. Cette formation est conforme
+    à l'arrêté du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules: []
+  review_notes:
+  - champ: price_eur
+    message: '450 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'La vitrine affiche le programme de la formation initiale pour ce recyclage : programme propre à rédiger
+      (arrêté du 2 mai 2005, annexes MAC et remise à niveau).'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssiap-1-ran
+  code: SSIAP1-RAN
+  title: SSIAP 1 — Remise à niveau
+  audience: Agents de sécurité
+  delivery_mode: PRESENTIEL
+  duration_hours: 21
+  price_eur: 590
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Diplôme : Diplôme SSIAP correspondant'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Remise à niveau pour les personnels dont le triennat est dépassé. Cette formation est conforme à l'arrêté
+    du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules: []
+  review_notes:
+  - champ: price_eur
+    message: '590 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'La vitrine affiche le programme de la formation initiale pour ce recyclage : programme propre à rédiger
+      (arrêté du 2 mai 2005, annexes MAC et remise à niveau).'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssiap-2-initial
+  code: SSIAP2-INI
+  title: SSIAP 2 — Chef d'équipe de sécurité incendie, formation initiale
+  audience: Chefs d'équipe
+  delivery_mode: PRESENTIEL
+  duration_hours: 70
+  price_eur: 1290
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Formation complète pour acquérir les compétences nécessaires à l'exercice de la fonction. Cette formation
+    est conforme à l'arrêté du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de
+    sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules:
+  - code: UV1
+    title: Gestion du personnel
+    details:
+    - Management de l'équipe de sécurité
+    - Organisation du service
+  - code: UV2
+    title: Sécurité incendie et réglementation
+    details:
+    - Règlements de sécurité ERP/IGH
+    - Dossier technique
+  - code: UV3
+    title: Gestion du PC et des alertes
+    details:
+    - Gestion des alarmes
+    - Alerte des secours
+    - Coordination de l'intervention
+  - code: UV4
+    title: Conseil technique
+    details:
+    - Compte-rendu à la hiérarchie
+    - Note de service
+  review_notes:
+  - champ: price_eur
+    message: '1290 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à
+      confirmer par la direction. Les données d''amorçage calculaient 590 € par une règle sur la durée.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+- catalog_slug: ssiap-2-recyclage
+  code: SSIAP2-MAC
+  title: SSIAP 2 — Recyclage
+  audience: Chefs d'équipe
+  delivery_mode: PRESENTIEL
+  duration_hours: 14
+  price_eur: 550
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Diplôme : Diplôme SSIAP correspondant'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Maintien et actualisation des compétences (MAC) obligatoire tous les 3 ans. Cette formation est conforme
+    à l'arrêté du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules: []
+  review_notes:
+  - champ: price_eur
+    message: '550 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'La vitrine affiche le programme de la formation initiale pour ce recyclage : programme propre à rédiger
+      (arrêté du 2 mai 2005, annexes MAC et remise à niveau).'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssiap-2-ran
+  code: SSIAP2-RAN
+  title: SSIAP 2 — Remise à niveau
+  audience: Chefs d'équipe
+  delivery_mode: PRESENTIEL
+  duration_hours: 21
+  price_eur: 690
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Diplôme : Diplôme SSIAP correspondant'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Remise à niveau pour les personnels dont le triennat est dépassé. Cette formation est conforme à l'arrêté
+    du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules: []
+  review_notes:
+  - champ: price_eur
+    message: '690 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'La vitrine affiche le programme de la formation initiale pour ce recyclage : programme propre à rédiger
+      (arrêté du 2 mai 2005, annexes MAC et remise à niveau).'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssiap-3-initial
+  code: SSIAP3-INI
+  title: SSIAP 3 — Chef de service de sécurité incendie, formation initiale
+  audience: Responsables sécurité
+  delivery_mode: PRESENTIEL
+  duration_hours: 216
+  price_eur: 2890
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Formation complète pour acquérir les compétences nécessaires à l'exercice de la fonction. Cette formation
+    est conforme à l'arrêté du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de
+    sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules:
+  - code: UV1
+    title: Le feu et ses conséquences
+    details:
+    - Éclosion et propagation
+    - Sinistralité
+  - code: UV2
+    title: La sécurité incendie et les bâtiments
+    details:
+    - Accessibilité
+    - Matériaux de construction
+  - code: UV3
+    title: La réglementation
+    details:
+    - Évolution réglementaire
+    - Commissions de sécurité
+  - code: UV4
+    title: Gestion des risques
+    details:
+    - Analyse de sinistres
+    - Dossier technique
+  - code: UV5
+    title: Conseil technique
+    details:
+    - Management de projets
+    - Budgets
+  review_notes:
+  - champ: price_eur
+    message: '2890 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à
+      confirmer par la direction. Les données d''amorçage calculaient 890 € par une règle sur la durée.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+- catalog_slug: ssiap-3-recyclage
+  code: SSIAP3-MAC
+  title: SSIAP 3 — Recyclage
+  audience: Responsables sécurité
+  delivery_mode: PRESENTIEL
+  duration_hours: 21
+  price_eur: 750
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Diplôme : Diplôme SSIAP correspondant'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Maintien et actualisation des compétences (MAC) obligatoire tous les 3 ans. Cette formation est conforme
+    à l'arrêté du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules: []
+  review_notes:
+  - champ: price_eur
+    message: '750 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'La vitrine affiche le programme de la formation initiale pour ce recyclage : programme propre à rédiger
+      (arrêté du 2 mai 2005, annexes MAC et remise à niveau).'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssiap-3-ran
+  code: SSIAP3-RAN
+  title: SSIAP 3 — Remise à niveau
+  audience: Responsables sécurité
+  delivery_mode: PRESENTIEL
+  duration_hours: 35
+  price_eur: 990
+  prerequisites:
+  - 'Aptitude Médicale : Certificat médical de moins de 3 mois'
+  - 'Secourisme : SST ou PSC1 en cours de validité'
+  - 'Diplôme : Diplôme SSIAP correspondant'
+  - 'Français : Savoir lire, écrire et compter en français'
+  content: Remise à niveau pour les personnels dont le triennat est dépassé. Cette formation est conforme à l'arrêté
+    du 2 mai 2005 relatif aux missions, à l'emploi et à la qualification du personnel de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 80% théorie, 20% pratique).'
+  evaluation_methods: 'Épreuves Théoriques : QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    Épreuves Pratiques : Rondes de sécurité avec anomalies et gestion d''un PC sécurité en situation réelle. Diplôme
+    d''État : Délivrance du diplôme SSIAP reconnu par le Ministère de l''Intérieur.'
+  modules: []
+  review_notes:
+  - champ: price_eur
+    message: '990 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'La vitrine affiche le programme de la formation initiale pour ce recyclage : programme propre à rédiger
+      (arrêté du 2 mai 2005, annexes MAC et remise à niveau).'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine parle de « diplôme d''État reconnu par le ministère de l''Intérieur » : formulation à vérifier
+      (diplôme SSIAP de l''arrêté du 2 mai 2005).'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: sst-initial
+  code: SST-INI
+  title: Sauveteur secouriste du travail (SST), formation initiale
+  audience: Tout salarié
+  delivery_mode: PRESENTIEL
+  duration_hours: 14
+  price_eur: 180
+  prerequisites:
+  - 'Français : Savoir s''exprimer en français'
+  - 'Santé : Aptitude physique aux gestes de secours'
+  content: Formation pour devenir Sauveteur Secouriste du Travail, premier maillon de la chaîne de secours en entreprise.
+    Conforme aux documents cadres de l'INRS.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: 'Évaluation Continue : Validation des gestes techniques tout au long de la formation par des
+    cas concrets. Épreuve Certificative : Mise en situation d''accident du travail simulé selon les critères INRS.
+    Certificat Officiel : Délivrance du certificat SST (équivalence PSC1) reconnu par l''Assurance Maladie.'
+  modules:
+  - code: MOD1
+    title: Le rôle du SST
+    details:
+    - Cadre juridique de l'intervention.
+    - Rôle dans l'organisation de la prévention.
+  - code: MOD2
+    title: Protéger, Examiner, Alerter
+    details:
+    - Reconnaître les dangers persistants.
+    - Identifier les signes vitaux.
+    - Transmettre un message d'alerte efficace.
+  - code: MOD3
+    title: Secourir
+    details:
+    - La victime saigne abondamment.
+    - La victime s'étouffe.
+    - La victime se plaint de sensations pénibles.
+    - La victime est inconsciente et respire (PLS).
+    - La victime ne respire plus (RCP + DAE).
+  - code: MOD4
+    title: Prévention des risques
+    details:
+    - Repérer les dangers dans une situation de travail.
+    - Proposer des actions de prévention.
+  review_notes:
+  - champ: price_eur
+    message: '180 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (99%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+- catalog_slug: mac-sst
+  code: SST-MAC
+  title: Maintien et actualisation des compétences SST (MAC SST)
+  audience: Tout salarié
+  delivery_mode: PRESENTIEL
+  duration_hours: 7
+  price_eur: 90
+  prerequisites:
+  - 'Certification : Être titulaire du certificat SST'
+  - 'Français : Savoir s''exprimer en français'
+  - 'Santé : Aptitude physique aux gestes de secours'
+  content: Maintien et Actualisation des Compétences obligatoire tous les 24 mois pour conserver la validité du
+    certificat. Conforme aux documents cadres de l'INRS.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 30% théorie, 70% pratique).'
+  evaluation_methods: 'Évaluation Continue : Validation des gestes techniques tout au long de la formation par des
+    cas concrets. Épreuve Certificative : Mise en situation d''accident du travail simulé selon les critères INRS.
+    Certificat Officiel : Délivrance du certificat SST (équivalence PSC1) reconnu par l''Assurance Maladie.'
+  modules:
+  - code: MOD1
+    title: Le rôle du SST
+    details:
+    - Cadre juridique de l'intervention.
+    - Rôle dans l'organisation de la prévention.
+  - code: MOD2
+    title: Protéger, Examiner, Alerter
+    details:
+    - Reconnaître les dangers persistants.
+    - Identifier les signes vitaux.
+    - Transmettre un message d'alerte efficace.
+  - code: MOD3
+    title: Secourir
+    details:
+    - La victime saigne abondamment.
+    - La victime s'étouffe.
+    - La victime se plaint de sensations pénibles.
+    - La victime est inconsciente et respire (PLS).
+    - La victime ne respire plus (RCP + DAE).
+  - code: MOD4
+    title: Prévention des risques
+    details:
+    - Repérer les dangers dans une situation de travail.
+    - Proposer des actions de prévention.
+  review_notes:
+  - champ: price_eur
+    message: '90 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (99%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+  - champ: basis
+    message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
+      spécifique (code, certificateur, habilitation de Form''SSI).'
+    source: school_vitrine
+- catalog_slug: stu
+  code: STU
+  title: Secourisme tactique d'urgence (STU)
+  audience: Agents de sûreté, forces de l'ordre
+  delivery_mode: PRESENTIEL
+  duration_hours: 21
+  price_eur: 350
+  prerequisites:
+  - 'Certification : SST ou PSC1 en cours de validité'
+  - 'Français : Savoir s''exprimer en français'
+  - 'Santé : Aptitude physique aux gestes de secours'
+  content: Secourisme Tactique d'Urgence pour intervenir en environnement hostile, dégradé ou lors de situations
+    de crise. Préparation aux situations d'exception.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 30% théorie, 70% pratique).'
+  evaluation_methods: 'Évaluation Continue : Validation des gestes techniques tout au long de la formation par des
+    cas concrets. Épreuve Certificative : Mise en situation d''exception devant jury.'
+  modules:
+  - code: MOD1
+    title: Introduction et Fondamentaux
+    details:
+    - Cadre du secourisme tactique.
+    - Protection balistique et explosive.
+    - Traumatologie balistique.
+  - code: MOD2
+    title: Gestes de Secours Tactiques
+    details:
+    - Utilisation du tourniquet (garrot).
+    - Pansement israélien.
+    - Contrôle des hémorragies massives.
+  - code: MOD3
+    title: Phases d'Intervention
+    details:
+    - Protocoles SAFE / MARCH.
+    - Sauvetage sous menace (Care Under Fire).
+    - Secours en zone sécurisée.
+  - code: MOD4
+    title: Simulations Intensives
+    details:
+    - Exercices sous stress.
+    - Coordination avec les forces de l'ordre.
+    - Extraction de victimes.
+  review_notes:
+  - champ: price_eur
+    message: '350 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (99%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: sst-entreprise
+  code: SST-ENT
+  title: Sauveteur secouriste du travail en entreprise (intra)
+  audience: Salariés (formation en intra)
+  delivery_mode: PRESENTIEL
+  duration_hours: 14
+  price_eur: null
+  prerequisites:
+  - 'Français : Savoir s''exprimer en français'
+  - 'Santé : Aptitude physique aux gestes de secours'
+  content: Session organisée directement dans vos locaux, adaptée aux risques spécifiques de votre activité. Conforme
+    aux documents cadres de l'INRS.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: 'Évaluation Continue : Validation des gestes techniques tout au long de la formation par des
+    cas concrets. Épreuve Certificative : Mise en situation d''accident du travail simulé selon les critères INRS.
+    Certificat Officiel : Délivrance du certificat SST (équivalence PSC1) reconnu par l''Assurance Maladie.'
+  modules:
+  - code: MOD1
+    title: Le rôle du SST
+    details:
+    - Cadre juridique de l'intervention.
+    - Rôle dans l'organisation de la prévention.
+  - code: MOD2
+    title: Protéger, Examiner, Alerter
+    details:
+    - Reconnaître les dangers persistants.
+    - Identifier les signes vitaux.
+    - Transmettre un message d'alerte efficace.
+  - code: MOD3
+    title: Secourir
+    details:
+    - La victime saigne abondamment.
+    - La victime s'étouffe.
+    - La victime se plaint de sensations pénibles.
+    - La victime est inconsciente et respire (PLS).
+    - La victime ne respire plus (RCP + DAE).
+  - code: MOD4
+    title: Prévention des risques
+    details:
+    - Repérer les dangers dans une situation de travail.
+    - Proposer des actions de prévention.
+  review_notes:
+  - champ: duration_hours
+    message: 'Vitrine « 14h », catalogue « Initial 14h / MAC 7h » : à confirmer.'
+    source: school_catalogue
+  - champ: price_eur
+    message: 'Tarif affiché « Sur devis » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (99%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: guide-file-serre-file
+  code: GUIDE-FILE
+  title: Guide-file et serre-file (évacuation)
+  audience: Tout salarié désigné
+  delivery_mode: PRESENTIEL
+  duration_hours: 3
+  price_eur: 590
+  prerequisites:
+  - Maîtrise de la langue française
+  content: Former les salariés désignés à assurer la sécurité lors d'une évacuation d'urgence.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 50% théorie, 50% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Partie théorique
+    details:
+    - Consignes d'évacuation et rôle du personnel
+    - Gestion de l'alarme et procédures
+    - Lecture des plans et points de rassemblement
+  - code: MOD2
+    title: Partie pratique
+    details:
+    - Visite du site et reconnaissance des chemins
+    - Sensibilisation aux risques spécifiques
+    - Exercice d'évacuation simulé ou réel
+  review_notes:
+  - champ: price_eur
+    message: '590 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (99%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ari
+  code: ARI
+  title: Appareil respiratoire isolant (ARI)
+  audience: Tout salarié désigné
+  delivery_mode: PRESENTIEL
+  duration_hours: 7
+  price_eur: null
+  prerequisites:
+  - Maîtrise de la langue française
+  - Condition physique adaptée
+  content: Maîtriser l'utilisation de l'appareil respiratoire isolant pour évoluer en atmosphère toxique.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Partie théorique
+    details:
+    - Types d'appareils respiratoires (filtrants/isolants)
+    - Toxicité des fumées et effets sur l'organisme
+    - Description et composants de l'ARI
+    - Consignes de sécurité et entretien
+  - code: MOD2
+    title: Partie pratique
+    details:
+    - Mise en oeuvre et port en conditions réelles
+    - Progression en milieu enfumé
+    - Reconnaissance et sauvetage
+  review_notes:
+  - champ: price_eur
+    message: 'Tarif affiché « Sur devis » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (97%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: manipulation-extincteur
+  code: EXTINCTEUR
+  title: Manipulation des extincteurs
+  audience: Tout salarié désigné
+  delivery_mode: PRESENTIEL
+  duration_hours: 1.5
+  price_eur: null
+  prerequisites:
+  - Maîtrise de la langue française
+  content: Apprendre à utiliser efficacement les extincteurs sur un départ de feu.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 30% théorie, 70% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Théorie
+    details:
+    - Triangle du feu et classes de feux
+    - Agents extincteurs (CO2, Eau, Poudre)
+    - Consignes de sécurité et d'évacuation
+  - code: MOD2
+    title: Pratique
+    details:
+    - Manipulation d’extincteurs sur bac à feu écologique
+    - Exercices avec extincteurs laser en intérieur
+    - Simulation de fuite de gaz
+  review_notes:
+  - champ: price_eur
+    message: 'Tarif affiché « Sur devis » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: esi
+  code: ESI
+  title: Équipier de seconde intervention (ESI)
+  audience: Tout salarié désigné
+  delivery_mode: PRESENTIEL
+  duration_hours: 7
+  price_eur: null
+  prerequisites:
+  - Maîtrise de la langue française
+  - Condition physique adaptée
+  - Formation EPI préalable
+  content: Intervenir efficacement lors d'un incendie de grande ampleur (Sauvetage et Extinction).
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 30% théorie, 70% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Fondamentaux
+    details:
+    - Rôle et responsabilités de l'ESI
+    - 'Alarme et alerte : procédures et coordination'
+    - Marche générale des opérations
+  - code: MOD2
+    title: Mise en oeuvre
+    details:
+    - Manipulation de l'ARI
+    - Évolution en atmosphère enfumée
+    - Utilisation des installations fixes d'extinction
+  review_notes:
+  - champ: price_eur
+    message: 'Tarif affiché « Sur devis » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: ssi
+  code: SSI
+  title: Exploitation du système de sécurité incendie (SSI)
+  audience: Agents Maintenance / HSE
+  delivery_mode: PRESENTIEL
+  duration_hours: 7
+  price_eur: null
+  prerequisites:
+  - Maîtrise de la langue française
+  content: Compréhension et manipulation des dispositifs de sécurité incendie (Cat. A à E).
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Partie Théorique
+    details:
+    - Définition et cadre réglementaire du SSI
+    - Catégories A, B, C, D et E
+    - Types de détection et d'alarme
+    - Niveaux d'accès et maintenance
+  - code: MOD2
+    title: Partie Pratique
+    details:
+    - Manipulation du SSI à l'état de veille
+    - Gestion de l'alarme restreinte
+    - Scénarios de mise en sécurité
+  review_notes:
+  - champ: price_eur
+    message: 'Tarif affiché « Sur devis » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (95%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: cssi
+  code: CSSI
+  title: Coordinateur SSI (CSSI)
+  audience: Ingénieurs / Chefs de projet
+  delivery_mode: PRESENTIEL
+  duration_hours: 80
+  price_eur: 2290
+  prerequisites:
+  - Maîtrise de la langue française
+  - SSIAP 3 ou équivalent
+  content: Piloter, contrôler et coordonner la mise en oeuvre des systèmes de sécurité incendie.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Domaine d'intervention
+    details:
+    - Rôle et responsabilité du coordonnateur SSI
+    - Typologie des établissements (ERP, IGH, ICPE)
+  - code: MOD2
+    title: Réglementation et Phase Conception
+    details:
+    - Normes en vigueur et cahier des charges
+    - 'Zonage : alarme, désenfumage, compartimentage'
+    - Rédaction du dossier d'identité SSI
+  - code: MOD3
+    title: Phase Réalisation et Réception
+    details:
+    - Coordination des intervenants et suivi travaux
+    - Exercices de zoning et réception technique
+  review_notes:
+  - champ: price_eur
+    message: '2290 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à
+      confirmer par la direction. Les données d''amorçage calculaient 590 € par une règle sur la durée.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (92%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: evacuation-incendie
+  code: EVACUATION
+  title: Évacuation incendie
+  audience: Tout salarié désigné
+  delivery_mode: PRESENTIEL
+  duration_hours: null
+  price_eur: null
+  prerequisites:
+  - Maîtrise de la langue française
+  content: Acquérir les bons réflexes pour assurer l'évacuation des occupants en toute sécurité.
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 30% théorie, 70% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Théorie
+    details:
+    - Triangle du feu et propagation
+    - Dangers des fumées et de la panique
+    - Rôles des guide-files et serre-files
+    - Lecture des plans d'évacuation
+  - code: MOD2
+    title: Pratique
+    details:
+    - Exercices d'extinction sur feux réels
+    - Simulation d'alarme et évacuation
+    - Passage en milieu enfumé
+  review_notes:
+  - champ: duration_hours
+    message: 'Durée affichée « 3h-7h » (catalogue : « 3h a 7h ») : fourchette non reprise, durée à fixer.'
+    source: school_vitrine
+  - champ: price_eur
+    message: 'Tarif affiché « Sur devis » : à fixer avant publication.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+- catalog_slug: epi
+  code: EPI
+  title: Équipier de première intervention (EPI)
+  audience: Tout salarié désigné
+  delivery_mode: PRESENTIEL
+  duration_hours: null
+  price_eur: 120
+  prerequisites:
+  - Maîtrise de la langue française
+  content: Préparer les salariés à intervenir rapidement face à un départ de feu (Première intervention).
+  teaching_methods: 'Alternance d''apports théoriques et de mises en situation pratiques (répartition annoncée sur
+    la vitrine : 40% théorie, 60% pratique).'
+  evaluation_methods: null
+  modules:
+  - code: MOD1
+    title: Partie Théorique
+    details:
+    - Principes de combustion et propagation
+    - Agents extincteurs et modes d'action
+    - Procédures d'alerte et évacuation
+  - code: MOD2
+    title: Partie Pratique
+    details:
+    - Exercices d'extinction (secs, liquides, gaz)
+    - Passage en atmosphère enfumée
+    - Simulation d'évacuation complète
+  review_notes:
+  - champ: duration_hours
+    message: 'Durée affichée « 3h-4h » (catalogue : « 3h a 4h ») : fourchette non reprise, durée à fixer.'
+    source: school_vitrine
+  - champ: price_eur
+    message: '120 € affichés « à partir de » sur la vitrine : tarif réel et ce qu''il comprend (examen, TVA) à confirmer
+      par la direction.'
+    source: school_vitrine
+  - champ: modules
+    message: 'Programme en deux parties (théorie, pratique) repris de la vitrine : à détailler par un formateur.'
+    source: school_vitrine
+  - champ: evaluation_methods
+    message: 'La vitrine cite « SI.Groupe » (attestation, certification qualité) : texte repris d''un autre organisme,
+      non importé. Modalités d''évaluation à rédiger.'
+    source: school_vitrine
+  - champ: success_rate
+    message: 'Taux de réussite affiché sur la vitrine (87%) non repris : valeur écrite en dur, sans calcul ni période.
+      À publier à partir des résultats mesurés (page Résultats & taux).'
+    source: school_vitrine
+locaux:
+- code: RUEIL
+  name: Centre de Rueil-Malmaison
+  kind: SITE
+  parent: null
+  address: 9 avenue Alexandre Maistrasse, 92500 Rueil-Malmaison
+  floor: null
+  capacity: null
+  note: 'Adresse de l''établissement (Annuaire des entreprises, liste DGEFP). GSMS School cite aussi le « 5 avenue
+    Alexandre Maistrasse » pour une session : second local ou erreur, à clarifier.'
+- code: AURORE
+  name: Salle Aurore
+  kind: SALLE
+  parent: RUEIL
+  address: null
+  floor: Rez-de-chaussée
+  capacity: 16
+  note: null
+- code: HELIOS
+  name: Salle Hélios
+  kind: SALLE
+  parent: RUEIL
+  address: null
+  floor: Niveau 1
+  capacity: 20
+  note: null
+- code: NEBULA
+  name: Atelier Nébula
+  kind: SALLE
+  parent: RUEIL
+  address: null
+  floor: Niveau 1
+  capacity: 12
+  note: null
+- code: VOLTA
+  name: Studio Volta
+  kind: SALLE
+  parent: RUEIL
+  address: null
+  floor: Niveau 2
+  capacity: 10
+  note: null
+- code: MERCURE
+  name: Amphi Mercure
+  kind: SALLE
+  parent: RUEIL
+  address: null
+  floor: Niveau 2
+  capacity: 32
+  note: null
+- code: ORION
+  name: PCS Orion
+  kind: PLATEAU_TECHNIQUE
+  parent: RUEIL
+  address: null
+  floor: Rez-de-chaussée — plateau examen
+  capacity: 12
+  note: Poste central de sécurité pédagogique — examens TFP APS
+- code: PHOENIX
+  name: Plateau Phoenix
+  kind: PLATEAU_TECHNIQUE
+  parent: RUEIL
+  address: null
+  floor: Niveau -1 — incendie SSIAP
+  capacity: 14
+  note: Plateau feu / SSIAP — exercices incendie
+- code: ATLAS
+  name: Parcours Atlas
+  kind: PLATEAU_TECHNIQUE
+  parent: RUEIL
+  address: null
+  floor: Couloirs / parking pédagogique
+  capacity: 8
+  note: Couloirs, escaliers, parking — ronde ≥ 100 m
+- code: ATELIER-EPI
+  name: Atelier EPI
+  kind: STOCKAGE
+  parent: RUEIL
+  address: null
+  floor: null
+  capacity: null
+  note: Stock matériel pédagogique & logistique
+equipements:
+- code: mobilier.chaise-empilable
+  label: Chaise empilable
+  category: MOBILIER
+  quantity: 80
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: mobilier.table-pedagogique
+  label: Table pédagogique 120×80
+  category: MOBILIER
+  quantity: 32
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: mobilier.table-amphitheatre
+  label: Table amphithéâtre
+  category: MOBILIER
+  quantity: 16
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: mobilier.table-modulaire
+  label: Table modulaire
+  category: MOBILIER
+  quantity: 2
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: mobilier.etabli-pliant
+  label: Établi pliant atelier
+  category: MOBILIER
+  quantity: 6
+  location: ATELIER-EPI
+  domain: securite-privee
+  regulatory_ref: null
+- code: mobilier.armoire-epi
+  label: Armoire EPI & consommables
+  category: MOBILIER
+  quantity: 2
+  location: ATELIER-EPI
+  domain: securite-privee
+  regulatory_ref: null
+- code: informatique.videoprojecteur
+  label: Vidéoprojecteur
+  category: INFORMATIQUE
+  quantity: 5
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.ecran-projection
+  label: Écran de projection motorisé
+  category: MOBILIER
+  quantity: 3
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.ecran-interactif
+  label: Écran interactif
+  category: INFORMATIQUE
+  quantity: 2
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.pc-formateur
+  label: PC formateur
+  category: INFORMATIQUE
+  quantity: 5
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.sonorisation
+  label: Sonorisation / micros HF
+  category: INFORMATIQUE
+  quantity: 2
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.photocopieur
+  label: Photocopieur multifonction
+  category: INFORMATIQUE
+  quantity: 1
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.switch-reseau
+  label: Switch réseau 48 ports
+  category: INFORMATIQUE
+  quantity: 1
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: informatique.nas
+  label: NAS pédagogique 24 To
+  category: INFORMATIQUE
+  quantity: 1
+  location: RUEIL
+  domain: transversal
+  regulatory_ref: null
+- code: secourisme.mannequin-adulte
+  label: Mannequin RCP adulte
+  category: SECOURISME
+  quantity: 2
+  location: RUEIL
+  domain: secourisme
+  regulatory_ref: null
+- code: secourisme.mannequin-enfant
+  label: Mannequin RCP enfant
+  category: SECOURISME
+  quantity: 1
+  location: RUEIL
+  domain: secourisme
+  regulatory_ref: null
+- code: secourisme.mannequin-nourrisson
+  label: Mannequin RCP nourrisson
+  category: SECOURISME
+  quantity: 1
+  location: RUEIL
+  domain: secourisme
+  regulatory_ref: null
+- code: secourisme.defibrillateur-formation
+  label: Défibrillateur de formation AED
+  category: SECOURISME
+  quantity: 2
+  location: RUEIL
+  domain: secourisme
+  regulatory_ref: null
+- code: secourisme.dae-mural
+  label: DAE mural
+  category: SECOURISME
+  quantity: 3
+  location: RUEIL
+  domain: secourisme
+  regulatory_ref: null
+- code: incendie.extincteur-eau
+  label: Extincteur eau pulvérisée 6L
+  category: INCENDIE
+  quantity: 4
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: incendie.extincteur-co2
+  label: Extincteur CO2 5kg
+  category: INCENDIE
+  quantity: 6
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: incendie.extincteur-poudre
+  label: Extincteur poudre ABC 9kg
+  category: INCENDIE
+  quantity: 3
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: incendie.ria
+  label: Module RIA pédagogique
+  category: INCENDIE
+  quantity: 2
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: epi.lot-pedagogique
+  label: Lot EPI pédagogique
+  category: EPI
+  quantity: 3
+  location: ATELIER-EPI
+  domain: securite-privee
+  regulatory_ref: null
+- code: logistique.chariot-atelier
+  label: Chariot logistique atelier
+  category: AUTRE
+  quantity: 2
+  location: ATELIER-EPI
+  domain: securite-privee
+  regulatory_ref: null
+- code: secourisme.mallette-ps
+  label: Mallette premiers secours
+  category: SECOURISME
+  quantity: 4
+  location: RUEIL
+  domain: secourisme
+  regulatory_ref: null
+- code: securite-privee.drone-demo
+  label: Drone surveillance démo
+  category: SECURITE_PRIVEE
+  quantity: 1
+  location: ATELIER-EPI
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.pcs-pedagogique
+  label: Poste central de sécurité pédagogique (PCS)
+  category: SECURITE_PRIVEE
+  quantity: 1
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: Arrêté 23/10/2024 art. 12 — PCS
+- code: securite-privee.ssi-pedagogique
+  label: SSI pédagogique (centrale incendie)
+  category: INCENDIE
+  quantity: 1
+  location: ORION
+  domain: incendie
+  regulatory_ref: null
+- code: securite-privee.videosurveillance-3cam
+  label: Vidéosurveillance pédagogique (3 caméras)
+  category: SECURITE_PRIVEE
+  quantity: 1
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.centrale-alarme-intrusion
+  label: Centrale alarme intrusion
+  category: SECURITE_PRIVEE
+  quantity: 1
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.radio-er-pti
+  label: Émetteur-récepteur radio (PTI/DATI)
+  category: SECURITE_PRIVEE
+  quantity: 3
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.armoire-cles
+  label: Armoire à clés pédagogique
+  category: MOBILIER
+  quantity: 1
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.registres-consignes
+  label: Registres consignes / clés / badges / visiteurs
+  category: AUTRE
+  quantity: 2
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.poste-qcm-examen
+  label: Poste QCM examen (logiciel QCU)
+  category: INFORMATIQUE
+  quantity: 1
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.pc-main-courante
+  label: PC main courante / rapport anomalies
+  category: INFORMATIQUE
+  quantity: 1
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.parcours-ronde-100m
+  label: Parcours de ronde pédagogique (100 m + pointeaux)
+  category: SECURITE_PRIVEE
+  quantity: 1
+  location: ATLAS
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.magnetometre
+  label: Magnétomètre (détecteur de métaux)
+  category: SECURITE_PRIVEE
+  quantity: 2
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: securite-privee.fumigene-pedagogique
+  label: Engin pyrotechnique fumigène (pédagogique)
+  category: SECURITE_PRIVEE
+  quantity: 4
+  location: ORION
+  domain: securite-privee
+  regulatory_ref: null
+- code: incendie.ssi-categorie-a
+  label: SSI catégorie A opérationnel (plateau SSIAP)
+  category: INCENDIE
+  quantity: 1
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: incendie.parcours-anomalies-ssiap
+  label: Parcours ronde SSIAP (anomalies configurables)
+  category: INCENDIE
+  quantity: 1
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: incendie.simulateur-feu
+  label: Aire feu / simulateur sinistre
+  category: INCENDIE
+  quantity: 1
+  location: PHOENIX
+  domain: incendie
+  regulatory_ref: null
+- code: secourisme.gants-palpation
+  label: Gants palpation de sécurité
+  category: SECOURISME
+  quantity: 12
+  location: ATELIER-EPI
+  domain: secourisme
+  regulatory_ref: null
