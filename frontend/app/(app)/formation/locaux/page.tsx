@@ -2,7 +2,15 @@
 
 // Locaux (indicateur 17) : sites, salles et plateaux techniques où se déroulent les formations. Ce qui vient
 // de GSMS School arrive « à vérifier sur place » : la personne qui a vu le lieu passe son statut à « En service ».
-import { Building2, CircleCheck, Warehouse } from 'lucide-react';
+import {
+  Boxes,
+  Building2,
+  CircleCheck,
+  MapPin,
+  TriangleAlert,
+  Warehouse,
+} from 'lucide-react';
+import { formatDate } from '@/lib/format';
 import {
   PLACE_STATUSES,
   PREMISES_KINDS,
@@ -14,6 +22,7 @@ import {
   col,
   countCol,
   dateCol,
+  OptionBadge,
   titleCol,
 } from '@/components/resource/columns';
 import { ResourcePage } from '@/components/resource/resource-page';
@@ -72,6 +81,58 @@ const config: ResourceConfig<Premises> = {
       options: STATUS_OPTIONS,
     },
   ],
+  eyebrow: 'Offre de formation',
+  description:
+    'Sites, salles et plateaux techniques où se déroulent les formations, avec leur capacité et leur état.',
+  kpis: (rows) => [
+    {
+      label: 'Lieux',
+      value: rows.length,
+      subtitle: 'sites, salles et plateaux',
+      icon: Warehouse,
+    },
+    {
+      label: 'Sites',
+      value: rows.filter((r) => r.kind === 'SITE').length,
+      subtitle: 'adresses de formation',
+      icon: MapPin,
+    },
+    {
+      label: 'En service',
+      value: rows.filter((r) => r.status === 'EN_SERVICE').length,
+      subtitle: 'vérifiés sur place',
+      icon: CircleCheck,
+    },
+    {
+      label: 'À vérifier',
+      value: rows.filter((r) => r.status === 'A_VERIFIER').length,
+      subtitle: 'à confirmer sur place',
+      icon: TriangleAlert,
+    },
+    {
+      label: 'Équipements',
+      value: rows.reduce((n, r) => n + r.equipment, 0),
+      subtitle: 'rangés dans ces lieux',
+      icon: Boxes,
+    },
+  ],
+  defaultView: 'grid',
+  card: (r) => ({
+    title: r.name,
+    subtitle: [r.kind_label, r.parent_name ?? r.address]
+      .filter(Boolean)
+      .join(' · '),
+    badges: <OptionBadge options={PLACE_STATUSES} value={r.status} />,
+    meta: [
+      {
+        label: 'Capacité',
+        value: r.capacity != null ? `${r.capacity} pers.` : null,
+      },
+      { label: 'Emplacement', value: r.floor },
+      { label: 'Équipements', value: r.equipment },
+      { label: 'Vérifié le', value: formatDate(r.checked_on) || null },
+    ],
+  }),
   columns: [
     titleCol('name', 'Lieu', undefined, 220),
     col('kind', 'Type', { value: (r) => r.kind_label, size: 160 }),

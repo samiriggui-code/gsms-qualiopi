@@ -1,9 +1,26 @@
 'use client';
 
-import { CircleDot, MessageSquareWarning, Tag, Users } from 'lucide-react';
+import {
+  CircleCheck,
+  CircleDot,
+  Clock,
+  Inbox,
+  MessageSquareWarning,
+  Tag,
+  TriangleAlert,
+  Users,
+} from 'lucide-react';
+import { formatDate } from '@/lib/format';
 import type { Row } from '@/lib/resource';
 import { Badge } from '@/components/ui/badge';
-import { badgeCol, col, dateCol, TONE, titleCol } from '@/components/resource/columns';
+import {
+  badgeCol,
+  col,
+  dateCol,
+  OptionBadge,
+  titleCol,
+  TONE,
+} from '@/components/resource/columns';
 import { ResourcePage } from '@/components/resource/resource-page';
 import type { ResourceConfig } from '@/components/resource/types';
 
@@ -43,7 +60,11 @@ function state(r: Complaint) {
 
 const STATES = [
   { value: 'NOUVELLE', label: 'Nouvelle', variant: 'destructive' as const },
-  { value: 'PRISE_EN_COMPTE', label: 'Prise en compte', variant: 'warning' as const },
+  {
+    value: 'PRISE_EN_COMPTE',
+    label: 'Prise en compte',
+    variant: 'warning' as const,
+  },
   { value: 'REPONDUE', label: 'Répondue', variant: 'info' as const },
   { value: 'RESOLUE', label: 'Résolue', variant: 'success' as const },
 ];
@@ -53,21 +74,115 @@ const config: ResourceConfig<Complaint> = {
   title: 'Réclamations & aléas',
   icon: MessageSquareWarning,
   newLabel: 'Nouvelle réclamation',
-  labels: { one: 'La réclamation', created: 'enregistrée', updated: 'modifiée', deleted: 'supprimée' },
+  labels: {
+    one: 'La réclamation',
+    created: 'enregistrée',
+    updated: 'modifiée',
+    deleted: 'supprimée',
+  },
   permission: 'write_quality',
   defaultSort: { id: 'received_on', desc: true },
   search: (r) => [r.description, r.resolution, r.session_reference].join(' '),
   tabs: [
     { id: 'all', label: 'Toutes', test: () => true },
-    { id: 'todo', label: 'À accuser réception', test: (r) => !r.acknowledged_on && !r.resolved_on },
-    { id: 'open', label: 'En traitement', test: (r) => !!r.acknowledged_on && !r.resolved_on },
+    {
+      id: 'todo',
+      label: 'À accuser réception',
+      test: (r) => !r.acknowledged_on && !r.resolved_on,
+    },
+    {
+      id: 'open',
+      label: 'En traitement',
+      test: (r) => !!r.acknowledged_on && !r.resolved_on,
+    },
     { id: 'resolved', label: 'Résolues', test: (r) => !!r.resolved_on },
   ],
   facets: [
-    { id: 'state', title: 'État', icon: CircleDot, value: state, options: STATES },
-    { id: 'kind', title: 'Type', icon: Tag, value: (r) => r.kind, options: KINDS },
-    { id: 'stakeholder', title: 'Émetteur', icon: Users, value: (r) => r.stakeholder, options: STAKEHOLDERS },
+    {
+      id: 'state',
+      title: 'État',
+      icon: CircleDot,
+      value: state,
+      options: STATES,
+    },
+    {
+      id: 'kind',
+      title: 'Type',
+      icon: Tag,
+      value: (r) => r.kind,
+      options: KINDS,
+    },
+    {
+      id: 'stakeholder',
+      title: 'Émetteur',
+      icon: Users,
+      value: (r) => r.stakeholder,
+      options: STAKEHOLDERS,
+    },
   ],
+  eyebrow: 'Qualité & amélioration',
+  description:
+    'Réclamations, difficultés et aléas reçus, de l’accusé de réception à la résolution.',
+  kpis: (rows) => [
+    {
+      label: 'Enregistrées',
+      value: rows.length,
+      subtitle: 'réclamations, difficultés, aléas',
+      icon: Inbox,
+    },
+    {
+      label: 'Réclamations',
+      value: rows.filter((r) => r.kind === 'RECLAMATION').length,
+      subtitle: 'au sens strict',
+      icon: MessageSquareWarning,
+    },
+    {
+      label: 'À accuser réception',
+      value: rows.filter((r) => state(r) === 'NOUVELLE').length,
+      subtitle: 'sans accusé de réception',
+      icon: TriangleAlert,
+    },
+    {
+      label: 'En traitement',
+      value: rows.filter(
+        (r) => state(r) === 'PRISE_EN_COMPTE' || state(r) === 'REPONDUE',
+      ).length,
+      subtitle: 'prises en compte, non résolues',
+      icon: Clock,
+    },
+    {
+      label: 'Résolues',
+      value: rows.filter((r) => r.resolved_on).length,
+      subtitle: 'avec une date de résolution',
+      icon: CircleCheck,
+    },
+  ],
+  card: (r) => {
+    const s = STATES.find((x) => x.value === state(r))!;
+    return {
+      title: r.description,
+      subtitle: r.session_reference
+        ? `Session ${r.session_reference}`
+        : 'Sans session',
+      badges: (
+        <>
+          <OptionBadge options={KINDS} value={r.kind} />
+          <Badge variant={s.variant} appearance="light">
+            {s.label}
+          </Badge>
+        </>
+      ),
+      meta: [
+        { label: 'Reçue le', value: formatDate(r.received_on) },
+        {
+          label: 'Émetteur',
+          value:
+            STAKEHOLDERS.find((x) => x.value === r.stakeholder)?.label ??
+            r.stakeholder,
+        },
+      ],
+    };
+  },
   columns: [
     dateCol('received_on', 'Reçue le'),
     titleCol('description', 'Objet', undefined, 320),
@@ -88,9 +203,31 @@ const config: ResourceConfig<Complaint> = {
     }),
   ],
   fields: [
-    { name: 'kind', label: 'Type', type: 'select', required: true, options: KINDS, defaultValue: 'RECLAMATION', span: 1 },
-    { name: 'stakeholder', label: 'Émetteur', type: 'select', required: true, options: STAKEHOLDERS, defaultValue: 'APPRENANT', span: 1 },
-    { name: 'received_on', label: 'Reçue le', type: 'date', required: true, span: 1 },
+    {
+      name: 'kind',
+      label: 'Type',
+      type: 'select',
+      required: true,
+      options: KINDS,
+      defaultValue: 'RECLAMATION',
+      span: 1,
+    },
+    {
+      name: 'stakeholder',
+      label: 'Émetteur',
+      type: 'select',
+      required: true,
+      options: STAKEHOLDERS,
+      defaultValue: 'APPRENANT',
+      span: 1,
+    },
+    {
+      name: 'received_on',
+      label: 'Reçue le',
+      type: 'date',
+      required: true,
+      span: 1,
+    },
     {
       name: 'session_id',
       label: 'Session concernée',
@@ -98,11 +235,25 @@ const config: ResourceConfig<Complaint> = {
       span: 1,
       optionsFrom: { path: 'sessions', label: (s) => String(s.reference) },
     },
-    { name: 'description', label: 'Description', type: 'textarea', required: true },
-    { name: 'acknowledged_on', label: 'Accusé de réception le', type: 'date', span: 1 },
+    {
+      name: 'description',
+      label: 'Description',
+      type: 'textarea',
+      required: true,
+    },
+    {
+      name: 'acknowledged_on',
+      label: 'Accusé de réception le',
+      type: 'date',
+      span: 1,
+    },
     { name: 'answered_on', label: 'Réponse le', type: 'date', span: 1 },
     { name: 'resolved_on', label: 'Résolue le', type: 'date', span: 1 },
-    { name: 'resolution', label: 'Réponse apportée / résolution', type: 'textarea' },
+    {
+      name: 'resolution',
+      label: 'Réponse apportée / résolution',
+      type: 'textarea',
+    },
   ],
 };
 
