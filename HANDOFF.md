@@ -222,6 +222,14 @@ La rubrique « Offre de formation » n'a plus de page « À construire ».
   `components/edof/resource-fields.ts`), `/formation/locaux`, `/formation/moyens`.
 - Pas encore fait : affecter un lieu et du matériel à une session (la session garde ses champs texte), débouchés
   et taux d'insertion (aucune donnée).
+- **Catalogue des formations** (`/formation/programmes`, refait le 05/10/2026 sur le modèle des pages formations
+  de GSMS School, à la demande de samir qui trouvait le tableau « vide de sens ») : indicateurs, filtres par
+  filière et parcours, grille avec les visuels des fiches vitrine (`frontend/public/formations`) ou liste, fiche
+  détaillée en panneau (`components/catalogue/formation-sheet.tsx`) avec les onglets Vue d'ensemble, Programme,
+  Prérequis, Évaluation, Sessions et À arbitrer. API : `GET /formation/catalogue` et `/formation/catalogue/{id}`
+  (sessions et résultats mesurés), la fiche vient de `GET /fiches/{id}`. Migration 0019 : `program.track`,
+  `pathway`, `evaluation_steps`. Relancer `import-gsms-school` (et `import-formssi` pour TFP-APS) complète les
+  formations déjà importées sur ces rubriques vides, sans rien remplacer.
 
 ## 6. Prochaine étape : front avec Metronic
 

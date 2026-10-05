@@ -23,6 +23,24 @@ formations:
 - catalog_slug: mac-aps
   code: MAC-APS
   title: Maintien et actualisation des compétences — Agent de prévention et de sécurité (MAC APS)
+  track: SURETE
+  pathway: MAC
+  skills:
+  - Actualisation juridique et déontologique
+  - Gestion des conflits et inspection-filtrage
+  - Prévention des risques terroristes
+  - MAC SST inclus (selon parcours 34h)
+  evaluation_steps:
+  - title: Évaluation continue
+    description: Auto-évaluations quotidiennes et mises en situation réelles sur cas pratiques (incendie, filtrage).
+    kind: Pratique
+  - title: Test de connaissances
+    description: Évaluation écrite finale (QCM/QCU) validant la mise à jour des connaissances juridiques et techniques.
+    kind: Théorie
+  - title: Attestation de suivi
+    description: Remise d'une attestation de suivi de formation MAC APS indispensable pour le renouvellement de
+      la carte CNAPS.
+    kind: Attestation
   audience: Agents de sécurité (APS)
   delivery_mode: PRESENTIEL
   duration_hours: null
@@ -92,6 +110,24 @@ formations:
 - catalog_slug: asra-d
   code: ASRA-D
   title: Agent de sécurité renforcée armé, catégorie D (ASRA D)
+  track: SURETE
+  pathway: INITIAL
+  skills:
+  - Cadre légal de l'usage des armes
+  - Techniques de maniement et de garde
+  - Gestion des interventions sous stress
+  - Tactique et gradation de la force
+  evaluation_steps:
+  - title: Contrôle des postures
+    description: Observation continue des réflexes de sécurité, des positions de garde et de la prise de décision.
+    kind: Tactique
+  - title: Évaluation de la force
+    description: Validation de la capacité à justifier ses actes et à respecter la gradation de la force avant et
+      après action.
+    kind: Juridique
+  - title: Certification UFACS
+    description: Examen final valide par le certificateur UFACS permettant l'exercice des missions armées.
+    kind: Titre
   audience: APS, Militaires, Policiers
   delivery_mode: PRESENTIEL
   duration_hours: null
@@ -161,6 +197,26 @@ formations:
 - catalog_slug: ovt
   code: OVT
   title: Opérateur en vidéoprotection et télésurveillance (OVT)
+  track: SURETE
+  pathway: INITIAL
+  skills:
+  - Exploitation des systèmes de vidéoprotection
+  - Traitement des alarmes et alertes 24h/24
+  - Coordination des moyens d'intervention
+  - Respect de la réglementation (RGPD, Vie privée)
+  evaluation_steps:
+  - title: Contrôles continus (ECF)
+    description: Validation des acquis tout au long de la formation par des mises en situation pratiques sur PC
+      de sécurité.
+    kind: Pratique
+  - title: Dossier professionnel
+    description: Rédaction d'un mémoire technique décrivant les activités réalisées lors du stage de 2 semaines
+      en entreprise.
+    kind: Théorie
+  - title: Examen devant jury
+    description: Mise en situation finale sur système réel et entretien de 30 minutes devant des professionnels
+      habilités.
+    kind: Diplôme
   audience: Demandeurs d'emploi, Salariés
   delivery_mode: PRESENTIEL
   duration_hours: 283
@@ -226,6 +282,25 @@ formations:
 - catalog_slug: mac-ovt
   code: MAC-OVT
   title: Maintien et actualisation des compétences — Opérateur en vidéoprotection (MAC OVT)
+  track: SURETE
+  pathway: MAC
+  skills:
+  - Actualisation des connaissances juridiques
+  - Évolution des menaces et pratiques opérationnelles
+  - Maîtrise des nouveaux outils de travail
+  - Prévention des risques terroristes
+  evaluation_steps:
+  - title: Actualisation juridique
+    description: Validation des connaissances sur les évolutions du Livre VI du Code de la Sécurité Intérieure et
+      du RGPD.
+    kind: Juridique
+  - title: Contrôle continu
+    description: Évaluation des aptitudes techniques lors des mises en situation pratique sur PC de vidéoprotection.
+    kind: Pratique
+  - title: Attestation MAC
+    description: Délivrance de l'attestation de suivi permettant le renouvellement de la carte professionnelle auprès
+      du CNAPS.
+    kind: CNAPS
   audience: Opérateurs en poste
   delivery_mode: PRESENTIEL
   duration_hours: 31
@@ -291,6 +366,26 @@ formations:
 - catalog_slug: asc-cynophile
   code: ASC-CYNO
   title: Agent de sécurité cynophile (ASC)
+  track: SURETE
+  pathway: INITIAL
+  skills:
+  - Législation et réglementation cynophiles
+  - Travail du binôme, obéissance, sociabilité et conduite opérationnelle
+  - Situations de légitime défense et gestion du mordant
+  - Détection avec chien et preparation aux épreuves du titre
+  evaluation_steps:
+  - title: Épreuves théoriques (UV 1 et 2)
+    description: Questionnaires à choix unique (QCU) couvrant la réglementation, les connaissances cynophiles et
+      les fondamentaux du métier.
+    kind: Théorie
+  - title: Épreuves pratiques (UV 3 à 5)
+    description: Mises en situation avec tirage au sort de contextes ; démonstration du binôme maître-chien sur
+      les compétences du titre.
+    kind: Pratique
+  - title: Titre ASC niveau III
+    description: Validation du titre permettant la demande de carte professionnelle CNAPS pour missions cynophiles
+      dans le cadre légal.
+    kind: Diplôme
   audience: Futurs agents cynophiles (titre ASC)
   delivery_mode: PRESENTIEL
   duration_hours: 315
@@ -368,6 +463,23 @@ formations:
 - catalog_slug: h0-b0
   code: H0B0
   title: Habilitation électrique H0/B0 (non-électricien)
+  track: HABILITATION
+  pathway: AUTRE
+  skills:
+  - Analyse des risques électriques
+  - Mesures de prévention et protection
+  - Conduite à tenir en cas d'accident
+  - Mise en situation pratique
+  evaluation_steps:
+  - title: Évaluation Théorique
+    description: QCM de validation des acquis sur les risques électriques et les distances de sécurité.
+    kind: Test
+  - title: Évaluation Pratique
+    description: Mise en situation réelle ou simulée sur une installation électrique pour valider les procédures.
+    kind: Pratique
+  - title: Attestation de Formation
+    description: Délivrance de l'attestation NF C 18-510 permettant à l'employeur d'habiliter le salarié.
+    kind: Attestation
   audience: Personnel non électricien
   delivery_mode: PRESENTIEL
   duration_hours: 7
@@ -421,6 +533,23 @@ formations:
 - catalog_slug: bs-be-manoeuvre
   code: BS-BE
   title: Habilitation électrique BS / BE Manœuvre
+  track: HABILITATION
+  pathway: AUTRE
+  skills:
+  - Analyse des risques électriques
+  - Mesures de prévention et protection
+  - Conduite à tenir en cas d'accident
+  - Mise en situation pratique
+  evaluation_steps:
+  - title: Évaluation Théorique
+    description: QCM de validation des acquis sur les risques électriques et les distances de sécurité.
+    kind: Test
+  - title: Évaluation Pratique
+    description: Mise en situation réelle ou simulée sur une installation électrique pour valider les procédures.
+    kind: Pratique
+  - title: Attestation de Formation
+    description: Délivrance de l'attestation NF C 18-510 permettant à l'employeur d'habiliter le salarié.
+    kind: Attestation
   audience: Personnel technique
   delivery_mode: PRESENTIEL
   duration_hours: 14
@@ -469,6 +598,23 @@ formations:
 - catalog_slug: br
   code: BR
   title: Habilitation électrique BR
+  track: HABILITATION
+  pathway: AUTRE
+  skills:
+  - Analyse des risques électriques
+  - Mesures de prévention et protection
+  - Conduite à tenir en cas d'accident
+  - Mise en situation pratique
+  evaluation_steps:
+  - title: Évaluation Théorique
+    description: QCM de validation des acquis sur les risques électriques et les distances de sécurité.
+    kind: Test
+  - title: Évaluation Pratique
+    description: Mise en situation réelle ou simulée sur une installation électrique pour valider les procédures.
+    kind: Pratique
+  - title: Attestation de Formation
+    description: Délivrance de l'attestation NF C 18-510 permettant à l'employeur d'habiliter le salarié.
+    kind: Attestation
   audience: Techniciens / Électriciens
   delivery_mode: PRESENTIEL
   duration_hours: 21
@@ -523,6 +669,23 @@ formations:
 - catalog_slug: ssiap-1-initial
   code: SSIAP1-INI
   title: SSIAP 1 — Agent de service de sécurité incendie, formation initiale
+  track: INCENDIE
+  pathway: INITIAL
+  skills:
+  - Prévention des incendies en ERP/IGH
+  - Sensibilisation des occupants
+  - Entretien élémentaire des moyens de secours
+  - Alerte et accueil des secours
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Agents de sécurité
   delivery_mode: PRESENTIEL
   duration_hours: 67
@@ -590,6 +753,23 @@ formations:
 - catalog_slug: ssiap-1-recyclage
   code: SSIAP1-MAC
   title: SSIAP 1 — Recyclage
+  track: INCENDIE
+  pathway: MAC
+  skills:
+  - Prévention des incendies en ERP/IGH
+  - Sensibilisation des occupants
+  - Entretien élémentaire des moyens de secours
+  - Alerte et accueil des secours
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Agents de sécurité
   delivery_mode: PRESENTIEL
   duration_hours: 14
@@ -627,6 +807,23 @@ formations:
 - catalog_slug: ssiap-1-ran
   code: SSIAP1-RAN
   title: SSIAP 1 — Remise à niveau
+  track: INCENDIE
+  pathway: RAN
+  skills:
+  - Prévention des incendies en ERP/IGH
+  - Sensibilisation des occupants
+  - Entretien élémentaire des moyens de secours
+  - Alerte et accueil des secours
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Agents de sécurité
   delivery_mode: PRESENTIEL
   duration_hours: 21
@@ -664,6 +861,19 @@ formations:
 - catalog_slug: ssiap-2-initial
   code: SSIAP2-INI
   title: SSIAP 2 — Chef d'équipe de sécurité incendie, formation initiale
+  track: INCENDIE
+  pathway: INITIAL
+  skills: []
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Chefs d'équipe
   delivery_mode: PRESENTIEL
   duration_hours: 70
@@ -719,9 +929,26 @@ formations:
     message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
       spécifique (code, certificateur, habilitation de Form''SSI).'
     source: school_vitrine
+  - champ: skills
+    message: 'La vitrine reprend pour ce niveau les compétences du SSIAP 1 : compétences visées à rédiger (arrêté
+      du 2 mai 2005).'
+    source: school_vitrine
 - catalog_slug: ssiap-2-recyclage
   code: SSIAP2-MAC
   title: SSIAP 2 — Recyclage
+  track: INCENDIE
+  pathway: MAC
+  skills: []
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Chefs d'équipe
   delivery_mode: PRESENTIEL
   duration_hours: 14
@@ -756,9 +983,26 @@ formations:
     message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
       À publier à partir des résultats mesurés (page Résultats & taux).'
     source: school_vitrine
+  - champ: skills
+    message: 'La vitrine reprend pour ce niveau les compétences du SSIAP 1 : compétences visées à rédiger (arrêté
+      du 2 mai 2005).'
+    source: school_vitrine
 - catalog_slug: ssiap-2-ran
   code: SSIAP2-RAN
   title: SSIAP 2 — Remise à niveau
+  track: INCENDIE
+  pathway: RAN
+  skills: []
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Chefs d'équipe
   delivery_mode: PRESENTIEL
   duration_hours: 21
@@ -793,9 +1037,26 @@ formations:
     message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
       À publier à partir des résultats mesurés (page Résultats & taux).'
     source: school_vitrine
+  - champ: skills
+    message: 'La vitrine reprend pour ce niveau les compétences du SSIAP 1 : compétences visées à rédiger (arrêté
+      du 2 mai 2005).'
+    source: school_vitrine
 - catalog_slug: ssiap-3-initial
   code: SSIAP3-INI
   title: SSIAP 3 — Chef de service de sécurité incendie, formation initiale
+  track: INCENDIE
+  pathway: INITIAL
+  skills: []
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Responsables sécurité
   delivery_mode: PRESENTIEL
   duration_hours: 216
@@ -855,9 +1116,26 @@ formations:
     message: 'Prépare un titre, un diplôme ou un certificat : vérifier s''il est enregistré au RNCP ou au répertoire
       spécifique (code, certificateur, habilitation de Form''SSI).'
     source: school_vitrine
+  - champ: skills
+    message: 'La vitrine reprend pour ce niveau les compétences du SSIAP 1 : compétences visées à rédiger (arrêté
+      du 2 mai 2005).'
+    source: school_vitrine
 - catalog_slug: ssiap-3-recyclage
   code: SSIAP3-MAC
   title: SSIAP 3 — Recyclage
+  track: INCENDIE
+  pathway: MAC
+  skills: []
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Responsables sécurité
   delivery_mode: PRESENTIEL
   duration_hours: 21
@@ -892,9 +1170,26 @@ formations:
     message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
       À publier à partir des résultats mesurés (page Résultats & taux).'
     source: school_vitrine
+  - champ: skills
+    message: 'La vitrine reprend pour ce niveau les compétences du SSIAP 1 : compétences visées à rédiger (arrêté
+      du 2 mai 2005).'
+    source: school_vitrine
 - catalog_slug: ssiap-3-ran
   code: SSIAP3-RAN
   title: SSIAP 3 — Remise à niveau
+  track: INCENDIE
+  pathway: RAN
+  skills: []
+  evaluation_steps:
+  - title: Épreuves Théoriques
+    description: QCM de 30 à 40 questions sur la réglementation et les techniques incendie.
+    kind: Examen
+  - title: Épreuves Pratiques
+    description: Rondes de sécurité avec anomalies et gestion d'un PC sécurité en situation réelle.
+    kind: Mise en situation
+  - title: Diplôme d'État
+    description: Délivrance du diplôme SSIAP reconnu par le Ministère de l'Intérieur.
+    kind: Certification
   audience: Responsables sécurité
   delivery_mode: PRESENTIEL
   duration_hours: 35
@@ -929,9 +1224,30 @@ formations:
     message: 'Taux de réussite affiché sur la vitrine (98%) non repris : valeur écrite en dur, sans calcul ni période.
       À publier à partir des résultats mesurés (page Résultats & taux).'
     source: school_vitrine
+  - champ: skills
+    message: 'La vitrine reprend pour ce niveau les compétences du SSIAP 1 : compétences visées à rédiger (arrêté
+      du 2 mai 2005).'
+    source: school_vitrine
 - catalog_slug: sst-initial
   code: SST-INI
   title: Sauveteur secouriste du travail (SST), formation initiale
+  track: SST
+  pathway: INITIAL
+  skills:
+  - Protéger, Examiner, Alerter
+  - Secourir la victime
+  - Prévention des risques pros
+  - Utilisation du DAE
+  evaluation_steps:
+  - title: Évaluation Continue
+    description: Validation des gestes techniques tout au long de la formation par des cas concrets.
+    kind: Suivi
+  - title: Épreuve Certificative
+    description: Mise en situation d'accident du travail simulé selon les critères INRS.
+    kind: Examen
+  - title: Certificat Officiel
+    description: Délivrance du certificat SST (équivalence PSC1) reconnu par l'Assurance Maladie.
+    kind: Diplôme
   audience: Tout salarié
   delivery_mode: PRESENTIEL
   duration_hours: 14
@@ -987,6 +1303,23 @@ formations:
 - catalog_slug: mac-sst
   code: SST-MAC
   title: Maintien et actualisation des compétences SST (MAC SST)
+  track: SST
+  pathway: MAC
+  skills:
+  - Protéger, Examiner, Alerter
+  - Secourir la victime
+  - Prévention des risques pros
+  - Utilisation du DAE
+  evaluation_steps:
+  - title: Évaluation Continue
+    description: Validation des gestes techniques tout au long de la formation par des cas concrets.
+    kind: Suivi
+  - title: Épreuve Certificative
+    description: Mise en situation d'accident du travail simulé selon les critères INRS.
+    kind: Examen
+  - title: Certificat Officiel
+    description: Délivrance du certificat SST (équivalence PSC1) reconnu par l'Assurance Maladie.
+    kind: Diplôme
   audience: Tout salarié
   delivery_mode: PRESENTIEL
   duration_hours: 7
@@ -1043,6 +1376,20 @@ formations:
 - catalog_slug: stu
   code: STU
   title: Secourisme tactique d'urgence (STU)
+  track: SST
+  pathway: INITIAL
+  skills:
+  - Traumatologie balistique
+  - Gestion des hémorragies
+  - Extraction sous stress
+  - Protocoles SAFE / MARCH
+  evaluation_steps:
+  - title: Évaluation Continue
+    description: Validation des gestes techniques tout au long de la formation par des cas concrets.
+    kind: Suivi
+  - title: Épreuve Certificative
+    description: Mise en situation d'exception devant jury.
+    kind: Examen
   audience: Agents de sûreté, forces de l'ordre
   delivery_mode: PRESENTIEL
   duration_hours: 21
@@ -1098,6 +1445,23 @@ formations:
 - catalog_slug: sst-entreprise
   code: SST-ENT
   title: Sauveteur secouriste du travail en entreprise (intra)
+  track: SST
+  pathway: AUTRE
+  skills:
+  - Protéger, Examiner, Alerter
+  - Secourir la victime
+  - Prévention des risques pros
+  - Utilisation du DAE
+  evaluation_steps:
+  - title: Évaluation Continue
+    description: Validation des gestes techniques tout au long de la formation par des cas concrets.
+    kind: Suivi
+  - title: Épreuve Certificative
+    description: Mise en situation d'accident du travail simulé selon les critères INRS.
+    kind: Examen
+  - title: Certificat Officiel
+    description: Délivrance du certificat SST (équivalence PSC1) reconnu par l'Assurance Maladie.
+    kind: Diplôme
   audience: Salariés (formation en intra)
   delivery_mode: PRESENTIEL
   duration_hours: 14
@@ -1151,6 +1515,10 @@ formations:
 - catalog_slug: guide-file-serre-file
   code: GUIDE-FILE
   title: Guide-file et serre-file (évacuation)
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Tout salarié désigné
   delivery_mode: PRESENTIEL
   duration_hours: 3
@@ -1193,6 +1561,10 @@ formations:
 - catalog_slug: ari
   code: ARI
   title: Appareil respiratoire isolant (ARI)
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Tout salarié désigné
   delivery_mode: PRESENTIEL
   duration_hours: 7
@@ -1236,6 +1608,10 @@ formations:
 - catalog_slug: manipulation-extincteur
   code: EXTINCTEUR
   title: Manipulation des extincteurs
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Tout salarié désigné
   delivery_mode: PRESENTIEL
   duration_hours: 1.5
@@ -1277,6 +1653,10 @@ formations:
 - catalog_slug: esi
   code: ESI
   title: Équipier de seconde intervention (ESI)
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Tout salarié désigné
   delivery_mode: PRESENTIEL
   duration_hours: 7
@@ -1320,6 +1700,10 @@ formations:
 - catalog_slug: ssi
   code: SSI
   title: Exploitation du système de sécurité incendie (SSI)
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Agents Maintenance / HSE
   delivery_mode: PRESENTIEL
   duration_hours: 7
@@ -1362,6 +1746,10 @@ formations:
 - catalog_slug: cssi
   code: CSSI
   title: Coordinateur SSI (CSSI)
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Ingénieurs / Chefs de projet
   delivery_mode: PRESENTIEL
   duration_hours: 80
@@ -1409,6 +1797,10 @@ formations:
 - catalog_slug: evacuation-incendie
   code: EVACUATION
   title: Évacuation incendie
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Tout salarié désigné
   delivery_mode: PRESENTIEL
   duration_hours: null
@@ -1454,6 +1846,10 @@ formations:
 - catalog_slug: epi
   code: EPI
   title: Équipier de première intervention (EPI)
+  track: ENTREPRISE
+  pathway: AUTRE
+  skills: []
+  evaluation_steps: []
   audience: Tout salarié désigné
   delivery_mode: PRESENTIEL
   duration_hours: null

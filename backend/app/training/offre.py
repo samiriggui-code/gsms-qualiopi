@@ -1,4 +1,4 @@
-"""Écrans de l'offre de formation : résultats mesurés par formation (I2, I3) et ressources pédagogiques (I19).
+"""Écrans de l'offre de formation : catalogue, résultats mesurés par formation (I2, I3), ressources pédagogiques (I19).
 
 Les taux sont calculés à partir de ce qui est enregistré dans GSMS (sessions terminées, examens, abandons,
 enquêtes à chaud). Un taux publié sur la fiche formation n'est remplacé que par une publication explicite,
@@ -8,7 +8,7 @@ qui garde sa base de calcul (période, effectifs) : un taux sans base n'est pas 
 from __future__ import annotations
 
 import calendar
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.auth.security import DB, permissions_of, require_any
 from app.core.errors import NotFoundError
+from app.edof import fiche
 from app.events.publish import publish
 from app.platform.decisions import ALLOW, Decision, deny, enforce
 from app.training import models as t
@@ -209,4 +210,89 @@ def resources(db: DB, user: Reader) -> dict:
                        for p in programs.values()],
         "capabilities": {"ecrire": (ALLOW if can_write else deny(
             "PERMISSION_MISSING", "Permission « sessions.write » requise")).to_dict()},
+    }
+
+
+# ── Catalogue des formations ───────────────────────────────────────────────────
+
+CANCELLED = "ANNULEE"
+CPF_BASES = ("RNCP", "RS")
+
+
+def _catalogue_row(db: Session, p: t.Program, today: date, sessions: list[t.TrainingSession],
+                   resources: list[t.ProgramResource], cert: t.ProgramCertification | None) -> dict:
+    upcoming = sorted((s for s in sessions if s.start_date >= today and s.status != CANCELLED),
+                      key=lambda s: s.start_date)
+    nxt = upcoming[0] if upcoming else None
+    basis = cert.basis if cert else "A_DETERMINER"
+    return {
+        "id": p.id, "code": p.code, "title": p.title, "catalog_slug": p.catalog_slug,
+        "track": p.track or "AUTRES", "track_label": t.TRACKS[p.track or "AUTRES"],
+        "pathway": p.pathway, "pathway_label": t.PATHWAYS.get(p.pathway or ""),
+        "audience": p.audience, "content": p.content, "access_delay": p.access_delay,
+        "delivery_mode": p.delivery_mode, "delivery_label": fiche.DELIVERY_LABELS.get(p.delivery_mode or ""),
+        "duration_hours": _num(p.duration_hours), "price_eur": _num(p.price_eur), "is_certifying": p.is_certifying,
+        "certification": {"basis": basis, "basis_label": t.CERTIFICATION_BASES[basis], "code": cert.code if cert else None},
+        "modules": len(p.modules or []), "prerequisites": len(p.prerequisites or []),
+        "sessions": {"total": len(sessions), "a_venir": len(upcoming),
+                     "prochaine": {"id": nxt.id, "reference": nxt.reference, "start_date": nxt.start_date} if nxt else None},
+        "ressources": {"total": len(resources), "a_rediger": sum(r.status == "A_REDIGER" for r in resources)},
+        "points_a_arbitrer": len(p.review_notes or []),
+        "rubriques_manquantes": len(fiche.missing_fields(p)),
+        "fiche": fiche.version_state(db, p)["state"],
+        "fiche_relue_le": p.public_info_reviewed_on,
+        "publie": {"taux_reussite": _num(p.success_rate), "taux_satisfaction": _num(p.satisfaction_rate),
+                   "base": p.results_basis},
+    }
+
+
+@router.get("/catalogue")
+def catalogue(db: DB, user: Reader) -> dict:
+    today = date.today()
+    sessions: dict[str, list] = defaultdict(list)
+    for s in db.scalars(select(t.TrainingSession)):
+        sessions[s.program_id].append(s)
+    resources: dict[str, list] = defaultdict(list)
+    for r in db.scalars(select(t.ProgramResource)):
+        resources[r.program_id].append(r)
+    certs = {c.program_id: c for c in db.scalars(select(t.ProgramCertification))}
+    rows = [_catalogue_row(db, p, today, sessions[p.id], resources[p.id], certs.get(p.id))
+            for p in db.scalars(select(t.Program).order_by(t.Program.title))]
+    tracks, pathways = Counter(r["track"] for r in rows), Counter(r["pathway"] for r in rows)
+    return {
+        "formations": rows,
+        "totaux": {
+            "formations": len(rows),
+            "certification_identifiee": sum(r["certification"]["basis"] in CPF_BASES for r in rows),
+            "sessions_a_venir": sum(r["sessions"]["a_venir"] for r in rows),
+            "points_a_arbitrer": sum(r["points_a_arbitrer"] for r in rows),
+            "formations_a_arbitrer": sum(bool(r["points_a_arbitrer"]) for r in rows),
+            "fiches_validees": sum(r["fiche"] == "VALIDEE" for r in rows),
+        },
+        "filieres": [{"value": k, "label": label, "count": tracks[k]} for k, label in t.TRACKS.items() if tracks[k]],
+        "parcours": [{"value": k, "label": label, "count": pathways[k]} for k, label in t.PATHWAYS.items() if pathways[k]],
+        "libelles": {"filieres": t.TRACKS, "parcours": t.PATHWAYS, "modalites": fiche.DELIVERY_LABELS},
+        "capabilities": {"ecrire": (ALLOW if "sessions.write" in permissions_of(db, user) else deny(
+            "PERMISSION_MISSING", "Permission « sessions.write » requise")).to_dict()},
+    }
+
+
+@router.get("/catalogue/{program_id}")
+def catalogue_item(program_id: str, db: DB, _: Reader, mois: Annotated[int, Query(ge=1, le=60)] = 12) -> dict:
+    """Ce que la fiche formation ne porte pas : ses sessions et ses résultats mesurés."""
+    p = fiche.get_program(db, program_id)
+    start, end = period(mois)
+    sessions = list(db.scalars(select(t.TrainingSession).where(t.TrainingSession.program_id == p.id)
+                               .order_by(t.TrainingSession.start_date.desc())))
+    m = measure(db, start, end).get(p.id)
+    return {
+        "id": p.id, "track_label": t.TRACKS[p.track or "AUTRES"], "pathway_label": t.PATHWAYS.get(p.pathway or ""),
+        "sessions": [{"id": s.id, "reference": s.reference, "start_date": s.start_date, "end_date": s.end_date,
+                      "status": s.status, "location": s.location, "room": s.room, "trainer_name": s.trainer_name,
+                      "capacity": s.capacity, "learners": s.learners_count} for s in sessions],
+        "periode": {"du": start, "au": end, "mois": mois},
+        "mesure": m,
+        "publie": {"taux_reussite": _num(p.success_rate), "taux_satisfaction": _num(p.satisfaction_rate),
+                   "base": p.results_basis},
+        "ecarts": _gaps(p, m),
     }

@@ -355,10 +355,11 @@ export const useEdofDossier = (id: string | undefined) =>
     enabled: !!id,
   });
 
-export const useFiche = (programId: string) =>
+export const useFiche = (programId: string | undefined) =>
   useQuery({
     queryKey: ['fiche', programId],
     queryFn: () => api.get<Fiche>(`fiches/${programId}`),
+    enabled: !!programId,
   });
 
 export const usePublicPreview = (

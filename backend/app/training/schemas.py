@@ -45,6 +45,12 @@ class ProgramModule(BaseModel):
         return float(v) if v is not None else None
 
 
+class EvaluationStep(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    kind: str | None = Field(default=None, max_length=60)
+
+
 class ProgramIn(BaseModel):
     code: str | None = None
     title: str | None = None
@@ -71,6 +77,9 @@ class ProgramIn(BaseModel):
     teaching_means: str | None = None
     catalog_slug: str | None = None
     review_notes: list[dict] | None = None
+    track: Literal["SURETE", "INCENDIE", "HABILITATION", "SST", "ENTREPRISE", "AUTRES"] | None = None
+    pathway: Literal["INITIAL", "MAC", "RAN", "AUTRE"] | None = None
+    evaluation_steps: list[EvaluationStep] | None = None
 
 
 class ProgramOut(ORM):
