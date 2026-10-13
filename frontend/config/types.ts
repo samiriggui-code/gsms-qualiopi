@@ -32,6 +32,8 @@ export interface NavSection {
   id: string;
   title?: string;
   icon?: LucideIcon;
+  // Phrase de la carte de section sur l'accueil global
+  description?: string;
   items: NavItem[];
 }
 

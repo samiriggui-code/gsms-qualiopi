@@ -76,7 +76,12 @@ export function WelcomeCallout({
             {footerValue}
           </span>
         </div>
-        <Button mode="link" underlined="dashed" asChild className="group">
+        <Button
+          mode="link"
+          underlined="dashed"
+          asChild
+          className="group text-[var(--color-primary-accent,var(--color-blue-700))]"
+        >
           <Link href={cta.href} className="flex items-center gap-2">
             {cta.label}
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />

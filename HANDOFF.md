@@ -293,6 +293,23 @@ Module local, sans service externe ni lien avec GSMS-Security ou un moteur de pr
 - Front : section **Documents** (accueil, liste, fiche) sur les modèles de page ; droits `documents.read`,
   `documents.write`, `documents.validate`.
 
+## 5 nonies. Accueil global (13/10/2026)
+
+Demande du propriétaire : un niveau « Accueil » au-dessus des sections, comme dans l'ancien front GSMS School
+(gsms-school-aps, archivé dans `/mnt/project-files/archives/gsms-school-aps.bundle`, captures dans
+`/mnt/project-files/captures/ancien-front/`). Chaîne visée : Accueil global → section → accueil de module → liste
+→ fiche.
+
+- `/accueil` (`frontend/app/(app)/accueil/page.tsx`) : compteurs (sessions à venir, indicateurs démontrables,
+  écarts ouverts, actions en retard), « À surveiller » (actions correctives et échéances en retard, habilitations
+  à renouveler), prochaine session, puis une carte par section du menu.
+- Chaque carte liste les modules de la section et les indicateurs qu'elle alimente (`spec.indicators` du menu),
+  avec l'état que le carnet d'audit donne à chacun. Aucun état n'est calculé côté front.
+- « Accueil » est la première entrée du menu ; c'est la page d'arrivée après connexion et le lien du logo.
+  Le tableau de bord reste à `/`.
+- `NavSection.description` : phrase de chaque section, reprise sur sa carte.
+- Reste : les pages d'atterrissage de section ; les cartes ouvriront alors la section au lieu du premier module.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
