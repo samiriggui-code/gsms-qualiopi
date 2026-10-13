@@ -23,6 +23,7 @@ import {
   Handshake,
   History,
   Home,
+  House,
   Landmark,
   LayoutDashboard,
   LayoutTemplate,
@@ -50,9 +51,22 @@ import { type NavConfig, type NavItem } from './types';
 
 export const MAIN_NAV: NavConfig = [
   {
+    id: 'accueil',
+    items: [
+      {
+        id: 'accueil',
+        title: 'Accueil',
+        icon: House,
+        path: '/accueil',
+      },
+    ],
+  },
+  {
     id: 'pilotage',
     title: 'Pilotage',
     icon: LayoutDashboard,
+    description:
+      'Tableau de bord, agenda, échéances et communications de l’organisme.',
     items: [
       {
         id: 'dashboard',
@@ -104,6 +118,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'commercial',
     title: 'Clients & financement',
     icon: Briefcase,
+    description: 'Entreprises clientes, financeurs, conventions et contrats.',
     items: [
       {
         id: 'entreprises',
@@ -149,6 +164,8 @@ export const MAIN_NAV: NavConfig = [
     id: 'formation',
     title: 'Offre de formation',
     icon: GraduationCap,
+    description:
+      'Programmes, sessions, référencement CPF, résultats et moyens pédagogiques.',
     items: [
       {
         id: 'programmes',
@@ -214,6 +231,8 @@ export const MAIN_NAV: NavConfig = [
     id: 'parcours',
     title: 'Parcours apprenant',
     icon: School,
+    description:
+      'Du besoin à l’attestation : inscriptions, positionnements, émargements et évaluations.',
     items: [
       {
         id: 'apprenants',
@@ -348,6 +367,8 @@ export const MAIN_NAV: NavConfig = [
     id: 'rh',
     title: 'Ressources humaines',
     icon: Presentation,
+    description:
+      'Formateurs, habilitations, développement des compétences et sous-traitants.',
     items: [
       {
         id: 'formateurs',
@@ -420,6 +441,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'qualite',
     title: 'Qualité & amélioration',
     icon: Smile,
+    description: 'Satisfaction, réclamations, veille, handicap et partenaires.',
     items: [
       {
         id: 'satisfaction',
@@ -504,6 +526,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'documents',
     title: 'Documents',
     icon: FileText,
+    description: 'Devis et documents professionnels, relus puis archivés.',
     items: [
       {
         id: 'documents-accueil',
@@ -523,6 +546,8 @@ export const MAIN_NAV: NavConfig = [
     id: 'qualiopi',
     title: 'Qualiopi',
     icon: ShieldCheck,
+    description:
+      'Indicateurs, carnet d’audit, preuves, audits et actions correctives.',
     items: [
       {
         id: 'indicateurs',
@@ -592,6 +617,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'administration',
     title: 'Administration',
     icon: Landmark,
+    description: 'Organisme, utilisateurs, référentiels et paramètres.',
     items: [
       {
         id: 'organisme',
