@@ -19,6 +19,9 @@ const API_PERMISSIONS = {
   write_edof: 'edof.write',
   validate_edof: 'edof.validate',
   sensitive_edof: 'edof.sensitive',
+  read_documents: 'documents.read',
+  write_documents: 'documents.write',
+  validate_documents: 'documents.validate',
 } as const;
 
 export type Permission = keyof typeof API_PERMISSIONS;

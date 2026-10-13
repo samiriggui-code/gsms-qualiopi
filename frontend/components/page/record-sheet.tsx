@@ -84,7 +84,8 @@ export function RecordSheet({
               <div className="flex flex-wrap items-center gap-2">{actions}</div>
             )}
           </div>
-          <ScrollArea className="min-h-0 grow">
+          {/* Viewport en bloc (et non en table) : une rangée d'onglets plus large que l'écran défile au lieu d'élargir la fiche */}
+          <ScrollArea className="min-h-0 grow [&_[data-radix-scroll-area-viewport]>div]:!block">
             <div className="flex flex-col gap-5 p-5 lg:flex-row">
               <div className="flex w-full shrink-0 flex-col gap-4 lg:w-[260px]">
                 {side}
