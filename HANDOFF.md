@@ -58,6 +58,9 @@ cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r req
 export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
 export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 alembic upgrade head && python -m app.cli seed-demo
+# seed-demo marche aussi sur une base déjà importée (Form'SSI, GSMS School) : les exemples (sessions,
+# apprenants, formateurs, réclamations… créés par « démo ») rejoignent l'organisme existant sans le modifier.
+# python -m app.cli retirer-demo les retire tous avant la mise en service réelle.
 uvicorn app.main:app --reload          # :8000, doc sur /docs
 python -m app.worker                   # second terminal
 

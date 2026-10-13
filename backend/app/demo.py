@@ -4,7 +4,8 @@ Toutes les dates sont relatives à `today` : la démo reste cohérente quel que 
 Chaque trou planté est listé dans PLANTED_GAPS avec le résultat que le moteur doit produire ;
 les tests vérifient que le moteur les trouve tous, et rien d'autre.
 
-Noms, organismes et codes sont fictifs.
+Noms, organismes et codes sont fictifs. Sur une base qui a déjà un organisme (données importées),
+les exemples s'ajoutent à cet organisme sans le modifier ; `remove_demo` les retire tous.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError
@@ -138,21 +139,27 @@ def _enroll(db: Session, s: t.TrainingSession, learner: t.Learner, status: str) 
 
 
 def seed_demo(db: Session, today: date | None = None) -> dict:
-    """Crée l'organisme de démonstration. Refuse si un organisme existe déjà."""
+    """Installe les exemples. Sur une base vide, crée l'organisme de démonstration ; sinon les exemples
+    rejoignent l'organisme existant, qui n'est pas modifié. Refuse si les exemples sont déjà là."""
     today = today or date.today()
     set_actor(db, ACTOR)
-    if db.scalar(select(t.Organization)) is not None:
-        raise ConflictError("Un organisme existe déjà : la démo ne s'installe que sur une base vide")
+    if db.scalar(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR).limit(1)) is not None:
+        raise ConflictError("Les données d'exemple sont déjà installées")
+    taken = db.scalars(select(t.Program.code).where(t.Program.code.in_(("SSIAP1", "SST")))).all()
+    if taken:
+        raise ConflictError(f"Formation {', '.join(taken)} déjà présente : les exemples ne l'écrasent pas")
 
     def d(days: int) -> date:
         return today + timedelta(days=days)
 
-    org = t.Organization(
-        name="Organisme de démonstration", nda_number="00 00 00000 00", siret="00000000000000",
-        action_categories=["AF"], disability_referent_name="Nadia Roux", created_by=ACTOR,
-    )  # trou : référent handicap sans e-mail (I26)
-    db.add(org)
-    db.flush()
+    org = db.scalar(select(t.Organization))
+    if org is None:
+        org = t.Organization(
+            name="Organisme de démonstration", nda_number="00 00 00000 00", siret="00000000000000",
+            action_categories=["AF"], disability_referent_name="Nadia Roux", created_by=ACTOR,
+        )  # trou : référent handicap sans e-mail (I26)
+        db.add(org)
+        db.flush()
     # Dossier qualité : organigramme et inventaire déposés ; trou I18 : pas de compte rendu de réunion pédagogique.
     # Chaque pièce est déposée avec sa grille cochée, comme le ferait l'assistant qualité.
     upload(db, subject="ORGANISME", subject_id=org.id, requirement="ORGANIGRAMME", content=_pdf("ORGANIGRAMME"),
@@ -302,3 +309,59 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     db.flush()
     return {"sessions": [s1.reference, s2.reference, s3.reference, s4.reference], "programs": [ssiap.code, sst.code],
             "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES)}
+
+
+
+# Données d'exemple, dans l'ordre de suppression : ce qui est rattaché aux sessions, aux apprenants et aux
+# formateurs (inscriptions, émargements, preuves de parcours…) part en cascade. L'organisme reste toujours.
+_DEMO_TABLES = (
+    t.Complaint, t.WatchItem, t.PartnerNetwork, t.TrainingSession, t.Learner, t.StaffDevelopmentAction,
+    t.TrainerQualification, t.Trainer, t.Program,
+)
+
+
+def remove_demo(db: Session) -> dict[str, int]:
+    """Retire les données d'exemple (créées par « démo ») ; les données importées ou saisies restent.
+
+    Les résultats et constats qui portaient sur des sessions ou formations d'exemple partent avec elles,
+    et les preuves dont la source n'existe plus sont retirées. Réévaluer ensuite (`refresh_all`).
+    """
+    import app.models  # noqa: F401 (toutes les tables connues, pour retrouver la source des preuves)
+    from app.core.db import Base
+    from app.qualiopi.capa.models import CapaAction
+    from app.qualiopi.evaluation.models import ControlResult, ControlResultHistory, Finding
+    from app.qualiopi.evidence.models import Evidence
+
+    set_actor(db, "cli")
+    removed: dict[str, int] = {}
+
+    def count(name: str, n: int) -> None:
+        if n:
+            removed[name] = removed.get(name, 0) + n
+
+    targets = [*db.scalars(select(t.TrainingSession.id).where(t.TrainingSession.created_by == ACTOR)),
+               *db.scalars(select(t.Program.id).where(t.Program.created_by == ACTOR))]
+    if targets:
+        findings = select(Finding.id).where(Finding.target_id.in_(targets) | Finding.session_id.in_(targets))
+        count("capa_action", db.execute(delete(CapaAction).where(CapaAction.finding_id.in_(findings))).rowcount)
+        count("finding", db.execute(delete(Finding).where(Finding.id.in_(findings))).rowcount)
+        for model in (ControlResult, ControlResultHistory):
+            count(model.__tablename__, db.execute(delete(model).where(model.target_id.in_(targets))).rowcount)
+        count("control_result", db.execute(delete(ControlResult).where(ControlResult.session_id.in_(targets))).rowcount)
+    for model in _DEMO_TABLES:
+        count(model.__tablename__, db.execute(delete(model).where(model.created_by == ACTOR)).rowcount)
+    # Pièces d'exemple, sauf celles qu'un dossier EDOF a reprises depuis (elles restent).
+    from app.edof.models import Piece
+
+    count("document", db.execute(delete(t.Document).where(
+        t.Document.created_by == ACTOR, ~t.Document.id.in_(select(Piece.document_id).where(Piece.document_id.is_not(None)))
+    )).rowcount)
+    # Preuves orphelines : leur ligne source vient d'être supprimée.
+    for source in db.scalars(select(Evidence.source_table).distinct()).all():
+        table = Base.metadata.tables.get(source)
+        if table is None:
+            continue
+        count("evidence", db.execute(delete(Evidence).where(
+            Evidence.source_table == source, ~Evidence.source_id.in_(select(table.c.id)))).rowcount)
+    db.flush()
+    return removed
