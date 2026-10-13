@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { NavItem } from '@/config/types';
 import type { CarnetFiche } from '@/lib/gsms/carnet';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,11 +51,16 @@ export function ModuleCard({
               <Icon className="size-5" />
             </span>
           )}
-          <h3 className="min-w-0 text-base font-semibold text-foreground">
+          <h3 className="min-w-0 grow text-base font-semibold text-foreground">
             <Link href={item.path} className="hover:text-primary">
               {item.title}
             </Link>
           </h3>
+          {item.draft && (
+            <Badge variant="outline" size="sm" className="shrink-0">
+              À construire
+            </Badge>
+          )}
         </div>
         {(description ?? item.spec?.description) && (
           <p className="text-sm text-muted-foreground">
@@ -89,7 +95,9 @@ export function ModuleCard({
       </CardContent>
       <CardFooter className="border-t border-dashed px-5 py-3">
         <Button variant="outline" size="sm" className="w-full" asChild>
-          <Link href={item.path}>Ouvrir {item.title}</Link>
+          <Link href={item.path}>
+            {item.draft ? 'Voir le cadrage' : `Ouvrir ${item.title}`}
+          </Link>
         </Button>
       </CardFooter>
     </Card>

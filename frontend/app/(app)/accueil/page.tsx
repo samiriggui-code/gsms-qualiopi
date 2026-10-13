@@ -112,6 +112,11 @@ function SectionTile({
               >
                 {item.icon && <item.icon className="size-3.5 shrink-0" />}
                 <span className="truncate">{item.title}</span>
+                {item.draft && (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    (à construire)
+                  </span>
+                )}
               </Link>
             </li>
           ))}

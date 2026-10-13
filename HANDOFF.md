@@ -347,6 +347,17 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
   écarts ouverts, preuves.
 - Suite : pages des autres sections et accueils de module sur le même modèle.
 
+## 5 terdecies. Pages des sections RH, Qualité et Qualiopi (13/10/2026)
+
+- Gabarit commun `components/page/section-landing.tsx` (bandeau, KPI, graphiques fournis par la page,
+  « À traiter » + carte « Moteur Qualiopi », une carte par module). `/formation` l'utilise aussi.
+- Nouvelles pages : `/rh`, `/qualite`, `/qualiopi` (déclarées par `path` sur leur section du menu).
+- `NavItem.draft` marque les entrées sans écran (route de cadrage `[...slug]`) : badge « À construire » sur
+  les cartes de module et l'accueil global. Retirer `draft` quand l'écran est créé.
+- `lib/months.ts` : fenêtre de mois et comptage par mois pour les courbes.
+- Restent sans page de section : Pilotage (le tableau de bord en tient lieu), Clients & financement et
+  Parcours apprenant (la plupart de leurs modules sont encore à construire), Administration.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
