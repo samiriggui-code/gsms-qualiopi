@@ -34,6 +34,8 @@ export interface NavSection {
   icon?: LucideIcon;
   // Phrase de la carte de section sur l'accueil global
   description?: string;
+  // Page d'atterrissage de la section, quand elle existe (sinon l'accueil global ouvre le premier module)
+  path?: string;
   items: NavItem[];
 }
 

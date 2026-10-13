@@ -164,6 +164,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'formation',
     title: 'Offre de formation',
     icon: GraduationCap,
+    path: '/formation',
     description:
       'Programmes, sessions, référencement CPF, résultats et moyens pédagogiques.',
     items: [
@@ -201,18 +202,39 @@ export const MAIN_NAV: NavConfig = [
         title: 'Résultats & taux',
         icon: TrendingUp,
         path: '/formation/resultats',
+        spec: {
+          description:
+            'Taux de réussite, d’abandon et de satisfaction mesurés par formation sur les sessions terminées.',
+          indicators: [2, 3],
+          source: 'Examens, abandons et enquêtes à chaud des sessions',
+          data: 'calcule',
+        },
       },
       {
         id: 'ressources',
         title: 'Ressources pédagogiques',
         icon: Library,
         path: '/formation/ressources',
+        spec: {
+          description:
+            'Supports, cours, quiz et cas pratiques de chaque formation : origine, droits de réutilisation, état.',
+          indicators: [19],
+          source: 'formation.program_resource',
+          data: 'existant',
+        },
       },
       {
         id: 'locaux',
         title: 'Locaux',
         icon: Building2,
         path: '/formation/locaux',
+        spec: {
+          description:
+            'Sites, salles et plateaux techniques où se déroulent les formations.',
+          indicators: [17],
+          source: 'formation.premises',
+          data: 'existant',
+        },
         new: { tooltip: 'Nouveau lieu', path: '/formation/locaux?nouveau=1' },
       },
       {
@@ -220,6 +242,13 @@ export const MAIN_NAV: NavConfig = [
         title: 'Moyens techniques',
         icon: Warehouse,
         path: '/formation/moyens',
+        spec: {
+          description:
+            'Matériel pédagogique par article : quantité, lieu, vérifications périodiques.',
+          indicators: [17],
+          source: 'formation.equipment',
+          data: 'existant',
+        },
         new: {
           tooltip: 'Nouvel équipement',
           path: '/formation/moyens?nouveau=1',

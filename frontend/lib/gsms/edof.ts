@@ -342,10 +342,11 @@ export interface ReusableDocument {
 
 // --- Lectures ---
 
-export const useEstablishment = () =>
+export const useEstablishment = (enabled = true) =>
   useQuery({
     queryKey: ['edof', 'etablissement'],
     queryFn: () => api.get<EstablishmentView>('edof/etablissement'),
+    enabled,
   });
 
 export const useEdofDossier = (id: string | undefined) =>

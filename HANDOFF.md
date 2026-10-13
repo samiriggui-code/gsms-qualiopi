@@ -310,6 +310,21 @@ Demande du propriétaire : un niveau « Accueil » au-dessus des sections, comme
 - `NavSection.description` : phrase de chaque section, reprise sur sa carte.
 - Reste : les pages d'atterrissage de section ; les cartes ouvriront alors la section au lieu du premier module.
 
+## 5 decies. Page de section Offre de formation (13/10/2026)
+
+Niveau 1 de la navigation (accueil global → section → accueil de module → liste → fiche) : `/formation`.
+- `NavSection.path` déclare la page d'une section ; la sidebar ajoute alors « Vue d’ensemble » en tête de la
+  section (active seulement sur cette page) et la carte de l'accueil global ouvre la section.
+- Contenu : bandeau, 5 KPI du catalogue, sessions par statut et par mois, « À traiter » (fiches non validées,
+  points à arbitrer, lieux à vérifier, matériel en retard de vérification), carte « Moteur Qualiopi » (une
+  ligne par indicateur de la section, état du carnet, lien vers `/qualiopi/carnet?i=N`), une carte par module.
+- Briques réutilisables : `components/page/engine-states.tsx` (états du moteur pour une liste d'indicateurs)
+  et `components/page/module-card.tsx` (carte de module).
+- Les indicateurs d'une section viennent de `spec.indicators` du menu : Résultats (2, 3), Ressources (19),
+  Locaux et Moyens (17) y ont été ajoutés.
+- Suite : accueil du module Programmes (la page actuelle devient la liste), fiche formation reliée au moteur,
+  puis les pages des autres sections.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
