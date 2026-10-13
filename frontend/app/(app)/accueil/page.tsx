@@ -19,17 +19,14 @@ import { formatDate, formatDateRange } from '@/lib/format';
 import { useCapaActions, useOpenFindings } from '@/lib/gsms/capa';
 import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
 import { useMilestones, useQualificationDeadlines } from '@/lib/gsms/dashboard';
-import { READINESS } from '@/lib/gsms/labels';
 import { useSessions } from '@/lib/gsms/sessions';
 import { useBootstrap } from '@/lib/gsms/settings';
-import type { ReadinessStatus } from '@/lib/gsms/types';
 import { useCan } from '@/lib/permissions';
 import { ROLE_LABELS } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
@@ -37,6 +34,10 @@ import {
   AlertListCard,
   type AlertItem,
 } from '@/components/page/alert-list-card';
+import {
+  EngineStates,
+  sectionIndicators,
+} from '@/components/page/engine-states';
 import { KpiRow } from '@/components/page/kpi-row';
 import { PageHero } from '@/components/page/page-hero';
 import { LandingRow } from '@/components/page/section-card';
@@ -44,15 +45,6 @@ import { WelcomeCallout } from '@/components/page/welcome-callout';
 
 const ACTIVE_SESSIONS = new Set(['PLANIFIEE', 'CONFIRMEE', 'EN_COURS']);
 const OPEN_CAPA = new Set(['OUVERTE', 'EN_COURS', 'A_VERIFIER']);
-
-// Ordre d'affichage des états du moteur sur les cartes : ce qui demande une action d'abord.
-const STATE_ORDER: ReadinessStatus[] = [
-  'PREUVES_INSUFFISANTES',
-  'A_RISQUE',
-  'NON_EVALUABLE',
-  'NON_EVALUE',
-  'DEMONTRABLE',
-];
 
 // Couleur de chaque carte de section : mêmes teintes que les tuiles KPI des modèles de page.
 const TINTS = [
@@ -64,12 +56,6 @@ const TINTS = [
 ] as const;
 
 const SECTIONS = MAIN_NAV.filter((s) => s.title);
-
-function sectionIndicators(section: NavSection) {
-  return Array.from(
-    new Set(section.items.flatMap((i) => i.spec?.indicators ?? [])),
-  ).sort((a, b) => a - b);
-}
 
 function SectionTile({
   section,
@@ -85,14 +71,10 @@ function SectionTile({
   loading: boolean;
 }) {
   const Icon = section.icon ?? House;
-  const indicators = sectionIndicators(section);
-  const etats = new Map<ReadinessStatus, number[]>();
-  for (const n of indicators) {
-    const etat = fiches.find((f) => f.numero === n)?.etat;
-    if (!etat || etat === 'A_VENIR' || etat === 'NON_APPLICABLE') continue;
-    etats.set(etat, [...(etats.get(etat) ?? []), n]);
-  }
   const first = section.items[0];
+  const target = section.path
+    ? { href: section.path, label: 'Ouvrir la section' }
+    : first && { href: first.path, label: `Ouvrir ${first.title}` };
 
   return (
     <Card className="h-full min-w-0 rounded-xl shadow-xs">
@@ -135,44 +117,18 @@ function SectionTile({
           ))}
         </ul>
         <div className="mt-auto space-y-2 border-t border-dashed pt-3">
-          {indicators.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              N’alimente directement aucun indicateur Qualiopi.
-            </p>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground">
-                Indicateurs alimentés :{' '}
-                <span className="font-medium text-foreground tabular-nums">
-                  {indicators.join(', ')}
-                </span>
-              </p>
-              {quality &&
-                (loading ? (
-                  <Skeleton className="h-5 w-40" />
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {STATE_ORDER.filter((e) => etats.has(e)).map((e) => (
-                      <Badge
-                        key={e}
-                        size="sm"
-                        className={READINESS[e].color}
-                        title={`Indicateurs ${etats.get(e)!.join(', ')}`}
-                      >
-                        {etats.get(e)!.length}{' '}
-                        {READINESS[e].label.toLowerCase()}
-                      </Badge>
-                    ))}
-                  </div>
-                ))}
-            </>
-          )}
+          <EngineStates
+            indicators={sectionIndicators(section)}
+            fiches={fiches}
+            quality={quality}
+            loading={loading}
+          />
         </div>
       </CardContent>
-      {first && (
+      {target && (
         <CardFooter className="border-t border-dashed px-5 py-3">
           <Button variant="outline" size="sm" className="w-full" asChild>
-            <Link href={first.path}>Ouvrir {first.title}</Link>
+            <Link href={target.href}>{target.label}</Link>
           </Button>
         </CardFooter>
       )}
