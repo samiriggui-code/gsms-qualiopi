@@ -14,6 +14,7 @@ from app.qualiopi.engine import refresh_all
 from app.qualiopi.evaluation.models import ControlResult, Finding
 from app.qualiopi.evaluation.service import indicator_readiness
 from app.qualiopi.evidence.models import Evidence
+from app.qualiopi.referential.importer import import_referential
 from tests.conftest import TODAY, make_user
 from tests.conftest import find_session as _session
 from tests.conftest import target_names as _names
@@ -101,9 +102,42 @@ def test_preuve_tracable(demo: Session) -> None:
     assert {link.indicator_number for link in ev.links} == {21}
 
 
-def test_demo_refusee_sur_base_non_vide(demo: Session) -> None:
+def test_demo_refusee_si_deja_installee(demo: Session) -> None:
     with pytest.raises(ConflictError):
         seed_demo(demo, today=TODAY)
+
+
+def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
+    """Base déjà remplie (organisme et formation importés) : les exemples s'y ajoutent, puis repartent seuls."""
+    from app.demo import remove_demo
+    from app.training import models as t
+    from tests.conftest import V9
+
+    import_referential(db, V9)
+    org = t.Organization(name="Organisme réel", created_by="import")
+    real = t.Program(code="REEL", title="Formation importée", created_by="import")
+    db.add_all([org, real])
+    db.flush()
+    refresh_all(db, trigger="test", today=TODAY)
+    before = db.scalar(select(func.count()).select_from(Evidence))
+
+    seed_demo(db, today=TODAY)
+    refresh_all(db, trigger="test", today=TODAY)
+    assert db.scalars(select(t.Organization.name)).all() == ["Organisme réel"]
+    assert db.scalar(select(func.count()).select_from(t.TrainingSession)) == 4
+
+    removed = remove_demo(db)
+    refresh_all(db, trigger="test", today=TODAY)
+    db.commit()
+    assert removed["session"] == 4 and removed["learner"] == 22
+    for model in (t.TrainingSession, t.Learner, t.Trainer, t.Enrollment, t.Complaint):
+        assert db.scalar(select(func.count()).select_from(model)) == 0, model
+    assert db.scalars(select(t.Program.code)).all() == ["REEL"]
+    assert db.scalars(select(t.Organization.name)).all() == ["Organisme réel"]
+    assert db.scalar(select(func.count()).select_from(Evidence)) == before
+    assert not db.scalar(select(func.count()).select_from(Finding).where(Finding.session_id.is_not(None)))
+    # Réinstallables ensuite
+    seed_demo(db, today=TODAY)
 
 
 def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN001
