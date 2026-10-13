@@ -23,6 +23,7 @@ import {
   Home,
   Landmark,
   LayoutDashboard,
+  LayoutTemplate,
   Library,
   ListChecks,
   Mail,
@@ -613,6 +614,12 @@ export const MAIN_NAV: NavConfig = [
         title: 'Paramètres',
         icon: Settings,
         path: '/administration/parametres',
+      },
+      {
+        id: 'modeles',
+        title: 'Modèles de page',
+        icon: LayoutTemplate,
+        path: '/administration/modeles',
       },
       {
         id: 'journal',

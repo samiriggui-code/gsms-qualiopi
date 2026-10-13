@@ -48,19 +48,24 @@ const GRID: Record<number, string> = {
   5: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5',
 };
 
+// `tiles` : pavé 2 × 2 de la colonne étroite des accueils de module (GSMS School : ModuleLandingStatGradientCard).
 export function KpiRow({
   items,
   loading,
+  tiles,
 }: {
   items: KpiItem[];
   loading?: boolean;
+  tiles?: boolean;
 }) {
-  const n = Math.min(items.length || 5, 5);
-  const grid = cn(
-    'grid gap-3 sm:gap-4',
-    GRID[n],
-    n % 2 === 1 && '[&>*:last-child]:max-md:col-span-2',
-  );
+  const n = Math.min(items.length || (tiles ? 4 : 5), tiles ? 4 : 5);
+  const grid = tiles
+    ? 'grid h-full auto-rows-fr grid-cols-2 gap-3 sm:gap-4'
+    : cn(
+        'grid gap-3 sm:gap-4',
+        GRID[n],
+        n % 2 === 1 && '[&>*:last-child]:max-md:col-span-2',
+      );
   if (loading)
     return (
       <div className={grid}>

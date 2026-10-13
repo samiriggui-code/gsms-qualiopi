@@ -257,6 +257,22 @@ Qualité/Documents, Tableau de bord.
 - `/agenda` (nouvelle page) : planning semaine (une ligne par session, lun.–sam.) ou mois, KPI de la période,
   jour par jour sur téléphone ; lecture seule, rien n'y est créé.
 
+## 5 septies. Modèles de page : page témoin (13/10/2026)
+
+Demande du propriétaire : une page témoin des modèles (sections, cartes, tableaux, graphiques) que toutes les pages
+suivent, chaque page n'ajoutant que ses détails. Elle est sous **Administration › Modèles de page**
+(`app/(app)/administration/modeles`), montée sur les vraies données (sessions, échéancier, organisme).
+
+- Trois modèles : **accueil de module** (bandeau de titre ; 4 chiffres en pavé 2 × 2 + encart d'accueil ; donut
+  de répartition + courbe d'évolution ; alertes + tableau, en lignes 1/3 – 2/3), **liste** (bandeau, 5 cartes
+  chiffres, carte de filtres, grille ou tableau), **fiche** (grand panneau : bandeau, colonne de gauche, onglets,
+  pied d'actions). Un onglet « Pages » dit quelle page suit quel modèle et où elle en est.
+- Briques communes dans `components/page/` : `PageHero`, `KpiRow` (option `tiles`), `SectionCard`,
+  `LandingRow`, `SectionEmpty`, `WelcomeCallout`, `DonutCard`, `EvolutionCard`, `AlertListCard`,
+  `RecordSheet` (+ `SideCard`, `SideLine`). Toute nouvelle page les utilise au lieu de recréer sa mise en forme.
+- Les graphiques ne calculent rien de métier : ils dessinent des comptes de la liste chargée ou de l'API, et
+  disent « pas de données » quand il n'y en a pas.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
