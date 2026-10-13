@@ -33,6 +33,7 @@ import {
 import { useFiche, type Fiche, type ProgramModule } from '@/lib/gsms/edof';
 import { SESSION_STATUS, TONE } from '@/lib/gsms/labels';
 import type { SessionStatus } from '@/lib/gsms/types';
+import { useCan } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import {
   Accordion,
@@ -59,6 +60,7 @@ import {
   RESOURCE_STATUS,
 } from '@/components/edof/labels';
 import { Refusal } from '@/components/gsms/refusal';
+import { FormationQualiopi } from './formation-qualiopi';
 import { FormationVisual } from './formation-visual';
 
 export const FICHE_STATE: Record<
@@ -858,6 +860,7 @@ export function FormationSheet({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const quality = useCan()('read_quality');
   const fiche = useFiche(open ? f?.id : undefined);
   const item = useCatalogueItem(open ? f?.id : undefined);
   const state = f ? FICHE_STATE[f.fiche] : null;
@@ -965,6 +968,9 @@ export function FormationSheet({
                             fiche.data.missing.length}
                           )
                         </TabsTrigger>
+                        {quality && (
+                          <TabsTrigger value="qualiopi">Qualiopi</TabsTrigger>
+                        )}
                       </TabsList>
                       <TabsContent value="apercu">
                         <Overview
@@ -988,6 +994,11 @@ export function FormationSheet({
                       <TabsContent value="arbitrer">
                         <Review fiche={fiche.data} />
                       </TabsContent>
+                      {quality && (
+                        <TabsContent value="qualiopi">
+                          <FormationQualiopi id={f.id} />
+                        </TabsContent>
+                      )}
                     </Tabs>
                   )}
                 </div>

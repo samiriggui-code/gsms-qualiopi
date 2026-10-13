@@ -23,11 +23,11 @@ from app.qualiopi.audit.models import JUDGMENTS, Audit
 from app.qualiopi.audit.service import close_audit, compare, create_audit, default_sample, judge
 from app.qualiopi.cycle.service import resolve_period
 from app.qualiopi.evaluation.models import ControlResult, EvaluationRun, Finding
-from app.qualiopi.evaluation.service import indicator_readiness
-from app.qualiopi.evidence.models import EVIDENCE_STATUSES, Evidence, EvidenceValidation
+from app.qualiopi.evaluation.service import indicator_readiness, readiness_of
+from app.qualiopi.evidence.models import EVIDENCE_STATUSES, USABLE_STATUSES, Evidence, EvidenceValidation
 from app.qualiopi.evidence.service import _deposited_by, _grid_of
 from app.qualiopi.labels import evidence_label
-from app.qualiopi.nomenclature import criterion_name
+from app.qualiopi.nomenclature import criterion_name, indicator_name
 from app.qualiopi.policy import QualityPolicy
 from app.qualiopi.referential.importer import active_version
 from app.qualiopi.referential.models import ControlDefinition, Indicator
@@ -337,6 +337,89 @@ def findings(db: DB, _: QualityReader, statut: Annotated[list[str] | None, Query
         "session_id": f.session_id, "constate_le": _iso(f.first_seen_at), "vu_le": _iso(f.last_seen_at),
         "resolu_le": _iso(f.resolved_at),
     } for f in db.scalars(q)]
+
+
+# ── Formation ────────────────────────────────────────────────────────────────────
+
+RANK = {"PREUVES_INSUFFISANTES": 0, "A_RISQUE": 1, "NON_EVALUABLE": 2, "NON_EVALUE": 3, "DEMONTRABLE": 4,
+        "NON_APPLICABLE": 5}
+
+
+@router.get("/formations/{program_id}")
+def formation_view(program_id: str, db: DB, user: QualityReader) -> dict:
+    """Ce que le moteur sait d'une formation : par indicateur, l'état calculé sur ses contrôles et ceux de ses
+    sessions, le détail de chaque contrôle, ses preuves et ses écarts ouverts. Les éléments de l'organisme,
+    communs à toutes les formations, restent dans le carnet."""
+    program = db.get(t.Program, program_id)
+    if program is None:
+        raise NotFoundError("Formation introuvable")
+    version = active_version(db)
+    session_ids = set(db.scalars(select(t.TrainingSession.id).where(t.TrainingSession.program_id == program_id)))
+
+    def mine(target_type: str, target_id: str, session_id: str | None) -> bool:
+        return (target_type == "FORMATION" and target_id == program_id) or (session_id is not None and session_id in session_ids)
+
+    results = [r for r in db.scalars(select(ControlResult).where(ControlResult.version_id == version.id))
+               if mine(r.target_type, r.target_id, r.session_id)]
+    by_ind: dict[int, list[ControlResult]] = {}
+    for r in results:
+        by_ind.setdefault(r.indicator_number, []).append(r)
+    labels = {c.key: c.label for c in db.scalars(select(ControlDefinition).join(Indicator).where(
+        Indicator.version_id == version.id))}
+    evidence = [ev for ev in db.scalars(select(Evidence).options(selectinload(Evidence.links)).where(
+        Evidence.status != "RETIREE").order_by(Evidence.produced_on.desc().nullslast(), Evidence.reference.desc()))
+        if ev.program_id == program_id or (ev.session_id is not None and ev.session_id in session_ids)]
+    refs = {ev.id: ev.reference for ev in evidence}
+    findings = [f for f in db.scalars(select(Finding).where(Finding.status.in_(("OUVERT", "EN_TRAITEMENT")))
+                                      .order_by(Finding.first_seen_at))
+                if mine(f.target_type, f.target_id, f.session_id)]
+    targets = Targets(db)
+    org = db.scalar(select(t.Organization))
+    programs = list(db.scalars(select(t.Program)))
+
+    indicateurs = []
+    for ind in version.indicators:
+        rows = by_ind.get(ind.number)
+        if not rows:
+            continue
+        status, _ = readiness_of(ind, rows, org, programs, program)
+        rows.sort(key=lambda r: (RANK.get(r.status, 9), r.control_key, targets.target(r.target_type, r.target_id)))
+        indicateurs.append({
+            "numero": ind.number, "nom": indicator_name(ind.number, ind.title), "etat": status,
+            "controles": [{
+                "id": r.id, "libelle": labels.get(r.control_key, r.control_key),
+                "cible": targets.target(r.target_type, r.target_id), "type_cible": r.target_type,
+                "session_id": r.session_id, "etat": r.status, "attendu": r.expected, "constate": r.observed,
+                "explication": r.explanation, "manquants": r.missing, "revue_humaine": r.human_validation_required,
+                "evalue_le": _iso(r.evaluated_at), "preuves": [refs[i] for i in r.evidence_ids if i in refs],
+            } for r in rows],
+        })
+    indicateurs.sort(key=lambda i: (RANK.get(i["etat"], 9), i["numero"]))
+    return {
+        "formation": {"id": program.id, "code": program.code, "titre": program.title},
+        "sessions": len(session_ids),
+        "indicateurs": indicateurs,
+        "preuves": {
+            "total": len(evidence),
+            "exploitables": sum(1 for ev in evidence if ev.status in USABLE_STATUSES),
+            "liste": [{
+                "id": ev.id, "reference": ev.reference, "libelle": ev.label,
+                "type_libelle": evidence_label(ev.evidence_type), "statut": ev.status,
+                "statut_libelle": EVIDENCE_STATUS_LABELS.get(ev.status, ev.status), "cible": targets.evidence(ev),
+                "produite_le": _iso(ev.produced_on), "document_id": ev.document_id,
+                "indicateurs": sorted({link.indicator_number for link in ev.links
+                                       if link.version_id == version.id and link.status == "ACTIF"}),
+            } for ev in evidence[:EVIDENCE_LIMIT]],
+        },
+        "ecarts": [{
+            "id": f.id, "reference": f.reference, "indicateur": f.indicator_number, "titre": f.title,
+            "a_faire": f.remediation, "statut_libelle": FINDING_STATUS_LABELS.get(f.status, f.status),
+            "session_id": f.session_id, "constate_le": _iso(f.first_seen_at),
+        } for f in findings],
+        "avertissement": "État de préparation calculé à partir des preuves de cette formation et de ses sessions. "
+                         "Les éléments communs à l'organisme sont dans le carnet d'audit. Seul l'organisme "
+                         "certificateur décide de la conformité.",
+    }
 
 
 # ── Audits internes ──────────────────────────────────────────────────────────────

@@ -110,3 +110,25 @@ def test_audit_interne_de_bout_en_bout(client, demo: Session) -> None:  # noqa: 
     comparaison = client.get(f"{API}/audits/comparaison", headers=hq).json()
     assert [a["reference"] for a in comparaison["audits"]] == [audit["reference"]]
     assert len(comparaison["indicateurs"]) == 32
+
+
+def test_vue_qualiopi_d_une_formation(client, demo: Session) -> None:  # noqa: ANN001
+    from app.training import models as t
+
+    _, h = make_user(demo, "qualite")
+    session = demo.scalar(select(t.TrainingSession).where(t.TrainingSession.reference == "SST-2026-02"))
+    program = session.program
+    data = client.get(f"{API}/formations/{program.id}", headers=h).json()
+    assert data["formation"]["code"] == program.code and data["sessions"] >= 1
+    assert data["indicateurs"], "les contrôles de la formation et de ses sessions sont rattachés"
+    rangs = ["PREUVES_INSUFFISANTES", "A_RISQUE", "NON_EVALUABLE", "NON_EVALUE", "DEMONTRABLE", "NON_APPLICABLE"]
+    etats = [i["etat"] for i in data["indicateurs"]]
+    assert etats == sorted(etats, key=rangs.index), "le pire d'abord"
+    sessions = set(demo.scalars(select(t.TrainingSession.reference).where(t.TrainingSession.program_id == program.id)))
+    for ind in data["indicateurs"]:
+        for c in ind["controles"]:
+            assert c["cible"] == f"Formation {program.code}" or c["cible"] in sessions
+    assert data["preuves"]["total"] >= len(data["preuves"]["liste"]) > 0
+    assert all(p["cible"] for p in data["preuves"]["liste"])
+    assert "certificateur" in data["avertissement"]
+    assert client.get(f"{API}/formations/inconnue", headers=h).status_code == 404

@@ -336,6 +336,17 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 - `components/page/engine-card.tsx` : la carte « Moteur Qualiopi », partagée avec la page de section.
 - Suite : relier la fiche formation au moteur (onglet Qualiopi : contrôles, preuves, pièces).
 
+## 5 duodecies. Fiche formation reliée au moteur (13/10/2026)
+
+- API `GET /api/v1/qualiopi/formations/{id}` (`app/qualiopi/ecrans.py`, lecture qualité) : par indicateur, l'état
+  calculé (`readiness_of`) sur les contrôles de la formation et de ses sessions, le détail de chaque contrôle,
+  les preuves rattachées à la formation ou à ses sessions, les écarts ouverts. Les éléments de l'organisme
+  restent dans le carnet. Test : `test_vue_qualiopi_d_une_formation`.
+- Onglet « Qualiopi » de la fiche formation (`components/catalogue/formation-qualiopi.tsx`), visible avec
+  `read_quality` : synthèse, indicateurs dépliables (contrôles, constaté, manques, lien vers le carnet),
+  écarts ouverts, preuves.
+- Suite : pages des autres sections et accueils de module sur le même modèle.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
