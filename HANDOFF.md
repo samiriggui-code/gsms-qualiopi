@@ -273,6 +273,26 @@ suivent, chaque page n'ajoutant que ses détails. Elle est sous **Administration
 - Les graphiques ne calculent rien de métier : ils dessinent des comptes de la liste chargée ou de l'API, et
   disent « pas de données » quand il n'y en a pas.
 
+## 5 octies. Documents professionnels : devis (13/10/2026, étapes 0 et 1)
+
+Module local, sans service externe ni lien avec GSMS-Security ou un moteur de propositions central.
+
+- **Étape 0** : chaque entreprise cliente porte un **code** (2 à 12 lettres ou chiffres, unique), une adresse et
+  un téléphone. Réglages datés du domaine `documents` (Paramètres › Documents) : coordonnées de l'organisme,
+  régime de TVA (`NON_RENSEIGNE` par défaut, réglage réglementaire : rien n'est supposé), validité des devis,
+  conditions de paiement, mentions.
+- **Étape 1** : schéma `edition` (`projet`, `ligne`, `etape`, migration 0020), code dans `backend/app/editions/`.
+  Seul le type **DEVIS** est construit ; les autres types sont déclarés mais refusés (`NOT_BUILT`).
+  Numéro par client : `DEV-<CODE>-001`, suite propre à chaque client (`next_reference`).
+- Circuit : brouillon → relecture → validé → envoyé → archivé (ou abandonné). Les vérifications (SIRET,
+  adresses, régime de TVA, prix manquant ou « à confirmer ») bloquent la soumission et la validation.
+  Chaque validation archive une version HTML figée dans `formation.document` (empreinte SHA-256, la précédente
+  passe « remplacée »). Les événements `edition.*` n'entrent pas dans le moteur Qualiopi.
+- Rendu A4 : `config/documents_pro/` (imprimé ou enregistré en PDF par le navigateur). Les helpers communs avec
+  le carnet d'audit sont dans `app/core/rendu_a4.py` ; le carnet n'a pas changé (sortie identique octet pour octet).
+- Front : section **Documents** (accueil, liste, fiche) sur les modèles de page ; droits `documents.read`,
+  `documents.write`, `documents.validate`.
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,

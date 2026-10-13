@@ -47,6 +47,13 @@ class Company(TimestampMixin, Base):
     siret: Mapped[str | None] = mapped_column(String(20))
     contact_name: Mapped[str | None] = mapped_column(String(200))
     contact_email: Mapped[str | None] = mapped_column(String(200))
+    # Code court du client : ses devis ont leur propre suite de numéros (DEV-<code>-001).
+    code: Mapped[str | None] = mapped_column(String(12), unique=True)
+    address: Mapped[str | None] = mapped_column(String(300))
+    postal_code: Mapped[str | None] = mapped_column(String(10))
+    city: Mapped[str | None] = mapped_column(String(120))
+    phone: Mapped[str | None] = mapped_column(String(40))
+    contact_role: Mapped[str | None] = mapped_column(String(120))  # fonction du contact
 
 
 class Learner(TimestampMixin, Base):

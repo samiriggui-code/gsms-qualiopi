@@ -42,6 +42,9 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("edof.write", "Préparer les dossiers EDOF : situation, pièces, dépôt, compléments, décision", "edof"),
     Permission("edof.validate", "Valider les pièces et les dossiers EDOF, attester les vérifications", "edof"),
     Permission("edof.sensitive", "Voir et déposer les pièces sensibles EDOF (identité, honorabilité)", "edof"),
+    Permission("documents.read", "Consulter les documents professionnels (devis, propositions, rapports)", "documents"),
+    Permission("documents.write", "Préparer les documents professionnels et les envoyer en relecture", "documents"),
+    Permission("documents.validate", "Valider, renvoyer en préparation et archiver les documents professionnels", "documents"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
     Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
     Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
@@ -55,22 +58,25 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
         "sessions.read", "quality.read", "quality.write", "evidence.validate", "referential.manage",
         "journal.read", "users.manage", "settings.manage", "communications.manage",
         "programs.validate", "edof.read", "edof.write", "edof.validate",
+        "documents.read", "documents.write", "documents.validate",
     })),
     "assistant_qualite": ("Assistant qualité : dépose les pièces et coche leur grille, ne valide pas", frozenset({
         "sessions.read", "quality.read", "quality.write", "journal.read", "edof.read", "edof.write",
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
         "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read", "communications.manage", "edof.read",
+        "documents.read", "documents.write",
     })),
     "financement": ("Financement : dossiers CPF, OPCO, France Travail, entreprises", frozenset({
-        "sessions.read", "funding.read", "funding.write", "journal.read",
+        "sessions.read", "funding.read", "funding.write", "journal.read", "documents.read", "documents.write",
     })),
     "formateur": ("Formateur : ses propres sessions, émargement, positionnement, évaluations, satisfaction à chaud",
                   frozenset({"sessions.read_own", "attendance.write", "learners.assess"})),
     "rh": ("Ressources humaines : personnel, contrats, absences, titres des formateurs", frozenset({
         "sessions.read", "trainers.write", "staff.read", "staff.write", "journal.read",
     })),
-    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read"})),
+    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read",
+                                           "documents.read"})),
 }
 
 

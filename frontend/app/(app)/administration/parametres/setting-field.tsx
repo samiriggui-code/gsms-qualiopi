@@ -28,6 +28,10 @@ const TIMEZONES: Record<string, string> = {
   'Indian/Reunion': 'La Réunion',
   'America/Martinique': 'Martinique',
   'America/Guadeloupe': 'Guadeloupe',
+  // Régime de TVA des documents (documents.tva_regime)
+  NON_RENSEIGNE: 'Non renseigné',
+  EXONERE: 'Exonéré (formation professionnelle continue)',
+  ASSUJETTI: 'Assujetti à la TVA',
 };
 
 type Slot = { period: string; start: string; end: string };
