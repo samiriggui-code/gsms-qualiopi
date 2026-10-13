@@ -24,6 +24,8 @@ export interface NavItem {
     path: string;
   };
   spec?: PageSpec;
+  // Écran pas encore construit : la route affiche la fiche de cadrage (app/(app)/[...slug])
+  draft?: boolean;
 }
 
 // Section de la sidebar. Sans titre : entrées affichées à plat en tête de menu.
