@@ -84,7 +84,7 @@ const CHECK_LINK: Record<
   organisme: { href: '/administration/organisme', label: 'Fiche organisme' },
   parametres: { href: '/administration/parametres', label: 'Paramètres' },
   entreprise: { href: '/commercial/entreprises', label: 'Entreprises' },
-  formation: { href: '/formation/programmes', label: 'Catalogue' },
+  formation: { href: '/formation/programmes/liste', label: 'Catalogue' },
   lignes: null,
   document: null,
 };

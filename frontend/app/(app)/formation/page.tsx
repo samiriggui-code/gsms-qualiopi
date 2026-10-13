@@ -4,7 +4,6 @@
 // d'atterrissage de GSMS School) : chiffres de l'offre, sessions par statut et par mois, points à traiter,
 // ce que le moteur Qualiopi conclut des indicateurs de la section, puis une carte par module.
 // Tout vient de l'API (catalogue, sessions, résultats, lieux, équipements, carnet) ; la page compte et range.
-import Link from 'next/link';
 import { addMonths, format, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -14,22 +13,19 @@ import {
   FileCheck2,
   GraduationCap,
   Library,
-  ListChecks,
   Scale,
 } from 'lucide-react';
 import { MAIN_NAV } from '@/config/menu.config';
 import { formatDate } from '@/lib/format';
-import { useCarnet, type CarnetFiche } from '@/lib/gsms/carnet';
+import { useCarnet } from '@/lib/gsms/carnet';
 import { useCatalogue } from '@/lib/gsms/catalogue';
 import { useEstablishment } from '@/lib/gsms/edof';
-import { READINESS, SESSION_STATUS } from '@/lib/gsms/labels';
+import { SESSION_STATUS } from '@/lib/gsms/labels';
 import { useResults } from '@/lib/gsms/offre';
 import { useSessions } from '@/lib/gsms/sessions';
 import type { SessionStatus } from '@/lib/gsms/types';
 import { useCan } from '@/lib/permissions';
 import { useResourceList, type Row } from '@/lib/resource';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Refusal } from '@/components/gsms/refusal';
 import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
@@ -38,15 +34,12 @@ import {
   type AlertItem,
 } from '@/components/page/alert-list-card';
 import { DonutCard, EvolutionCard } from '@/components/page/chart-cards';
+import { EngineCard } from '@/components/page/engine-card';
 import { sectionIndicators } from '@/components/page/engine-states';
 import { KpiRow } from '@/components/page/kpi-row';
 import { ModuleCard, type ModuleFigure } from '@/components/page/module-card';
 import { PageHero } from '@/components/page/page-hero';
-import {
-  LandingRow,
-  SectionCard,
-  SectionEmpty,
-} from '@/components/page/section-card';
+import { LandingRow } from '@/components/page/section-card';
 
 const SECTION = MAIN_NAV.find((s) => s.id === 'formation')!;
 const INDICATORS = sectionIndicators(SECTION);
@@ -86,86 +79,6 @@ const FICHE_LABEL = {
 
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n > 1 ? many : one}`;
-
-function EngineCard({
-  fiches,
-  quality,
-  loading,
-}: {
-  fiches: CarnetFiche[];
-  quality: boolean;
-  loading: boolean;
-}) {
-  const rows = INDICATORS.map((n) => ({
-    n,
-    fiche: fiches.find((f) => f.numero === n),
-  }));
-  return (
-    <SectionCard
-      title="Moteur Qualiopi"
-      subtitle="Indicateurs alimentés par cette section, état calculé à partir des preuves"
-      icon={ListChecks}
-      count={INDICATORS.length}
-      contentClassName="p-0"
-    >
-      {!quality ? (
-        <SectionEmpty icon={ListChecks}>
-          Les états du moteur sont réservés aux personnes qui ont accès à la
-          qualité.
-        </SectionEmpty>
-      ) : loading ? (
-        <div className="space-y-2 p-5">
-          {INDICATORS.map((n) => (
-            <Skeleton key={n} className="h-9 w-full" />
-          ))}
-        </div>
-      ) : (
-        <ul className="divide-y divide-dashed">
-          {rows.map(({ n, fiche }) => {
-            const etat =
-              fiche && fiche.etat !== 'A_VENIR' ? READINESS[fiche.etat] : null;
-            return (
-              <li key={n}>
-                <Link
-                  href={`/qualiopi/carnet?i=${n}`}
-                  className="flex items-center gap-3 px-5 py-2.5 hover:bg-muted/40"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted/40 text-xs font-bold tabular-nums">
-                    {n}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">
-                      {fiche?.nom ?? `Indicateur ${n}`}
-                    </span>
-                    {fiche && (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {plural(
-                          fiche.preuves.exploitables,
-                          'preuve exploitable',
-                          'preuves exploitables',
-                        )}{' '}
-                        sur {fiche.preuves.total}
-                      </span>
-                    )}
-                  </span>
-                  {etat ? (
-                    <Badge size="sm" className={etat.color}>
-                      {etat.label}
-                    </Badge>
-                  ) : (
-                    <Badge size="sm" variant="outline">
-                      À venir
-                    </Badge>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </SectionCard>
-  );
-}
 
 export default function OffreFormationPage() {
   const can = useCan();
@@ -423,6 +336,8 @@ export default function OffreFormationPage() {
             }
             main={
               <EngineCard
+                indicators={INDICATORS}
+                subtitle="Indicateurs alimentés par cette section, état calculé à partir des preuves"
                 fiches={fiches}
                 quality={quality}
                 loading={carnet.isLoading}

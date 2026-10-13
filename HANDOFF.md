@@ -325,6 +325,17 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 - Suite : accueil du module Programmes (la page actuelle devient la liste), fiche formation reliée au moteur,
   puis les pages des autres sections.
 
+## 5 undecies. Accueil du module Programmes (13/10/2026)
+
+- `/formation/programmes` est l'accueil du module (modèle « accueil de module ») ; le catalogue est à
+  `/formation/programmes/liste`, qui ouvre la fiche d'une formation par l'adresse (`?id=`) et le formulaire de
+  création par `?nouveau=1`.
+- Contenu : 4 tuiles du catalogue, encart d'accueil, formations par filière, sessions des six prochains mois,
+  « À arbitrer » (points, rubriques manquantes, fiche à valider), carte « Moteur Qualiopi » des indicateurs du
+  module (1, 5, 6, 7), prochaines formations.
+- `components/page/engine-card.tsx` : la carte « Moteur Qualiopi », partagée avec la page de section.
+- Suite : relier la fiche formation au moteur (onglet Qualiopi : contrôles, preuves, pièces).
+
 ## 6. Prochaine étape : front avec Metronic
 
 Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
