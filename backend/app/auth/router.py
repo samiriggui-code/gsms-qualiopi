@@ -63,6 +63,41 @@ def me(user: CurrentUser, db: DB) -> dict:
     return UserOut.model_validate(user).model_dump() | {"permissions": sorted(permissions_of(db, user))}
 
 
+class ProfileIn(BaseModel):
+    full_name: str
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(body: ProfileIn, user: CurrentUser, db: DB) -> User:
+    """Son propre nom affiché. L'adresse sert d'identifiant : seul un administrateur la change."""
+    name = body.full_name.strip()
+    if not name:
+        raise HTTPException(422, "Indiquez votre nom")
+    user.full_name = name[:200]
+    db.commit()
+    return user
+
+
+class PasswordIn(BaseModel):
+    actuel: str
+    nouveau: str
+
+
+@router.post("/me/password", status_code=204)
+def change_password(body: PasswordIn, user: CurrentUser, db: DB) -> None:
+    """Changer son mot de passe : l'actuel est redemandé, même règle de longueur qu'à la création."""
+    if not verify_password(body.actuel, user.password_hash):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Mot de passe actuel incorrect")
+    if len(body.nouveau) < 12:
+        raise HTTPException(422, "Mot de passe : 12 caractères minimum")
+    if len(body.nouveau.encode()) > 72:  # limite de bcrypt
+        raise HTTPException(422, "Mot de passe : 72 octets maximum")
+    if body.nouveau == body.actuel:
+        raise HTTPException(422, "Choisissez un mot de passe différent de l'actuel")
+    user.password_hash = hash_password(body.nouveau)
+    db.commit()
+
+
 # ── Rôles ────────────────────────────────────────────────────────────────────────
 
 
@@ -193,6 +228,8 @@ class UserCreate(BaseModel):
 def create_user(body: UserCreate, db: DB, actor: UserManager) -> User:
     if len(body.password) < 12:
         raise HTTPException(422, "Mot de passe : 12 caractères minimum")
+    if len(body.password.encode()) > 72:  # limite de bcrypt
+        raise HTTPException(422, "Mot de passe : 72 octets maximum")
     if db.scalar(select(User).where(User.email == body.email.lower().strip())):
         raise HTTPException(409, "Email déjà utilisé")
     user = User(email=body.email.lower().strip(), full_name=body.full_name, password_hash=hash_password(body.password))
