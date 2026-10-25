@@ -7,7 +7,7 @@ from app.auth.security import DB, SessionsReader
 from app.core.downloads import content_disposition
 from app.core.errors import NotFoundError
 from app.documents import storage
-from app.journey import documents, service
+from app.journey import documents, registry, service
 from app.training import models as t
 from app.training.access import visible_session
 
@@ -26,6 +26,12 @@ def _enrollment(db, user, enrollment_id: str) -> t.Enrollment:  # noqa: ANN001
 def session_journey(session_id: str, db: DB, user: SessionsReader) -> dict:
     """Stagiaires × étapes : ce qui est fait, et les actions possibles pour chacun."""
     return service.session_journey(db, visible_session(db, user, session_id), user)
+
+
+@router.get("/parcours/registres/{vue}")
+def journey_registry(vue: str, db: DB, user: SessionsReader, session_id: str | None = None) -> dict:
+    """Une étape (ou les inscriptions, abandons, examens) toutes sessions visibles confondues, ce qui presse d'abord."""
+    return registry.registry(db, user, vue, session_id=session_id)
 
 
 @router.get("/inscriptions/{enrollment_id}/parcours")
