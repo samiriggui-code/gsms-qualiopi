@@ -28,7 +28,8 @@ def list_messages(db: DB, _: Manager, statut: str | None = None, session_id: str
     if session_id:
         q = q.where(Message.session_id == session_id)
     counts = dict(db.execute(select(Message.status, func.count()).group_by(Message.status)).all())
-    return {"compteurs": counts, "messages": [service.message_view(m) for m in db.scalars(q.limit(min(limite, 500)))]}
+    return {"compteurs": counts, "envoi": service.delivery_status(db),
+            "messages": [service.message_view(m) for m in db.scalars(q.limit(min(limite, 500)))]}
 
 
 @router.get("/communications/regles")

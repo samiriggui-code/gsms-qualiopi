@@ -2,7 +2,9 @@
 
   python -m app.cli create-admin EMAIL "NOM"      mot de passe lu dans GSMS_ADMIN_PASSWORD ou demandé
   python -m app.cli import-referential [qualiopi/v9 | qualiopi/v10]
-  python -m app.cli seed-demo                      organisme de démo + réévaluation (base vide uniquement)
+  python -m app.cli seed-demo                      données d'exemple (fictives) + réévaluation ; sur une base
+                                                   qui a déjà un organisme, elles s'y ajoutent sans le modifier
+  python -m app.cli retirer-demo                   retire toutes les données d'exemple + réévaluation
   python -m app.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
   python -m app.cli import-gsms-school             offre reprise de GSMS School (29 formations, lieux, équipements)
 """
@@ -62,8 +64,23 @@ def seed_demo() -> None:
         info = build(db)
         result = refresh_all(db, trigger="demo")
         db.commit()
-    print(f"Démo installée : {', '.join(info['sessions'])} ; {result['results']} résultats de contrôle.")
+    print(f"Données d'exemple installées : {', '.join(info['sessions'])} ; {result['results']} résultats de contrôle.")
     print(f"{len(PLANTED_GAPS)} trous plantés à retrouver dans les dossiers de session.")
+    print("Pour les retirer plus tard : python -m app.cli retirer-demo")
+
+
+def remove_demo() -> None:
+    from app.demo import remove_demo as run
+
+    with session_factory()() as db:
+        removed = run(db)
+        result = refresh_all(db, trigger="retrait-demo")
+        db.commit()
+    if not removed:
+        print("Aucune donnée d'exemple à retirer.")
+        return
+    print("Données d'exemple retirées : " + ", ".join(f"{k} {v}" for k, v in removed.items()) + ".")
+    print(f"Réévaluation : {result['results']} résultats de contrôle.")
 
 
 def import_formssi() -> None:
@@ -101,6 +118,7 @@ def main() -> None:
     r = sub.add_parser("import-referential")
     r.add_argument("folder", nargs="?", default="qualiopi/v9")
     sub.add_parser("seed-demo")
+    sub.add_parser("retirer-demo")
     sub.add_parser("import-formssi")
     sub.add_parser("import-gsms-school")
     args = parser.parse_args()
@@ -114,6 +132,8 @@ def main() -> None:
         import_ref(args.folder)
     elif args.cmd == "seed-demo":
         seed_demo()
+    elif args.cmd == "retirer-demo":
+        remove_demo()
 
 
 if __name__ == "__main__":

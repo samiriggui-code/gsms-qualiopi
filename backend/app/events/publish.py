@@ -48,6 +48,11 @@ EVENT_NAMES = {
     "edof.enregistrer_complements",
     "edof.declarer_complements_transmis",
     "edof.enregistrer_decision",
+    # Documents professionnels (devis…) : documents commerciaux, sans effet sur les preuves Qualiopi.
+    "edition.created",
+    "edition.updated",
+    *(f"edition.{action}" for action in ("soumettre", "renvoyer", "valider", "envoyer", "reprendre", "archiver",
+                                         "abandonner")),
 }
 
 

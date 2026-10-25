@@ -29,7 +29,7 @@ export function HeaderBrand() {
 
   return (
     <div className="flex items-center -ms-1">
-      <Link href="/">
+      <Link href="/accueil">
         <img
           src={toAbsoluteUrl('/media/app/formssi-logo-full.png')}
           alt="FORM'SSI"

@@ -18,6 +18,7 @@ from app.core.db import session_factory
 from app.core.errors import DomainError
 from app.core.journal import set_actor
 from app.qualiopi.engine import process_pending, refresh_all
+from app.relances.sender import config_problem
 
 log = logging.getLogger("qualiopi.worker")
 
@@ -71,6 +72,8 @@ def main() -> None:
     parser.add_argument("--relances-minutes", type=float, default=15.0, help="intervalle des passages des relances")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if problem := config_problem():
+        log.warning("envoi des e-mails : %s", problem)
 
     if args.full:
         run_full("planifie")

@@ -15,14 +15,18 @@ import {
   Crosshair,
   FileCheck2,
   FileSignature,
+  FileStack,
+  FileText,
   FolderOpen,
   GraduationCap,
   HandCoins,
   Handshake,
   History,
   Home,
+  House,
   Landmark,
   LayoutDashboard,
+  LayoutTemplate,
   Library,
   ListChecks,
   Mail,
@@ -47,9 +51,22 @@ import { type NavConfig, type NavItem } from './types';
 
 export const MAIN_NAV: NavConfig = [
   {
+    id: 'accueil',
+    items: [
+      {
+        id: 'accueil',
+        title: 'Accueil',
+        icon: House,
+        path: '/accueil',
+      },
+    ],
+  },
+  {
     id: 'pilotage',
     title: 'Pilotage',
     icon: LayoutDashboard,
+    description:
+      'Tableau de bord, agenda, échéances et communications de l’organisme.',
     items: [
       {
         id: 'dashboard',
@@ -81,6 +98,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Échéances & alertes',
         icon: BellRing,
         path: '/alertes',
+        draft: true,
         spec: {
           description:
             'Preuves expirées, habilitations à renouveler, conventions non signées, convocations non envoyées, émargements manquants.',
@@ -101,6 +119,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'commercial',
     title: 'Clients & financement',
     icon: Briefcase,
+    description: 'Entreprises clientes, financeurs, conventions et contrats.',
     items: [
       {
         id: 'entreprises',
@@ -119,6 +138,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Financeurs',
         icon: HandCoins,
         path: '/commercial/financeurs',
+        draft: true,
         spec: {
           description:
             'OPCO, CPF, France Travail, Région, entreprises : prises en charge, accords, montants, pièces demandées.',
@@ -132,6 +152,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Conventions & contrats',
         icon: FileSignature,
         path: '/commercial/conventions',
+        draft: true,
         spec: {
           description:
             'Conventions et contrats de formation : envoi, signature, relances.',
@@ -146,6 +167,9 @@ export const MAIN_NAV: NavConfig = [
     id: 'formation',
     title: 'Offre de formation',
     icon: GraduationCap,
+    path: '/formation',
+    description:
+      'Programmes, sessions, référencement CPF, résultats et moyens pédagogiques.',
     items: [
       {
         id: 'programmes',
@@ -181,18 +205,39 @@ export const MAIN_NAV: NavConfig = [
         title: 'Résultats & taux',
         icon: TrendingUp,
         path: '/formation/resultats',
+        spec: {
+          description:
+            'Taux de réussite, d’abandon et de satisfaction mesurés par formation sur les sessions terminées.',
+          indicators: [2, 3],
+          source: 'Examens, abandons et enquêtes à chaud des sessions',
+          data: 'calcule',
+        },
       },
       {
         id: 'ressources',
         title: 'Ressources pédagogiques',
         icon: Library,
         path: '/formation/ressources',
+        spec: {
+          description:
+            'Supports, cours, quiz et cas pratiques de chaque formation : origine, droits de réutilisation, état.',
+          indicators: [19],
+          source: 'formation.program_resource',
+          data: 'existant',
+        },
       },
       {
         id: 'locaux',
         title: 'Locaux',
         icon: Building2,
         path: '/formation/locaux',
+        spec: {
+          description:
+            'Sites, salles et plateaux techniques où se déroulent les formations.',
+          indicators: [17],
+          source: 'formation.premises',
+          data: 'existant',
+        },
         new: { tooltip: 'Nouveau lieu', path: '/formation/locaux?nouveau=1' },
       },
       {
@@ -200,6 +245,13 @@ export const MAIN_NAV: NavConfig = [
         title: 'Moyens techniques',
         icon: Warehouse,
         path: '/formation/moyens',
+        spec: {
+          description:
+            'Matériel pédagogique par article : quantité, lieu, vérifications périodiques.',
+          indicators: [17],
+          source: 'formation.equipment',
+          data: 'existant',
+        },
         new: {
           tooltip: 'Nouvel équipement',
           path: '/formation/moyens?nouveau=1',
@@ -211,6 +263,8 @@ export const MAIN_NAV: NavConfig = [
     id: 'parcours',
     title: 'Parcours apprenant',
     icon: School,
+    description:
+      'Du besoin à l’attestation : inscriptions, positionnements, émargements et évaluations.',
     items: [
       {
         id: 'apprenants',
@@ -229,6 +283,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Inscriptions',
         icon: ClipboardList,
         path: '/apprenants/inscriptions',
+        draft: true,
         spec: {
           description:
             'Inscriptions aux sessions : statut, financement, avancement du dossier.',
@@ -242,6 +297,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Analyses du besoin',
         icon: ScanSearch,
         path: '/apprenants/analyses-besoin',
+        draft: true,
         spec: {
           description:
             'Recueil du besoin de chaque bénéficiaire et adaptations décidées.',
@@ -255,6 +311,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Positionnements',
         icon: Crosshair,
         path: '/apprenants/positionnements',
+        draft: true,
         spec: {
           description:
             'Positionnement et évaluation des acquis à l’entrée, vérification des prérequis.',
@@ -268,6 +325,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Convocations',
         icon: Mail,
         path: '/apprenants/convocations',
+        draft: true,
         spec: {
           description:
             'Convocations et informations sur les conditions de déroulement.',
@@ -281,6 +339,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Émargements',
         icon: CalendarCheck,
         path: '/apprenants/emargements',
+        draft: true,
         spec: {
           description:
             'Feuilles d’émargement par demi-journée, signatures, absences.',
@@ -294,6 +353,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Évaluations des acquis',
         icon: ClipboardCheck,
         path: '/apprenants/evaluations',
+        draft: true,
         spec: {
           description: 'Évaluations formatives, sommatives et examens.',
           indicators: [11],
@@ -306,6 +366,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Présentation à la certification',
         icon: Award,
         path: '/apprenants/certification',
+        draft: true,
         spec: {
           description:
             'Présentation des apprenants aux épreuves de certification et résultats.',
@@ -319,6 +380,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Attestations & certificats',
         icon: BadgeCheck,
         path: '/apprenants/attestations',
+        draft: true,
         spec: {
           description:
             'Attestations de fin de formation et certificats délivrés.',
@@ -332,6 +394,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Abandons & ruptures',
         icon: UserX,
         path: '/apprenants/abandons',
+        draft: true,
         spec: {
           description: 'Suivi des abandons : motifs, prévention, relances.',
           indicators: [12],
@@ -345,6 +408,9 @@ export const MAIN_NAV: NavConfig = [
     id: 'rh',
     title: 'Ressources humaines',
     icon: Presentation,
+    path: '/rh',
+    description:
+      'Formateurs, habilitations, développement des compétences et sous-traitants.',
     items: [
       {
         id: 'formateurs',
@@ -390,6 +456,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Coordination des intervenants',
         icon: Network,
         path: '/rh/coordination',
+        draft: true,
         spec: {
           description:
             'Réunions pédagogiques, comptes rendus, coordination des intervenants.',
@@ -417,6 +484,8 @@ export const MAIN_NAV: NavConfig = [
     id: 'qualite',
     title: 'Qualité & amélioration',
     icon: Smile,
+    path: '/qualite',
+    description: 'Satisfaction, réclamations, veille, handicap et partenaires.',
     items: [
       {
         id: 'satisfaction',
@@ -462,6 +531,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Handicap & accessibilité',
         icon: Accessibility,
         path: '/qualite/handicap',
+        draft: true,
         spec: {
           description:
             'Référent handicap et mobilité, adaptations réalisées, réseau handicap.',
@@ -488,6 +558,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Documents & procédures',
         icon: FolderOpen,
         path: '/qualite/documents',
+        draft: true,
         spec: {
           description:
             'Procédures, modèles, documents émis et signés, versions.',
@@ -498,9 +569,32 @@ export const MAIN_NAV: NavConfig = [
     ],
   },
   {
+    id: 'documents',
+    title: 'Documents',
+    icon: FileText,
+    description: 'Devis et documents professionnels, relus puis archivés.',
+    items: [
+      {
+        id: 'documents-accueil',
+        title: 'Accueil documents',
+        icon: FileText,
+        path: '/documents',
+      },
+      {
+        id: 'documents-liste',
+        title: 'Devis et documents',
+        icon: FileStack,
+        path: '/documents/liste',
+      },
+    ],
+  },
+  {
     id: 'qualiopi',
     title: 'Qualiopi',
     icon: ShieldCheck,
+    path: '/qualiopi',
+    description:
+      'Indicateurs, carnet d’audit, preuves, audits et actions correctives.',
     items: [
       {
         id: 'indicateurs',
@@ -570,12 +664,14 @@ export const MAIN_NAV: NavConfig = [
     id: 'administration',
     title: 'Administration',
     icon: Landmark,
+    description: 'Organisme, utilisateurs, référentiels et paramètres.',
     items: [
       {
         id: 'organisme',
         title: 'Organisme',
         icon: Landmark,
         path: '/administration/organisme',
+        draft: true,
         spec: {
           description:
             'NDA, SIRET, catégories d’actions, nouvel entrant, référents handicap et mobilité.',
@@ -589,6 +685,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Utilisateurs & rôles',
         icon: UserRound,
         path: '/administration/utilisateurs',
+        draft: true,
         spec: {
           description:
             'Comptes, rôles et permissions (admin, qualité, gestion, lecture seule).',
@@ -601,6 +698,7 @@ export const MAIN_NAV: NavConfig = [
         title: 'Référentiels',
         icon: BookOpen,
         path: '/administration/referentiels',
+        draft: true,
         spec: {
           description:
             'Versions du référentiel Qualiopi, empreintes, activation.',
@@ -615,10 +713,17 @@ export const MAIN_NAV: NavConfig = [
         path: '/administration/parametres',
       },
       {
+        id: 'modeles',
+        title: 'Modèles de page',
+        icon: LayoutTemplate,
+        path: '/administration/modeles',
+      },
+      {
         id: 'journal',
         title: 'Journal d’activité',
         icon: History,
         path: '/administration/journal',
+        draft: true,
         spec: {
           description:
             'Traçabilité des événements métier (qui a fait quoi, quand).',
