@@ -79,6 +79,7 @@ function useRefreshSession(sessionId?: string) {
     if (sessionId) void qc.invalidateQueries({ queryKey: ['session', sessionId] });
     void qc.invalidateQueries({ queryKey: ['inscription'] });
     void qc.invalidateQueries({ queryKey: keys.sessions });
+    void qc.invalidateQueries({ queryKey: ['registres'] }); // écrans transversaux du parcours
   };
 }
 
