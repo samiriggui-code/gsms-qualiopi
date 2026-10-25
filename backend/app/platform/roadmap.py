@@ -73,7 +73,7 @@ def _funding(db: Session, today: date, horizon: date) -> list[dict]:
 
     return [_item("FINANCEMENT", date.fromisoformat(d["echeance"]), today, f"{d['libelle']} · {d['stagiaire']}",
                   f"{d['dispositif']} · {d['session']}" + (f" · {d['portail']}" if d.get("portail") else ""),
-                  "/commercial/financeurs", state=d["etat"])
+                  "/commercial/financeurs")  # état selon la date, comme les autres sources
             for d in deadlines(db, today, (horizon - today).days)]
 
 
