@@ -226,7 +226,7 @@ export default function RoadmapPage() {
                 <div className="space-y-5">
                   {groups.late.length > 0 && (
                     <Card className="shadow-none overflow-hidden border-destructive/30 [contain:inline-size]">
-                      <h2 className="flex items-center gap-2 border-b border-border bg-destructive/5 px-4 py-2.5 text-sm font-semibold text-destructive">
+                      <h2 className="flex items-center gap-2 border-b border-border bg-destructive/5 px-4 py-2.5 text-sm font-semibold text-red-700 dark:text-red-400">
                         <AlarmClock className="size-4" /> En retard (
                         {groups.late.length})
                       </h2>

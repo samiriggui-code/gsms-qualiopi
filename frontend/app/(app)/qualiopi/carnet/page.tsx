@@ -184,7 +184,7 @@ function Rail({
               )}
             >
               {f.label}{' '}
-              <span className="tabular-nums opacity-70">{f.count}</span>
+              <span className="tabular-nums text-muted-foreground">{f.count}</span>
             </button>
           ))}
         </div>

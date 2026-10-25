@@ -6,7 +6,6 @@
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { CardHeader } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export interface CountedTab {
   id: string;
@@ -23,36 +22,41 @@ export function CountedTabs({
   value: string;
   onChange: (id: string) => void;
 }) {
+  // Des filtres de liste, pas des onglets à panneaux : boutons à bascule (aria-pressed), sans les rôles
+  // tab/tabpanel qui pointaient vers des panneaux inexistants.
   return (
     <CardHeader className="px-4 py-3.5 flex-nowrap">
-      <Tabs value={value} onValueChange={onChange} className="m-0 p-0 w-full min-w-0">
-        <TabsList className="h-auto p-0 bg-transparent border-b-0 border-border rounded-none -ms-[3px] w-0 min-w-full overflow-x-auto [scrollbar-width:none]">
-          <div className="flex items-center gap-1 min-w-max">
-            {tabs.map((tab) => (
-              <TabsTrigger
+      <div className="-ms-[3px] w-0 min-w-full overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Filtrer la liste">
+        <div className="flex items-center gap-1 min-w-max">
+          {tabs.map((tab) => {
+            const active = value === tab.id;
+            return (
+              <button
                 key={tab.id}
-                value={tab.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange(tab.id)}
                 className={cn(
-                  'relative text-foreground px-2 hover:text-primary data-[state=active]:text-primary data-[state=active]:shadow-none',
-                  value === tab.id ? 'font-medium' : 'font-normal',
+                  'relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+                  active ? 'font-medium text-primary' : 'font-normal',
                 )}
               >
-                <div className="flex items-center gap-2">
+                <span className="flex items-center gap-2">
                   {tab.label}
                   <Badge
                     size="sm"
-                    variant={value === tab.id ? 'primary' : 'outline'}
+                    variant={active ? 'primary' : 'outline'}
                     appearance="outline"
-                    className={cn('rounded-full', value === tab.id ? '' : 'bg-muted/60')}
+                    className={cn('rounded-full', active ? '' : 'bg-muted/60')}
                   >
                     {tab.count}
                   </Badge>
-                </div>
-              </TabsTrigger>
-            ))}
-          </div>
-        </TabsList>
-      </Tabs>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </CardHeader>
   );
 }

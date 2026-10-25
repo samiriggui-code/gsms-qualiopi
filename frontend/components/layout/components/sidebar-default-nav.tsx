@@ -6,12 +6,9 @@ import { usePathname } from 'next/navigation';
 import { ChevronRight, Plus } from 'lucide-react';
 import { MAIN_NAV } from '@/config/menu.config';
 import type { NavItem, NavSection } from '@/config/types';
-import {
-  AccordionMenu,
-  AccordionMenuItem,
-} from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Collapsible,
   CollapsibleContent,
@@ -35,7 +32,7 @@ function NavEntry({ item }: { item: NavItem }) {
         <span>{item.title}</span>
       </Link>
       {item.new && (
-        <div className="opacity-0 flex items-center gap-1 group-hover:opacity-100">
+        <div className="opacity-0 flex items-center gap-1 group-hover:opacity-100 group-focus-within:opacity-100">
           <Tooltip delayDuration={500}>
             <TooltipTrigger asChild>
               <Button
@@ -44,7 +41,7 @@ function NavEntry({ item }: { item: NavItem }) {
                 size="icon"
                 asChild
               >
-                <Link href={item.new.path}>
+                <Link href={item.new.path} aria-label={item.new.tooltip}>
                   <Plus className="size-3.5 opacity-100" />
                 </Link>
               </Button>
@@ -72,7 +69,9 @@ function NavEntryCollapsed({ item }: { item: NavItem }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link href={item.path}>{item.icon && <item.icon />}</Link>
+        <Link href={item.path} aria-label={item.title}>
+          {item.icon && <item.icon />}
+        </Link>
       </TooltipTrigger>
       <TooltipContent align="center" side="right" sideOffset={28}>
         {item.title}
@@ -88,27 +87,30 @@ function NavItems({ items }: { items: NavItem[] }) {
   const matchPath = (path: string) => matches(path, pathname);
 
   return (
-    <AccordionMenu
-      type="single"
-      matchPath={matchPath}
-      classNames={{
-        root: 'grow space-y-0.5 shrink-0',
-        item: 'group py-0 h-8 [&:has([data-state=open])]:bg-accent justify-between cursor-pointer',
-      }}
-      collapsible
-    >
-      {items.map((item) => (
-        <AccordionMenuItem key={item.id} asChild value={item.path}>
-          <div>
-            {sidebarCollapse ? (
-              <NavEntryCollapsed item={item} />
-            ) : (
-              <NavEntry item={item} />
+    // Une simple liste de liens (l'accordéon d'origine posait des rôles ARIA de menu sur des liens).
+    <ul className="w-full grow space-y-0.5 shrink-0">
+      {items.map((item) => {
+        // L'entrée la plus précise seulement : /apprenants ne s'allume pas sur /apprenants/convocations
+        const current =
+          matchPath(item.path) &&
+          !items.some((o) => o.path.length > item.path.length && o.path.startsWith(item.path) && matchPath(o.path));
+        return (
+          <li
+            key={item.id}
+            aria-current={current ? 'page' : undefined}
+            data-selected={current ? 'true' : undefined}
+            className={cn(
+              'group relative flex w-full h-8 items-center justify-between gap-2 rounded-lg px-2 text-sm text-foreground transition-colors select-none',
+              'hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:bg-accent has-[[data-state=open]]:bg-accent',
+              'data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground',
+              '[&_svg]:pointer-events-none [&_svg]:opacity-60 [&_svg:not([class*=size-])]:size-4 [&_svg]:shrink-0 [&_a]:flex [&>a]:w-full [&>a]:items-center [&>a]:gap-2',
             )}
-          </div>
-        </AccordionMenuItem>
-      ))}
-    </AccordionMenu>
+          >
+            {sidebarCollapse ? <NavEntryCollapsed item={item} /> : <NavEntry item={item} />}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
