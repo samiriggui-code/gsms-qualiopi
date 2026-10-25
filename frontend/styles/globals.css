@@ -14,7 +14,7 @@
   --card-foreground: var(--color-zinc-950);
   --popover: var(--color-white);
   --popover-foreground: var(--color-zinc-950);
-  --primary: var(--color-blue-500);
+  --primary: var(--color-blue-600); /* contraste AA (4,5:1) du texte blanc et des liens sur fond blanc */
   --primary-foreground: var(--color-white);
   --secondary: var(--color-zinc-100);
   --secondary-foreground: var(--color-zinc-900);

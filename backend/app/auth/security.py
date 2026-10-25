@@ -15,7 +15,7 @@ from app.auth.permissions import CATALOGUE, CODES, SYSTEM_ROLES
 from app.core.config import get_settings
 from app.core.db import get_db, utcnow
 from app.core.journal import set_actor
-from app.platform.features import enabled_features
+from app.platform.features import FEATURES, available, enabled_features
 
 FEATURE_OF = {p.code: p.feature for p in CATALOGUE}
 
@@ -83,6 +83,24 @@ def current_user(
     return user
 
 
+def _refusal(db: Session, user: User, permissions: tuple[str, ...]) -> HTTPException:
+    """Refus lisible : si le rôle donne le droit mais que son module est éteint, on le dit (et où le rallumer)."""
+    granted = granted_permissions(db, user)
+    off = sorted({FEATURE_OF[p] for p in permissions if p in granted} - enabled_features(db))
+    # Non construit ou hors abonnement : aucun réglage ne le rallume, on ne renvoie pas vers les Paramètres
+    unavailable = [f for f in off if f not in FEATURES or not FEATURES[f].built or f not in available()]
+    if unavailable:
+        names = ", ".join(f"« {FEATURES[f].label if f in FEATURES else f} »" for f in unavailable)
+        return HTTPException(status.HTTP_403_FORBIDDEN, f"Module {names} indisponible dans cette édition ou cet abonnement.")
+    if off:
+        names = ", ".join(f"« {FEATURES[f].label if f in FEATURES else f} »" for f in off)
+        return HTTPException(status.HTTP_403_FORBIDDEN, f"Module {names} désactivé : un administrateur peut l'activer "
+                                                        "dans Administration › Paramètres › Modules.")
+    if len(permissions) == 1:
+        return HTTPException(status.HTTP_403_FORBIDDEN, f"Permission « {permissions[0]} » requise")
+    return HTTPException(status.HTTP_403_FORBIDDEN, f"Permission requise : {' ou '.join(permissions)}")
+
+
 def require_any(*permissions: str):
     """Au moins une des permissions (ex. toutes les sessions OU ses propres sessions)."""
     unknown = set(permissions) - CODES
@@ -91,7 +109,7 @@ def require_any(*permissions: str):
 
     def _dep(user: Annotated[User, Depends(current_user)], db: Annotated[Session, Depends(get_db)]) -> User:
         if not set(permissions) & permissions_of(db, user):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, f"Permission requise : {' ou '.join(permissions)}")
+            raise _refusal(db, user, permissions)
         return user
 
     return _dep
@@ -103,7 +121,7 @@ def require(permission: str):
 
     def _dep(user: Annotated[User, Depends(current_user)], db: Annotated[Session, Depends(get_db)]) -> User:
         if permission not in permissions_of(db, user):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, f"Permission « {permission} » requise")
+            raise _refusal(db, user, (permission,))
         return user
 
     return _dep

@@ -253,7 +253,7 @@ export default function IndicateursPage() {
           )}
           {data && (
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger aria-label="Source des textes du référentiel">
                 <Info className="size-3.5 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-sm">
