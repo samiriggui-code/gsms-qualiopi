@@ -21,11 +21,12 @@ import {
 } from '@/components/ui/tooltip';
 import { useLayout } from './layout-context';
 
-function NavEntry({ item }: { item: NavItem }) {
+function NavEntry({ item, current }: { item: NavItem; current: boolean }) {
   return (
     <>
       <Link
         href={item.path}
+        aria-current={current ? 'page' : undefined}
         className="flex items-center grow gap-2.5 font-medium"
       >
         {item.icon && <item.icon />}
@@ -65,11 +66,11 @@ function NavEntry({ item }: { item: NavItem }) {
   );
 }
 
-function NavEntryCollapsed({ item }: { item: NavItem }) {
+function NavEntryCollapsed({ item, current }: { item: NavItem; current: boolean }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link href={item.path} aria-label={item.title}>
+        <Link href={item.path} aria-label={item.title} aria-current={current ? 'page' : undefined}>
           {item.icon && <item.icon />}
         </Link>
       </TooltipTrigger>
@@ -97,7 +98,6 @@ function NavItems({ items }: { items: NavItem[] }) {
         return (
           <li
             key={item.id}
-            aria-current={current ? 'page' : undefined}
             data-selected={current ? 'true' : undefined}
             className={cn(
               'group relative flex w-full h-8 items-center justify-between gap-2 rounded-lg px-2 text-sm text-foreground transition-colors select-none',
@@ -106,7 +106,7 @@ function NavItems({ items }: { items: NavItem[] }) {
               '[&_svg]:pointer-events-none [&_svg]:opacity-60 [&_svg:not([class*=size-])]:size-4 [&_svg]:shrink-0 [&_a]:flex [&>a]:w-full [&>a]:items-center [&>a]:gap-2',
             )}
           >
-            {sidebarCollapse ? <NavEntryCollapsed item={item} /> : <NavEntry item={item} />}
+            {sidebarCollapse ? <NavEntryCollapsed item={item} current={current} /> : <NavEntry item={item} current={current} />}
           </li>
         );
       })}

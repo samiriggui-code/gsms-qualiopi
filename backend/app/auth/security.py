@@ -15,7 +15,7 @@ from app.auth.permissions import CATALOGUE, CODES, SYSTEM_ROLES
 from app.core.config import get_settings
 from app.core.db import get_db, utcnow
 from app.core.journal import set_actor
-from app.platform.features import FEATURES, enabled_features
+from app.platform.features import FEATURES, available, enabled_features
 
 FEATURE_OF = {p.code: p.feature for p in CATALOGUE}
 
@@ -87,6 +87,11 @@ def _refusal(db: Session, user: User, permissions: tuple[str, ...]) -> HTTPExcep
     """Refus lisible : si le rôle donne le droit mais que son module est éteint, on le dit (et où le rallumer)."""
     granted = granted_permissions(db, user)
     off = sorted({FEATURE_OF[p] for p in permissions if p in granted} - enabled_features(db))
+    # Non construit ou hors abonnement : aucun réglage ne le rallume, on ne renvoie pas vers les Paramètres
+    unavailable = [f for f in off if f not in FEATURES or not FEATURES[f].built or f not in available()]
+    if unavailable:
+        names = ", ".join(f"« {FEATURES[f].label if f in FEATURES else f} »" for f in unavailable)
+        return HTTPException(status.HTTP_403_FORBIDDEN, f"Module {names} indisponible dans cette édition ou cet abonnement.")
     if off:
         names = ", ".join(f"« {FEATURES[f].label if f in FEATURES else f} »" for f in off)
         return HTTPException(status.HTTP_403_FORBIDDEN, f"Module {names} désactivé : un administrateur peut l'activer "
