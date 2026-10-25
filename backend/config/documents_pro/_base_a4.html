@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titre_page }}</title>
+<style>
+  /* Document A4 de l'organisme, imprimé ou enregistré en PDF par le navigateur (même méthode que le carnet
+     d'audit). En-tête (logo, référence) et pied (organisme, page) répétés dans les zones de marge de @page. */
+  @page {
+    size: A4; margin: 24mm 16mm 20mm;
+    @top-left { content: ""; width: 48mm; background: {{ logo_css }} no-repeat left bottom 3mm / contain; }
+    @top-right { content: "{{ entete_css }}"; font: 600 8pt "Helvetica Neue", Arial, sans-serif; color: #6b7280;
+                 vertical-align: bottom; padding-bottom: 4mm; }
+    @bottom-left { content: "{{ pied_css }}"; font: 7.5pt "Helvetica Neue", Arial, sans-serif; color: #6b7280;
+                   vertical-align: top; padding-top: 4mm; }
+    @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 7.5pt "Helvetica Neue", Arial, sans-serif;
+                    color: #6b7280; vertical-align: top; padding-top: 4mm; }
+  }
+  :root { --brand: {{ couleur }}; --ink: #111827; --muted: #6b7280; --line: #e5e7eb; --soft: #f9fafb; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media screen {
+    html, body { background: #e5e7eb; }
+    .sheet { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 24mm 16mm 20mm; background: #fff;
+             box-shadow: 0 1px 3px rgba(0,0,0,.08); position: relative; }
+  }
+  /* Sur un téléphone, la feuille suit la largeur de l'écran (l'impression reste en A4). */
+  @media screen and (max-width: 220mm) {
+    html, body { background: #fff; }
+    .sheet { width: auto; min-height: 0; margin: 0; padding: 6mm 5mm; box-shadow: none; }
+    .parties, .accord { grid-template-columns: 1fr; }
+    table:not(.totaux) { display: block; overflow-x: auto; }
+  }
+  .eyebrow { font-size: 8pt; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); }
+  h1 { font-size: 22pt; line-height: 1.15; margin: 2mm 0 1mm; letter-spacing: -.01em; }
+  h2 { font-size: 8.5pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 7mm 0 2mm; }
+  p { margin: 0 0 2mm; }
+  .muted { color: var(--muted); }
+  .small { font-size: 8.5pt; }
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin: 6mm 0 2mm; }
+  .partie { border: 1px solid var(--line); border-radius: 2mm; padding: 3mm 4mm; }
+  .partie b { display: block; font-size: 10.5pt; }
+  .meta { display: flex; flex-wrap: wrap; gap: 1mm 8mm; font-size: 9pt; }
+  .meta b { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th { text-align: left; font-size: 7.5pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+       border-bottom: 1.5px solid var(--ink); padding: 1.5mm 2mm; }
+  td { border-bottom: 1px solid var(--line); padding: 2mm; vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr { break-inside: avoid; }
+  .totaux { margin: 4mm 0 0 auto; width: 70mm; font-size: 9.5pt; }
+  .totaux td { border: 0; padding: 1mm 2mm; }
+  .totaux tr.ttc td { border-top: 1.5px solid var(--ink); font-weight: 700; font-size: 11pt; padding-top: 2mm; }
+  .accord { margin-top: 8mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; break-inside: avoid; }
+  .accord div { border: 1px dashed #9ca3af; border-radius: 2mm; min-height: 32mm; padding: 3mm 4mm; font-size: 8.5pt; color: var(--muted); }
+  .legal { margin-top: 8mm; font-size: 7.5pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 2mm; }
+  .filigrane { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 10; }
+  .filigrane span { transform: rotate(-30deg); font-size: 52pt; font-weight: 800; letter-spacing: .1em; color: rgba(185, 28, 28, .12);
+                    text-transform: uppercase; text-align: center; line-height: 1.1; }
+</style>
+</head>
+<body>
+{% if filigrane %}<div class="filigrane"><span>{{ filigrane }}</span></div>{% endif %}
+<div class="sheet">
+{% block contenu %}{% endblock %}
+</div>
+<script>if (location.hash === '#imprimer') window.addEventListener('load', () => window.print());</script>
+</body>
+</html>

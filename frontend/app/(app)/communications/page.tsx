@@ -33,6 +33,13 @@ import {
 import { TONE } from '@/lib/gsms/labels';
 import { useCan } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
+import {
+  Alert,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -507,34 +514,64 @@ export default function CommunicationsPage() {
             <Refusal error={error} />
           </div>
         ) : (
-          <div className="flex max-lg:flex-col grow min-w-0">
-            <Folders
-              value={folder}
-              counts={counts}
-              total={total}
-              onChange={(f) => {
-                setFolder(f);
-                setSelected(null);
-              }}
-            />
-            <div
-              className={cn('flex grow min-w-0', selected && 'max-lg:hidden')}
-            >
-              <MessageList
-                messages={messages}
-                selected={selected}
-                onSelect={setSelected}
-                loading={isLoading}
-              />
-              <div className="hidden lg:flex grow min-w-0">
-                <Reader id={selected} onBack={() => setSelected(null)} />
-              </div>
-            </div>
-            {selected && (
-              <div className="flex grow min-w-0 lg:hidden">
-                <Reader id={selected} onBack={() => setSelected(null)} />
-              </div>
+          <div className="flex flex-col grow min-w-0">
+            {data && data.envoi.etat !== 'OK' && (
+              <Alert
+                variant={
+                  data.envoi.etat === 'EN_PANNE' ? 'destructive' : 'warning'
+                }
+                appearance="light"
+                className="mx-3 mt-3 w-auto"
+              >
+                <AlertIcon>
+                  <AlertTriangle />
+                </AlertIcon>
+                <AlertContent>
+                  <AlertTitle>
+                    {data.envoi.etat === 'EN_PANNE'
+                      ? 'Aucun e-mail ne peut partir'
+                      : 'Réglage d’envoi à vérifier'}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {data.envoi.motif}
+                    {data.envoi.etat === 'EN_PANNE' &&
+                      ' Un message validé maintenant finira en échec ; il pourra être renvoyé une fois l’envoi réparé.'}
+                    {data.envoi.dernier_envoi
+                      ? ` Dernier envoi réussi : ${formatDate(data.envoi.dernier_envoi)}.`
+                      : ' Aucun envoi réussi à ce jour.'}
+                  </AlertDescription>
+                </AlertContent>
+              </Alert>
             )}
+            <div className="flex max-lg:flex-col grow min-w-0">
+              <Folders
+                value={folder}
+                counts={counts}
+                total={total}
+                onChange={(f) => {
+                  setFolder(f);
+                  setSelected(null);
+                }}
+              />
+              <div
+                className={cn('flex grow min-w-0', selected && 'max-lg:hidden')}
+              >
+                <MessageList
+                  messages={messages}
+                  selected={selected}
+                  onSelect={setSelected}
+                  loading={isLoading}
+                />
+                <div className="hidden lg:flex grow min-w-0">
+                  <Reader id={selected} onBack={() => setSelected(null)} />
+                </div>
+              </div>
+              {selected && (
+                <div className="flex grow min-w-0 lg:hidden">
+                  <Reader id={selected} onBack={() => setSelected(null)} />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Content>

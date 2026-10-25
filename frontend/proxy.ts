@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
 
   if (pathname === '/signin') {
     return hasSession
-      ? NextResponse.redirect(new URL('/', request.url))
+      ? NextResponse.redirect(new URL('/accueil', request.url))
       : NextResponse.next();
   }
 
