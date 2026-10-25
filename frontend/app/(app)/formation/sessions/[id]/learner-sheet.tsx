@@ -90,8 +90,12 @@ function EspaceLink({ enrollmentId }: { enrollmentId: string }) {
     setPending(true);
     try {
       const { lien, expire_le } = await api.post<{ lien: string; expire_le: string }>(`inscriptions/${enrollmentId}/espace`);
-      await navigator.clipboard.writeText(lien).catch(() => undefined);
-      toast.success(`Lien de l’espace stagiaire copié (valable jusqu’au ${formatDate(expire_le)})`, {
+      // Presse-papiers refusé (contexte non sécurisé, geste expiré) : on le dit, le lien reste ouvrable
+      const copied = await (navigator.clipboard?.writeText(lien).then(() => true) ?? Promise.resolve(false)).catch(
+        () => false,
+      );
+      const until = `valable jusqu’au ${formatDate(expire_le)}`;
+      toast.success(copied ? `Lien de l’espace stagiaire copié (${until})` : `Lien de l’espace stagiaire créé (${until}) : ouvrez-le pour le copier`, {
         action: { label: 'Ouvrir', onClick: () => window.open(lien, '_blank', 'noopener') },
       });
     } catch (e) {

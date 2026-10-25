@@ -28,7 +28,8 @@ def test_lien_puis_espace_public(client, demo: Session) -> None:  # noqa: ANN001
     assert "email" not in body["stagiaire"]  # rien d'autre que le prénom
     for doc in body["documents"]:
         assert "/api/public/documents/" in doc["lien"]
-    assert client.get(f"/api/v1/public/espace/{token[:-1]}0").status_code == 404
+    tampered = token[:-1] + ("1" if token[-1] != "1" else "2")  # signature hexadécimale : toujours différente
+    assert client.get(f"/api/v1/public/espace/{tampered}").status_code == 404
     assert client.get("/api/v1/public/espace/n-importe-quoi").status_code == 404
 
 
