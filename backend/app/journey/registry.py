@@ -95,3 +95,31 @@ def registry(db: Session, user: User, view: str, today: date | None = None, sess
                      else "EN_ATTENTE"))
         counts[key] = counts.get(key, 0) + 1
     return {"vue": view, "compteurs": counts, "lignes": rows}
+
+
+def summary(db: Session, user: User, today: date | None = None) -> dict:
+    """Vue d'ensemble du parcours (page de section) : pour chaque étape, le nombre de stagiaires par état, plus les
+    inscriptions par statut, les abandons et les examens. Un seul passage sur les inscriptions visibles."""
+    today = today or date.today()
+    steps: dict[str, dict[str, int]] = {k: {} for k in STEP_ACTIONS}
+    statuses: dict[str, int] = {}
+    exams = {"presentes": 0, "reussis": 0}
+    late_rows: list[dict] = []
+    for s in db.scalars(select(t.TrainingSession).order_by(t.TrainingSession.start_date)):
+        if not can_see(db, user, s):
+            continue
+        for e in s.enrollments:
+            v = journey_view(db, e, user, today)
+            statuses[e.status] = statuses.get(e.status, 0) + 1
+            for st in v["etapes"]:
+                if st["etape"] in steps:
+                    steps[st["etape"]][st["etat"]] = steps[st["etape"]].get(st["etat"], 0) + 1
+                    if st["etat"] == "EN_RETARD":
+                        late_rows.append({"stagiaire": v["stagiaire"], "session": s.reference, "session_id": s.id,
+                                          "etape": st["etape"], "echeance": st.get("echeance")})
+            exam = [a for a in e.assessments if a.kind == "EXAMEN"]
+            if exam:
+                exams["presentes"] += 1
+                exams["reussis"] += bool(sorted(exam, key=lambda a: a.assessed_on)[-1].passed)
+    late_rows.sort(key=lambda r: r["echeance"] or "")
+    return {"etapes": steps, "inscriptions": statuses, "examens": exams, "en_retard": late_rows}

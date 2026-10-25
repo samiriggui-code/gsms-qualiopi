@@ -39,3 +39,12 @@ def test_registre_limite_aux_sessions_du_formateur(client, demo: Session) -> Non
     _, hf = make_user(demo, "formateur", email="sans-session@test.local")
     assert client.get("/api/v1/parcours/registres/inscriptions", headers=hg).json()["lignes"]
     assert client.get("/api/v1/parcours/registres/inscriptions", headers=hf).json()["lignes"] == []
+
+
+def test_synthese_concorde_avec_les_registres(client, demo: Session) -> None:  # noqa: ANN001
+    _, h = make_user(demo, "gestion", email="g-synthese@test.local")
+    body = client.get("/api/v1/parcours/synthese", headers=h).json()
+    conv = client.get("/api/v1/parcours/registres/convocation", headers=h).json()["compteurs"]
+    assert body["etapes"]["convocation"] == conv
+    assert sum(body["inscriptions"].values()) == len(client.get("/api/v1/parcours/registres/inscriptions", headers=h).json()["lignes"])
+    assert all(r["etape"] in body["etapes"] for r in body["en_retard"])
