@@ -1,5 +1,7 @@
 """Relances : planification idempotente, validation, annulation quand c'est fait, envoi tracé, alertes internes."""
 
+import smtplib
+import socket
 from datetime import timedelta
 
 import pytest
@@ -145,14 +147,65 @@ def test_echec_d_envoi_trace_puis_renvoi(client, demo: Session) -> None:  # noqa
     sender_module.set_sender(failing)
     try:
         plan(demo, TODAY)
-        for _ in range(3):
+        dispatch(demo, TODAY)
+        demo.commit()
+        assert client.get("/api/v1/communications", headers=h).json()["envoi"]["etat"] == "EN_PANNE"  # dès le 1er essai
+        for _ in range(2):
             dispatch(demo, TODAY)
         demo.commit()
         failed = demo.scalar(select(Message).where(Message.status == "ECHEC"))
         assert failed is not None and failed.attempts == 3 and "injoignable" in failed.last_error
+        assert failed.last_error.startswith("Le serveur d'envoi est injoignable")
+        envoi = client.get("/api/v1/communications", headers=h).json()["envoi"]
+        assert envoi["etat"] == "EN_PANNE" and envoi["motif"].startswith("Le serveur d'envoi est injoignable")
         sender_module.set_sender(FakeSender())
         r = client.post(f"/api/v1/communications/{failed.id}/renvoyer", headers=h)
         assert r.json()["statut"] == "ENVOYE"
+        assert client.get("/api/v1/communications", headers=h).json()["envoi"]["etat"] == "OK"
+    finally:
+        sender_module.set_sender(previous)
+
+
+def test_reglage_d_envoi_incomplet_signale(monkeypatch) -> None:  # noqa: ANN001
+    settings = sender_module.get_settings().model_copy(
+        update={"smtp_host": "smtp.hostinger.com", "smtp_user": "", "smtp_password": ""})
+    monkeypatch.setattr(sender_module, "get_settings", lambda: settings)
+    assert "SMTP_USER" in sender_module.config_problem()
+    refus = smtplib.SMTPRecipientsRefused({"a@b.fr": (554, b"5.7.1 Access denied")})
+    assert "SMTP_USER" in sender_module.explain(refus)
+    boite = smtplib.SMTPRecipientsRefused({"a@b.fr": (550, b"5.1.1 unknown mailbox")})
+    assert sender_module.explain(boite) == sender_module.RECIPIENT_REFUSED
+    assert "injoignable" in sender_module.explain(socket.gaierror(-2, "Name or service not known"))
+    settings = settings.model_copy(update={"smtp_user": "u", "smtp_password": "p", "smtp_from": "no-reply@gsms.local"})
+    assert "SMTP_FROM" in sender_module.config_problem()
+    settings = settings.model_copy(update={"smtp_from": "contact@formssi.fr"})
+    assert sender_module.config_problem() is None
+    assert sender_module.explain(refus) == sender_module.RECIPIENT_REFUSED
+    settings = settings.model_copy(update={"smtp_host": "localhost", "smtp_user": ""})
+    assert sender_module.config_problem() is None
+
+
+def test_destinataire_refuse_sans_bandeau_reglage_a_verifier(client, demo: Session, monkeypatch) -> None:  # noqa: ANN001
+    _enable(demo)
+    _, h = make_user(demo, "gestion")
+
+    class Refuse(FakeSender):
+        def send(self, **kw) -> str:  # noqa: ANN003
+            raise smtplib.SMTPRecipientsRefused({kw["to"]: (550, b"5.1.1 boite inconnue")})
+
+    previous = sender_module.get_sender()
+    sender_module.set_sender(Refuse())
+    try:
+        plan(demo, TODAY)
+        for _ in range(3):
+            dispatch(demo, TODAY)
+        demo.commit()
+        assert demo.scalar(select(Message).where(Message.status == "ECHEC")) is not None
+        assert client.get("/api/v1/communications", headers=h).json()["envoi"]["etat"] == "OK"
+        settings = sender_module.get_settings().model_copy(update={"smtp_host": "smtp.hostinger.com", "smtp_user": ""})
+        monkeypatch.setattr(sender_module, "get_settings", lambda: settings)
+        envoi = client.get("/api/v1/communications", headers=h).json()["envoi"]
+        assert envoi["etat"] == "A_VERIFIER" and "SMTP_USER" in envoi["motif"]
     finally:
         sender_module.set_sender(previous)
 
