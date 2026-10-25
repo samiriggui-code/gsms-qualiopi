@@ -2,14 +2,15 @@
 
 from fastapi import APIRouter, Body
 from fastapi.responses import Response
+from sqlalchemy import select
 
-from app.auth.security import DB, SessionsReader
+from app.auth.security import DB, SessionsReader, permissions_of
 from app.core.downloads import content_disposition
 from app.core.errors import NotFoundError
 from app.documents import storage
 from app.journey import documents, registry, service
 from app.training import models as t
-from app.training.access import visible_session
+from app.training.access import can_see, visible_session
 
 router = APIRouter(prefix="/api/v1", tags=["parcours"])
 
@@ -58,3 +59,26 @@ def document(enrollment_id: str, document_id: str, db: DB, user: SessionsReader)
     content = storage.read(doc.storage_path, expected_sha256=doc.sha256)
     return Response(content, media_type=doc.mime_type,
                     headers={"Content-Disposition": content_disposition(doc.original_name, inline=True), "X-Content-SHA256": doc.sha256 or ""})
+
+
+@router.get("/parcours/adaptations")
+def adaptations(db: DB, user: SessionsReader) -> list[dict]:
+    """Besoins d'adaptation recueillis à l'analyse du besoin (handicap, contrainte), sessions visibles seulement :
+    l'écran « Handicap & accessibilité » montre ce qui a été décidé et où on en est (I20, I26).
+
+    Le besoin lui-même touche à la santé : seuls ceux qui mènent le parcours ou forment le lisent ; les autres
+    rôles (lecture, financement, RH) n'en voient que le statut."""
+    detail = bool({"enrollments.write", "learners.assess"} & permissions_of(db, user))
+    rows = db.scalars(
+        select(t.NeedsAnalysis).where(t.NeedsAnalysis.adaptation_required.is_(True)).order_by(t.NeedsAnalysis.completed_on.desc())
+    )
+    out = []
+    for na in rows:
+        e = na.enrollment
+        if not can_see(db, user, e.session):
+            continue
+        out.append({"inscription": e.id, "session_id": e.session_id, "session": e.session.reference,
+                    "stagiaire": e.learner.full_name, "statut": na.adaptation_status,
+                    "besoin": na.adaptation_notes if detail else None,
+                    "recueilli_le": na.completed_on.isoformat() if na.completed_on else None})
+    return out

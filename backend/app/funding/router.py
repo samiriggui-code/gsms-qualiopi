@@ -87,6 +87,14 @@ def apply_action(source_id: str, action: str, body: ActionIn, db: DB, user: Fund
     return service.source_view(db, src, user)
 
 
+@router.get("/financement/dossiers")
+def list_cases(db: DB, user: FundingReader) -> list[dict]:
+    """Tous les dossiers de financement (écran « Financeurs ») : chaque source avec son état, ses montants et ses
+    pièces, tels que le dossier du stagiaire les montre."""
+    cases = db.scalars(select(FundingCase).order_by(FundingCase.created_at.desc()))
+    return [service.case_view(db, c, user) for c in cases]
+
+
 @router.get("/financement/echeances")
 def funding_deadlines(db: DB, _: FundingReader, jours: int = 15) -> list[dict]:
     return service.deadlines(db, date.today(), jours)

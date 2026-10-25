@@ -158,3 +158,17 @@ def test_circuit_france_travail_aif(demo: Session) -> None:
     with pytest.raises(PolicyDenied, match="session démarrée"):
         service.apply(demo, src, "declarer_entree", {}, user)
     assert case_status(case)["statut"] == "FUNDED" and src.provider_name == "France Travail"
+
+
+def test_liste_des_dossiers_pour_l_ecran_financeurs(client, demo: Session) -> None:  # noqa: ANN001
+    _enable(demo, "funding.opco")
+    _, hf = make_user(demo, "financement")
+    e = _enrollment(demo, "SST-2026-02")
+    case = client.post(f"/api/v1/inscriptions/{e.id}/financement", json={"cout": "500"}, headers=hf).json()
+    client.post(f"/api/v1/financement/dossiers/{case['id']}/sources", json={"dispositif": "OPCO", "financeur": "Opco EP"},
+                headers=hf)
+    rows = client.get("/api/v1/financement/dossiers", headers=hf).json()
+    assert [r["id"] for r in rows] == [case["id"]]
+    assert rows[0]["sources"][0]["financeur"] == "Opco EP" and rows[0]["cout"] == "500.00"
+    _, hl = make_user(demo, "lecture")
+    assert client.get("/api/v1/financement/dossiers", headers=hl).status_code == 403

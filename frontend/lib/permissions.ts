@@ -14,6 +14,7 @@ const API_PERMISSIONS = {
   manage_communications: 'communications.manage',
   manage_settings: 'settings.manage',
   read_staff: 'staff.read',
+  read_funding: 'funding.read',
   validate_programs: 'programs.validate',
   read_edof: 'edof.read',
   write_edof: 'edof.write',

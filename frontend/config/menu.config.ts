@@ -98,7 +98,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Échéances & alertes',
         icon: BellRing,
         path: '/alertes',
-        draft: true,
         spec: {
           description:
             'Preuves expirées, habilitations à renouveler, conventions non signées, convocations non envoyées, émargements manquants.',
@@ -138,7 +137,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Financeurs',
         icon: HandCoins,
         path: '/commercial/financeurs',
-        draft: true,
         spec: {
           description:
             'OPCO, CPF, France Travail, Région, entreprises : prises en charge, accords, montants, pièces demandées.',
@@ -152,7 +150,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Conventions & contrats',
         icon: FileSignature,
         path: '/commercial/conventions',
-        draft: true,
         spec: {
           description:
             'Conventions et contrats de formation : envoi, signature, relances.',
@@ -283,7 +280,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Inscriptions',
         icon: ClipboardList,
         path: '/apprenants/inscriptions',
-        draft: true,
         spec: {
           description:
             'Inscriptions aux sessions : statut, financement, avancement du dossier.',
@@ -297,7 +293,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Analyses du besoin',
         icon: ScanSearch,
         path: '/apprenants/analyses-besoin',
-        draft: true,
         spec: {
           description:
             'Recueil du besoin de chaque bénéficiaire et adaptations décidées.',
@@ -311,7 +306,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Positionnements',
         icon: Crosshair,
         path: '/apprenants/positionnements',
-        draft: true,
         spec: {
           description:
             'Positionnement et évaluation des acquis à l’entrée, vérification des prérequis.',
@@ -325,7 +319,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Convocations',
         icon: Mail,
         path: '/apprenants/convocations',
-        draft: true,
         spec: {
           description:
             'Convocations et informations sur les conditions de déroulement.',
@@ -339,7 +332,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Émargements',
         icon: CalendarCheck,
         path: '/apprenants/emargements',
-        draft: true,
         spec: {
           description:
             'Feuilles d’émargement par demi-journée, signatures, absences.',
@@ -353,7 +345,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Évaluations des acquis',
         icon: ClipboardCheck,
         path: '/apprenants/evaluations',
-        draft: true,
         spec: {
           description: 'Évaluations formatives, sommatives et examens.',
           indicators: [11],
@@ -366,7 +357,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Présentation à la certification',
         icon: Award,
         path: '/apprenants/certification',
-        draft: true,
         spec: {
           description:
             'Présentation des apprenants aux épreuves de certification et résultats.',
@@ -380,7 +370,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Attestations & certificats',
         icon: BadgeCheck,
         path: '/apprenants/attestations',
-        draft: true,
         spec: {
           description:
             'Attestations de fin de formation et certificats délivrés.',
@@ -394,7 +383,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Abandons & ruptures',
         icon: UserX,
         path: '/apprenants/abandons',
-        draft: true,
         spec: {
           description: 'Suivi des abandons : motifs, prévention, relances.',
           indicators: [12],
@@ -456,7 +444,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Coordination des intervenants',
         icon: Network,
         path: '/rh/coordination',
-        draft: true,
         spec: {
           description:
             'Réunions pédagogiques, comptes rendus, coordination des intervenants.',
@@ -531,7 +518,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Handicap & accessibilité',
         icon: Accessibility,
         path: '/qualite/handicap',
-        draft: true,
         spec: {
           description:
             'Référent handicap et mobilité, adaptations réalisées, réseau handicap.',
@@ -558,7 +544,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Documents & procédures',
         icon: FolderOpen,
         path: '/qualite/documents',
-        draft: true,
         spec: {
           description:
             'Procédures, modèles, documents émis et signés, versions.',
@@ -671,7 +656,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Organisme',
         icon: Landmark,
         path: '/administration/organisme',
-        draft: true,
         spec: {
           description:
             'NDA, SIRET, catégories d’actions, nouvel entrant, référents handicap et mobilité.',
@@ -685,7 +669,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Utilisateurs & rôles',
         icon: UserRound,
         path: '/administration/utilisateurs',
-        draft: true,
         spec: {
           description:
             'Comptes, rôles et permissions (admin, qualité, gestion, lecture seule).',
@@ -698,7 +681,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Référentiels',
         icon: BookOpen,
         path: '/administration/referentiels',
-        draft: true,
         spec: {
           description:
             'Versions du référentiel Qualiopi, empreintes, activation.',
@@ -723,7 +705,6 @@ export const MAIN_NAV: NavConfig = [
         title: 'Journal d’activité',
         icon: History,
         path: '/administration/journal',
-        draft: true,
         spec: {
           description:
             'Traçabilité des événements métier (qui a fait quoi, quand).',
