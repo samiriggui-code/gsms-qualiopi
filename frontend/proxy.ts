@@ -7,6 +7,11 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_COOKIE);
 
+  // Pages publiques ouvertes par un lien signé (questionnaire, espace du stagiaire) : pas de session.
+  if (pathname.startsWith('/q/') || pathname.startsWith('/espace/')) {
+    return NextResponse.next();
+  }
+
   if (pathname === '/signin') {
     return hasSession
       ? NextResponse.redirect(new URL('/accueil', request.url))

@@ -1,14 +1,17 @@
 """API du parcours du stagiaire."""
 
-from fastapi import APIRouter, Body
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import Response
 from sqlalchemy import select
 
-from app.auth.security import DB, SessionsReader, permissions_of
+from app.auth.models import User
+from app.auth.security import DB, SessionsReader, permissions_of, require
 from app.core.downloads import content_disposition
-from app.core.errors import NotFoundError
+from app.core.errors import InvalidStateError, NotFoundError
 from app.documents import storage
-from app.journey import documents, registry, service
+from app.journey import documents, espace, registry, service
 from app.training import models as t
 from app.training.access import can_see, visible_session
 
@@ -82,3 +85,12 @@ def adaptations(db: DB, user: SessionsReader) -> list[dict]:
                     "besoin": na.adaptation_notes if detail else None,
                     "recueilli_le": na.completed_on.isoformat() if na.completed_on else None})
     return out
+
+
+@router.post("/inscriptions/{enrollment_id}/espace")
+def espace_link(enrollment_id: str, db: DB, user: Annotated[User, Depends(require("enrollments.write"))]) -> dict:
+    """Lien personnel de l'espace du stagiaire, à lui transmettre (rien n'est envoyé ici)."""
+    e = _enrollment(db, user, enrollment_id)
+    if e.status == "ANNULE":
+        raise InvalidStateError("Inscription annulée : pas d'espace stagiaire")
+    return {"lien": espace.link(e), "expire_le": espace.expires_on(e).isoformat()}

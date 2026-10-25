@@ -15,6 +15,7 @@ const API_PERMISSIONS = {
   manage_settings: 'settings.manage',
   read_staff: 'staff.read',
   read_funding: 'funding.read',
+  manage_enrollments: 'enrollments.write',
   validate_programs: 'programs.validate',
   read_edof: 'edof.read',
   write_edof: 'edof.write',
