@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useState } from 'react';
-import { Building2, ChevronLeft, ExternalLink, FileText, Mail, Phone } from 'lucide-react';
+import { Building2, ChevronLeft, ExternalLink, FileText, Link2, Mail, Phone } from 'lucide-react';
 import { toast } from 'sonner';
-import { documentUrl } from '@/lib/api';
+import { api, documentUrl } from '@/lib/api';
 import { formatDate, percent } from '@/lib/format';
 import {
   ACTIONS,
@@ -16,6 +16,7 @@ import {
 import { ENROLLMENT_STATUS, STEP_LABEL, STEP_STATE } from '@/lib/gsms/labels';
 import { useJourneyAction, useLearnerJourney, useSessionActivity } from '@/lib/gsms/sessions';
 import type { Decision, GeneratedDocument, JourneyStep, LearnerJourney } from '@/lib/gsms/types';
+import { useCan } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -82,6 +83,30 @@ export function LearnerSheet({
   );
 }
 
+// Lien de l'espace du stagiaire (page publique, sans compte) : copié pour être transmis, rien n'est envoyé.
+function EspaceLink({ enrollmentId }: { enrollmentId: string }) {
+  const [pending, setPending] = useState(false);
+  const copy = async () => {
+    setPending(true);
+    try {
+      const { lien, expire_le } = await api.post<{ lien: string; expire_le: string }>(`inscriptions/${enrollmentId}/espace`);
+      await navigator.clipboard.writeText(lien).catch(() => undefined);
+      toast.success(`Lien de l’espace stagiaire copié (valable jusqu’au ${formatDate(expire_le)})`, {
+        action: { label: 'Ouvrir', onClick: () => window.open(lien, '_blank', 'noopener') },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Lien indisponible');
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <Button size="sm" variant="outline" disabled={pending} onClick={copy}>
+      <Link2 /> Espace stagiaire
+    </Button>
+  );
+}
+
 function Meta({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <>
@@ -117,6 +142,7 @@ function Body({ sessionId, journey, onClose }: { sessionId: string; journey: Lea
   const [action, setAction] = useState<string | null>(null);
   const caps = journey.capabilities;
   const statusActions = STATUS_ACTIONS.filter((a) => shown(caps[a]));
+  const canEnroll = useCan()('manage_enrollments');
   const done = journey.etapes.filter((s) => s.fait).length;
   const c = journey.contact;
   const presence = percent(journey.assiduite.suivies, journey.assiduite.prevues);
@@ -159,6 +185,7 @@ function Body({ sessionId, journey, onClose }: { sessionId: string; journey: Lea
               {ACTIONS[a].label}
             </ActionGate>
           ))}
+          {canEnroll && journey.statut !== 'ANNULE' && <EspaceLink enrollmentId={journey.inscription} />}
         </div>
       </div>
 

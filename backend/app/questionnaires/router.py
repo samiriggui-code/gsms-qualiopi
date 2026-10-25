@@ -39,3 +39,11 @@ def document(token: str, db: DB) -> Response:
     content = storage.read(doc.storage_path, expected_sha256=doc.sha256)
     return Response(content, media_type=doc.mime_type,
                     headers={"Content-Disposition": content_disposition(doc.original_name, inline=True), "X-Content-SHA256": doc.sha256 or ""})
+
+
+@router.get("/espace/{token}")
+def espace(token: str, db: DB) -> dict:
+    """Espace du stagiaire : sa formation, ce qui reste à faire, ses documents (journey/espace.py)."""
+    from app.journey import espace as espace_view
+
+    return espace_view.public_view(db, token)
