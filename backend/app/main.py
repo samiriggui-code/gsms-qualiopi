@@ -16,6 +16,7 @@ from app.edof.router import router as edof_router
 from app.funding.router import router as funding_router
 from app.hr.router import router as hr_router
 from app.journey.router import router as journey_router
+from app.platform.roadmap import router as roadmap_router
 from app.platform.router import router as platform_router
 from app.qualiopi.ecrans import router as qualiopi_screens_router
 from app.qualiopi.router import router as qualiopi_router
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(edof_router)
     app.include_router(editions_router)
     app.include_router(platform_router)
+    app.include_router(roadmap_router)
     app.include_router(training_router)
     app.include_router(offer_router)
     app.include_router(attendance_router)

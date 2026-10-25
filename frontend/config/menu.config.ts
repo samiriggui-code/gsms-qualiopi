@@ -34,6 +34,7 @@ import {
   Network,
   Presentation,
   Radar,
+  Route,
   ScanSearch,
   School,
   Settings,
@@ -91,6 +92,18 @@ export const MAIN_NAV: NavConfig = [
           indicators: [9, 17],
           source: 'formation.session, formation.attendance_slot',
           data: 'existant',
+        },
+      },
+      {
+        id: 'feuille-de-route',
+        title: 'Feuille de route',
+        icon: Route,
+        path: '/feuille-de-route',
+        spec: {
+          description:
+            'Toutes les échéances semaine par semaine : étapes des sessions, actions correctives, preuves à renouveler, titres des formateurs, financement.',
+          source: 'Jalons, CAPA, preuves, titres, financement',
+          data: 'calcule',
         },
       },
       {
