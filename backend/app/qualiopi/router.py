@@ -94,6 +94,17 @@ def import_version(body: ImportIn, db: DB, user: ReferentialManager) -> dict:
     return _version_view(v)
 
 
+@router.get("/referentials")
+def list_versions(db: DB, _: QualityReader) -> dict:
+    """Versions importées (empreintes, date, en vigueur) et dossiers livrés avec l'application, importables."""
+    from app.qualiopi.referential.models import ReferentialVersion
+
+    versions = list(db.scalars(select(ReferentialVersion).order_by(ReferentialVersion.effective_from.desc())))
+    root = get_settings().referentials_dir.resolve()
+    folders = sorted(str(p.parent.relative_to(root)) for p in root.glob("*/*/normative")) if root.is_dir() else []
+    return {"versions": [_version_view(v) for v in versions], "dossiers": folders}
+
+
 @router.get("/referentials/active")
 def get_active(db: DB, _: QualityReader) -> dict:
     return _version_view(active_version(db))

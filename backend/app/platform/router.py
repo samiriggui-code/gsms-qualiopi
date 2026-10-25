@@ -4,10 +4,12 @@ from datetime import date
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.auth.security import DB, CurrentUser, SettingsManager, permissions_of
+from app.core.errors import InvalidStateError
+from app.events.publish import publish
 from app.platform.features import enabled_features, feature_view, set_feature
 from app.platform.settings import ConfigurationService
 from app.training import models as t
@@ -85,3 +87,68 @@ def change_setting(key: str, body: SettingIn, db: DB, user: SettingsManager) -> 
                                        actor_id=user.id)
     db.commit()
     return {"key": key, "value": row.value, "effective_from": row.effective_from.isoformat()}
+
+
+# ── Organisme ────────────────────────────────────────────────────────────────────
+# Identité réglementaire de l'organisme. Les catégories d'actions et le statut de nouvel entrant
+# changent l'applicabilité des indicateurs : la modification relance le moteur (organization.updated).
+ACTION_CATEGORIES = {"AF": "Actions de formation", "BC": "Bilans de compétences", "VAE": "Validation des acquis de l'expérience",
+                     "APPRENTISSAGE": "Actions de formation par apprentissage"}
+ORG_FIELDS = ("name", "nda_number", "siret", "action_categories", "is_new_entrant", "disability_referent_name",
+              "disability_referent_email", "mobility_referent_name")
+
+
+def _org_view(org: t.Organization | None) -> dict:
+    return {
+        "existe": org is not None,
+        **{f: getattr(org, f) if org else None for f in ORG_FIELDS},
+        "categories_possibles": [{"code": k, "libelle": v} for k, v in ACTION_CATEGORIES.items()],
+    }
+
+
+@router.get("/organisme")
+def get_organization(db: DB, _: CurrentUser) -> dict:
+    return _org_view(db.scalar(select(t.Organization)))
+
+
+class OrganizationIn(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    nda_number: str | None = Field(None, max_length=40)
+    siret: str | None = None
+    action_categories: list[str] | None = None
+    is_new_entrant: bool | None = None
+    disability_referent_name: str | None = Field(None, max_length=200)
+    disability_referent_email: str | None = Field(None, max_length=200)
+    mobility_referent_name: str | None = Field(None, max_length=200)
+
+
+@router.patch("/organisme")
+def update_organization(body: OrganizationIn, db: DB, user: SettingsManager) -> dict:
+    changes = body.model_dump(exclude_unset=True)
+    if "name" in changes and not (changes["name"] or "").strip():
+        raise InvalidStateError("Le nom de l'organisme est obligatoire")
+    if "action_categories" in changes:
+        cats = changes["action_categories"] or []
+        unknown = set(cats) - set(ACTION_CATEGORIES)
+        if unknown or not cats:
+            raise InvalidStateError("Catégories d'actions : au moins une parmi AF, BC, VAE, APPRENTISSAGE")
+        changes["action_categories"] = [c for c in ACTION_CATEGORIES if c in cats]
+    if "siret" in changes and changes["siret"]:
+        siret = changes["siret"].replace(" ", "")
+        if not (siret.isdigit() and len(siret) == 14):
+            raise InvalidStateError("SIRET : 14 chiffres")
+        changes["siret"] = siret
+    if "is_new_entrant" in changes and changes["is_new_entrant"] is None:
+        raise InvalidStateError("Nouvel entrant : oui ou non")
+    org = db.scalar(select(t.Organization))
+    if org is None:
+        if not changes.get("name"):
+            raise InvalidStateError("Le nom de l'organisme est obligatoire")
+        org = t.Organization(name=changes["name"], created_by=user.full_name)
+        db.add(org)
+    for field, value in changes.items():
+        setattr(org, field, value.strip() if isinstance(value, str) else value)
+    db.flush()
+    publish(db, "organization.updated", "organization", org.id, actor_id=user.id, payload={"champs": sorted(changes)})
+    db.commit()
+    return _org_view(org)
