@@ -113,6 +113,7 @@ export default function CommercialSectionPage() {
   return (
     <SectionLanding
       sectionId="commercial"
+      error={summary.error ?? companies.error}
       description="Les entreprises clientes, le financement de chaque inscription et les conventions à faire signer. Chaque carte ouvre le module correspondant."
       kpiLoading={companies.isLoading || summary.isLoading}
       kpis={[
