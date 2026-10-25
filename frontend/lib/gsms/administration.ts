@@ -103,6 +103,7 @@ export const useJournal = (table: string | null) =>
 
 export interface Organization {
   existe: boolean;
+  id: string | null; // sujet du dossier de pièces ORGANISME
   name: string | null;
   nda_number: string | null;
   siret: string | null;
@@ -124,7 +125,7 @@ export function useUpdateOrganization() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (
-      body: Partial<Omit<Organization, 'existe' | 'categories_possibles'>>,
+      body: Partial<Omit<Organization, 'existe' | 'id' | 'categories_possibles'>>,
     ) => api.patch<Organization>('organisme', body),
     onSuccess: (org) => qc.setQueryData(['admin', 'organisme'], org),
   });

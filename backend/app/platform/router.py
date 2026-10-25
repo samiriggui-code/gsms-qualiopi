@@ -101,6 +101,7 @@ ORG_FIELDS = ("name", "nda_number", "siret", "action_categories", "is_new_entran
 def _org_view(org: t.Organization | None) -> dict:
     return {
         "existe": org is not None,
+        "id": org.id if org else None,  # sujet du dossier de pièces ORGANISME
         **{f: getattr(org, f) if org else None for f in ORG_FIELDS},
         "categories_possibles": [{"code": k, "libelle": v} for k, v in ACTION_CATEGORIES.items()],
     }

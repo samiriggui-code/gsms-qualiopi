@@ -30,7 +30,7 @@ import { Content } from '@/components/layout/components/content';
 import { ContentHeader } from '@/components/layout/components/content-header';
 import { PageHero } from '@/components/page/page-hero';
 
-type Form = Omit<Organization, 'existe' | 'categories_possibles'>;
+type Form = Omit<Organization, 'existe' | 'id' | 'categories_possibles'>;
 
 const TEXT_FIELDS: {
   name: keyof Form;
@@ -59,7 +59,7 @@ export default function OrganizationPage() {
   const [form, setForm] = useState<Form | null>(null);
   useEffect(() => {
     if (org) {
-      const { existe: _e, categories_possibles: _c, ...rest } = org;
+      const { existe: _e, id: _i, categories_possibles: _c, ...rest } = org;
       setForm(rest);
     }
   }, [org]);
