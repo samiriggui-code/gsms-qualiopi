@@ -45,10 +45,11 @@ export interface FundingDeadline {
   session: string;
 }
 
-export const useFundingCases = () =>
+export const useFundingCases = (enabled = true) =>
   useQuery({
     queryKey: ['financement', 'dossiers'],
     queryFn: () => api.get<FundingCase[]>('financement/dossiers'),
+    enabled,
     retry: false,
   });
 

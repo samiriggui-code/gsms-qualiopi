@@ -32,6 +32,12 @@ def session_journey(session_id: str, db: DB, user: SessionsReader) -> dict:
     return service.session_journey(db, visible_session(db, user, session_id), user)
 
 
+@router.get("/parcours/synthese")
+def journey_summary(db: DB, user: SessionsReader) -> dict:
+    """Chiffres de la vue d'ensemble « Parcours apprenant » (mêmes états que les registres)."""
+    return registry.summary(db, user)
+
+
 @router.get("/parcours/registres/{vue}")
 def journey_registry(vue: str, db: DB, user: SessionsReader, session_id: str | None = None) -> dict:
     """Une étape (ou les inscriptions, abandons, examens) toutes sessions visibles confondues, ce qui presse d'abord."""

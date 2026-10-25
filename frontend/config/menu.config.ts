@@ -66,6 +66,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'pilotage',
     title: 'Pilotage',
     icon: LayoutDashboard,
+    path: '/pilotage',
     description:
       'Tableau de bord, agenda, échéances et communications de l’organisme.',
     items: [
@@ -131,6 +132,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'commercial',
     title: 'Clients & financement',
     icon: Briefcase,
+    path: '/commercial',
     description: 'Entreprises clientes, financeurs, conventions et contrats.',
     items: [
       {
@@ -273,6 +275,7 @@ export const MAIN_NAV: NavConfig = [
     id: 'parcours',
     title: 'Parcours apprenant',
     icon: School,
+    path: '/parcours',
     description:
       'Du besoin à l’attestation : inscriptions, positionnements, émargements et évaluations.',
     items: [
@@ -570,14 +573,9 @@ export const MAIN_NAV: NavConfig = [
     id: 'documents',
     title: 'Documents',
     icon: FileText,
+    path: '/documents',
     description: 'Devis et documents professionnels, relus puis archivés.',
     items: [
-      {
-        id: 'documents-accueil',
-        title: 'Accueil documents',
-        icon: FileText,
-        path: '/documents',
-      },
       {
         id: 'documents-liste',
         title: 'Devis et documents',
