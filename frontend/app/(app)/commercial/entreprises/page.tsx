@@ -18,6 +18,12 @@ interface Company extends Row {
   siret: string | null;
   contact_name: string | null;
   contact_email: string | null;
+  code: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  phone: string | null;
+  contact_role: string | null;
   learners: number;
   enrollments: number;
 }
@@ -35,7 +41,10 @@ const config: ResourceConfig<Company> = {
   },
   permission: 'write_training',
   defaultSort: { id: 'name', desc: false },
-  search: (r) => [r.name, r.siret, r.contact_name, r.contact_email].join(' '),
+  search: (r) =>
+    [r.name, r.code, r.siret, r.city, r.contact_name, r.contact_email].join(
+      ' ',
+    ),
   eyebrow: 'Clients & financement',
   description:
     'Les entreprises qui envoient des stagiaires en formation, avec leur contact et leurs inscriptions.',
@@ -53,9 +62,10 @@ const config: ResourceConfig<Company> = {
       icon: FileDigit,
     },
     {
-      label: 'Contact renseigné',
-      value: rows.filter((r) => r.contact_email).length,
-      subtitle: 'avec un email de contact',
+      label: 'Prêtes pour un devis',
+      value: rows.filter((r) => r.code && r.address && r.postal_code && r.city)
+        .length,
+      subtitle: 'code client et adresse renseignés',
       icon: Contact,
     },
     {
@@ -79,6 +89,8 @@ const config: ResourceConfig<Company> = {
       : 'Aucun contact renseigné',
     monogram: initials(r.name),
     meta: [
+      { label: 'Code client', value: r.code },
+      { label: 'Ville', value: r.city },
       { label: 'SIRET', value: r.siret },
       { label: 'Email du contact', value: r.contact_email },
       { label: 'Apprenants', value: r.learners },
@@ -87,6 +99,8 @@ const config: ResourceConfig<Company> = {
   }),
   columns: [
     titleCol('name', 'Entreprise'),
+    col('code', 'Code client', { size: 120 }),
+    col('city', 'Ville', { size: 140 }),
     col('siret', 'SIRET', { size: 160 }),
     col('contact_name', 'Contact'),
     col('contact_email', 'Email du contact', { size: 220 }),
@@ -95,9 +109,32 @@ const config: ResourceConfig<Company> = {
   ],
   fields: [
     { name: 'name', label: 'Raison sociale', type: 'text', required: true },
+    {
+      name: 'code',
+      label: 'Code client',
+      type: 'text',
+      span: 1,
+      placeholder: 'SECU69',
+      help: '2 à 12 lettres ou chiffres. Les devis du client sont numérotés avec ce code (DEV-SECU69-001).',
+    },
     { name: 'siret', label: 'SIRET', type: 'text', span: 1 },
+    { name: 'address', label: 'Adresse', type: 'text' },
+    { name: 'postal_code', label: 'Code postal', type: 'text', span: 1 },
+    { name: 'city', label: 'Ville', type: 'text', span: 1 },
+    { name: 'phone', label: 'Téléphone', type: 'tel', span: 1 },
     { name: 'contact_name', label: 'Contact', type: 'text', span: 1 },
-    { name: 'contact_email', label: 'Email du contact', type: 'email' },
+    {
+      name: 'contact_role',
+      label: 'Fonction du contact',
+      type: 'text',
+      span: 1,
+    },
+    {
+      name: 'contact_email',
+      label: 'Email du contact',
+      type: 'email',
+      span: 1,
+    },
   ],
   deleteMessage: (r) =>
     `Supprimer « ${r.name} » ? Ses ${r.learners} apprenant(s) et ${r.enrollments} inscription(s) seront conservés mais détachés de l'entreprise.`,

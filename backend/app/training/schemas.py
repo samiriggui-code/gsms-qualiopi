@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, field_serializer
 
 
 class ORM(BaseModel):
@@ -324,8 +324,22 @@ class PartnerIn(BaseModel):
     last_contact_on: date | None = None
 
 
+def _upper(value: object) -> object:
+    return value.strip().upper() if isinstance(value, str) else value
+
+
+# Code court d'un client (lettres et chiffres) : préfixe de la suite de ses devis.
+ClientCode = Annotated[str, BeforeValidator(_upper), StringConstraints(pattern=r"^[A-Z0-9]{2,12}$")]
+
+
 class CompanyIn(BaseModel):
     name: str
     siret: str | None = None
     contact_name: str | None = None
     contact_email: str | None = None
+    code: ClientCode | None = None
+    address: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    contact_role: str | None = None

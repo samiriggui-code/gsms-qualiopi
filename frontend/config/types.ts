@@ -24,6 +24,8 @@ export interface NavItem {
     path: string;
   };
   spec?: PageSpec;
+  // Écran pas encore construit : la route affiche la fiche de cadrage (app/(app)/[...slug])
+  draft?: boolean;
 }
 
 // Section de la sidebar. Sans titre : entrées affichées à plat en tête de menu.
@@ -32,6 +34,10 @@ export interface NavSection {
   id: string;
   title?: string;
   icon?: LucideIcon;
+  // Phrase de la carte de section sur l'accueil global
+  description?: string;
+  // Page d'atterrissage de la section, quand elle existe (sinon l'accueil global ouvre le premier module)
+  path?: string;
   items: NavItem[];
 }
 

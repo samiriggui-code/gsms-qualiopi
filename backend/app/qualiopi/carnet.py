@@ -10,7 +10,6 @@ Rien n'est ajouté aux textes : un conseil ou une bonne pratique n'y figure jama
 
 from __future__ import annotations
 
-import base64
 import difflib
 import re
 from collections import defaultdict
@@ -18,10 +17,10 @@ from datetime import date
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
-from markupsafe import Markup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.rendu_a4 import css_string, date_fr, logo_css
 from app.qualiopi.capa.models import CapaAction
 from app.qualiopi.capa.policy import STATUS_LABELS
 from app.qualiopi.evaluation.models import ControlResult, Finding
@@ -219,33 +218,10 @@ ETATS = {
 BAR = (("DEMONTRABLE", "Démontrables", "#16a34a"), ("A_RISQUE", "À risque", "#eab308"),
        ("PREUVES_INSUFFISANTES", "Preuves insuffisantes", "#dc2626"), ("NON_EVALUABLE", "Revue humaine", "#6b7280"),
        ("NON_EVALUE", "Non évalués", "#d1d5db"))
-MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
-          "novembre", "décembre")
 TEMPLATE_DIR = Path(__file__).resolve().parents[2] / "config" / "qualiopi"
 _env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=select_autoescape(["html"]),
                    undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)
-
-
-def _fr(iso: str | None) -> str:
-    if not iso:
-        return ""
-    d = date.fromisoformat(iso[:10])
-    return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
-
-
-LOGO = Path(__file__).resolve().parents[2] / "config" / "organisme" / "logo.png"
-
-
-def _css_string(text: str) -> Markup:
-    """Texte sûr dans une chaîne CSS (content: "…"), non réencodé par l'échappement HTML."""
-    return Markup(text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " "))
-
-
-def _logo_css() -> Markup:
-    """Logo de l'organisme pour l'en-tête (image de fond de la zone de marge, mise à l'échelle par le CSS)."""
-    if not LOGO.exists():
-        return Markup("none")
-    return Markup(f'url("data:image/png;base64,{base64.b64encode(LOGO.read_bytes()).decode()}")')
+_fr = date_fr
 
 
 def render_book(book: dict) -> str:
@@ -268,9 +244,9 @@ def render_book(book: dict) -> str:
         organisme=book["organisme"], session=book["session"], referentiel=book["referentiel"],
         prochaine_version={**nxt, "en_vigueur_le_fr": _fr(nxt["en_vigueur_le"])} if nxt else None,
         edite_le=_fr(book["edite_le"]), avertissement=book["avertissement"], etats=ETATS,
-        logo_css=_logo_css(),
-        perimetre_css=_css_string(f" — session {book['session']['reference']}" if book["session"] else ""),
-        pied_css=_css_string(" · ".join(x for x in (
+        logo_css=logo_css(),
+        perimetre_css=css_string(f" — session {book['session']['reference']}" if book["session"] else ""),
+        pied_css=css_string(" · ".join(x for x in (
             org.get("nom"), f"NDA {org['nda']}" if org.get("nda") else None,
             f"SIRET {org['siret']}" if org.get("siret") else None, f"édité le {_fr(book['edite_le'])}") if x)),
         fiches=fiches, criteres=criteres,

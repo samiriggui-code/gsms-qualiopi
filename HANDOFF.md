@@ -58,6 +58,9 @@ cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r req
 export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
 export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 alembic upgrade head && python -m app.cli seed-demo
+# seed-demo marche aussi sur une base déjà importée (Form'SSI, GSMS School) : les exemples (sessions,
+# apprenants, formateurs, réclamations… créés par « démo ») rejoignent l'organisme existant sans le modifier.
+# python -m app.cli retirer-demo les retire tous avant la mise en service réelle.
 uvicorn app.main:app --reload          # :8000, doc sur /docs
 python -m app.worker                   # second terminal
 
@@ -253,6 +256,107 @@ Qualité/Documents, Tableau de bord.
   par filière, vue grille (`session-card.tsx`) ou tableau ; la fiche reste `/formation/sessions/[id]` ;
 - `/agenda` (nouvelle page) : planning semaine (une ligne par session, lun.–sam.) ou mois, KPI de la période,
   jour par jour sur téléphone ; lecture seule, rien n'y est créé.
+
+## 5 septies. Modèles de page : page témoin (13/10/2026)
+
+Demande du propriétaire : une page témoin des modèles (sections, cartes, tableaux, graphiques) que toutes les pages
+suivent, chaque page n'ajoutant que ses détails. Elle est sous **Administration › Modèles de page**
+(`app/(app)/administration/modeles`), montée sur les vraies données (sessions, échéancier, organisme).
+
+- Trois modèles : **accueil de module** (bandeau de titre ; 4 chiffres en pavé 2 × 2 + encart d'accueil ; donut
+  de répartition + courbe d'évolution ; alertes + tableau, en lignes 1/3 – 2/3), **liste** (bandeau, 5 cartes
+  chiffres, carte de filtres, grille ou tableau), **fiche** (grand panneau : bandeau, colonne de gauche, onglets,
+  pied d'actions). Un onglet « Pages » dit quelle page suit quel modèle et où elle en est.
+- Briques communes dans `components/page/` : `PageHero`, `KpiRow` (option `tiles`), `SectionCard`,
+  `LandingRow`, `SectionEmpty`, `WelcomeCallout`, `DonutCard`, `EvolutionCard`, `AlertListCard`,
+  `RecordSheet` (+ `SideCard`, `SideLine`). Toute nouvelle page les utilise au lieu de recréer sa mise en forme.
+- Les graphiques ne calculent rien de métier : ils dessinent des comptes de la liste chargée ou de l'API, et
+  disent « pas de données » quand il n'y en a pas.
+
+## 5 octies. Documents professionnels : devis (13/10/2026, étapes 0 et 1)
+
+Module local, sans service externe ni lien avec GSMS-Security ou un moteur de propositions central.
+
+- **Étape 0** : chaque entreprise cliente porte un **code** (2 à 12 lettres ou chiffres, unique), une adresse et
+  un téléphone. Réglages datés du domaine `documents` (Paramètres › Documents) : coordonnées de l'organisme,
+  régime de TVA (`NON_RENSEIGNE` par défaut, réglage réglementaire : rien n'est supposé), validité des devis,
+  conditions de paiement, mentions.
+- **Étape 1** : schéma `edition` (`projet`, `ligne`, `etape`, migration 0020), code dans `backend/app/editions/`.
+  Seul le type **DEVIS** est construit ; les autres types sont déclarés mais refusés (`NOT_BUILT`).
+  Numéro par client : `DEV-<CODE>-001`, suite propre à chaque client (`next_reference`).
+- Circuit : brouillon → relecture → validé → envoyé → archivé (ou abandonné). Les vérifications (SIRET,
+  adresses, régime de TVA, prix manquant ou « à confirmer ») bloquent la soumission et la validation.
+  Chaque validation archive une version HTML figée dans `formation.document` (empreinte SHA-256, la précédente
+  passe « remplacée »). Les événements `edition.*` n'entrent pas dans le moteur Qualiopi.
+- Rendu A4 : `config/documents_pro/` (imprimé ou enregistré en PDF par le navigateur). Les helpers communs avec
+  le carnet d'audit sont dans `app/core/rendu_a4.py` ; le carnet n'a pas changé (sortie identique octet pour octet).
+- Front : section **Documents** (accueil, liste, fiche) sur les modèles de page ; droits `documents.read`,
+  `documents.write`, `documents.validate`.
+
+## 5 nonies. Accueil global (13/10/2026)
+
+Demande du propriétaire : un niveau « Accueil » au-dessus des sections, comme dans l'ancien front GSMS School
+(gsms-school-aps, archivé dans `/mnt/project-files/archives/gsms-school-aps.bundle`, captures dans
+`/mnt/project-files/captures/ancien-front/`). Chaîne visée : Accueil global → section → accueil de module → liste
+→ fiche.
+
+- `/accueil` (`frontend/app/(app)/accueil/page.tsx`) : compteurs (sessions à venir, indicateurs démontrables,
+  écarts ouverts, actions en retard), « À surveiller » (actions correctives et échéances en retard, habilitations
+  à renouveler), prochaine session, puis une carte par section du menu.
+- Chaque carte liste les modules de la section et les indicateurs qu'elle alimente (`spec.indicators` du menu),
+  avec l'état que le carnet d'audit donne à chacun. Aucun état n'est calculé côté front.
+- « Accueil » est la première entrée du menu ; c'est la page d'arrivée après connexion et le lien du logo.
+  Le tableau de bord reste à `/`.
+- `NavSection.description` : phrase de chaque section, reprise sur sa carte.
+- Reste : les pages d'atterrissage de section ; les cartes ouvriront alors la section au lieu du premier module.
+
+## 5 decies. Page de section Offre de formation (13/10/2026)
+
+Niveau 1 de la navigation (accueil global → section → accueil de module → liste → fiche) : `/formation`.
+- `NavSection.path` déclare la page d'une section ; la sidebar ajoute alors « Vue d’ensemble » en tête de la
+  section (active seulement sur cette page) et la carte de l'accueil global ouvre la section.
+- Contenu : bandeau, 5 KPI du catalogue, sessions par statut et par mois, « À traiter » (fiches non validées,
+  points à arbitrer, lieux à vérifier, matériel en retard de vérification), carte « Moteur Qualiopi » (une
+  ligne par indicateur de la section, état du carnet, lien vers `/qualiopi/carnet?i=N`), une carte par module.
+- Briques réutilisables : `components/page/engine-states.tsx` (états du moteur pour une liste d'indicateurs)
+  et `components/page/module-card.tsx` (carte de module).
+- Les indicateurs d'une section viennent de `spec.indicators` du menu : Résultats (2, 3), Ressources (19),
+  Locaux et Moyens (17) y ont été ajoutés.
+- Suite : accueil du module Programmes (la page actuelle devient la liste), fiche formation reliée au moteur,
+  puis les pages des autres sections.
+
+## 5 undecies. Accueil du module Programmes (13/10/2026)
+
+- `/formation/programmes` est l'accueil du module (modèle « accueil de module ») ; le catalogue est à
+  `/formation/programmes/liste`, qui ouvre la fiche d'une formation par l'adresse (`?id=`) et le formulaire de
+  création par `?nouveau=1`.
+- Contenu : 4 tuiles du catalogue, encart d'accueil, formations par filière, sessions des six prochains mois,
+  « À arbitrer » (points, rubriques manquantes, fiche à valider), carte « Moteur Qualiopi » des indicateurs du
+  module (1, 5, 6, 7), prochaines formations.
+- `components/page/engine-card.tsx` : la carte « Moteur Qualiopi », partagée avec la page de section.
+- Suite : relier la fiche formation au moteur (onglet Qualiopi : contrôles, preuves, pièces).
+
+## 5 duodecies. Fiche formation reliée au moteur (13/10/2026)
+
+- API `GET /api/v1/qualiopi/formations/{id}` (`app/qualiopi/ecrans.py`, lecture qualité) : par indicateur, l'état
+  calculé (`readiness_of`) sur les contrôles de la formation et de ses sessions, le détail de chaque contrôle,
+  les preuves rattachées à la formation ou à ses sessions, les écarts ouverts. Les éléments de l'organisme
+  restent dans le carnet. Test : `test_vue_qualiopi_d_une_formation`.
+- Onglet « Qualiopi » de la fiche formation (`components/catalogue/formation-qualiopi.tsx`), visible avec
+  `read_quality` : synthèse, indicateurs dépliables (contrôles, constaté, manques, lien vers le carnet),
+  écarts ouverts, preuves.
+- Suite : pages des autres sections et accueils de module sur le même modèle.
+
+## 5 terdecies. Pages des sections RH, Qualité et Qualiopi (13/10/2026)
+
+- Gabarit commun `components/page/section-landing.tsx` (bandeau, KPI, graphiques fournis par la page,
+  « À traiter » + carte « Moteur Qualiopi », une carte par module). `/formation` l'utilise aussi.
+- Nouvelles pages : `/rh`, `/qualite`, `/qualiopi` (déclarées par `path` sur leur section du menu).
+- `NavItem.draft` marque les entrées sans écran (route de cadrage `[...slug]`) : badge « À construire » sur
+  les cartes de module et l'accueil global. Retirer `draft` quand l'écran est créé.
+- `lib/months.ts` : fenêtre de mois et comptage par mois pour les courbes.
+- Restent sans page de section : Pilotage (le tableau de bord en tient lieu), Clients & financement et
+  Parcours apprenant (la plupart de leurs modules sont encore à construire), Administration.
 
 ## 6. Prochaine étape : front avec Metronic
 
