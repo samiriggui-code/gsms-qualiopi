@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.db import utcnow
@@ -15,7 +15,7 @@ from app.qualiopi.schedule.models import MilestoneStatus
 from app.relances.conditions import CONDITIONS, LABELS, Ctx
 from app.relances.models import Message
 from app.relances.rules import rule as find_rule
-from app.relances.sender import get_sender
+from app.relances.sender import MESSAGE_REASONS, config_problem, explain, get_sender
 from app.training import models as t
 
 MAX_ATTEMPTS = 3
@@ -64,7 +64,7 @@ def _send(db: Session, msg: Message, today: date) -> None:
             reply_to=config.get("relances.adresse_reponse", at=today) or None,
         )
     except Exception as exc:  # noqa: BLE001 — toute erreur d'envoi est tracée sur le message
-        msg.last_error = f"{type(exc).__name__}: {exc}"[:2000]
+        msg.last_error = f"{explain(exc)} — {type(exc).__name__}: {exc}"[:2000]
         if msg.attempts >= MAX_ATTEMPTS:
             msg.status = "ECHEC"
         return
@@ -108,6 +108,26 @@ def retry(db: Session, msg: Message, today: date | None = None) -> Message:
     msg.status, msg.attempts = "PREVU", 0
     _send(db, msg, today or date.today())
     return msg
+
+
+def delivery_status(db: Session) -> dict:
+    """L'envoi marche-t-il ? Sans ce signal, valider un message le menait en échec sans que personne ne sache pourquoi.
+
+    EN_PANNE   le dernier échec vient du serveur (compte, connexion, expéditeur) et rien n'est parti depuis ;
+    A_VERIFIER le réglage semble incomplet et aucun envoi n'a encore réussi ;
+    OK         sinon. Un destinataire refusé reste un échec du message, sans bandeau."""
+    last_ok = db.scalar(select(func.max(Message.sent_at)).where(Message.status == "ENVOYE"))
+    out = {"etat": "OK", "motif": None, "dernier_envoi": last_ok.isoformat() if last_ok else None}
+    # Dernier essai raté, même s'il reste des tentatives (PREVU avec erreur) : la panne se voit dès le premier.
+    failed = db.scalar(select(Message).where(Message.status.in_(("ECHEC", "PREVU")), Message.last_error.is_not(None))
+                       .order_by(Message.updated_at.desc()).limit(1))
+    reason = (failed.last_error or "").split(" — ")[0] if failed is not None else ""
+    if reason and reason not in MESSAGE_REASONS and (last_ok is None or failed.updated_at > last_ok):
+        return out | {"etat": "EN_PANNE", "motif": reason}
+    problem = config_problem()
+    if problem and last_ok is None:
+        return out | {"etat": "A_VERIFIER", "motif": problem}
+    return out
 
 
 def message_view(msg: Message, full: bool = False) -> dict:

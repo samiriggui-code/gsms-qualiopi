@@ -118,3 +118,50 @@ export function useReevaluate() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['qualiopi'] }),
   });
 }
+
+// Vue Qualiopi d'une formation (/qualiopi/formations/{id}) : par indicateur, l'état calculé par le moteur sur
+// les contrôles de la formation et de ses sessions, ses preuves et ses écarts ouverts.
+export interface FormationQualiopi {
+  formation: { id: string; code: string; titre: string };
+  sessions: number;
+  indicateurs: {
+    numero: number;
+    nom: string;
+    etat: ReadinessStatus;
+    controles: Omit<ControlResultRow, 'indicateur' | 'controle'>[];
+  }[];
+  preuves: {
+    total: number;
+    exploitables: number;
+    liste: {
+      id: string;
+      reference: string;
+      libelle: string;
+      type_libelle: string;
+      statut: string;
+      statut_libelle: string;
+      cible: string;
+      produite_le: string | null;
+      document_id: string | null;
+      indicateurs: number[];
+    }[];
+  };
+  ecarts: {
+    id: string;
+    reference: string;
+    indicateur: number;
+    titre: string;
+    a_faire: string;
+    statut_libelle: string;
+    session_id: string | null;
+    constate_le: string | null;
+  }[];
+  avertissement: string;
+}
+
+export const useFormationQualiopi = (id: string | undefined, enabled = true) =>
+  useQuery({
+    queryKey: ['qualiopi', 'formation', id],
+    queryFn: () => api.get<FormationQualiopi>(`qualiopi/formations/${id}`),
+    enabled: enabled && !!id,
+  });

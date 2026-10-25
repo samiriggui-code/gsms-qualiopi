@@ -38,12 +38,20 @@ export interface Message {
   texte?: string;
 }
 
+// État de l'envoi décidé par l'API (réglage SMTP incomplet, dernier envoi en échec).
+export interface Delivery {
+  etat: 'OK' | 'A_VERIFIER' | 'EN_PANNE';
+  motif: string | null;
+  dernier_envoi: string | null;
+}
+
 export const useMessages = () =>
   useQuery({
     queryKey: ['communications'],
     queryFn: () =>
       api.get<{
         compteurs: Partial<Record<MessageStatus, number>>;
+        envoi: Delivery;
         messages: Message[];
       }>('communications'),
   });

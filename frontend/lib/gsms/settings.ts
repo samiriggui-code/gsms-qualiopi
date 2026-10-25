@@ -125,3 +125,16 @@ export function useToggleFeature() {
     },
   });
 }
+
+// Démarrage : personne connectée et organisme (backend/app/platform/router.py, /bootstrap).
+export interface Bootstrap {
+  user: { id: string; email: string; full_name: string; roles: string[] };
+  organization: { id: string; name: string; short_name: string } | null;
+}
+
+export const useBootstrap = () =>
+  useQuery({
+    queryKey: ['bootstrap'],
+    queryFn: () => api.get<Bootstrap>('bootstrap'),
+    staleTime: 5 * 60 * 1000,
+  });

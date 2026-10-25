@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronRight, Plus } from 'lucide-react';
+import { ChevronRight, LayoutGrid, Plus } from 'lucide-react';
 import { MAIN_NAV } from '@/config/menu.config';
 import type { NavItem, NavSection } from '@/config/types';
 import { Badge } from '@/components/ui/badge';
@@ -114,8 +114,28 @@ function NavItems({ items }: { items: NavItem[] }) {
   );
 }
 
+// Une page de section (/formation) n'est active que pour elle-même, pas pour les modules qu'elle contient.
+const SECTION_PATHS = new Set(
+  MAIN_NAV.flatMap((section) => (section.path ? [section.path] : [])),
+);
+
 const matches = (path: string, pathname: string) =>
-  path === pathname || (path.length > 1 && pathname.startsWith(path));
+  path === pathname ||
+  (path.length > 1 && !SECTION_PATHS.has(path) && pathname.startsWith(path));
+
+// Entrées d'une section : sa page d'atterrissage en tête quand elle existe, puis ses modules.
+const sectionItems = (section: NavSection): NavItem[] =>
+  section.path
+    ? [
+        {
+          id: `${section.id}-vue`,
+          title: 'Vue d’ensemble',
+          icon: LayoutGrid,
+          path: section.path,
+        },
+        ...section.items,
+      ]
+    : section.items;
 
 // Rubriques repliées par défaut : seule celle de la page en cours s'ouvre ; les choix de l'utilisateur
 // sont gardés dans le navigateur.
@@ -131,7 +151,8 @@ function readOpenSections(): Record<string, boolean> {
 
 function NavGroup({ section }: { section: NavSection }) {
   const pathname = usePathname();
-  const active = section.items.some((item) => matches(item.path, pathname));
+  const items = sectionItems(section);
+  const active = items.some((item) => matches(item.path, pathname));
   const [isOpen, setIsOpen] = useState(active);
   const { sidebarCollapse } = useLayout();
 
@@ -156,7 +177,7 @@ function NavGroup({ section }: { section: NavSection }) {
   if (sidebarCollapse) {
     return (
       <div className="px-(--sidebar-space-x) border-t border-border pt-3.5">
-        <NavItems items={section.items} />
+        <NavItems items={items} />
       </div>
     );
   }
@@ -172,7 +193,7 @@ function NavGroup({ section }: { section: NavSection }) {
         <span>{section.title}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <NavItems items={section.items} />
+        <NavItems items={items} />
       </CollapsibleContent>
     </Collapsible>
   );

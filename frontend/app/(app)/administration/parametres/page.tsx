@@ -87,6 +87,11 @@ const TABS: {
     label: 'Relances',
     sections: [{ domain: 'relances', title: 'Envoi des messages' }],
   },
+  {
+    id: 'documents',
+    label: 'Documents',
+    sections: [{ domain: 'documents', title: 'Devis et documents' }],
+  },
 ];
 
 // Libellés affichés quand celui de l'API se lit mal avec le champ proposé

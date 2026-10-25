@@ -4,6 +4,7 @@ from app.auth import models as _auth  # noqa: F401
 from app.core import journal as _journal  # noqa: F401
 from app.core.db import Base
 from app.documents import models as _documents  # noqa: F401
+from app.editions import models as _editions  # noqa: F401
 from app.edof import models as _edof  # noqa: F401
 from app.events import models as _events  # noqa: F401
 from app.funding import models as _funding  # noqa: F401
@@ -21,5 +22,5 @@ from app.questionnaires import models as _questionnaires  # noqa: F401
 from app.relances import models as _relances  # noqa: F401
 from app.training import models as _training  # noqa: F401
 
-SCHEMAS = ("iam", "config", "formation", "qualite", "rh", "financement", "communication", "edof")
+SCHEMAS = ("iam", "config", "formation", "qualite", "rh", "financement", "communication", "edof", "edition")
 metadata = Base.metadata

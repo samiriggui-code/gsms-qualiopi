@@ -29,6 +29,7 @@ export const ROLE_LABELS: Record<string, string> = {
 
 // N'accepte qu'un chemin interne, pour éviter les redirections ouvertes.
 export function safeCallbackUrl(value: string | null | undefined): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/';
+  if (!value || !value.startsWith('/') || value.startsWith('//'))
+    return '/accueil';
   return value;
 }
