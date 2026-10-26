@@ -10,6 +10,7 @@ from app.types import event as _events  # noqa: F401
 from app.types import funding as _funding  # noqa: F401
 from app.types import hr as _hr  # noqa: F401
 from app.types import platform as _platform  # noqa: F401
+from app.types import preinscriptions as _preinscriptions  # noqa: F401
 from app.types import qualiopi_audit as _audit  # noqa: F401
 from app.types import qualiopi_capa as _capa  # noqa: F401
 from app.types import qualiopi_cycle as _cycle  # noqa: F401

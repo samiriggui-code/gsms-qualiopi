@@ -9,6 +9,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import i18n from '@/i18n'
 import { normalizeSettingsSection } from '@/config/settingsRoute'
 import { isToolboxSection, toolboxLocation } from '@/config/toolbox'
+import { gsmsRoutes } from './gsmsRoutes'
 
 /** Lite /桌面 WebView 硬刷新时可能只打开 `/`，用 session 记住上次页面以便恢复 */
 const LITE_LAST_PATH_KEY = 'weknora_lite_last_path'
@@ -190,6 +191,8 @@ const router = createRouter({
           component: () => import("../views/chat/index.vue"),
           meta: { requiresInit: true, requiresAuth: true }
         },
+        // ── Pages métier Qualiopi (API qualiopi, docs/API.md) ──────────────────────────
+        ...gsmsRoutes,
         {
           path: "organizations",
           name: "organizationList",

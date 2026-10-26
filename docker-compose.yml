@@ -74,6 +74,9 @@ services:
     env_file: [ia/.env]
     environment:
       FRONTEND_BASE_URL: ${PUBLIC_URL:-}
+      # Le moteur IA bloque par défaut les adresses internes (SSRF) : on autorise l'API Qualiopi (service « api »),
+      # dont il consomme le serveur MCP (http://api:8000/api/v1/mcp).
+      SSRF_WHITELIST_EXTRA: api
     depends_on:
       ia-postgres:
         condition: service_healthy

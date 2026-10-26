@@ -29,7 +29,9 @@ function headingIds(markdown: string): Set<string> {
   return ids
 }
 
-test('every linked doc page and anchor exists in website-docs', () => {
+// Le dossier website-docs/ vient du dépôt WeKnora d'origine : il n'est pas livré dans ce dépôt.
+// Le contrôle des liens ne s'applique donc que si ce dossier est présent à côté de app/.
+test('every linked doc page and anchor exists in website-docs', { skip: !existsSync(WEBSITE_DOCS) && 'website-docs/ absent de ce dépôt' }, () => {
   for (const [key, target] of Object.entries(DOC_PAGES)) {
     const [page, anchor] = target.split('#')
     const file = resolve(WEBSITE_DOCS, page ? `${page}.md` : 'index.md')

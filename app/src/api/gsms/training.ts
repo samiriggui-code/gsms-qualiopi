@@ -4,6 +4,14 @@
  */
 import { http } from './http'
 
-/** Ressources CRUD lues dans « Moyens et partenaires » (écriture non branchée dans la coque). */
+/** Ressources CRUD de « Moyens et partenaires ». */
 export type MoyenResource = 'premises' | 'equipment' | 'subcontractors' | 'partners' | 'watch-items'
-export const listMoyens = (resource: MoyenResource) => http.get<Record<string, unknown>[]>(`/${resource}`)
+export type MoyenRow = Record<string, unknown> & { id: string }
+
+export const listMoyens = (resource: MoyenResource) => http.get<MoyenRow[]>(`/${resource}`)
+export const createMoyen = (resource: MoyenResource, data: Record<string, unknown>) =>
+  http.post<MoyenRow>(`/${resource}`, data)
+export const updateMoyen = (resource: MoyenResource, id: string, data: Record<string, unknown>) =>
+  http.patch<MoyenRow>(`/${resource}/${encodeURIComponent(id)}`, data)
+export const deleteMoyen = (resource: MoyenResource, id: string) =>
+  http.delete<void>(`/${resource}/${encodeURIComponent(id)}`)

@@ -4,13 +4,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.application.service.qualiopi.engine import process_pending
+from app.application.service.qualiopi.engine import process_pending, refresh_all
 from app.event.publish import publish
 from app.types import training as t
 from app.types.event import OutboxEvent
 from app.types.qualiopi_evaluation import ControlResult, EvaluationRun
 from app.types.qualiopi_evidence import Evidence
-from tests.conftest import TODAY, find_session
+from tests.conftest import TODAY, find_session, make_user
 
 
 def _add_positioning(db: Session) -> t.TrainingSession:
@@ -85,3 +85,66 @@ def test_reconciliation_ciblee_ne_retire_rien_hors_perimetre(demo: Session) -> N
     assert result["evidence"]["retired"] == 0 and result["evidence"]["created"] == 1
     after = {e.id: e.status for e in demo.scalars(select(Evidence))}
     assert {k: v for k, v in after.items() if k in before} == before
+
+
+def _trainer_evidence(db: Session, evidence_type: str, source_id: str) -> Evidence | None:
+    return db.scalar(select(Evidence).where(Evidence.evidence_type == evidence_type, Evidence.source_id == source_id))
+
+
+def test_titre_et_developpement_du_formateur_reevalues(client, demo: Session) -> None:  # noqa: ANN001
+    """Les événements d'un titre ou d'une action de développement portent le formateur : ses preuves suivent."""
+    _, h = make_user(demo, "gestion")
+    trainer_id = find_session(demo, "SST-2026-04").trainer_id
+    other_id = next(x.id for x in demo.scalars(select(t.Trainer)) if x.id != trainer_id)
+    r = client.post("/api/v1/trainer-qualifications", headers=h,
+                    json={"trainer_id": trainer_id, "label": "Recyclage SST", "obtained_on": TODAY.isoformat()})
+    assert r.status_code == 201, r.text
+    qualification_id = r.json()["id"]
+    r = client.post("/api/v1/staff-development", headers=h,
+                    json={"trainer_id": trainer_id, "label": "Formation de formateur", "completed_on": TODAY.isoformat()})
+    assert r.status_code == 201, r.text
+    action_id = r.json()["id"]
+
+    result = process_pending(demo, today=TODAY)
+    demo.commit()
+    assert result["org"] is False, "un changement propre à un formateur ne réévalue pas tout l'organisme"
+    assert _trainer_evidence(demo, "TRAINER_QUALIFICATION", qualification_id).trainer_id == trainer_id
+    assert _trainer_evidence(demo, "STAFF_DEVELOPMENT", action_id).trainer_id == trainer_id
+
+    # Titre rattaché à un autre formateur : l'ancien et le nouveau sont dans le périmètre, la preuve suit.
+    r = client.patch(f"/api/v1/trainer-qualifications/{qualification_id}", headers=h, json={"trainer_id": other_id})
+    assert r.status_code == 200, r.text
+    process_pending(demo, today=TODAY)
+    demo.commit()
+    demo.expire_all()
+    assert _trainer_evidence(demo, "TRAINER_QUALIFICATION", qualification_id).trainer_id == other_id
+
+
+def test_titre_ajoute_depuis_la_fiche_rh_reevalue(client, demo: Session) -> None:  # noqa: ANN001
+    _, ha = make_user(demo, "admin")
+    _, hr = make_user(demo, "rh")
+    client.put("/api/v1/features/hr", json={"enabled": True}, headers=ha)
+    trainer_id = find_session(demo, "SST-2026-04").trainer_id
+    r = client.post(f"/api/v1/formateurs/{trainer_id}/titres", headers=hr,
+                    json={"kind": "AUTRE", "label": "Habilitation électrique", "obtained_on": TODAY.isoformat()})
+    assert r.status_code == 201, r.text
+    result = process_pending(demo, today=TODAY)
+    demo.commit()
+    assert result["events"] >= 1
+    assert _trainer_evidence(demo, "TRAINER_QUALIFICATION", r.json()["id"]).trainer_id == trainer_id
+
+
+def test_piece_retiree_de_la_configuration_ne_bloque_pas_la_reconciliation(demo: Session) -> None:
+    """Une pièce déposée dont le code a disparu de config/dossiers n'est plus une preuve, sans faire échouer le lot."""
+    org = demo.scalar(select(t.Organization))
+    doc = t.Document(kind="PIECE", title="Ancienne pièce", entity_type="ORGANISME", entity_id=org.id, status="EMIS",
+                     requirement="PIECE_RETIREE_DE_LA_CONFIGURATION")
+    demo.add(doc)
+    demo.flush()
+    publish(demo, "document.issued", "document", doc.id)
+    demo.commit()
+    result = process_pending(demo, today=TODAY)
+    demo.commit()
+    assert result["events"] == 1 and result["org"] is True
+    assert demo.scalar(select(Evidence).where(Evidence.source_id == doc.id)) is None
+    assert refresh_all(demo, trigger="test", today=TODAY)["results"] > 0

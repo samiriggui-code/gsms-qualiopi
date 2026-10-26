@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     weknora_service_email: str = ""
     weknora_service_password: str = ""
     weknora_service_name: str = "GSMS Qualiopi"
+    # Serveur MCP de l'API, tel que le moteur IA le joint (même réseau compose : service « api »).
+    ia_mcp_url: str = "http://api:8000/api/v1/mcp"
+    # Compte technique GSMS au nom duquel l'assistant IA lit le moteur Qualiopi (rôle « assistant_ia »).
+    ia_compte_technique_email: str = "assistant-ia@gsms.local"
 
     @property
     def cors_origin_list(self) -> list[str]:

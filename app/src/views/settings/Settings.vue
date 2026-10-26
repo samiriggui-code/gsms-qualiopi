@@ -2,7 +2,7 @@
   <SettingsModalShell :visible="visible" :title="$t('general.settings')" overlay-class="all-settings-overlay"
     @close="modalShell.requestClose">
     <template #nav>
-      <template v-for="group in navGroups" :key="group.key">
+      <template v-for="group in allNavGroups" :key="group.key">
         <div class="nav-group-title">{{ group.label }}</div>
         <template v-for="item in group.items" :key="item.key">
           <div :class="['nav-item', {
@@ -67,6 +67,11 @@
         <div class="role-denied-desc">{{ $t('settings.roleDenied.desc') }}</div>
       </div>
       <template v-else>
+        <!-- Paramètres Qualiopi (API qualiopi, views/settings/gsms) -->
+        <div v-if="currentGsmsSection && gsmsAccessLoaded" class="section">
+          <component :is="currentGsmsSection.component" :key="currentGsmsSection.key" />
+        </div>
+
         <!-- 常规设置 -->
         <div v-if="currentSection === 'general'" class="section">
           <GeneralSettings />
@@ -213,6 +218,9 @@ import PlatformAPIKeys from '@/views/system/PlatformAPIKeys.vue'
 import SystemAuditLog from '@/views/system/SystemAuditLog.vue'
 import IntegrationSettingsSection from '@/views/integrations/IntegrationSettingsSection.vue'
 import { HIDDEN_SETTINGS_SECTIONS } from '@/config/gitssFeatures'
+import { GSMS_SECTIONS, isGsmsSection } from './gsms/sections'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { tokenStorage as gsmsToken } from '@/api/gsms/http'
 import {
   INTEGRATION_PREVIEW_ITEMS,
   INTEGRATION_TAB_CAPABILITY,
@@ -299,7 +307,24 @@ const syncSettingsRoute = (sectionKey: string) => {
   })
 }
 
+// ── Sections Qualiopi : visibles selon les droits et modules du compte (GET /api/v1/bootstrap) ──
+const gsmsAccess = useGsmsAccessStore()
+// Droits connus : bootstrap reçu, refus de l'API, ou aucun compte Qualiopi connecté.
+const gsmsAccessLoaded = computed(() => !!gsmsAccess.bootstrap || !!gsmsAccess.error || !gsmsToken.get())
+const gsmsItems = computed(() => GSMS_SECTIONS.filter((s) => s.visible(gsmsAccess)))
+const currentGsmsSection = computed(() => gsmsItems.value.find((s) => s.key === currentSection.value) ?? null)
+const gsmsNavGroups = computed<NavGroup[]>(() => gsmsItems.value.length
+  ? [{
+      key: 'gsms',
+      label: t('gsms.parametres.navGroup'),
+      items: gsmsItems.value.map(({ key, icon, labelKey }) => ({ key, icon, label: t(labelKey) })),
+    }]
+  : [])
+const allNavGroups = computed(() => [...gsmsNavGroups.value, ...navGroups.value])
+const visibleSectionKeys = computed(() => [...gsmsItems.value.map((s) => s.key), ...navItems.value.map((i) => i.key)])
+
 const isSectionSupported = (key: string): boolean => {
+  if (isGsmsSection(key)) return true
   if (HIDDEN_SETTINGS_SECTIONS.has(key)) return false
   if (isIntegrationSection(key)) {
     return deploymentCapabilities.isSupported(
@@ -313,6 +338,10 @@ const isSectionSupported = (key: string): boolean => {
 }
 
 const canSeeSection = (key: string): boolean => {
+  if (isGsmsSection(key)) {
+    if (!gsmsAccessLoaded.value) return true
+    return gsmsItems.value.some((s) => s.key === key)
+  }
   if (isIntegrationSection(key)) {
     const min = INTEGRATION_TAB_MIN_ROLE[integrationTabFromSection(key)]
     if (!min) return true
@@ -557,9 +586,13 @@ watch(
 
 // 切换空间后角色可能变化，原本可见的 admin-only 面板可能消失。
 // 如果 currentSection 落到了不再显示的 key 上，就回退到第一个可见项。
-watch(navItems, (items) => {
-  if (!items.some((item) => item.key === currentSection.value)) {
-    const fallback = items[0]?.key || 'general'
+watch(visibleSectionKeys, (keys) => {
+  // Sections Qualiopi : attendre le chargement des droits avant de juger qu'une section n'est plus visible.
+  if (isGsmsSection(currentSection.value) && !gsmsAccessLoaded.value) return
+  if (!keys.includes(currentSection.value)) {
+    // Rôle WeKnora pas encore chargé : ne pas écraser une section demandée par l'URL.
+    if (!isGsmsSection(currentSection.value) && navItems.value.length === 0) return
+    const fallback = navItems.value[0]?.key || keys[0] || 'general'
     currentSection.value = fallback
     currentSubSection.value = ''
     syncSettingsRoute(fallback)
@@ -602,6 +635,11 @@ onMounted(() => {
   window.addEventListener('settings-nav', handleSettingsNav as EventListener)
 })
 
+// Droits Qualiopi relus à chaque ouverture du panneau (un module ou un rôle a pu changer).
+watch(visible, (isVisible) => {
+  if (isVisible) void gsmsAccess.load(true)
+}, { immediate: true })
+
 watch(currentSection, () => {
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur()
@@ -617,6 +655,30 @@ onUnmounted(() => {
 .settings-modal-shell.all-settings-overlay > .settings-modal {
   max-width: 1280px;
   height: 900px;
+}
+
+// Téléphone : la navigation passe au-dessus du contenu (défilement horizontal), comme la fenêtre de création d'espace.
+@media (max-width: 720px) {
+  .settings-modal-shell.all-settings-overlay {
+    padding: 0;
+
+    > .settings-modal {
+      height: 100dvh;
+      max-height: 100dvh;
+    }
+
+    .settings-container { flex-direction: column; }
+    .settings-sidebar { width: 100%; border-right: 0; border-bottom: 1px solid var(--td-component-stroke); }
+    .sidebar-header { padding-right: 52px; border-bottom: 0; }
+    .settings-nav { display: flex; flex: none; align-items: center; gap: 4px; padding: 0 12px 10px; overflow-x: auto; }
+    .nav-group-title { flex-shrink: 0; padding: 0 4px 0 8px; }
+    .nav-item { flex-shrink: 0; margin: 0; white-space: nowrap; }
+  }
+}
+
+// Boîtes de dialogue des sections Qualiopi : jamais plus larges que l'écran.
+.gsms-dialog.t-dialog {
+  max-width: calc(100vw - 24px);
 }
 </style>
 
@@ -722,6 +784,10 @@ onUnmounted(() => {
     @media (max-width: 720px) {
       padding: 16px 16px 0;
     }
+  }
+
+  @media (max-width: 720px) {
+    padding: 20px 16px 32px;
   }
 }
 

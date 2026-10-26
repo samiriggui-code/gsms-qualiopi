@@ -31,3 +31,43 @@ export interface CertificationCycle {
 }
 
 export const listCycles = () => http.get<CertificationCycle[]>('/qualiopi/cycles')
+
+export type CycleKind = 'INITIAL' | 'SURVEILLANCE' | 'RENOUVELLEMENT' | 'INTERNE'
+
+export interface CycleIn {
+  label: string
+  kind: CycleKind
+  period_start: string
+  period_end?: string | null
+  audit_on?: string | null
+  certifier?: string | null
+  notes?: string | null
+}
+
+/** POST /qualiopi/cycles (`quality.write`) : pas de modification ni de suppression côté API. */
+export const createCycle = (cycle: CycleIn) => http.post<{ id: string; label: string }>('/qualiopi/cycles', cycle)
+
+export interface ActiveReferential extends ReferentialVersion {
+  indicators: number
+  criteria: { number: number; title: string }[]
+}
+
+export const getActiveReferential = () => http.get<ActiveReferential>('/referentials/active')
+
+export interface IndicatorSummary {
+  number: number
+  code: string
+  criterion_number: number
+  criterion_name: string
+  title: string
+  short_title: string
+  scope: string
+  ponderation: string | null
+  new_entrant_adapted: boolean
+  subcontracting: boolean
+  applicability: Record<string, unknown>
+  expected_evidence: string[]
+  controls_count: number
+}
+
+export const listActiveIndicators = () => http.get<IndicatorSummary[]>('/referentials/active/indicators')

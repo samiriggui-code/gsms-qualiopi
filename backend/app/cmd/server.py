@@ -17,7 +17,11 @@ from app.handler.hr import router as hr_router
 from app.handler.ia import router as ia_router
 from app.handler.journal import router as journal_router
 from app.handler.journey import router as journey_router
+from app.handler.mcp import router as mcp_router
+from app.handler.pilotage import router as pilotage_router
 from app.handler.platform import router as platform_router
+from app.handler.preinscriptions import public_router as preinscriptions_public_router
+from app.handler.preinscriptions import router as preinscriptions_router
 from app.handler.qualiopi import router as qualiopi_router
 from app.handler.qualiopi_ecrans import router as qualiopi_screens_router
 from app.handler.questionnaires import router as public_router
@@ -53,15 +57,19 @@ def create_app() -> FastAPI:
     app.include_router(editions_router)
     app.include_router(platform_router)
     app.include_router(roadmap_router)
+    app.include_router(pilotage_router)
     app.include_router(training_router)
     app.include_router(offer_router)
     app.include_router(attendance_router)
     app.include_router(hr_router)
     app.include_router(ia_router)
+    app.include_router(mcp_router)
     app.include_router(funding_router)
     app.include_router(journey_router)
     app.include_router(relances_router)
     app.include_router(public_router)
+    app.include_router(preinscriptions_router)
+    app.include_router(preinscriptions_public_router)
     for resource_router in training_resources:
         app.include_router(resource_router)
 

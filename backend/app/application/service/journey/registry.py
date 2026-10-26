@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.application.access.training_scope import can_see
 from app.application.service.journey.service import journey_view
-from app.errors.errors import NotFoundError
+from app.errors.errors import InvalidStateError, NotFoundError
 from app.types import training as t
 from app.types.auth import User
 
@@ -90,11 +90,64 @@ def registry(db: Session, user: User, view: str, today: date | None = None, sess
     counts: dict[str, int] = {}
     for row in rows:
         key = ((row.get("etape") or {}).get("etat") if view in STEP_ACTIONS
-               else row["statut"] if view != "certification"
-               else ("REUSSI" if row["epreuves"][-1]["reussi"] else "NON_REUSSI" if row["epreuves"][-1]["reussi"] is False
-                     else "EN_ATTENTE"))
+               else row["statut"] if view != "certification" else _exam_result(row["epreuves"]))
         counts[key] = counts.get(key, 0) + 1
     return {"vue": view, "compteurs": counts, "lignes": rows}
+
+
+def _exam_result(epreuves: list[dict]) -> str:
+    """Résultat de présentation à la certification : celui de la dernière épreuve."""
+    last = epreuves[-1]["reussi"]
+    return "REUSSI" if last else "NON_REUSSI" if last is False else "EN_ATTENTE"
+
+
+RESULTS = ("REUSSI", "NON_REUSSI", "EN_ATTENTE", "AUCUN")
+
+
+def assessments(db: Session, user: User, today: date | None = None, session_id: str | None = None,
+                program_id: str | None = None, etat: str | None = None, resultat: str | None = None) -> dict:
+    """Évaluations des acquis, attestation et présentation à la certification, une ligne par inscription.
+
+    Composé à partir des registres « evaluations », « attestation » et « certification » (mêmes états, mêmes
+    actions) ; s'y ajoute seulement le détail des évaluations enregistrées. `etat` filtre sur l'étape
+    « évaluations », `resultat` sur la certification (AUCUN : aucune épreuve d'examen enregistrée)."""
+    if etat is not None and etat not in STATE_ORDER:
+        raise InvalidStateError(f"État : {', '.join(STATE_ORDER)}")
+    if resultat is not None and resultat not in RESULTS:
+        raise InvalidStateError(f"Résultat : {', '.join(RESULTS)}")
+    today = today or date.today()
+    q = select(t.TrainingSession).order_by(t.TrainingSession.start_date.desc())
+    if session_id:
+        q = q.where(t.TrainingSession.id == session_id)
+    if program_id:
+        q = q.where(t.TrainingSession.program_id == program_id)
+    rows = []
+    counts: dict[str, dict[str, int]] = {"evaluations": {}, "attestation": {}, "certification": {}}
+    for s in db.scalars(q):
+        if not can_see(db, user, s):
+            continue
+        for e in s.enrollments:
+            v = journey_view(db, e, user, today)
+            ev, att = _row(e, v, "evaluations"), _row(e, v, "attestation")
+            cert = _row(e, v, "certification")
+            res = _exam_result(cert["epreuves"]) if cert else "AUCUN"
+            if (etat and ev["etape"]["etat"] != etat) or (resultat and res != resultat):
+                continue
+            row = {k: ev[k] for k in ("inscription", "stagiaire", "statut", "session", "entreprise", "financement")}
+            row["session"] = row["session"] | {"programme_id": s.program_id, "programme_code": s.program_code,
+                                               "certifiante": bool(s.program and s.program.is_certifying)}
+            row["evaluations"] = ev["etape"] | {"action": ev["action"], "liste": [
+                {"id": a.id, "nature": a.kind, "intitule": a.label, "le": a.assessed_on.isoformat(),
+                 "note": float(a.score) if a.score is not None else None, "reussi": a.passed}
+                for a in sorted(e.assessments, key=lambda a: (a.assessed_on, a.label))]}
+            row["attestation"] = att["etape"] | {"action": att["action"]}
+            row["certification"] = {"resultat": res, "epreuves": cert["epreuves"] if cert else []}
+            rows.append(row)
+            for key, value in (("evaluations", ev["etape"]["etat"]), ("attestation", att["etape"]["etat"]),
+                               ("certification", res)):
+                counts[key][value] = counts[key].get(value, 0) + 1
+    rows.sort(key=lambda r: (STATE_ORDER.get(r["evaluations"]["etat"], 5), r["session"]["debut"], r["stagiaire"]))
+    return {"compteurs": counts, "lignes": rows}
 
 
 def summary(db: Session, user: User, today: date | None = None) -> dict:

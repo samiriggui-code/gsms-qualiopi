@@ -1,5 +1,14 @@
 <template>
-    <div class="main" ref="dropzone" :style="{ '--sidebar-width': `${uiStore.sidebarDisplayWidth}px` }">
+    <div class="main" :class="{ 'main--mobile': shell.isMobile }" ref="dropzone" :style="{ '--sidebar-width': `${uiStore.sidebarDisplayWidth}px` }">
+        <!-- Téléphone : barre du haut avec le bouton du menu (le menu devient un tiroir) -->
+        <header v-if="shell.isMobile" class="mobile-bar">
+            <button type="button" class="mobile-bar__btn" :aria-expanded="shell.navOpen" aria-label="Ouvrir le menu" @click="shell.openNav()">
+                <t-icon name="view-list" size="20px" />
+            </button>
+            <img class="mobile-bar__logo mobile-bar__logo--light" src="@/assets/img/gsms-logo.svg" alt="GSMS">
+            <img class="mobile-bar__logo mobile-bar__logo--dark" src="@/assets/img/gsms-logo-dark.svg" alt="GSMS">
+        </header>
+        <div v-if="shell.isMobile && shell.navOpen" class="mobile-backdrop" aria-hidden="true" @click="shell.closeNav()" />
         <Menu></Menu>
         <div v-if="isRouterAlive" class="platform-route-outlet">
             <RouterView />
@@ -37,6 +46,7 @@ import NewUserGuide from '@/components/NewUserGuide.vue'
 import { useCommandPaletteStore } from '@/stores/commandPalette'
 import { useChatResourcesStore } from '@/stores/chatResources'
 import { useUIStore } from '@/stores/ui'
+import { useGsmsShellStore } from '@/stores/gsmsShell'
 import { getKnowledgeBaseById } from '@/api/knowledge-base/index'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { useI18n } from 'vue-i18n'
@@ -46,6 +56,7 @@ const route = useRoute();
 const router = useRouter();
 const commandPaletteStore = useCommandPaletteStore();
 const uiStore = useUIStore();
+const shell = useGsmsShellStore();
 let ismask = ref(false)
 const { t } = useI18n();
 
@@ -263,6 +274,50 @@ onUnmounted(() => {
 }
 
 /* 右侧路由区：占满剩余宽度与整列高度，并把 min-height:0 传给子页面以便内部 flex 滚动 */
+.main.main--mobile {
+    flex-direction: column;
+    min-width: 0;
+}
+
+.mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    height: 48px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--td-component-stroke);
+    background: var(--td-bg-color-sidebar);
+}
+
+.mobile-bar__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--app-radius-sm);
+    background: transparent;
+    color: var(--td-text-color-primary);
+    cursor: pointer;
+    &:hover { background: var(--td-bg-color-container-hover); }
+    &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 1px; }
+}
+
+.mobile-bar__logo { width: 96px; height: auto; }
+.mobile-bar__logo--dark { display: none; }
+html[theme-mode="dark"] .mobile-bar__logo--light { display: none; }
+html[theme-mode="dark"] .mobile-bar__logo--dark { display: block; }
+
+.mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2050;
+    background: rgba(0, 0, 0, 0.35);
+}
+
 .platform-route-outlet {
     flex: 1;
     min-width: 0;

@@ -71,7 +71,7 @@ Pas de compte : un jeton `<valeur>.<signature>` (HMAC-SHA256 de `JWT_SECRET`, pr
 
 ## 2. Inventaire des routes HTTP
 
-**Total : 231 routes** (230 sous `/api/v1` + `GET /health`), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
+**Total : 235 routes** (234 sous `/api/v1` + `GET /health`), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
 `/openapi.json` (absentes en production). Les 65 routes CRUD sont générées par `crud_router()` (`app/handler/crud.py`) pour 13
 ressources déclarées dans `app/handler/training_resources.py` (liste `ROUTERS`).
 
@@ -431,6 +431,54 @@ Fichier : `backend/app/handler/relances.py` — 8 route(s).
 | `POST` | `/api/v1/communications/{message_id}/renvoyer` | Relance l'envoi d'un message en échec. | `communications.manage` |
 | `POST` | `/api/v1/communications/planifier` | Passage immédiat du planificateur et de l'envoi (date `le`). | `communications.manage` |
 
+### Moteur IA et serveur MCP
+
+Fichiers : `backend/app/handler/ia.py`, `backend/app/handler/mcp.py` (protocole), `backend/app/handler/mcp_outils.py` (outils),
+`backend/app/application/service/ia/` (`session.py`, `espace.py`, `compte.py`, `weknora.py`) — 4 route(s).
+
+| Méthode | Chemin | Rôle | Droits requis |
+|---|---|---|---|
+| `POST` | `/api/v1/ia/session` | Connexion WeKnora du compte de service de l'organisme (inscrit au premier appel), renvoyée telle quelle ; au passage, déclare le serveur MCP dans l'espace s'il ne l'est pas (idempotent). Le résultat de cette déclaration est dans `gsms_mcp` (`{ok, fait, a_regler}`) ; son échec n'empêche jamais la session. 503 si le moteur IA n'est pas configuré ou injoignable. | Authentifié |
+| `POST` | `/api/v1/mcp` | Serveur MCP (JSON-RPC 2.0, transport Streamable HTTP sans état, réponses JSON, sans `Mcp-Session-Id`) : `initialize`, `ping`, `tools/list`, `tools/call`, notifications (202). `server/discover` répond « méthode inconnue » (-32601), le client retombe sur `initialize`. | Jeton « mcp » du compte technique **ou** jeton utilisateur — chaque outil exige la permission de la route qu'il reprend |
+| `GET` | `/api/v1/mcp` | 405 : pas de flux serveur (SSE). | — |
+| `DELETE` | `/api/v1/mcp` | 405 : pas de session à fermer. | — |
+
+**Outils MCP** (tous en lecture seule, annotés `readOnlyHint`, permission `quality.read`) ; chacun appelle la fonction de la
+route HTTP indiquée, sans rien recalculer. Les listes sont limitées par `limite` (50 par défaut, 200 au plus) ; une session ou
+une preuve se désigne par son identifiant ou sa référence.
+
+| Outil | Arguments | Route reprise |
+|---|---|---|
+| `etat_indicateurs` | `du`, `au` | `GET /api/v1/qualiopi/readiness` |
+| `fiche_indicateur` | `numero` | `GET /api/v1/qualiopi/indicateurs/{n}` |
+| `lister_preuves` | `statut[]`, `type`, `indicateur`, `session`, `recherche`, `limite` | `GET /api/v1/qualiopi/preuves` |
+| `fiche_preuve` | `preuve` | `GET /api/v1/qualiopi/preuves/{id}` |
+| `lister_ecarts` | `statut[]` (défaut `OUVERT`, `EN_TRAITEMENT`), `indicateur`, `limite` | `GET /api/v1/qualiopi/constats` |
+| `lister_echeances` | `jours` (15), `responsable`, `limite` | `GET /api/v1/qualiopi/echeances` |
+| `lister_actions_correctives` | `statut`, `en_retard`, `limite` | `GET /api/v1/qualiopi/actions` |
+| `synthese_session` | `session` | `GET /api/v1/sessions/{id}/dossier` |
+
+Un droit manquant, un module éteint, un objet introuvable ou un argument invalide donnent un résultat d'outil `isError: true`
+avec le motif en français (les messages des routes).
+
+**Authentification du serveur MCP.** Le back-office partage un seul compte de service WeKnora : il n'y a donc pas d'utilisateur
+GSMS derrière chaque appel de l'assistant. Le moteur IA présente un jeton « mcp » (`Authorization: Bearer`, stocké chiffré par
+WeKnora) émis pour le **compte technique** `assistant-ia@gsms.local` (`IA_COMPTE_TECHNIQUE_EMAIL`), rôle système
+`assistant_ia` = la seule permission `quality.read`. Ce compte a un mot de passe aléatoire jamais communiqué (aucune connexion
+possible) ; ses rôles se voient et se changent dans la gestion des comptes. Le jeton « mcp » ne périme pas mais n'ouvre aucune
+autre route (401) ; il est lié à l'empreinte du mot de passe du compte : `ia-preparer --renouveler-jeton` l'invalide et
+dépose le nouveau, désactiver le compte coupe l'accès aussitôt. Un utilisateur GSMS peut aussi appeler `/api/v1/mcp` avec son
+propre jeton de connexion : il a alors ses propres droits. Une instance GSMS sert un seul organisme, et l'espace WeKnora est
+celui du compte de service de cet organisme. Un en-tête `Origin` inconnu de `CORS_ORIGINS` est refusé (403). Le jeton « mcp » n'est accepté qu'en appel direct sur le réseau interne : une requête passée par un proxy (`X-Forwarded-For` ou `Forwarded`) doit porter un jeton utilisateur, et `deploy/Caddyfile` ne publie pas `/api/v1/mcp` (404). Ainsi un jeton « mcp » détourné (par exemple en changeant l'adresse du service dans l'écran WeKnora) ne sert à rien depuis l'extérieur ; l'adresse est en outre remise à `IA_MCP_URL` à chaque ouverture de session. Aucun outil n'écrit (chaque appel se termine par un `rollback`) ; le serveur ne journalise ni les arguments ni les réponses. Les réponses sont celles des routes HTTP lues avec `quality.read` : pas d'adresse e-mail, de téléphone ni d'adresse postale, mais les noms des stagiaires et formateurs concernés par une pièce manquante y figurent (ils désignent ce qui est à faire).
+
+**Préparation de l'espace WeKnora** : `python -m app.cmd.cli ia-preparer [--renouveler-jeton]` (idempotent) déclare le
+serveur MCP « Moteur Qualiopi (GSMS) » (`http-streamable`, `IA_MCP_URL`, défaut `http://api:8000/api/v1/mcp`, adresse vue
+depuis le conteneur `ia-app` ; le moteur doit autoriser l'hôte `api`, `SSRF_WHITELIST_EXTRA: api` dans `docker-compose.yml`)
+et la base de connaissances « Référentiel Qualiopi » : un document par fichier `backend/referentials/qualiopi/v9|v10/source/*.md`
+(65 textes officiels ; aucun guide de lecture n'est livré dans le dépôt). Un document déjà présent (même titre) est laissé
+tel quel ; un document en échec d'indexation est renvoyé à l'indexation dès que la base a un modèle d'embedding. La commande
+dit ce qui manque (aucun modèle d'embedding, base sans modèle, documents refusés ou en échec) et sort en code 1 dans ce cas.
+
 ### Routes publiques (lien signé)
 
 Fichier : `backend/app/handler/questionnaires.py` — 4 route(s).
@@ -551,7 +599,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 | 26 | Modèles de documents | fichiers `backend/config/documents_generes/` (convocation, attestation de fin, programme, `_base.html`), `config/documents_pro/` (devis, `_base_a4.html`), `config/qualiopi/carnet.html`, logo `config/organisme/logo.png` ; coordonnées imprimées via les réglages `documents.*` | gabarits Jinja HTML | rendus par `GET /api/v1/fiches/{id}/versions/{vid}/programme`, `GET /api/v1/editions/{id}/apercu`, `GET /api/v1/qualiopi/carnet/impression`, documents du parcours ; aucune route d'édition (le logo n'est pas téléversable) | Documents et modèles |
 | 27 | Moyens et partenaires de l'organisme | tables `formation.premises`, `formation.equipment`, `formation.subcontractor`, `formation.partner`, `formation.watch_item` | lieux (`code`, `name`, `kind`, `parent_id`, `capacity`, `accessibility`, `status`…), équipements (`category`, `quantity`, `regulatory_ref`, `next_check_on`…), sous-traitants (`siret`, `qualiopi_certified`, `contract_signed_on`), partenaires (`kind` HANDICAP / SOCIO_ECONOMIQUE), veille (`domain` LEGALE / METIERS / PEDAGOGIQUE) | CRUD `/api/v1/premises`, `/equipment` (écriture `sessions.write`), `/subcontractors`, `/partners`, `/watch-items` (écriture `quality.write`) ; lecture `sessions.read` ou `quality.read` | Moyens et partenaires |
 | 28 | Listes de valeurs codées | constantes dans `app/types/training.py` (`TRACKS`, `PATHWAYS`, `DELIVERY_MODES`, `CERTIFICATION_BASES`, `HABILITATIONS`, `PROGRAM_TRAINER_ROLES`, `RESOURCE_*`, `QUALIFICATION_KINDS`, `PREMISES_KINDS`, `PLACE_STATUSES`, `EQUIPMENT_CATEGORIES`, `SURVEY_AUDIENCES`…), `app/types/edof.py`, `app/types/hr.py` (`STAFF_KINDS`, `CONTRACT_KINDS`, `ABSENCE_KINDS`), `app/types/editions.py` (`KINDS`, `STATUSES`, `UNITS`), `ACTION_CATEGORIES` (`platform/router.py`) | code → libellé | certaines exposées en lecture (`GET /api/v1/fiches/{id}` : `certification_bases`, `habilitations`… ; `GET /api/v1/editions/types` ; `GET /api/v1/organisme` : `categories_possibles`) ; code seulement | Listes de valeurs (lecture seule) |
-| 29 | Configuration de déploiement | variables d'environnement lues par `app/config/config.py` (`Settings`) | `APP_ENV`, `DATABASE_URL`, `JWT_SECRET`, `JWT_TTL_MINUTES`, `CORS_ORIGINS`, `REFERENTIALS_DIR`, `DOCUMENTS_DIR`, `FEATURES_AVAILABLE`, `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/SSL/FROM`, `PUBLIC_URL` | aucune route (seul `FEATURES_AVAILABLE` se voit indirectement par `available` dans `GET /api/v1/features`) | Déploiement (informatif, hors panneau) |
+| 29 | Configuration de déploiement | variables d'environnement lues par `app/config/config.py` (`Settings`) | `APP_ENV`, `DATABASE_URL`, `JWT_SECRET`, `JWT_TTL_MINUTES`, `CORS_ORIGINS`, `REFERENTIALS_DIR`, `DOCUMENTS_DIR`, `FEATURES_AVAILABLE`, `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/SSL/FROM`, `PUBLIC_URL`, `WEKNORA_URL`, `WEKNORA_SERVICE_EMAIL/PASSWORD`, `IA_MCP_URL`, `IA_COMPTE_TECHNIQUE_EMAIL` | aucune route (seul `FEATURES_AVAILABLE` se voit indirectement par `available` dans `GET /api/v1/features`) | Déploiement (informatif, hors panneau) |
 | 30 | Données d'amorçage | `backend/config/catalogue/gsms-school.yaml` (offre, lieux, équipements), `backend/config/edof/formssi.yaml` + `formssi-tfp-aps-modules.json`, données de démonstration (`app/application/service/demo.py`) | — | aucune route : CLI `import-gsms-school`, `import-formssi`, `seed-demo`, `retirer-demo` | hors panneau (outil d'installation) |
 
 ## 4. Points d'attention pour le nouveau front

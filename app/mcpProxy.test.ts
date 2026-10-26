@@ -39,7 +39,12 @@ for (const mode of ['dev', 'preview'] as const) {
     await once(upstream, 'listening')
     const root = await mkdtemp(join(tmpdir(), 'weknora-mcp-proxy-'))
     const previousTarget = process.env.VITE_DEV_PROXY_TARGET
-    process.env.VITE_DEV_PROXY_TARGET = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+    const previousIaTarget = process.env.VITE_IA_PROXY_TARGET
+    const upstreamUrl = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+    // En dev, /mcp/ part vers le moteur IA (VITE_IA_PROXY_TARGET), en preview vers VITE_DEV_PROXY_TARGET :
+    // les deux visent le faux serveur, pour que le test ne dépende d'aucun service réel.
+    process.env.VITE_DEV_PROXY_TARGET = upstreamUrl
+    process.env.VITE_IA_PROXY_TARGET = upstreamUrl
     let closeGateway: (() => Promise<void>) | undefined
     try {
       await mkdir(join(root, 'dist'))
@@ -105,6 +110,8 @@ for (const mode of ['dev', 'preview'] as const) {
       await new Promise<void>((resolve) => upstream.close(() => resolve()))
       if (previousTarget === undefined) delete process.env.VITE_DEV_PROXY_TARGET
       else process.env.VITE_DEV_PROXY_TARGET = previousTarget
+      if (previousIaTarget === undefined) delete process.env.VITE_IA_PROXY_TARGET
+      else process.env.VITE_IA_PROXY_TARGET = previousIaTarget
       await rm(root, { recursive: true, force: true })
     }
   })

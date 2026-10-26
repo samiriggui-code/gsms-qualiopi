@@ -1,0 +1,208 @@
+"""Préparation de l'espace WeKnora de l'organisme : serveur MCP du moteur Qualiopi et base « Référentiel Qualiopi ».
+
+Deux opérations idempotentes, appelées avec le jeton du compte de service WeKnora (voir `session.py`) :
+
+- `ensure_mcp_service` : déclare (ou corrige l'adresse de) le serveur MCP de l'API dans l'espace. Appelée à chaque
+  ouverture de session IA (légère : une lecture, une écriture au plus) et par `python -m app.cmd.cli ia-preparer`.
+  Un service désactivé par un administrateur dans WeKnora reste désactivé.
+- `ensure_referential_kb` : crée la base de connaissances et y dépose les textes officiels des indicateurs
+  (`referentials/qualiopi/v*/source/*.md`). Lourde (indexation par le moteur, qui exige un modèle d'embedding) :
+  elle n'est lancée que par la commande `ia-preparer`, qui dit ce qui a été fait et ce qui manque.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from sqlalchemy.orm import Session
+
+from app.application.service.ia.compte import mcp_token
+from app.application.service.ia.weknora import IAUnavailable, call, message_of
+from app.config.config import get_settings
+
+MCP_NAME = "Moteur Qualiopi (GSMS)"
+MCP_TRANSPORT = "http-streamable"
+MCP_DESCRIPTION = ("Lecture seule du moteur Qualiopi de GSMS : état des indicateurs, preuves, écarts, échéances, "
+                   "actions correctives, synthèse d'une session.")
+MCP_USAGE = (
+    "Utilisez ces outils pour répondre sur la situation Qualiopi de l'organisme. Ils renvoient l'état de préparation "
+    "calculé par le moteur à partir des preuves disponibles : ce n'est jamais une décision de conformité, que seul "
+    "l'organisme certificateur prononce. Le référentiel exige des preuves ; les délais et relances de l'application "
+    "sont des recommandations, pas des obligations. Une session ou une preuve se désigne par sa référence."
+)
+
+KB_NAME = "Référentiel Qualiopi"
+KB_DESCRIPTION = ("Textes officiels des indicateurs du référentiel national qualité (versions 9 et 10), tels que "
+                  "livrés avec GSMS Qualiopi (dossiers referentials/qualiopi/v*/source).")
+
+
+@dataclass
+class Report:
+    """Compte rendu lisible : ce qui a été fait, ce qui manque. Rien n'est simulé."""
+
+    done: list[str] = field(default_factory=list)
+    problems: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return not self.problems
+
+    def view(self) -> dict:
+        return {"ok": self.ok, "fait": self.done, "a_regler": self.problems}
+
+
+def _ok(status: int, body: dict) -> bool:
+    """Réponse acceptée par le moteur (il répond 200 ou 201 selon les routes)."""
+    return status in (200, 201) and body.get("success") is not False
+
+
+def _data(status: int, body: dict, what: str) -> object:
+    if not _ok(status, body):
+        raise IAUnavailable(f"{what} : refus du moteur IA (HTTP {status}, {message_of(body)})")
+    return body.get("data")
+
+
+# ── Serveur MCP ──────────────────────────────────────────────────────────────────
+
+
+def ensure_mcp_service(db: Session, token: str, *, renew: bool = False) -> Report:
+    """Serveur MCP déclaré dans l'espace, à la bonne adresse, avec le jeton du compte technique."""
+    report = Report()
+    url = get_settings().ia_mcp_url
+    services = _data(*call("GET", "/api/v1/mcp-services", token=token), "Liste des services MCP") or []
+    existing = next((s for s in services if s.get("name") == MCP_NAME), None)
+    if existing is None:
+        payload = {"name": MCP_NAME, "description": MCP_DESCRIPTION, "usage_instructions": MCP_USAGE,
+                   "enabled": True, "transport_type": MCP_TRANSPORT, "url": url,
+                   "auth_config": {"auth_type": "bearer", "token": mcp_token(db, renew=renew)},
+                   "advanced_config": {"timeout": 30, "retry_count": 1, "retry_delay": 1}}
+        status, body = call("POST", "/api/v1/mcp-services", payload, token=token)
+        if not _ok(status, body):
+            hint = ""
+            if "SSRF" in message_of(body):
+                hint = " ; le moteur IA doit autoriser l'hôte de l'API (SSRF_WHITELIST_EXTRA=api, voir docker-compose.yml)"
+            report.problems.append(f"Serveur MCP non déclaré : {message_of(body)} (HTTP {status}){hint}")
+            db.commit()
+            return report
+        report.done.append(f"Serveur MCP « {MCP_NAME} » déclaré ({url})")
+        db.commit()  # compte technique créé au passage
+        return report
+    changes = {}
+    if existing.get("url") != url:
+        changes["url"] = url
+    if existing.get("transport_type") != MCP_TRANSPORT:
+        changes["transport_type"] = MCP_TRANSPORT
+    if changes:
+        _data(*call("PUT", f"/api/v1/mcp-services/{existing['id']}", changes, token=token), "Mise à jour du service MCP")
+        report.done.append(f"Serveur MCP « {MCP_NAME} » corrigé : {', '.join(sorted(changes))}")
+    configured = ((existing.get("credentials") or {}).get("token") or {}).get("configured")
+    if renew or not configured or (existing.get("auth_config") or {}).get("auth_type") != "bearer":
+        if (existing.get("auth_config") or {}).get("auth_type") != "bearer":
+            _data(*call("PUT", f"/api/v1/mcp-services/{existing['id']}", {"auth_config": {"auth_type": "bearer"}},
+                        token=token), "Mode d'authentification du service MCP")
+        _data(*call("PUT", f"/api/v1/mcp-services/{existing['id']}/credentials", {"token": mcp_token(db, renew=renew)},
+                    token=token), "Jeton du service MCP")
+        report.done.append("Jeton du compte technique " + ("renouvelé" if renew else "enregistré") + " dans le moteur IA")
+    db.commit()
+    if not existing.get("enabled", True):
+        report.problems.append(f"Le serveur MCP « {MCP_NAME} » est désactivé dans le moteur IA (choix d'un "
+                               "administrateur, laissé tel quel)")
+    if not report.done:
+        report.done.append(f"Serveur MCP « {MCP_NAME} » déjà déclaré, rien à changer")
+    return report
+
+
+# ── Base de connaissances « Référentiel Qualiopi » ──────────────────────────────
+
+
+def referential_sources() -> list[tuple[str, str]]:
+    """(titre, contenu) des textes officiels livrés : un document par indicateur et par version."""
+    root = get_settings().referentials_dir / "qualiopi"
+    out = []
+    for path in sorted(root.glob("v*/source/*.md"), key=lambda p: (p.parts[-3], p.name)):
+        out.append((_title(path), path.read_text(encoding="utf-8")))
+    return out
+
+
+def _title(path: Path) -> str:
+    version = path.parts[-3]  # v9, v10
+    number, _, slug = path.stem.partition("-")
+    return f"Qualiopi {version} — indicateur {int(number)} — {slug.replace('-', ' ')}"
+
+
+def _embedding_models(token: str) -> int | None:
+    """Nombre de modèles d'embedding déclarés dans le moteur (None si la question n'a pas pu être posée)."""
+    status, body = call("GET", "/api/v1/models", token=token)
+    if not _ok(status, body):
+        return None
+    return sum(1 for m in body.get("data") or [] if m.get("type") == "Embedding")
+
+
+def _all_knowledge(kb_id: str, token: str) -> list[dict]:
+    rows, page = [], 1
+    while True:
+        status, body = call("GET", f"/api/v1/knowledge-bases/{kb_id}/knowledge?page={page}&page_size=200", token=token)
+        batch = _data(status, body, "Liste des documents de la base") or []
+        rows += batch
+        if len(batch) < 200:
+            return rows
+        page += 1
+
+
+def ensure_referential_kb(token: str) -> Report:
+    report = Report()
+    embeddings = _embedding_models(token)
+    if embeddings == 0:
+        report.problems.append("Aucun modèle d'embedding n'est configuré dans le moteur IA : les documents ne peuvent "
+                               "pas être indexés pour la recherche. À ajouter dans Paramètres › Modèles du moteur IA, "
+                               "puis relancer « python -m app.cmd.cli ia-preparer ».")
+    bases = _data(*call("GET", "/api/v1/knowledge-bases", token=token), "Liste des bases de connaissances") or []
+    kb = next((b for b in bases if b.get("name") == KB_NAME), None)
+    if kb is None:
+        status, body = call("POST", "/api/v1/knowledge-bases", {"name": KB_NAME, "description": KB_DESCRIPTION}, token=token)
+        if not (_ok(status, body) and (body.get("data") or {}).get("id")):
+            report.problems.append(f"Base « {KB_NAME} » non créée : {message_of(body)} (HTTP {status})")
+            return report
+        kb = body["data"]
+        report.done.append(f"Base « {KB_NAME} » créée")
+    else:
+        report.done.append(f"Base « {KB_NAME} » déjà présente")
+
+    existing = {k.get("title"): k for k in _all_knowledge(kb["id"], token)}
+    sources = referential_sources()
+    if not sources:
+        report.problems.append("Aucun texte officiel trouvé dans referentials/qualiopi/v*/source")
+    created, refused = 0, []
+    for title, content in sources:
+        if title in existing:
+            continue
+        status, body = call("POST", f"/api/v1/knowledge-bases/{kb['id']}/knowledge/manual",
+                            {"title": title, "content": content, "status": "publish"}, token=token)
+        if _ok(status, body):
+            created += 1
+            existing[title] = body.get("data") or {"title": title}
+        else:
+            refused.append(f"{title} : {message_of(body)} (HTTP {status})")
+    if created:
+        report.done.append(f"{created} document(s) déposé(s) dans la base")
+    already = len(sources) - created - len(refused)
+    if already:
+        report.done.append(f"{already} document(s) déjà présent(s), laissés tels quels")
+    if refused:
+        report.problems.append(f"{len(refused)} document(s) refusé(s) par le moteur IA, par exemple « {refused[0]} »")
+    if not kb.get("embedding_model_id"):
+        report.problems.append(f"La base « {KB_NAME} » n'a pas de modèle d'embedding : à choisir dans ses réglages "
+                               "du moteur IA ; les documents seront alors réindexés au prochain « ia-preparer »")
+    failed = [k for k in existing.values() if k.get("parse_status") == "failed" and k.get("id")]
+    if failed and kb.get("embedding_model_id"):
+        # Le modèle manquait lors du dépôt : on relance l'indexation des documents en échec.
+        retried = [k for k in failed if _ok(*call("POST", f"/api/v1/knowledge/{k['id']}/reparse", {}, token=token))]
+        if retried:
+            report.done.append(f"{len(retried)} document(s) en échec renvoyé(s) à l'indexation")
+        failed = [k for k in failed if k not in retried]
+    if failed:
+        msg = failed[0].get("error_message") or "sans motif"
+        report.problems.append(f"{len(failed)} document(s) en échec d'indexation dans le moteur IA (ex. : {msg})")
+    report.done.append("Aucun guide de lecture n'est livré dans le dépôt : seuls les textes officiels sont déposés")
+    return report

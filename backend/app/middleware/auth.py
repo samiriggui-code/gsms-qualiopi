@@ -1,5 +1,6 @@
 """Authentification JWT + contrôle de rôle côté serveur."""
 
+import hashlib
 from datetime import timedelta
 from typing import Annotated
 
@@ -66,21 +67,45 @@ def create_token(user: User) -> str:
     return jwt.encode(payload, s.jwt_secret, algorithm="HS256")
 
 
+# Jeton « mcp » : réservé au serveur MCP (/api/v1/mcp), refusé partout ailleurs. Il ne périme pas, mais il est
+# lié à l'empreinte du mot de passe (aléatoire) du compte technique : renouveler ce mot de passe l'invalide.
+MCP_SCOPE = "mcp"
+
+
+def _fingerprint(user: User) -> str:
+    return hashlib.sha256(user.password_hash.encode()).hexdigest()[:16]
+
+
+def create_mcp_token(user: User) -> str:
+    payload = {"sub": user.id, "scope": MCP_SCOPE, "fp": _fingerprint(user)}
+    return jwt.encode(payload, get_settings().jwt_secret, algorithm="HS256")
+
+
+def user_from_token(db: Session, token: str, *, allow_mcp: bool = False) -> User:
+    """Compte d'un jeton valide ; 401 sinon. Un jeton « mcp » n'est accepté que si `allow_mcp`."""
+    try:
+        payload = jwt.decode(token, get_settings().jwt_secret, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton invalide ou expiré") from None
+    scope = payload.get("scope")
+    if scope is not None and not (allow_mcp and scope == MCP_SCOPE):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton non valable pour cette route")
+    user = db.get(User, payload.get("sub"))
+    if user is None or not user.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Utilisateur inactif")
+    if scope == MCP_SCOPE and payload.get("fp") != _fingerprint(user):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton renouvelé depuis : l'ancien n'est plus valable")
+    set_actor(db, f"{user.full_name} <{user.email}>")
+    return user
+
+
 def current_user(
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
     if creds is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentification requise")
-    try:
-        payload = jwt.decode(creds.credentials, get_settings().jwt_secret, algorithms=["HS256"])
-    except jwt.PyJWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton invalide ou expiré") from None
-    user = db.get(User, payload.get("sub"))
-    if user is None or not user.is_active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Utilisateur inactif")
-    set_actor(db, f"{user.full_name} <{user.email}>")
-    return user
+    return user_from_token(db, creds.credentials)
 
 
 def _refusal(db: Session, user: User, permissions: tuple[str, ...]) -> HTTPException:

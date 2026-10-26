@@ -48,6 +48,10 @@ EVENT_NAMES = {
     "edof.enregistrer_complements",
     "edof.declarer_complements_transmis",
     "edof.enregistrer_decision",
+    # Demandes de préinscription du site : suivi commercial, sans effet sur les preuves Qualiopi.
+    "preinscription.received",
+    "preinscription.status_changed",
+    "preinscription.converted",
     # Documents professionnels (devis…) : documents commerciaux, sans effet sur les preuves Qualiopi.
     "edition.created",
     "edition.updated",

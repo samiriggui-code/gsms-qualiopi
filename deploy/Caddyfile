@@ -11,5 +11,7 @@
 	}
 
 	# Front retiré (refonte en cours) : seule l'API est publiée (routes sous /api/v1, voir docs/API.md).
+	# Serveur MCP réservé au moteur IA, sur le réseau interne (http://api:8000/api/v1/mcp) : jamais publié.
+	respond /api/v1/mcp* 404
 	reverse_proxy api:8000
 }

@@ -17,5 +17,9 @@ cd "$ROOT/landing" && npx next dev -H 127.0.0.1 -p "$LANDING_PORT" &
 LANDING_PID=$!
 trap 'kill $LANDING_PID 2>/dev/null' EXIT
 
+# Connexion préremplie en dev seulement (compte local du HANDOFF §5 bis ; jamais dans un build de production).
+export VITE_DEV_LOGIN_EMAIL="${VITE_DEV_LOGIN_EMAIL:-admin@gsms.local}"
+export VITE_DEV_LOGIN_PASSWORD="${VITE_DEV_LOGIN_PASSWORD:-admin-gsms-2026}"
+
 cd "$ROOT/app" && VITE_BASE_PATH=/app/ VITE_DEV_PROXY_TARGET="$API" LANDING_DEV_SERVER="http://127.0.0.1:$LANDING_PORT" \
   npx vite --port "$PORT" --host 0.0.0.0 --strictPort

@@ -269,3 +269,32 @@ def test_expediteur_smtp_adresses_accentuees(monkeypatch) -> None:  # noqa: ANN0
     assert ascii_msg["To"] == "Paul Lambert <paul.lambert@acme.exemple>" and ascii_msg["Reply-To"] == "contact@formssi.fr"
     assert "éric.chevalier@acme.exemple" in str(utf8_msg["To"])
     assert [p.get_content_type() for p in ascii_msg.iter_parts()] == ["text/plain", "text/html"]
+
+
+def test_message_deja_pris_par_un_autre_envoi_non_renvoye(demo: Session, outbox) -> None:  # noqa: ANN001
+    """Worker et « planifier maintenant » en même temps : un message pris par l'un est sauté par l'autre."""
+    from sqlalchemy import text
+
+    from app.database import db as core_db
+
+    _enable(demo)
+    make_user(demo, "gestion")
+    plan(demo, TODAY)
+    demo.commit()
+    due = select(Message).where(Message.status == "PREVU", Message.due_on <= TODAY)
+    assert demo.scalars(due).first() is not None
+    other = core_db.session_factory()()
+    try:
+        held = list(other.scalars(due.with_for_update()))  # l'autre envoi a pris ces messages
+        demo.execute(text("SET LOCAL lock_timeout = '2s'"))  # sans verrou, l'écriture bute sur l'autre envoi
+        assert dispatch(demo, TODAY)["envoyes"] == 0, "les messages pris par l'autre envoi sont sautés"
+        assert outbox.sent == []
+    finally:
+        other.rollback()
+        other.close()
+    assert held
+    demo.rollback()
+    first = dispatch(demo, TODAY)
+    demo.commit()
+    assert first["envoyes"] == len(outbox.sent) >= 1
+    assert dispatch(demo, TODAY)["envoyes"] == 0

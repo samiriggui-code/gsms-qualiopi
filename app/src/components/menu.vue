@@ -1,7 +1,9 @@
 <template>
-    <div class="aside_box" :class="{ 'aside_box--collapsed': uiStore.sidebarCollapsed, 'aside_box--resizing': uiStore.sidebarResizing }">
+    <div class="aside_box" :class="{ 'aside_box--collapsed': isCollapsed, 'aside_box--resizing': uiStore.sidebarResizing,
+        'aside_box--mobile': shell.isMobile, 'is-open': shell.isMobile && shell.navOpen }"
+        :aria-hidden="shell.isMobile && !shell.navOpen ? 'true' : undefined" :inert="shell.isMobile && !shell.navOpen ? true : undefined">
         <!-- 展开时：Logo + 搜索/折叠按钮同行 -->
-        <div class="logo_row" v-if="!uiStore.sidebarCollapsed">
+        <div class="logo_row" v-if="!isCollapsed">
             <div class="logo_box" @click="router.push('/platform/knowledge-bases')" style="cursor: pointer;">
                 <img class="logo logo--light" src="@/assets/img/gsms-logo.svg" alt="GSMS">
                 <img class="logo logo--dark" src="@/assets/img/gsms-logo-dark.svg" alt="GSMS">
@@ -26,7 +28,7 @@
                         <img class="header-icon-img" :src="getImgSrc('search.svg')" alt="">
                     </div>
                 </t-tooltip>
-                <div class="sidebar-toggle" @click="uiStore.toggleSidebar" :title="t('menu.collapseSidebar')">
+                <div class="sidebar-toggle" @click="shell.isMobile ? shell.closeNav() : uiStore.toggleSidebar()" :title="shell.isMobile ? 'Fermer le menu' : t('menu.collapseSidebar')">
                     <svg viewBox="0 0 20 20" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.5" />
                         <line x1="7.5" y1="1.5" x2="7.5" y2="18.5" stroke="currentColor" stroke-width="1.5" />
@@ -57,7 +59,7 @@
         </t-tooltip>
 
         <!-- 空间选择器：仅在用户可切换空间时显示 -->
-        <TenantSelector v-if="canAccessAllTenants && !uiStore.sidebarCollapsed" />
+        <TenantSelector v-if="canAccessAllTenants && !isCollapsed" />
 
         <!-- 侧栏边缘拖拽调宽，拖窄时自动收缩 -->
         <PanelResizeHandle edge="right" :label="t('knowledgeStages.resizeDrawer')"
@@ -68,7 +70,7 @@
         <div class="menu_top" ref="scrollContainer" @scroll="handleScroll">
             <!-- 全局搜索入口：点击打开命令面板（⌘K）。展开态移至顶部 logo_row 的图标按钮；
                  折叠态在此处保留为图标项 + 深色 tooltip。 -->
-            <div class="menu_box menu_box--cmdk" v-if="uiStore.sidebarCollapsed">
+            <div class="menu_box menu_box--cmdk" v-if="isCollapsed">
                 <t-tooltip placement="right">
                     <template #content>
                         <span class="cmdk-tip">
@@ -95,9 +97,9 @@
                     </div>
                 </t-tooltip>
             </div>
-            <div class="menu_box" :class="{ 'menu_box--sticky': item.children && !uiStore.sidebarCollapsed }"
+            <div class="menu_box" :class="{ 'menu_box--sticky': item.children && !isCollapsed }"
                 v-for="(item, index) in topMenuItems" :key="index">
-                <t-tooltip :content="item.title" placement="right" :disabled="!uiStore.sidebarCollapsed">
+                <t-tooltip :content="item.title" placement="right" :disabled="!isCollapsed">
                     <div @click="handleMenuClick(item.path)" @mouseenter="mouseenteMenu(item.path)"
                         @mouseleave="mouseleaveMenu(item.path)" :data-guide="`nav-${item.path}`"
                         :class="['menu_item', item.childrenPath && item.childrenPath == currentpath ? 'menu_item_c_active' : isMenuItemActive(item.path) ? 'menu_item_active' : '']">
@@ -107,7 +109,7 @@
                                     :src="getImgSrc(item.icon == 'zhishiku' ? knowledgeIcon : item.icon == 'agent' ? agentIcon : item.icon == 'artifact' ? artifactIcon : item.icon == 'automation' ? automationIcon : item.icon == 'toolbox' ? toolboxIcon : item.icon == 'organization' ? organizationIcon : item.icon == 'logout' ? logoutIcon : item.icon == 'setting' ? settingIcon : prefixIcon)"
                                     alt="">
                             </div>
-                            <template v-if="!uiStore.sidebarCollapsed">
+                            <template v-if="!isCollapsed">
                                 <span class="menu_title" :title="item.title">{{ item.title }}</span>
                                 <span v-if="item.path === 'organizations' && orgStore.totalPendingJoinRequestCount > 0"
                                     class="menu-pending-badge"
@@ -131,8 +133,36 @@
                 </t-tooltip>
             </div>
 
+            <!-- Rubriques métier Qualiopi : séparées des fonctions IA, filtrées par GET /api/v1/bootstrap -->
+            <nav v-for="group in gsmsGroups" :key="group.key" class="gsms-menu-group" :aria-label="group.title">
+                <div v-if="!isCollapsed" class="gsms-menu-group__header" role="button" tabindex="0"
+                    :aria-expanded="!gsmsCollapsed[group.key]" @click="toggleGsmsGroup(group.key)"
+                    @keydown.enter.prevent="toggleGsmsGroup(group.key)" @keydown.space.prevent="toggleGsmsGroup(group.key)">
+                    <span>{{ group.title }}</span>
+                    <t-icon :name="gsmsCollapsed[group.key] ? 'chevron-right' : 'chevron-down'" size="14px" />
+                </div>
+                <div v-else class="gsms-menu-group__rule" aria-hidden="true" />
+                <template v-if="isCollapsed || !gsmsCollapsed[group.key]">
+                    <div v-for="entry in group.entries" :key="entry.path" class="menu_box">
+                        <t-tooltip :content="entry.title" placement="right" :disabled="!isCollapsed">
+                            <router-link :to="`/platform/${entry.path}`" class="menu_item gsms-menu-item"
+                                :class="{ menu_item_active: isGsmsActive(entry.path) }"
+                                :aria-current="isGsmsActive(entry.path) ? 'page' : undefined" :aria-label="entry.title">
+                                <div class="menu_item-box">
+                                    <div class="menu_icon"><t-icon :name="entry.icon" size="18px" /></div>
+                                    <span v-if="!isCollapsed" class="menu_title" :title="entry.title">{{ entry.title }}</span>
+                                </div>
+                            </router-link>
+                        </t-tooltip>
+                    </div>
+                </template>
+            </nav>
+            <div v-if="gsmsGroups.length && !isCollapsed" class="gsms-menu-group__header gsms-menu-group__header--static">
+                <span>Assistant IA · conversations</span>
+            </div>
+
             <!-- 历史会话：按来源筛选后统一按日期分组展示 -->
-            <div class="submenu" v-if="!uiStore.sidebarCollapsed">
+            <div class="submenu" v-if="!isCollapsed">
                 <!-- Stable, always-mounted source filter: reserving its row here
                      (instead of embedding it in the first date group, which
                      appears/disappears while a bucket loads) prevents the
@@ -204,7 +234,7 @@
         </div>
 
         <!-- 批量管理底部操作条：固定在侧栏底部、用户头像上方 -->
-        <div v-if="batchMode && !uiStore.sidebarCollapsed" class="batch-inline-footer">
+        <div v-if="batchMode && !isCollapsed" class="batch-inline-footer">
             <div class="batch-footer-left">
                 <t-checkbox :checked="isAllBatchSelected" :indeterminate="isBatchIndeterminate"
                     @change="toggleBatchSelectAll">
@@ -232,6 +262,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { useGsmsAccessStore } from '@/stores/gsmsAccess';
+import { useGsmsShellStore } from '@/stores/gsmsShell';
+import { GSMS_MENU } from '@/config/gsmsMenu';
 import { onMounted, onUnmounted, watch, computed, ref, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getSessionsList, batchDelSessions, deleteAllSessions, getSession } from "@/api/chat/index";
@@ -350,6 +383,33 @@ const cmdModKeyLabel = isMacLike ? '⌘' : 'Ctrl';
 const route = useRoute();
 const router = useRouter();
 const currentpath = ref('');
+
+// ── Rubriques métier Qualiopi ─────────────────────────────────────────────────
+const shell = useGsmsShellStore();
+const gsmsAccess = useGsmsAccessStore();
+const isCollapsed = computed(() => uiStore.sidebarCollapsed && !shell.isMobile);
+const GSMS_COLLAPSE_KEY = 'gsms_menu_collapsed';
+const gsmsCollapsed = ref<Record<string, boolean>>((() => {
+    try { return JSON.parse(localStorage.getItem(GSMS_COLLAPSE_KEY) || '{}') || {}; } catch { return {}; }
+})());
+const toggleGsmsGroup = (key: string) => {
+    gsmsCollapsed.value = { ...gsmsCollapsed.value, [key]: !gsmsCollapsed.value[key] };
+    try { localStorage.setItem(GSMS_COLLAPSE_KEY, JSON.stringify(gsmsCollapsed.value)); } catch { /* préférence locale seulement */ }
+};
+// N'affiche que les entrées que GET /bootstrap ouvre (navigation + modules actifs) ; rien tant qu'il n'a pas répondu.
+const gsmsGroups = computed(() => {
+    if (!gsmsAccess.bootstrap) return [];
+    return GSMS_MENU
+        .map((group) => ({
+            ...group,
+            entries: group.entries.filter((e) => (!e.nav.length || gsmsAccess.hasNav(...e.nav))
+                && (!e.feature || gsmsAccess.hasFeature(e.feature))),
+        }))
+        .filter((group) => group.entries.length);
+});
+const isGsmsActive = (path: string) => route.meta?.gsms === path;
+gsmsAccess.load();
+watch(() => route.fullPath, () => { if (shell.isMobile) shell.closeNav(); });
 const total = ref(0);
 const sessionBuckets = ref<Record<string, SidebarSessionBucket>>({});
 const bucketOrder = ref<string[]>([]);
@@ -1988,6 +2048,76 @@ const resizeSidebar = (delta: number, keyboard: boolean) => {
     .aside_box .submenu_item_p.session-chat-row--revealed {
         animation: none;
     }
+}
+
+// ── Rubriques métier Qualiopi ──────────────────────────────────────────────
+.gsms-menu-group {
+    display: flex;
+    flex-direction: column;
+    margin-top: 6px;
+}
+
+.gsms-menu-group__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 26px;
+    margin-top: 4px;
+    padding: 0 8px 0 var(--sidebar-inset-x);
+    border-radius: var(--app-radius-xs);
+    color: var(--td-text-color-placeholder);
+    font-family: var(--app-font-family);
+    font-size: var(--app-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover { color: var(--td-text-color-secondary); }
+    &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; }
+
+    &--static {
+        margin-top: 10px;
+        cursor: default;
+        &:hover { color: var(--td-text-color-placeholder); }
+    }
+}
+
+.gsms-menu-group__rule {
+    width: 24px;
+    height: 1px;
+    margin: 6px auto;
+    background: var(--td-component-stroke);
+}
+
+.gsms-menu-item {
+    text-decoration: none;
+
+    &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; }
+}
+
+// ── Téléphone : le menu devient un tiroir (ouvert par la barre du haut de la coque) ──
+.aside_box.aside_box--mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 2100;
+    width: min(300px, 86vw);
+    min-width: 0;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: none;
+
+    &.is-open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .menu_title { max-width: none; }
+
+    @media (prefers-reduced-motion: reduce) { transition: none; }
 }
 </style>
 <style lang="less">

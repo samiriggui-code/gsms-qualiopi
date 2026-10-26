@@ -45,6 +45,8 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("documents.read", "Consulter les documents professionnels (devis, propositions, rapports)", "documents"),
     Permission("documents.write", "Préparer les documents professionnels et les envoyer en relecture", "documents"),
     Permission("documents.validate", "Valider, renvoyer en préparation et archiver les documents professionnels", "documents"),
+    Permission("leads.read", "Consulter les demandes de préinscription reçues du site", "training"),
+    Permission("leads.write", "Traiter les demandes de préinscription : prise en charge, refus, conversion", "training"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
     Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
     Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
@@ -65,17 +67,21 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
         "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read", "communications.manage", "edof.read",
-        "documents.read", "documents.write",
+        "documents.read", "documents.write", "leads.read", "leads.write",
     })),
     "financement": ("Financement : dossiers CPF, OPCO, France Travail, entreprises", frozenset({
         "sessions.read", "funding.read", "funding.write", "journal.read", "documents.read", "documents.write",
+        "leads.read",
     })),
     "formateur": ("Formateur : ses propres sessions, émargement, positionnement, évaluations, satisfaction à chaud",
                   frozenset({"sessions.read_own", "attendance.write", "learners.assess"})),
     "rh": ("Ressources humaines : personnel, contrats, absences, titres des formateurs", frozenset({
         "sessions.read", "trainers.write", "staff.read", "staff.write", "journal.read",
     })),
-    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read",
+    # Compte technique de l'assistant IA (serveur MCP) : lecture de l'état Qualiopi, rien d'autre.
+    "assistant_ia": ("Assistant IA : lecture de l'état Qualiopi par le serveur MCP (compte technique)",
+                     frozenset({"quality.read"})),
+    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read", "leads.read",
                                            "documents.read"})),
 }
 

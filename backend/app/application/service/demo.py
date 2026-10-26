@@ -23,6 +23,7 @@ from app.application.service.documents.service import upload
 from app.common.journal import set_actor
 from app.errors.errors import ConflictError
 from app.types import training as t
+from app.types.preinscriptions import COMPLIANCE, Preinscription
 
 ACTOR = "démo"
 
@@ -282,8 +283,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
                            created_by=ACTOR)
     db.add(s3)
     db.flush()
-    for learner in learners[16:18]:
-        _enroll(db, s3, learner, "INSCRIT")
+    s3_enrollments = [_enroll(db, s3, learner, "INSCRIT") for learner in learners[16:18]]
 
     # ── Session qui démarre dans 8 jours : SST-2026-04 ───────────────────────────
     # Encore « planifiée » : aucun contrôle Qualiopi n'est exigible, seul l'échéancier alerte.
@@ -306,16 +306,55 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
         if i == 0:
             db.add(t.Positioning(enrollment_id=e.id, method="Questionnaire en ligne", completed_on=d(-1), created_by=ACTOR))
 
+    _preinscriptions(db, today, ssiap, sst, s3, s3_enrollments[0])
     db.flush()
     return {"sessions": [s1.reference, s2.reference, s3.reference, s4.reference], "programs": [ssiap.code, sst.code],
             "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES)}
 
 
 
+def _preinscriptions(db: Session, today: date, ssiap: t.Program, sst: t.Program, s3: t.TrainingSession,
+                     converted: t.Enrollment) -> None:
+    """Demandes reçues du site, une par statut : nouvelle, en cours, refusée (motif), convertie (inscrite à s3)."""
+    from app.application.service.qualiopi.common import next_reference
+
+    received = datetime.combine(today, time(9), tzinfo=timezone.utc)
+    common = {"civility": "M", "phone": "06 00 00 00 00", "birth_city": "Bobigny", "birth_department": "93",
+              "birth_country": "France", "nationality": "Française", "address": "1 rue de l'Exemple",
+              "postal_code": "93000", "city": "Bobigny", "compliance": dict.fromkeys(COMPLIANCE, True),
+              "source_context": "central-landing-cta", "created_by": ACTOR}
+    learner = converted.learner
+    rows = [
+        ("NOUVELLE", 1, {"civility": "MME", "first_name": "Sarah", "last_name": "Benali", "email": "sarah.benali@exemple.fr",
+                         "program": ssiap, "session_label": "Dates à convenir", "funding_mode": "CPF",
+                         "current_situation": "Demandeuse d'emploi", "motivation": "Reconversion dans la sécurité incendie."}),
+        ("EN_COURS", 4, {"first_name": "Mehdi", "last_name": "Caron", "email": "mehdi.caron@exemple.fr", "program": ssiap,
+                         "session_label": f"{s3.start_date:%d/%m/%Y} · {s3.location}", "funding_mode": "France Travail / AIF",
+                         "current_situation": "Agent de sécurité", "experience": "Deux ans en surveillance de site."}),
+        ("REFUSEE", 9, {"first_name": "Yanis", "last_name": "Perrin", "email": "yanis.perrin@exemple.fr", "program": sst,
+                        "funding_mode": "OPCO / employeur", "current_situation": "Salarié",
+                        "refusal_reason": "Formation demandée par l'employeur : orientée vers une session intra-entreprise."}),
+        ("CONVERTIE", 12, {"first_name": learner.first_name, "last_name": learner.last_name, "email": learner.email
+                           or f"{learner.first_name.lower()}.{learner.last_name.lower()}@exemple.fr", "program": ssiap,
+                           "session_label": f"{s3.start_date:%d/%m/%Y} · {s3.location}", "funding_mode": "OPCO / employeur",
+                           "current_situation": "Salarié", "session_id": s3.id, "learner_id": learner.id,
+                           "enrollment_id": converted.id}),
+    ]
+    for status, days_ago, data in rows:
+        program = data.pop("program")
+        at = received - timedelta(days=days_ago)
+        handled = {} if status == "NOUVELLE" else {"status_changed_at": at + timedelta(days=1), "handled_by": "Gestion (démo)"}
+        if status == "CONVERTIE":
+            handled["converted_at"] = handled["status_changed_at"]
+        db.add(Preinscription(**(common | data | handled), reference=next_reference(db, "PRE"), status=status,
+                              birth_date=date(1995, 3, 14), formation_slug=(program.catalog_slug or program.code.lower()),
+                              formation_name=program.title, program_id=program.id, consented_at=at, created_at=at))
+
+
 # Données d'exemple, dans l'ordre de suppression : ce qui est rattaché aux sessions, aux apprenants et aux
 # formateurs (inscriptions, émargements, preuves de parcours…) part en cascade. L'organisme reste toujours.
 _DEMO_TABLES = (
-    t.Complaint, t.WatchItem, t.PartnerNetwork, t.TrainingSession, t.Learner, t.StaffDevelopmentAction,
+    Preinscription, t.Complaint, t.WatchItem, t.PartnerNetwork, t.TrainingSession, t.Learner, t.StaffDevelopmentAction,
     t.TrainerQualification, t.Trainer, t.Program,
 )
 

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit *)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(systemctl --user is-active *)",
+      "Bash(systemctl --user list-units *)",
+      "Bash(journalctl --user -u *)",
+      "Bash(journalctl --since *)",
+      "Bash(docker compose ps *)",
+      "Bash(docker compose ps)",
+      "Bash(gh search repos *)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__find",
+      "mcp__claude_ai_Firecrawl__firecrawl_search",
+      "mcp__gsms-seo__statut"
+    ]
+  }
+}

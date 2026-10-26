@@ -16,3 +16,6 @@ Research/
 
 # Serveur : réglages et marqueur de première mise en service
 .gsms-initialise
+
+# Réglages Claude Code propres à la machine (permissions locales)
+.claude/settings.local.json

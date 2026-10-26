@@ -15,3 +15,14 @@ export interface FundingScheme {
 }
 
 export const listFundingSchemes = () => http.get<FundingScheme[]>('/financement/dispositifs')
+
+export interface FundingRuleValue {
+  key: string
+  value: unknown
+  since: string
+  source: string
+}
+
+/** GET /financement/regles/{key}?le= (`funding.read`) : aucune route ne liste les clés disponibles. */
+export const getFundingRule = (key: string, le?: string) =>
+  http.get<FundingRuleValue>(`/financement/regles/${encodeURIComponent(key)}`, { query: { le } })

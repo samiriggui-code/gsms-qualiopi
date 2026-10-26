@@ -82,7 +82,8 @@ function PreinscriptionPanel({ lang, initialSlug, onClose }: { lang: Lang; initi
     setSubmitting(true);
     setBanner(null);
     try {
-      const res = await fetch("/api/preinscriptions", {
+      // Route publique de l'API (même origine : /api est relayé vers l'API en dev comme en production).
+      const res = await fetch("/api/v1/public/preinscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -40,8 +40,9 @@ PLATFORM_EVENTS = {"settings.changed", "feature.changed", "funding.source_change
 
 
 def _no_evidence_change(name: str) -> bool:
-    """Réglages, fonctionnalités, démarches EDOF et documents commerciaux ne changent aucune preuve Qualiopi."""
-    return name in PLATFORM_EVENTS or name.startswith(("edof.", "edition."))
+    """Réglages, fonctionnalités, démarches EDOF, documents commerciaux et demandes de préinscription ne changent
+    aucune preuve Qualiopi (la conversion, elle, publie `learner.enrolled`)."""
+    return name in PLATFORM_EVENTS or name.startswith(("edof.", "edition.", "preinscription."))
 
 
 def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None) -> dict:

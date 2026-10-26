@@ -44,6 +44,14 @@ def journey_registry(vue: str, db: DB, user: SessionsReader, session_id: str | N
     return registry.registry(db, user, vue, session_id=session_id)
 
 
+@router.get("/evaluations-acquis")
+def assessments(db: DB, user: SessionsReader, session_id: str | None = None, programme: str | None = None,
+                etat: str | None = None, resultat: str | None = None) -> dict:
+    """Évaluations des acquis, attestation et résultat de certification par inscription (sessions visibles), composés
+    à partir des registres du parcours. `etat` : étape « évaluations » ; `resultat` : REUSSI, NON_REUSSI, EN_ATTENTE, AUCUN."""
+    return registry.assessments(db, user, session_id=session_id, program_id=programme, etat=etat, resultat=resultat)
+
+
 @router.get("/inscriptions/{enrollment_id}/parcours")
 def journey(enrollment_id: str, db: DB, user: SessionsReader) -> dict:
     return service.journey_view(db, _enrollment(db, user, enrollment_id), user)

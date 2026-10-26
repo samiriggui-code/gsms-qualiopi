@@ -352,6 +352,14 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 - Restent sans page de section : Pilotage (le tableau de bord en tient lieu), Clients & financement et
   Parcours apprenant (la plupart de leurs modules sont encore à construire), Administration.
 
+## 5 quattuordecies. Assistant IA relié au moteur Qualiopi (26/10/2026)
+
+Serveur MCP en lecture seule `POST /api/v1/mcp` (8 outils : état des indicateurs, fiche indicateur, preuves, écarts,
+échéances, actions correctives, synthèse de session), déclaré automatiquement dans l'espace WeKnora à l'ouverture de session
+IA ; compte technique `assistant_ia` (`quality.read` seulement) ; base « Référentiel Qualiopi » par
+`python -m app.cmd.cli ia-preparer` (65 textes officiels déposés, indexation en attente d'un modèle d'embedding dans le
+moteur IA). Détail : `docs/API.md`, section « Moteur IA et serveur MCP ».
+
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
 L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau

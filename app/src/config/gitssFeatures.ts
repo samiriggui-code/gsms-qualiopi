@@ -18,5 +18,12 @@ export const ENABLED_WEB_SEARCH_PROVIDERS = new Set([
 /** Moteurs d'analyse de documents (`Name` de /system/parser-engines). */
 export const DISABLED_PARSER_ENGINES = new Set(['weknoracloud'])
 
-/** Sections des paramètres masquées (le code reste : les skills dépendent du sandbox). */
-export const HIDDEN_SETTINGS_SECTIONS = new Set(['sandbox'])
+/**
+ * Sections des paramètres masquées (le code reste : les skills dépendent du sandbox).
+ * GSMS : `members` (les comptes sont ceux de l'API Qualiopi, voir Paramètres › Équipe et accès),
+ * `envvars` (secrets des skills, sans objet sans sandbox), `integration-im` (messageries) et
+ * `integration-cli` (outil en ligne de commande du moteur IA) n'ont pas de sens pour un organisme de formation.
+ */
+export const HIDDEN_SETTINGS_SECTIONS = new Set([
+  'sandbox', 'members', 'envvars', 'integration-im', 'integration-cli',
+])

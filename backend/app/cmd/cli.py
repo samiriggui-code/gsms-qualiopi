@@ -7,6 +7,9 @@
   python -m app.cmd.cli retirer-demo                   retire toutes les données d'exemple + réévaluation
   python -m app.cmd.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
   python -m app.cmd.cli import-gsms-school             offre reprise de GSMS School (29 formations, lieux, équipements)
+  python -m app.cmd.cli ia-preparer [--renouveler-jeton]
+                                                   espace du moteur IA : serveur MCP Qualiopi et base « Référentiel
+                                                   Qualiopi » (idempotent) ; --renouveler-jeton invalide l'ancien jeton
 """
 
 import argparse
@@ -109,6 +112,35 @@ def import_gsms_school() -> None:
         print(f"  - {line}")
 
 
+def ia_prepare(renew: bool) -> None:
+    from app.application.service.ia.espace import ensure_mcp_service, ensure_referential_kb
+    from app.application.service.ia.session import IAUnavailable, open_session
+
+    try:
+        token = open_session()["token"]
+    except IAUnavailable as e:
+        sys.exit(str(e))
+    failed = False
+    with session_factory()() as db:
+        set_actor(db, "cli")
+        for title, step in (("Serveur MCP", lambda: ensure_mcp_service(db, token, renew=renew)),
+                            ("Base de connaissances", lambda: ensure_referential_kb(token))):
+            print(f"{title} :")
+            try:
+                report = step()
+            except IAUnavailable as e:
+                print(f"  ! {e}")
+                failed = True
+                continue
+            for line in report.done:
+                print(f"  - {line}")
+            for line in report.problems:
+                print(f"  ! {line}")
+            failed = failed or not report.ok
+    if failed:
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cmd.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -121,6 +153,8 @@ def main() -> None:
     sub.add_parser("retirer-demo")
     sub.add_parser("import-formssi")
     sub.add_parser("import-gsms-school")
+    ia = sub.add_parser("ia-preparer")
+    ia.add_argument("--renouveler-jeton", action="store_true")
     args = parser.parse_args()
     if args.cmd == "create-admin":
         create_admin(args.email, args.full_name)
@@ -134,6 +168,8 @@ def main() -> None:
         seed_demo()
     elif args.cmd == "retirer-demo":
         remove_demo()
+    elif args.cmd == "ia-preparer":
+        ia_prepare(args.renouveler_jeton)
 
 
 if __name__ == "__main__":
