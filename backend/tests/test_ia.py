@@ -216,3 +216,23 @@ def test_invitation_revoquee_meme_si_l_inscription_echoue(client, db, monkeypatc
     r = client.post("/api/v1/ia/session", headers=headers)
     assert r.status_code == 503 and "non créé" in r.json()["detail"]
     assert len(state["revoked"]) == len(state["links"]) == 2
+
+
+def test_deux_premieres_sessions_simultanees(client, db, monkeypatch):
+    """Le compte a été créé par une autre première session entre-temps : on s'y connecte au lieu d'échouer."""
+    user, headers = make_user(db, "qualite")
+    configure(monkeypatch)
+    state = fake_engine(monkeypatch)
+    client.post("/api/v1/ia/session", headers=make_user(db, "admin", email="adm@test.local")[1])  # compte de service créé
+    real_post = ia._post
+
+    def concurrent(path, payload, token=None):  # noqa: ANN001, ANN202
+        if path == "/api/v1/auth/register-by-invite":
+            real_post(path, payload, token)  # l'autre onglet crée le compte...
+            return 409, {"success": False, "error": {"message": "this email already has an account"}}  # ...et nous, refusés
+        return real_post(path, payload, token)
+
+    monkeypatch.setattr(ia, "_post", concurrent)
+    r = client.post("/api/v1/ia/session", headers=headers)
+    assert r.status_code == 200 and r.json()["user"]["email"] == ia.browser_email(user.id)
+    assert len(state["revoked"]) == len(state["links"])

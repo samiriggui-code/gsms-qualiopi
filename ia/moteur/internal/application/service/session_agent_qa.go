@@ -182,22 +182,21 @@ func (s *sessionService) AgentQA(
 		// the agent. If a Wiki-only agent doesn't need reranking,
 		// agentRequiresRerankModel() below already lets it pass.
 		rerankModelID := req.CustomAgent.Config.RerankModelID
-		if rerankModelID == "" && types.UsesWorkspaceModelFallback(req.CustomAgent) {
-			// Nobody can set a rerank model on an internal agent, so it takes
-			// the workspace's; search_knowledge keeps retrieval order without one.
+		if rerankModelID == "" {
+			// Internal agents cannot carry a rerank model, so they take the
+			// workspace's; search_knowledge keeps retrieval order without one.
+			// GSMS Qualiopi: custom agents get the same fallback instead of
+			// failing, since a workspace may have no rerank model at all.
 			models, listErr := s.modelService.ListModels(ctx)
 			if listErr != nil {
-				logger.Warnf(ctx, "Failed to list models for internal agent %s rerank fallback: %v",
+				logger.Warnf(ctx, "Failed to list models for agent %s rerank fallback: %v",
 					req.CustomAgent.ID, listErr)
 			}
 			rerankModelID = pickWorkspaceRerankModelID(models)
 			if rerankModelID == "" {
-				logger.Infof(ctx, "No rerank model in the workspace, internal agent %s searches without reranking",
+				logger.Infof(ctx, "No rerank model in the workspace, agent %s searches without reranking",
 					req.CustomAgent.ID)
 			}
-		} else if rerankModelID == "" {
-			logger.Warnf(ctx, "No rerank model configured for custom agent %s, but knowledge_search tool is enabled", req.CustomAgent.ID)
-			return errors.New("rerank model is not configured: please set rerank_model_id on the agent")
 		}
 
 		if rerankModelID != "" {

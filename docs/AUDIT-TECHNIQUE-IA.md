@@ -134,6 +134,8 @@ attendu, signalé par la synchronisation.
 | R6 | Jeton MCP sans expiration | Faible | Accepté : réseau interne seulement, refus derrière un proxy, révoqué par désactivation ou `renew` |
 | R7 | Injection d'instructions dans un document | Moyenne | Atténuée : agents en lecture seule, aucun outil d'écriture, recherche web et skills coupées ; le contrat d'analyse ne génère rien et rend les passages comme données |
 | R8 | `match_count` dépassé par l'enrichissement de contexte (8 à 13 passages pour 5 demandés) | Faible | Contourné dans le contrat (`skip_context_enrichment`) |
+| R10 | Les assistants « raisonnement » (« Préparation d'audit », « Résultats et satisfaction ») refusaient toute question : le moteur exigeait un modèle de reclassement sur un agent personnalisé (`rerank model is not configured`), et aucun n'est déclaré. Ils n'avaient donc jamais fonctionné | Élevée | **Corrigé dans le fork** (`ia/moteur/internal/application/service/session_agent_qa.go`) : comme les agents internes, modèle de l'espace s'il existe, sinon recherche sans reclassement ; image reconstruite, l'agent démarre et appelle ses outils |
+| R11 | Deux premières sessions IA simultanées d'une même personne (deux onglets) : la seconde échouait (503) | Faible | **Corrigé** (revue CodeRabbit) : nouvelle connexion si l'inscription échoue |
 | R9 | Données vers un fournisseur distant | À trancher | Aucun fournisseur distant configuré ; à décider avant la production (UE ou local) |
 
 ## 8. À préserver
@@ -170,6 +172,11 @@ fermée ; sandbox coupée en production.
    L'assistant « Préparation d'audit » la lit, avec une consigne contre l'injection d'instructions.
 7. **Reproductibilité** : `GET /qualiopi/echeances` (et l'outil MCP `lister_echeances`) avait un ordre instable entre
    jalons de même date (test MCP intermittent) ; ordre complet fixé.
+
+8. **Revue CodeRabbit** du code backend de ce chantier (`coderabbit review --committed --base-commit 93cc184 --dir
+   backend`) : 1 point, mineur (R11), corrigé et testé ; aucun point de sécurité.
+9. **Moteur IA adapté** : un agent personnalisé sans modèle de reclassement cherche sans reclasser (R10). Compilation
+   vérifiée par la construction de l'image ; les tests Go du moteur n'ont pas été lancés.
 
 ## 10. Configuration (sans secrets)
 

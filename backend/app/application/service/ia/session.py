@@ -147,8 +147,15 @@ def open_session(user_id: str, full_name: str) -> IASession:
     email, password = browser_email(user_id), _browser_password(user_id)
     browser = _login(email, password)
     if browser is None:  # première session IA de cette personne
-        _register_by_invite(service, email, password, _browser_name(full_name, user_id))
-        browser = _login(email, password)
+        try:
+            _register_by_invite(service, email, password, _browser_name(full_name, user_id))
+        except IAUnavailable:
+            # Deux premières sessions simultanées (deux onglets) : l'autre a pu créer le compte entre-temps.
+            browser = _login(email, password)
+            if browser is None:
+                raise
+        else:
+            browser = _login(email, password)
         if browser is None:
             raise IAUnavailable("Connexion au moteur IA refusée")
     if _tenant_id(browser) != tenant_id:
