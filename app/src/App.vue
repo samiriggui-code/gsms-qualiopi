@@ -20,6 +20,7 @@ import { GSMS_HOME_PATH } from '@/config/gsmsMenu'
 
 // TDesign locale configs
 import enUSConfig from 'tdesign-vue-next/esm/locale/en_US'
+import frFRConfig from '@/i18n/tdesign/fr_FR'
 
 const { locale, t, tm } = useI18n()
 const { formatRole, roleIcon } = useRoleLabel()
@@ -29,7 +30,7 @@ const settingsStore = useSettingsStore()
 
 const tdLocaleMap: Record<string, object> = {
   'en-US': enUSConfig,
-  'fr-FR': enUSConfig,
+  'fr-FR': frFRConfig,
 }
 
 const tdGlobalConfig = computed(() => tdLocaleMap[locale.value] || enUSConfig)
