@@ -111,7 +111,7 @@ def balance(db: Session, invoice: Invoice) -> dict:
     """Montants en centimes : avoirs, encaissements valides, reste dû, trop-perçu."""
     credited = sum(a.total_ttc_cents for a in credit_notes(db, invoice)) if invoice.kind == "FACTURE" else 0
     paid = sum(p.amount_cents for p in invoice.payments if p.cancelled_at is None)
-    rest = invoice.total_ttc_cents - credited - paid
+    rest = invoice.total_ttc_cents - credited - paid if invoice.status in ISSUED else 0  # brouillon : rien n'est dû
     return {"avoirs": credited, "encaisse": paid, "reste_du": max(rest, 0), "trop_percu": max(-rest, 0)}
 
 

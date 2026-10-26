@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import HTMLResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
 from app.application.access.invoicing import InvoicePolicy
@@ -21,7 +21,7 @@ from app.errors.errors import InvalidStateError, NotFoundError
 from app.middleware.auth import DB, require
 from app.types.auth import User
 from app.types.editions import UNITS
-from app.types.invoicing import CLIENT_KINDS, KINDS, PAYMENT_MODES, STATUSES, Invoice, Payment
+from app.types.invoicing import CLIENT_KINDS, ISSUED, KINDS, PAYMENT_MODES, STATUSES, Invoice, Payment
 
 router = APIRouter(prefix="/api/v1", tags=["Facturation"])
 Reader = Annotated[User, Depends(require("invoices.read"))]
@@ -152,15 +152,16 @@ def overview(db: DB, _: Reader) -> dict:
     today = date.today()
     invoices = list(db.scalars(select(Invoice).where(Invoice.kind == "FACTURE")))
     summaries = [_summary(db, x, today) for x in invoices]
+    issued = [s for s in summaries if s["statut"] in ISSUED]  # un brouillon n'est pas dû
     month = today.replace(day=1)
     received = db.scalars(select(Payment).where(Payment.cancelled_at.is_(None), Payment.received_on >= month))
     late = sorted((s for s in summaries if s["en_retard"]), key=lambda s: s["echeance"] or "")
-    soon = [s for s in summaries if not s["en_retard"] and s["reste_du_centimes"] > 0 and s["echeance"]
+    soon = [s for s in issued if not s["en_retard"] and s["reste_du_centimes"] > 0 and s["echeance"]
             and s["echeance"] <= (today + timedelta(days=7)).isoformat()]
     return {
         "brouillons": sum(1 for s in summaries if s["statut"] == "BROUILLON"),
         "statuts": {k: sum(1 for s in summaries if s["statut"] == k) for k in STATUSES},
-        "a_encaisser_centimes": sum(s["reste_du_centimes"] for s in summaries),
+        "a_encaisser_centimes": sum(s["reste_du_centimes"] for s in issued),
         "en_retard_centimes": sum(s["reste_du_centimes"] for s in late),
         "encaisse_ce_mois_centimes": sum(p.amount_cents for p in received),
         "alertes": [{"niveau": "danger", "id": s["id"],
@@ -253,6 +254,14 @@ class UpdateIn(BaseModel):
     prestation_au: date | None = None
     echeance: date | None = None
     note: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("titre", "client_nom")
+    @classmethod
+    def _not_null(cls, value: str | None) -> str:
+        # Facultatifs dans la requête, mais jamais vidés : un brouillon garde un titre et un client.
+        if value is None:
+            raise ValueError("ne peut pas être vide")
+        return value
 
 
 FIELDS = {"titre": "title", "client_nom": "client_name", "client_adresse": "client_address",

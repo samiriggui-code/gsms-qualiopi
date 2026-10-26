@@ -348,3 +348,22 @@ def test_demo_factures_puis_retrait(demo: Session) -> None:
     assert demo.scalar(select(func.count()).select_from(Invoice)) == 0
     assert demo.scalar(select(func.count()).select_from(Payment)) == 0
     assert demo.scalar(select(func.count()).select_from(Sequence).where(Sequence.name.like("DEMO-%"))) == 0
+
+
+def test_mise_a_jour_refuse_titre_ou_client_vide(client, db: Session) -> None:
+    ids = _setup(db)
+    _, h = make_user(db, "admin")
+    draft = _draft(client, h, ids, 1)
+    for field in ("titre", "client_nom"):
+        r = client.patch(f"{BASE}/{draft['id']}", json={field: None}, headers=h)
+        assert r.status_code == 422, (field, r.status_code)
+
+
+def test_synthese_ignore_les_brouillons(client, db: Session) -> None:
+    ids = _setup(db)
+    _, h = make_user(db, "admin")
+    draft = _draft(client, h, ids, 1)
+    client.patch(f"{BASE}/{draft['id']}", json={"echeance": (TODAY + timedelta(days=3)).isoformat()}, headers=h)
+    overview = client.get(f"{BASE}/synthese", headers=h).json()
+    assert overview["a_encaisser_centimes"] == 0 and overview["alertes"] == []
+    assert overview["brouillons"] == 1
