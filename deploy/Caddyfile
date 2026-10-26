@@ -105,7 +105,15 @@
 		header @immuable Cache-Control "public, max-age=31536000, immutable"
 		@page not path /app/assets/*
 		header @page Cache-Control "no-cache"
-		try_files {path} /app/index.html
+		# Repli sur la page de l'application pour les routes seulement : un fichier manquant sous
+		# /app/assets/ répond 404 (sinon index.html serait mis en cache « immuable » un an).
+		@route_app {
+			not path /app/assets/*
+			file {
+				try_files {path} /app/index.html
+			}
+		}
+		rewrite @route_app {file_match.relative}
 		file_server
 	}
 
