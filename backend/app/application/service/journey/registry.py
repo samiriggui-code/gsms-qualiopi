@@ -43,7 +43,9 @@ def _progress(steps: list[dict]) -> dict:
 
 
 def _row(e: t.Enrollment, v: dict, view: str) -> dict | None:
-    base = {"inscription": e.id, "stagiaire": v["stagiaire"], "statut": v["statut"], "session": _session(e.session),
+    # Identifiant et e-mail du stagiaire : lien vers sa fiche et avatar (déjà visibles avec le même droit).
+    base = {"inscription": e.id, "stagiaire": v["stagiaire"], "stagiaire_id": e.learner_id,
+            "stagiaire_email": e.learner.email if e.learner else None, "statut": v["statut"], "session": _session(e.session),
             "entreprise": v["contact"]["entreprise"], "financement": v["contact"]["financement"]}
     if view == "inscriptions":
         return base | {"inscrit_le": v["contact"]["inscrit_le"], "avancement": _progress(v["etapes"]),
@@ -133,7 +135,8 @@ def assessments(db: Session, user: User, today: date | None = None, session_id: 
             res = _exam_result(cert["epreuves"]) if cert else "AUCUN"
             if (etat and ev["etape"]["etat"] != etat) or (resultat and res != resultat):
                 continue
-            row = {k: ev[k] for k in ("inscription", "stagiaire", "statut", "session", "entreprise", "financement")}
+            row = {k: ev[k] for k in ("inscription", "stagiaire", "stagiaire_id", "stagiaire_email", "statut", "session",
+                                      "entreprise", "financement")}
             row["session"] = row["session"] | {"programme_id": s.program_id, "programme_code": s.program_code,
                                                "certifiante": bool(s.program and s.program.is_certifying)}
             row["evaluations"] = ev["etape"] | {"action": ev["action"], "liste": [
