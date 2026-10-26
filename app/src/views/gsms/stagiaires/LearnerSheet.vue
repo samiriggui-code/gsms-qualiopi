@@ -3,6 +3,9 @@
     :avatar-name="learner?.full_name" :avatar-photo="learner?.photo_url"
     :back-label="t('gsms.stagiaires.titre')" :subtitle="learner ? t('gsms.stagiaires.nInscriptions', { n: learner.enrollments }, learner.enrollments) : ''"
     :ready="!!learner" :loading="loading" :error="error" :tabs="tabs" :tab="current" @update:tab="(v) => (tab = v)" @retry="load">
+    <template v-if="learner && canWrite" #actions>
+      <t-button size="small" variant="outline" @click="openEdit"><template #icon><t-icon name="edit-1" /></template>{{ t('gsms.commun.modifier') }}</t-button>
+    </template>
     <template v-if="learner" #side>
       <section class="side-section">
         <h3 class="side-head"><GsmsPersonAvatar :name="learner.full_name" :photo="learner.photo_url" :size="40" />{{ t('gsms.parcours.contact') }}</h3>
@@ -15,7 +18,40 @@
       </section>
     </template>
 
-    <template v-if="learner">
+    <!-- Fiche : identité et coordonnées rendues par GET /learners/{id} -->
+    <div v-if="learner && current === 'fiche'" class="info-grid">
+      <GsmsInfoPanel :title="t('gsms.stagiaires.groupes.identite')" icon="user" :rows="[
+        { label: t('gsms.stagiaires.champs.civilite'), value: learner.civility_label || learner.civility },
+        { label: t('gsms.stagiaires.champs.nom'), value: learner.last_name },
+        { label: t('gsms.stagiaires.champs.nomUsage'), value: learner.usage_name },
+        { label: t('gsms.stagiaires.champs.prenom'), value: learner.first_name },
+      ]" />
+      <GsmsInfoPanel :title="`${t('gsms.stagiaires.groupes.naissance')} · ${t('gsms.stagiaires.groupes.nationalite')}`" icon="calendar" :rows="[
+        { label: t('gsms.stagiaires.champs.dateNaissance'), value: learner.birth_date ? fmtDate(learner.birth_date) : null },
+        { label: t('gsms.stagiaires.champs.villeNaissance'), value: learner.birth_city },
+        bornInFrance(learner)
+          ? { label: t('gsms.stagiaires.champs.departementNaissance'), value: learner.birth_department }
+          : { label: t('gsms.stagiaires.champs.paysNaissance'), value: learner.birth_country },
+        { label: t('gsms.stagiaires.champs.nationalite'), value: learner.nationality, flag: nationalityFlag(learner.nationality) },
+      ]" />
+      <GsmsInfoPanel :title="t('gsms.stagiaires.groupes.coordonnees')" icon="location" :rows="[
+        { label: t('gsms.stagiaires.champs.email'), value: learner.email },
+        { label: t('gsms.stagiaires.champs.telephone'), value: learner.phone },
+        { label: t('gsms.stagiaires.champs.adresse'), value: learner.address, wide: true },
+        { label: t('gsms.stagiaires.champs.codePostal'), value: learner.postal_code },
+        { label: t('gsms.stagiaires.champs.ville'), value: learner.city },
+      ]" />
+      <GsmsInfoPanel :title="`${t('gsms.stagiaires.groupes.situation')} · ${t('gsms.stagiaires.groupes.entreprise')}`" icon="city" :rows="[
+        { label: t('gsms.stagiaires.champs.situation'), value: learner.current_situation, wide: true },
+        { label: t('gsms.stagiaires.champs.entreprise'), value: learner.company_name },
+      ]">
+        <router-link v-if="learner.company_id" :to="`/platform/entreprises/${learner.company_id}`" class="link">
+          {{ t('gsms.stagiaires.ouvrirEntreprise') }}<t-icon name="chevron-right" size="14px" />
+        </router-link>
+      </GsmsInfoPanel>
+    </div>
+
+    <template v-else-if="learner">
       <GsmsRefusal v-if="journeysError" :error="journeysError" inline />
       <div v-else-if="!journeys" class="panel"><t-skeleton animation="gradient" :row-col="[{ width: '60%' }, { width: '100%' }, { width: '100%' }]" /></div>
       <section v-else-if="!journeys.length" class="panel"><p class="muted">{{ t('gsms.stagiaires.aucuneInscription') }}</p></section>
@@ -90,6 +126,11 @@
       </template>
     </template>
   </GsmsRecordSheet>
+
+  <ActionDialog v-model:visible="editVisible" :title="t('gsms.stagiaires.modifier')" icon="edit-1" :fields="editFields"
+    width="min(760px, calc(100vw - 32px))" :run="save" @done="saved">
+    <p v-if="companiesError" class="muted companies-note">{{ t('gsms.stagiaires.entreprisesIndisponibles') }}</p>
+  </ActionDialog>
 </template>
 
 <script setup lang="ts">
@@ -101,8 +142,14 @@ import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import GsmsStepMark from '@/components/gsms/GsmsStepMark.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import GsmsInfoPanel from '@/components/gsms/GsmsInfoPanel.vue'
+import ActionDialog from '@/components/gsms/ActionDialog.vue'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { nationalityFlag } from '@/components/gsms/media'
+import { listCompanies, type Company } from '@/api/gsms/entreprises'
+import { bornInFrance, learnerFields, learnerInitial, learnerPayload } from './learnerForm'
 import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
-import { getLearner, listLearnerInscriptions, type LearnerInscription, type LearnerRecord } from '@/api/gsms/sessions'
+import { getLearner, listLearnerInscriptions, updateLearner, type LearnerInscription, type LearnerRecord } from '@/api/gsms/sessions'
 import { getLearnerJourney, journeyDocumentPath, type JourneyDocument, type LearnerJourney } from '@/api/gsms/journey'
 import { listFundingCases, type FundingCase } from '@/api/gsms/funding'
 import { downloadFile } from '@/api/gsms/files'
@@ -133,12 +180,13 @@ const busy = ref('')
 
 // Onglet Financement : seulement si le module est actif et lisible pour ce compte (GET /bootstrap).
 const showFunding = computed(() => access.hasFeature('funding') && access.can('funding.read'))
-const TABS = computed(() => ['parcours', 'documents', ...(showFunding.value ? ['financement'] : [])])
-const tab = ref(['parcours', 'documents', 'financement'].includes(String(route.query.onglet)) ? String(route.query.onglet) : 'parcours')
-const current = computed(() => (TABS.value.includes(tab.value) ? tab.value : 'parcours'))
+const TABS = computed(() => ['fiche', 'parcours', 'documents', ...(showFunding.value ? ['financement'] : [])])
+const tab = ref(['fiche', 'parcours', 'documents', 'financement'].includes(String(route.query.onglet)) ? String(route.query.onglet) : 'fiche')
+const current = computed(() => (TABS.value.includes(tab.value) ? tab.value : 'fiche'))
 const documents = computed(() => (journeys.value ?? []).flatMap((j) =>
   (j.journey?.documents ?? []).map((doc: JourneyDocument) => ({ doc, enrollment: j.inscription.id, session: j.inscription.session.reference }))))
 const tabs = computed(() => [
+  { value: 'fiche', label: t('gsms.stagiaires.ongletFiche') },
   { value: 'parcours', label: t('gsms.sessions.parcours'), count: journeys.value?.length },
   { value: 'documents', label: t('gsms.stagiaires.documents'), count: journeys.value ? documents.value.length : undefined },
   ...(showFunding.value ? [{ value: 'financement', label: t('gsms.parcours.financement') }] : []),
@@ -193,6 +241,34 @@ watch(id, () => { actionError.value = null; load() }, { immediate: true })
 watch(tab, (v) => router.replace({ query: { ...route.query, onglet: v } }))
 watch(showFunding, (v) => { if (v && journeys.value && journeys.value.some((j) => j.funding === undefined)) loadFunding() })
 
+// ── Modifier (PATCH /learners/{id}, `sessions.write`) : seuls les champs changés partent ──
+const canWrite = computed(() => access.can('sessions.write'))
+access.load()
+const editVisible = ref(false)
+const companies = ref<Company[]>([])
+const companiesError = ref<unknown>(null)
+const editFields = computed(() => learnerFields(learner.value, companies.value))
+async function openEdit() {
+  companiesError.value = null
+  try {
+    companies.value = await listCompanies()
+  } catch (e) {
+    companies.value = []
+    companiesError.value = e
+  }
+  editVisible.value = true
+}
+const save = (v: Record<string, unknown>) => {
+  const row = learner.value!
+  const body = learnerPayload(v, learnerInitial(row))
+  return Object.keys(body).length ? updateLearner(row.id, body) : Promise.resolve(row)
+}
+async function saved() {
+  MessagePlugin.success(t('gsms.commun.misAJour'))
+  // Le PATCH rend la ligne de liste (sans l'identité détaillée) : la fiche est relue.
+  try { learner.value = await getLearner(id.value) } catch (e) { error.value = e }
+}
+
 async function download(enrollmentId: string, documentId: string, name: string) {
   busy.value = documentId
   actionError.value = null
@@ -224,4 +300,7 @@ async function download(enrollmentId: string, documentId: string, name: string) 
 .row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 10px 14px; }
 .row-main { flex: 1 1 160px; min-width: 0; color: var(--td-text-color-primary); font-size: var(--app-text-md); font-weight: 500; overflow-wrap: anywhere; }
 .sources { margin-top: 4px; }
+.info-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 768px) { .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.companies-note { margin-top: 8px; }
 </style>

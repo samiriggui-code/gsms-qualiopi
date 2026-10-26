@@ -15,10 +15,15 @@ export interface Trainer {
   last_name: string
   full_name: string
   email: string | null
+  phone?: string | null
   /** Photo : chemin de la médiathèque (media/…), ou null (initiales). */
   photo_url?: string | null
   is_external: boolean
   specialties: string[]
+  /** Présentation sur le site de l'organisme : fonction affichée et texte. */
+  site_visible?: boolean
+  site_title?: string | null
+  site_bio?: string | null
   /** Compte GSMS relié (portée `sessions.read_own`). */
   user_id: string | null
   /** Nombre de sessions et de titres, comptés par l'API. */
@@ -30,8 +35,13 @@ export interface TrainerIn {
   first_name?: string
   last_name?: string
   email?: string | null
+  phone?: string | null
   is_external?: boolean
   specialties?: string[]
+  photo_url?: string | null
+  site_visible?: boolean
+  site_title?: string | null
+  site_bio?: string | null
 }
 
 export const listTrainers = () => http.get<Trainer[]>('/trainers')
@@ -127,9 +137,18 @@ export const deleteStaffDevelopment = (id: string) => http.delete<void>(`/staff-
 
 export interface StaffMember {
   id: string
+  /** Nom complet ; `prenom` et `nom_de_famille` servent au formulaire. */
   nom: string
+  prenom: string
+  nom_de_famille: string
   email: string | null
+  telephone: string | null
   photo_url?: string | null
+  /** Code du service (GET /rh/personnel/services) et son libellé, ou null. */
+  service: string | null
+  service_libelle: string | null
+  /** Présentation sur le site de l'organisme, dans le volet de son service. */
+  site: { visible: boolean; fonction: string | null; bio: string | null }
   /** SALARIE, INDEPENDANT, SOUS_TRAITANT, INTERIMAIRE, STAGIAIRE. */
   statut: string
   fonction: string | null
@@ -140,15 +159,32 @@ export interface StaffMember {
   contrat_en_cours: { type: string; fin: string | null } | null
   contrats: { id: string; type: string; debut: string; fin: string | null; temps: string | null }[]
   absences: { id: string; debut: string; fin: string; nature: string }[]
+  /** Fiche seule (GET /rh/personnel/{id}) : titres de la fiche formateur liée. */
+  titres?: { type: string; libelle: string; numero: string | null; fin: string | null }[]
 }
 
+/** Corps de POST /rh/personnel et PATCH /rh/personnel/{id} (`staff.write`) ; `active` en modification seulement. */
 export interface StaffIn {
-  first_name: string
-  last_name: string
+  first_name?: string
+  last_name?: string
   email?: string | null
+  phone?: string | null
   kind?: string
   job_title?: string | null
+  service?: string | null
+  active?: boolean
   trainer_id?: string | null
+  photo_url?: string | null
+  site_visible?: boolean
+  site_title?: string | null
+  site_bio?: string | null
+}
+
+/** Effectif par service (`code` null : sans service), compté par l'API. */
+export interface StaffService {
+  code: string | null
+  libelle: string
+  effectif: number
 }
 
 export interface ContractIn {
@@ -166,8 +202,14 @@ export interface AbsenceIn {
   note?: string | null
 }
 
-export const listStaff = (actifs = true) => http.get<StaffMember[]>('/rh/personnel', { query: { actifs } })
+/** GET /rh/personnel ; `service` (code) limite la liste à un service. */
+export const listStaff = (actifs = true, service?: string) => http.get<StaffMember[]>('/rh/personnel', { query: { actifs, service } })
+/** GET /rh/personnel/services : volets de la page Personnel. */
+export const listStaffServices = (actifs = true) => http.get<StaffService[]>('/rh/personnel/services', { query: { actifs } })
+export const getStaff = (id: string) => http.get<StaffMember>(`/rh/personnel/${enc(id)}`)
 export const createStaff = (body: StaffIn) => http.post<StaffMember>('/rh/personnel', body)
+/** PATCH /rh/personnel/{id} : seuls les champs envoyés changent ; refus 409 lisibles (présentation sans fonction…). */
+export const updateStaff = (id: string, body: StaffIn) => http.patch<StaffMember>(`/rh/personnel/${enc(id)}`, body)
 export const addContract = (staffId: string, body: ContractIn) =>
   http.post<StaffMember>(`/rh/personnel/${enc(staffId)}/contrats`, body)
 export const addAbsence = (staffId: string, body: AbsenceIn) =>

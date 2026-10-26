@@ -19,11 +19,21 @@
           <span class="identity-name">{{ trainer.full_name }}</span>
         </div>
         <dl>
-          <div><dt>{{ t('gsms.rh.formateurs.email') }}</dt><dd>{{ trainer.email || '—' }}</dd></div>
+          <div><dt>{{ t('gsms.rh.formateurs.email') }}</dt><dd :class="{ empty: !trainer.email }">{{ trainer.email || t('gsms.commun.nonRenseigne') }}</dd></div>
+          <div><dt>{{ t('gsms.rh.formateurs.telephone') }}</dt><dd :class="{ empty: !trainer.phone }">{{ trainer.phone || t('gsms.commun.nonRenseigne') }}</dd></div>
           <div><dt>{{ t('gsms.rh.formateurs.statut') }}</dt><dd>{{ trainer.is_external ? t('gsms.rh.formateurs.externe') : t('gsms.rh.formateurs.interne') }}</dd></div>
           <div><dt>{{ t('gsms.rh.formateurs.specialites') }}</dt><dd>{{ trainer.specialties.join(', ') || '—' }}</dd></div>
           <div><dt>{{ t('gsms.rh.formateurs.sessions') }}</dt><dd>{{ trainer.sessions }}</dd></div>
           <div><dt>{{ t('gsms.rh.formateurs.titres') }}</dt><dd>{{ trainer.qualifications }}</dd></div>
+        </dl>
+      </section>
+      <section class="side-section">
+        <h3>{{ t('gsms.rh.fiche.presenceSite') }}</h3>
+        <p class="site-state"><t-icon :name="trainer.site_visible ? 'browse' : 'browse-off'" aria-hidden="true" />
+          {{ trainer.site_visible ? t('gsms.rh.fiche.visible') : t('gsms.rh.fiche.nonVisible') }}</p>
+        <dl>
+          <div><dt>{{ t('gsms.rh.formateurs.fonctionSite') }}</dt><dd :class="{ empty: !trainer.site_title }">{{ trainer.site_title || t('gsms.commun.nonRenseigne') }}</dd></div>
+          <div><dt>{{ t('gsms.rh.formateurs.bioSite') }}</dt><dd class="bio" :class="{ empty: !trainer.site_bio }">{{ trainer.site_bio || t('gsms.commun.nonRenseigne') }}</dd></div>
         </dl>
       </section>
       <section class="side-section">
@@ -114,7 +124,7 @@
     </template>
   </GsmsRecordSheet>
 
-  <ActionDialog v-model:visible="editVisible" :title="t('gsms.rh.fiche.modifier')" :fields="trainerFields(trainer)"
+  <ActionDialog v-model:visible="editVisible" :title="t('gsms.rh.fiche.modifier')" :fields="trainerFields(trainer)" width="min(720px, calc(100vw - 32px))"
     :run="(v) => updateTrainer(id, trainerPayload(v))" @done="saved" />
   <ActionDialog v-model:visible="titleForm.visible" :title="titleForm.row ? t('gsms.rh.fiche.modifierTitre') : t('gsms.rh.fiche.ajouterTitre')"
     :intro="titleForm.row ? t('gsms.rh.fiche.modifierTitreAide') : ''" :fields="titleFields" :run="saveTitle" @done="titleSaved" />
@@ -347,6 +357,9 @@ section.panel > .title { margin-bottom: 10px; }
 .legend { margin-top: 8px; }
 .identity { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .identity-name { font-size: var(--app-text-lg, 16px); font-weight: 600; color: var(--td-text-color-primary); overflow-wrap: anywhere; min-width: 0; }
+.empty { color: var(--td-text-color-placeholder) !important; font-size: var(--app-text-sm) !important; font-style: italic; }
+.bio { white-space: pre-line; }
+.site-state { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; color: var(--td-text-color-primary); font-size: var(--app-text-md); }
 .side-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .rows { .gsms-rows(); }
 .row { padding: 10px 14px; }

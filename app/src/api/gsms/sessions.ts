@@ -74,8 +74,28 @@ export const listLearners = () => http.get<LearnerRow[]>('/stagiaires')
 /** DELETE /sessions/{id} : session planifiée sans inscription (TrainingPolicy, refus 409). */
 export const deleteSession = (id: string) => http.delete<void>(`/sessions/${encodeURIComponent(id)}`)
 
+/**
+ * Identité détaillée et coordonnées du stagiaire : seulement dans le détail (GET /learners/{id}), jamais dans la liste
+ * (LEARNER_PERSONAL_FIELDS de l'API, valeurs masquées dans le journal des modifications).
+ */
+export interface LearnerIdentity {
+  /** M ou MME ; `civility_label` est le libellé rendu par l'API. */
+  civility?: string | null
+  civility_label?: string | null
+  usage_name?: string | null
+  birth_date?: string | null
+  birth_city?: string | null
+  birth_department?: string | null
+  birth_country?: string | null
+  nationality?: string | null
+  address?: string | null
+  postal_code?: string | null
+  city?: string | null
+  current_situation?: string | null
+}
+
 /** Fiche apprenant de la ressource CRUD /learners (`sessions.read`) : identité, entreprise, nombre d'inscriptions. */
-export interface LearnerRecord {
+export interface LearnerRecord extends LearnerIdentity {
   id: string
   first_name: string
   last_name: string
@@ -94,6 +114,18 @@ export interface LearnerRecord {
 export const listLearnerRecords = (entreprise?: string) => http.get<LearnerRecord[]>('/learners', { query: { entreprise } })
 /** GET /learners/{id} (`sessions.read`). */
 export const getLearner = (id: string) => http.get<LearnerRecord>(`/learners/${encodeURIComponent(id)}`)
+
+/** Corps de POST /learners et PATCH /learners/{id} (PersonIn ; `sessions.write`). `null` vide un champ. */
+export interface LearnerIn extends Omit<LearnerIdentity, 'civility_label'> {
+  first_name?: string
+  last_name?: string
+  email?: string | null
+  phone?: string | null
+  company_id?: string | null
+  photo_url?: string | null
+}
+export const createLearner = (body: LearnerIn) => http.post<LearnerRecord>('/learners', body)
+export const updateLearner = (id: string, body: LearnerIn) => http.patch<LearnerRecord>(`/learners/${encodeURIComponent(id)}`, body)
 
 /** Inscription d'un stagiaire avec le résumé de sa session (GET /learners/{id}/inscriptions). */
 export interface LearnerInscription {

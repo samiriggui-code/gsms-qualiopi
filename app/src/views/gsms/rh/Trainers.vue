@@ -44,7 +44,8 @@
     </template>
   </GsmsListPage>
 
-  <ActionDialog v-model:visible="formVisible" :title="t('gsms.rh.formateurs.nouveau')" :fields="trainerFields(null)" :run="create" @done="created" />
+  <ActionDialog v-model:visible="formVisible" :title="t('gsms.rh.formateurs.nouveau')" icon="user-add" :fields="trainerFields(null)"
+    width="min(720px, calc(100vw - 32px))" :run="create" @done="created" />
 </template>
 
 <script setup lang="ts">

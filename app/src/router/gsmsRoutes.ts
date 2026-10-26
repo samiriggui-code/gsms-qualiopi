@@ -87,6 +87,7 @@ export const gsmsRoutes: RouteRecordRaw[] = [
   { path: 'formateurs', name: 'gsmsFormateurs', component: () => import('../views/gsms/rh/Trainers.vue'), meta: meta('formateurs') },
   { path: 'formateurs/:trainerId', name: 'gsmsFormateur', component: () => import('../views/gsms/rh/TrainerDetail.vue'), meta: meta('formateurs') },
   { path: 'personnel', name: 'gsmsPersonnel', component: () => import('../views/gsms/rh/Staff.vue'), meta: meta('personnel') },
+  { path: 'personnel/:staffId', name: 'gsmsPersonnelFiche', component: () => import('../views/gsms/rh/StaffSheet.vue'), meta: meta('personnel') },
   { path: 'developpement', name: 'gsmsDeveloppement', component: () => import('../views/gsms/rh/StaffDevelopment.vue'), meta: meta('developpement') },
   { path: 'lieux', name: 'gsmsLieux', component: () => import('../views/gsms/ressources/Premises.vue'), meta: meta('lieux') },
   { path: 'equipements', name: 'gsmsEquipements', component: () => import('../views/gsms/ressources/Equipment.vue'), meta: meta('equipements') },

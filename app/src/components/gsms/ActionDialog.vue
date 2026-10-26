@@ -18,18 +18,31 @@
         </div>
       </div>
       <div ref="refusalBox"><GsmsRefusal v-if="error" :error="error" inline /></div>
-      <t-form v-if="normalizedFields.length" label-align="top" :data="values" class="ad-fields" @submit.prevent>
-        <t-form-item v-for="f in normalizedFields" :key="f.name" :label="f.label" :name="f.name" :required-mark="!!f.required">
-          <t-date-picker v-if="f.type === 'date'" v-model="values[f.name]" value-type="YYYY-MM-DD" format="DD/MM/YYYY"
-            clearable style="width: 100%" />
-          <t-textarea v-else-if="f.type === 'textarea'" v-model="values[f.name]" :autosize="{ minRows: 3, maxRows: 8 }" />
-          <t-input-number v-else-if="f.type === 'number'" v-model="values[f.name]" theme="normal" style="width: 100%" />
-          <t-select v-else-if="f.type === 'select'" v-model="values[f.name]" :options="f.options" clearable />
-          <t-radio-group v-else-if="f.type === 'radio'" v-model="values[f.name]" class="action-dialog__radios">
-            <t-radio v-for="o in f.options" :key="String(o.value)" :value="o.value">{{ o.label }}</t-radio>
-          </t-radio-group>
-          <t-input v-else v-model="values[f.name]" />
-        </t-form-item>
+      <t-form v-if="normalizedFields.length" label-align="top" :data="values" class="ad-fields" :class="{ 'ad-fields--grouped': grouped }" @submit.prevent>
+        <component :is="g.section ? 'fieldset' : 'div'" v-for="(g, gi) in groups" :key="gi" class="ad-group">
+          <legend v-if="g.section" class="ad-group__title">{{ g.section }}</legend>
+          <div class="ad-grid">
+            <template v-for="f in g.fields" :key="f.name">
+              <t-form-item v-if="shown(f)" :label="f.label" :name="f.name" :required-mark="isRequired(f)" :help="f.help"
+                :class="{ 'ad-half': f.half, 'ad-full': !f.half }">
+                <t-date-picker v-if="f.type === 'date'" v-model="values[f.name]" value-type="YYYY-MM-DD" format="DD/MM/YYYY"
+                  :placeholder="f.placeholder || t('gsms.commun.formatDate')" clearable style="width: 100%" />
+                <t-textarea v-else-if="f.type === 'textarea'" v-model="values[f.name]" :maxlength="f.maxlength" :placeholder="f.placeholder ?? ''" :autosize="{ minRows: 3, maxRows: 8 }" />
+                <t-input-number v-else-if="f.type === 'number'" v-model="values[f.name]" theme="normal" style="width: 100%" />
+                <t-select v-else-if="f.type === 'select'" v-model="values[f.name]" :options="f.options" clearable
+                  :placeholder="f.placeholder || t('gsms.commun.choisir')" />
+                <t-radio-group v-else-if="f.type === 'radio'" v-model="values[f.name]" class="action-dialog__radios">
+                  <t-radio v-for="o in f.options" :key="String(o.value)" :value="o.value">{{ o.label }}</t-radio>
+                </t-radio-group>
+                <t-switch v-else-if="f.type === 'switch'" v-model="values[f.name]" />
+                <GsmsPhotoField v-else-if="f.type === 'photo'" v-model="values[f.name]" :name="photoName(f)"
+                  @busy="(b: boolean) => (photoBusy[f.name] = b)" />
+                <t-input v-else v-model="values[f.name]" :maxlength="f.maxlength" :placeholder="f.placeholder ?? ''"
+                  :type="f.inputType" :autocomplete="f.autocomplete" />
+              </t-form-item>
+            </template>
+          </div>
+        </component>
       </t-form>
       <slot />
       <div v-if="confirmText" class="ad-retype">
@@ -44,7 +57,7 @@
     <template #footer>
       <div class="ad-foot">
         <t-button variant="outline" :disabled="submitting" @click="close">{{ danger ? t('gsms.critique.renoncer') : t('gsms.commun.annuler') }}</t-button>
-        <t-button :theme="danger ? 'danger' : 'primary'" :loading="submitting" :disabled="!typedOk" @click="submit">
+        <t-button :theme="danger ? 'danger' : 'primary'" :loading="submitting" :disabled="!typedOk || uploading" @click="submit">
           {{ confirmLabel || t('gsms.commun.enregistrer') }}
         </t-button>
       </div>
@@ -64,6 +77,8 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import GsmsRefusal from './GsmsRefusal.vue'
+import GsmsPhotoField from './GsmsPhotoField.vue'
+import { ApiError } from '@/api/gsms/http'
 import { useI18n } from 'vue-i18n'
 import { inputLabel } from './format'
 import { playSound } from './feedbackSound'
@@ -71,11 +86,28 @@ import { playSound } from './feedbackSound'
 export interface ActionField {
   name: string
   label?: string
-  type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio'
-  options?: { label: string; value: string | number }[]
+  /** `photo` : GsmsPhotoField (chemin de la médiathèque) ; `switch` : booléen. */
+  type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio' | 'switch' | 'photo'
+  options?: { label: string; value: string | number | boolean }[]
   initial?: unknown
-  /** Saisie indispensable à la route : un champ vide n'est pas envoyé, le formulaire le signale. */
-  required?: boolean
+  /**
+   * Saisie indispensable à la route : un champ vide n'est pas envoyé, le formulaire le signale. Une fonction suit les
+   * autres saisies (ex. fonction affichée si la personne est présentée sur le site) ; c'est un confort, l'API tranche.
+   */
+  required?: boolean | ((values: Record<string, any>) => boolean)
+  /** Groupe du formulaire (titre de section) ; les champs consécutifs du même groupe sont réunis. */
+  section?: string
+  /** Demi-largeur à partir de 600 px (deux champs par ligne). */
+  half?: boolean
+  help?: string
+  placeholder?: string
+  maxlength?: number
+  inputType?: 'text' | 'email' | 'tel' | 'url'
+  autocomplete?: string
+  /** Champ affiché selon les autres saisies ; masqué, il est envoyé vide s'il avait une valeur à l'ouverture. */
+  show?: (values: Record<string, any>) => boolean
+  /** Champ photo : noms des champs qui donnent les initiales de l'aperçu (ex. prénom et nom). */
+  avatarFrom?: string[]
 }
 
 const props = withDefaults(defineProps<{
@@ -105,6 +137,40 @@ const normalizedFields = computed<ActionField[]>(() => props.fields.map((f) => {
   return { ...field, type, label: field.label ?? inputLabel(field.name) }
 }))
 
+// Groupes consécutifs (titre de section) ; un formulaire sans section garde son rendu d'une seule colonne.
+const grouped = computed(() => normalizedFields.value.some((f) => f.section))
+const groups = computed(() => {
+  const out: { section: string; fields: ActionField[] }[] = []
+  for (const f of normalizedFields.value) {
+    const last = out[out.length - 1]
+    if (last && last.section === (f.section ?? '')) last.fields.push(f)
+    else out.push({ section: f.section ?? '', fields: [f] })
+  }
+  return out
+})
+const shown = (f: ActionField) => !f.show || f.show(values)
+const isRequired = (f: ActionField) => shown(f) && (typeof f.required === 'function' ? f.required(values) : !!f.required)
+const photoName = (f: ActionField) => (f.avatarFrom ?? []).map((n) => values[n]).filter(Boolean).join(' ') || null
+// Téléversement en cours, par champ photo : l'enregistrement attend que toutes les photos aient leur chemin.
+const photoBusy = reactive<Record<string, boolean>>({})
+const uploading = computed(() => Object.values(photoBusy).some(Boolean))
+
+/** Refus de validation (422) : les noms de champs de l'API deviennent les libellés du formulaire. */
+function readable(e: unknown): unknown {
+  if (!(e instanceof ApiError) || e.status !== 422) return e
+  const labels = new Map(normalizedFields.value.map((f) => [f.name, (f.label ?? f.name).replace(/\s*\*$/, '')]))
+  const message = e.message.split(' ; ').map((part) => {
+    const m = /^([a-z_]+)(?:\.[^ ]+)? : (.*)$/.exec(part)
+    const label = m && labels.get(m[1]!)
+    if (!label) return part
+    // « code postal : 5 chiffres attendus » : le libellé n'est pas répété s'il ouvre déjà le message de l'API.
+    let text = m![2]!.replace(/^Value error, /, '')
+    if (text.toLowerCase().startsWith(`${label.toLowerCase()} : `)) text = text.slice(label.length + 3)
+    return `${label} : ${text}`
+  }).join(' ; ')
+  return new ApiError(e.status, message, e.code, e.details)
+}
+
 const headIcon = computed(() => props.icon || (props.danger ? 'error-circle' : 'edit-1'))
 const values = reactive<Record<string, any>>({})
 const error = ref<unknown>(null)
@@ -127,7 +193,10 @@ watch(() => props.visible, (v) => {
   error.value = null
   typed.value = ''
   for (const k of Object.keys(values)) delete values[k]
-  for (const f of normalizedFields.value) values[f.name] = f.initial ?? (f.type === 'number' ? undefined : '')
+  for (const k of Object.keys(photoBusy)) delete photoBusy[k]
+  for (const f of normalizedFields.value) {
+    values[f.name] = f.initial ?? (f.type === 'number' ? undefined : f.type === 'switch' ? false : f.type === 'photo' ? null : '')
+  }
   if (props.danger) playSound('warning')
 }, { immediate: true })
 
@@ -136,15 +205,15 @@ function close() {
 }
 
 async function submit() {
-  if (!typedOk.value || submitting.value) return
+  if (!typedOk.value || submitting.value || uploading.value) return
   submitting.value = true
   error.value = null
   try {
-    const missing = normalizedFields.value.filter((f) => f.required && [undefined, null, ''].includes(values[f.name]))
+    const missing = normalizedFields.value.filter((f) => isRequired(f) && [undefined, null, ''].includes(values[f.name]))
     if (missing.length) throw new Error(t('gsms.commun.champsRequis', { champs: missing.map((f) => f.label).join(', ') }))
     const payload: Record<string, any> = {}
     for (const f of normalizedFields.value) {
-      const v = values[f.name]
+      const v = shown(f) ? values[f.name] : undefined
       if (v !== '' && v !== undefined && v !== null) payload[f.name] = v
       // Valeur présente à l'ouverture puis effacée : on l'envoie vide (modification d'une fiche existante).
       else if (f.initial !== undefined && f.initial !== null && f.initial !== '') payload[f.name] = null
@@ -154,7 +223,7 @@ async function submit() {
     emit('done', result)
     emit('update:visible', false)
   } catch (e) {
-    error.value = e
+    error.value = readable(e)
     if (props.danger) playSound('error')
     // Sur téléphone le formulaire défile : le motif du refus doit être vu, pas resté en haut hors de l'écran.
     void nextTick(() => refusalBox.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
@@ -217,6 +286,24 @@ async function submit() {
 .ad-retype__label { color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 20px; }
 .ad-retype__expected { font-family: var(--app-font-family-mono); font-variant-numeric: tabular-nums; user-select: all; }
 .ad-retype__hint { color: var(--td-text-color-secondary); font-size: var(--app-text-xs); line-height: 16px; }
+.ad-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.ad-group + .ad-group { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--td-component-stroke); }
+// Titre flottant : la légende ne coupe plus la bordure du groupe (rendu natif d'un fieldset).
+.ad-group__title {
+  float: left;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0;
+  color: var(--td-text-color-primary);
+  font-size: var(--app-text-md);
+  font-weight: 600;
+  line-height: 20px;
+}
+.ad-grid { clear: both; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 14px; }
+@media (min-width: 600px) {
+  .ad-fields--grouped .ad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ad-fields--grouped .ad-full { grid-column: 1 / -1; }
+}
 .action-dialog__radios { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .ad-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 </style>

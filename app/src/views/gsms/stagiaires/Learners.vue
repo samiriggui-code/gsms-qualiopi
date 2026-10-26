@@ -5,6 +5,7 @@
     :empty-description="learners?.length ? t('gsms.commun.aucunResultatFiltres') : t('gsms.stagiaires.aucunAide')" @retry="load">
     <template #actions>
       <router-link :to="{ name: 'gsmsParcours' }" class="header-link">{{ t('gsms.registres.titre') }}<t-icon name="chevron-right" size="14px" /></router-link>
+      <t-button v-if="canWrite && !error" size="small" @click="openCreate"><template #icon><t-icon name="add" /></template>{{ t('gsms.stagiaires.nouveau') }}</t-button>
     </template>
     <template #toolbar>
       <GsmsFilterTabs v-model="filter" :options="tabs" :label="t('gsms.stagiaires.filtrer')" />
@@ -35,17 +36,32 @@
       </router-link>
     </template>
   </GsmsListPage>
+
+  <ActionDialog v-model:visible="createVisible" :title="t('gsms.stagiaires.nouveau')" icon="user-add" :fields="createFields"
+    width="min(760px, calc(100vw - 32px))" :run="create" @done="created">
+    <p v-if="companiesError" class="muted">{{ t('gsms.stagiaires.entreprisesIndisponibles') }}</p>
+  </ActionDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { MessagePlugin } from 'tdesign-vue-next'
+import ActionDialog from '@/components/gsms/ActionDialog.vue'
 import GsmsListPage, { type ListColumn } from '@/components/gsms/GsmsListPage.vue'
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
-import { listLearnerRecords, type LearnerRecord } from '@/api/gsms/sessions'
+import { createLearner, listLearnerRecords, type LearnerRecord } from '@/api/gsms/sessions'
+import { listCompanies, type Company } from '@/api/gsms/entreprises'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { learnerFields, learnerPayload } from './learnerForm'
 
 const { t } = useI18n()
+const router = useRouter()
+const access = useGsmsAccessStore()
+// Ressource CRUD sans `capabilities` : l'écriture suit la permission de la route (sessions.write).
+const canWrite = computed(() => access.can('sessions.write'))
 const learners = ref<LearnerRecord[] | null>(null)
 const loading = ref(false)
 const error = ref<unknown>(null)
@@ -64,7 +80,30 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+onMounted(() => { access.load(); load() })
+
+// ── Nouveau stagiaire (POST /learners) ──
+const createVisible = ref(false)
+const companies = ref<Company[]>([])
+const companiesError = ref<unknown>(null)
+const createFields = computed(() => learnerFields(null, companies.value))
+async function openCreate() {
+  companiesError.value = null
+  try {
+    companies.value = await listCompanies()
+  } catch (e) {
+    companies.value = []
+    companiesError.value = e
+  }
+  createVisible.value = true
+}
+const create = (v: Record<string, unknown>) => createLearner(learnerPayload(v, null))
+async function created(res: unknown) {
+  MessagePlugin.success(t('gsms.commun.enregistre'))
+  const id = (res as LearnerRecord | null)?.id
+  if (id) router.push(`/platform/stagiaires/${id}`)
+  else await load()
+}
 
 const tabs = computed(() => {
   const list = learners.value ?? []
@@ -97,6 +136,7 @@ const columns = computed<ListColumn[]>(() => [
 .person { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none;
   &:hover .person-name { color: var(--td-brand-color); } }
 .person-name { color: var(--td-text-color-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.muted { .gsms-muted(); margin: 8px 0 0; }
 .header-link { display: inline-flex; align-items: center; gap: 4px; color: var(--td-brand-color); font-size: var(--app-text-sm); text-decoration: none; white-space: nowrap;
   &:hover { text-decoration: underline; } }
 </style>
