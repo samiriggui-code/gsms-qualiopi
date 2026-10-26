@@ -114,5 +114,5 @@ const columns = computed<ListColumn[]>(() => [
 .chip { .gsms-chip(); }
 .person { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none;
   &:hover .person-name { color: var(--td-brand-color); } }
-.person-name { color: var(--td-text-color-primary); font-weight: 500; overflow-wrap: anywhere; }
+.person-name { color: var(--td-text-color-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

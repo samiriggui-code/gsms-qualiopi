@@ -21,6 +21,9 @@ export default {
     fiche: {
       resume: "Summary",
     },
+    fil: {
+      label: "Breadcrumb",
+    },
     critique: {
       attention: "Important operation",
       renoncer: "Go back",

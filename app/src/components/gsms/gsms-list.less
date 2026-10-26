@@ -25,6 +25,14 @@
   .gsms-elevated();
   min-height: 0;
   .card-header { padding-right: 0; flex-wrap: wrap; }
+  // Titre sur deux lignes au plus (intitulés de formation longs), sans couper un mot.
+  .card-title:not(:has(.card-title-text)) {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow: hidden;
+  }
   .card-meta {
     display: flex;
     flex-wrap: wrap;

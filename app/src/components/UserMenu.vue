@@ -220,6 +220,7 @@ import { useRouter } from 'vue-router'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { demoAvatar } from '@/components/gsms/media'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { logout as logoutApi } from '@/api/auth'
 import { useI18n } from 'vue-i18n'
@@ -262,6 +263,8 @@ const currentRoleIcon = computed(() => roleIcon(authStore.currentTenantRole))
 // 行就是 user-email 信息的重复，没必要占视觉空间；只对多空间 / superuser
 // 渲染。Lite 模式下没有 RBAC 概念，统一隐藏。
 const showTenantIdentityLine = computed(() => {
+  // GSMS : le bas du menu présente l'utilisateur GSMS connecté (nom, e-mail), jamais l'espace du moteur IA.
+  if (gsmsAccess.bootstrap?.user) return false
   if (authStore.isLiteMode) return false
   if (authStore.canAccessAllTenants) return true
   return (authStore.memberships ?? []).length > 1
@@ -294,7 +297,8 @@ const userInfo = computed(() => {
   return {
     username: gsmsUser?.full_name || authStore.user?.username || t('common.defaultUser'),
     email: gsmsUser?.email || authStore.user?.email || '',
-    avatar: gsmsUser ? '' : authStore.user?.avatar || '',
+    // Photo seulement pour un compte fictif de démonstration (table de media.ts), sinon initiales.
+    avatar: gsmsUser ? demoAvatar(gsmsUser.email) ?? '' : authStore.user?.avatar || '',
   }
 })
 

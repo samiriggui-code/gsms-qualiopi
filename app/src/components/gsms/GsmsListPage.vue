@@ -139,6 +139,7 @@ export interface ListColumn {
   emailKey?: string
   labelKey?: string
   align?: 'left' | 'right' | 'center'
+  minWidth?: number
   /** Tri des lignes reçues ; vrai par défaut si la valeur est simple (texte, nombre, date). */
   sortable?: boolean
   /** Texte de la cellule pour le tri et l'export quand la page la dessine elle-même (objet, gabarit). */
@@ -287,6 +288,8 @@ const useTable = computed(() => props.columns.length > 0 && !isMobile.value && (
 const visibleColumns = computed(() => props.columns.filter((c, i) => i === 0 || !hidden.value.has(c.colKey)))
 const tableColumns = computed(() => visibleColumns.value.map((c) => ({
   colKey: c.colKey, title: c.title, width: c.width,
+  // Largeur minimale : un nom ou un intitulé ne se coupe jamais au milieu d'un mot faute de place.
+  minWidth: c.minWidth ?? (c.kind === 'person' ? 200 : 110),
   align: c.align ?? (c.kind === 'centimes' || c.kind === 'euros' ? 'right' : undefined),
   sorter: isSortable(c),
 })))
@@ -383,8 +386,8 @@ const win = globalThis.window
 .cell-num { display: inline-block; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cell-person { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .cell-person__text { display: flex; flex-direction: column; min-width: 0; }
-.cell-person__name { font-weight: 500; overflow-wrap: anywhere; }
-.cell-person__mail { color: var(--td-text-color-secondary); font-size: var(--app-text-xs); font-weight: 400; overflow-wrap: anywhere; }
+.cell-person__name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell-person__mail { color: var(--td-text-color-secondary); font-size: var(--app-text-xs); font-weight: 400; overflow-wrap: break-word; }
 time { white-space: nowrap; text-decoration: underline dotted var(--td-text-color-placeholder); text-underline-offset: 3px; cursor: help; }
 .pager {
   display: flex;

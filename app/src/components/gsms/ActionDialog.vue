@@ -43,7 +43,7 @@
     </div>
     <template #footer>
       <div class="ad-foot">
-        <t-button variant="outline" :disabled="submitting" @click="close">{{ t('gsms.commun.annuler') }}</t-button>
+        <t-button variant="outline" :disabled="submitting" @click="close">{{ danger ? t('gsms.critique.renoncer') : t('gsms.commun.annuler') }}</t-button>
         <t-button :theme="danger ? 'danger' : 'primary'" :loading="submitting" :disabled="!typedOk" @click="submit">
           {{ confirmLabel || t('gsms.commun.enregistrer') }}
         </t-button>
@@ -215,7 +215,7 @@ async function submit() {
   margin-top: 14px;
 }
 .ad-retype__label { color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 20px; }
-.ad-retype__expected { font-family: var(--td-font-family-medium, inherit); font-variant-numeric: tabular-nums; user-select: all; }
+.ad-retype__expected { font-family: var(--app-font-family-mono); font-variant-numeric: tabular-nums; user-select: all; }
 .ad-retype__hint { color: var(--td-text-color-secondary); font-size: var(--app-text-xs); line-height: 16px; }
 .action-dialog__radios { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .ad-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }

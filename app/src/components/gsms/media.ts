@@ -55,8 +55,9 @@ const DEMO_AVATARS: Record<string, number> = {
   'paul.lambert@acme.exemple': 11, 'nora.fontaine@acme.exemple': 10, 'éric.chevalier@acme.exemple': 9, 'zoé.robin@acme.exemple': 19,
   // Demandes de préinscription du site
   'sarah.benali@exemple.fr': 7, 'mehdi.caron@exemple.fr': 33, 'yanis.perrin@exemple.fr': 8,
-  // Personnel
+  // Personnel et formateurs (même adresse pour la fiche RH et la fiche formateur)
   'karim.benali@exemple.fr': 26, 'élodie.marchand@exemple.fr': 10, 'nadia.roux@exemple.fr': 23, 'thomas.girard@exemple.fr': 25,
+  'julie.martin@exemple.fr': 5,
 }
 
 /** Photo d'une personne de démonstration, ou `null` (initiales). */

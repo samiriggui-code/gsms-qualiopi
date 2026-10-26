@@ -21,6 +21,9 @@ export default {
     fiche: {
       resume: "Résumé",
     },
+    fil: {
+      label: "Fil d’Ariane",
+    },
     critique: {
       attention: "Opération importante",
       renoncer: "Ne rien faire",

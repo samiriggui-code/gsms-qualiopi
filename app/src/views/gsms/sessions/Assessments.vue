@@ -29,7 +29,8 @@
     </template>
 
     <template #cell-stagiaire="{ row }">
-      <span class="person"><GsmsPersonAvatar :name="row.stagiaire" /><span class="person-name">{{ row.stagiaire }}</span></span>
+      <router-link v-if="row.stagiaire_id" :to="`/platform/stagiaires/${row.stagiaire_id}`" class="person person-link" :title="row.stagiaire" @click.stop><GsmsPersonAvatar :name="row.stagiaire" :email="row.stagiaire_email" /><span class="person-name">{{ row.stagiaire }}</span></router-link>
+      <span v-else class="person" :title="row.stagiaire"><GsmsPersonAvatar :name="row.stagiaire" /><span class="person-name">{{ row.stagiaire }}</span></span>
     </template>
     <template #cell-session="{ row }">
       <router-link :to="`/platform/sessions/${row.session.id}`" class="cell-link" @click.stop>{{ row.session.reference }}</router-link>
@@ -64,7 +65,7 @@
     <template #card="{ item }">
       <div class="card">
         <div class="card-header">
-          <router-link :to="rowTo(item)" class="card-header-left person"><GsmsPersonAvatar :name="item.stagiaire" :size="32" /><span class="card-title">{{ item.stagiaire }}</span></router-link>
+          <router-link :to="rowTo(item)" class="card-header-left person"><GsmsPersonAvatar :name="item.stagiaire" :email="item.stagiaire_email" :size="40" /><span class="card-title">{{ item.stagiaire }}</span></router-link>
         </div>
         <dl class="steps">
           <div><dt>{{ t('gsms.evaluations.col.evaluations') }}</dt><dd><GsmsStatusTag :code="item.evaluations.etat" /> <span class="muted">{{ stepText(item.evaluations) }}</span></dd></div>
@@ -186,7 +187,7 @@ function assessmentText(a: { intitule: string; le: string; note: number | null; 
 }
 
 const columns = computed<ListColumn[]>(() => [
-  { colKey: 'stagiaire', title: t('gsms.sessions.stagiaire') },
+  { colKey: 'stagiaire', title: t('gsms.sessions.stagiaire'), width: 220 },
   { colKey: 'session', title: t('gsms.sessions.session'), width: 170 },
   { colKey: 'evaluations', title: t('gsms.evaluations.col.evaluations') },
   { colKey: 'attestation', title: t('gsms.evaluations.col.attestation'), width: 150 },
@@ -243,6 +244,6 @@ async function done() {
   dd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 2px 0 0; font-size: var(--app-text-sm); overflow-wrap: anywhere; }
 }
 .person { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none; }
-.person-name { color: var(--td-text-color-primary); font-weight: 500; overflow-wrap: anywhere; }
+.person-name { color: var(--td-text-color-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-link { color: var(--td-text-color-primary); font-weight: 500; text-decoration: none; &:hover { color: var(--td-brand-color); } }
 </style>

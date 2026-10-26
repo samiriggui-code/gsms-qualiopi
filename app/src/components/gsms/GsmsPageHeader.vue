@@ -1,7 +1,20 @@
 <template>
   <div class="header">
     <div class="header-title">
-      <router-link v-if="back" :to="back" class="back">
+      <nav v-if="crumbs.length > 1" class="crumbs" :aria-label="t('gsms.fil.label')">
+        <!-- Téléphone : seulement l'étage au-dessus -->
+        <router-link v-if="isMobile && parent?.to" :to="parent.to" class="back">
+          <t-icon name="chevron-left" size="16px" />{{ parent.label }}
+        </router-link>
+        <ol v-else>
+          <li v-for="(c, i) in crumbs" :key="i">
+            <router-link v-if="c.to && i < crumbs.length - 1" :to="c.to" class="crumb-link">{{ c.label }}</router-link>
+            <span v-else class="crumb-current" :aria-current="i === crumbs.length - 1 ? 'page' : undefined">{{ c.label }}</span>
+            <t-icon v-if="i < crumbs.length - 1" name="chevron-right" size="12px" class="crumb-sep" aria-hidden="true" />
+          </li>
+        </ol>
+      </nav>
+      <router-link v-else-if="back" :to="back" class="back">
         <t-icon name="chevron-left" size="16px" />{{ backLabel || t('gsms.commun.retour') }}
       </router-link>
       <div class="title-row">
@@ -19,12 +32,25 @@
 </template>
 
 <script setup lang="ts">
-/** En-tête des pages métier : titre, icône, sous-titre, actions — même disposition que l'en-tête des listes WeKnora. */
+/**
+ * En-tête des pages métier : fil d'Ariane, titre, icône, sous-titre, actions — même disposition que l'en-tête des
+ * listes WeKnora. Le fil remplace le lien « retour » quand la page est rattachée au menu ; `crumb` est le libellé du
+ * dernier niveau d'une fiche (par défaut le titre).
+ */
+import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
+import { useGsmsShellStore } from '@/stores/gsmsShell'
+import { useGsmsBreadcrumb } from './breadcrumb'
 
-withDefaults(defineProps<{ title: string; icon?: string; subtitle?: string; back?: string; backLabel?: string }>(),
-  { icon: 'app', subtitle: '', back: '', backLabel: '' })
+const props = withDefaults(defineProps<{ title: string; icon?: string; subtitle?: string; back?: string; backLabel?: string; crumb?: string }>(),
+  { icon: 'app', subtitle: '', back: '', backLabel: '', crumb: '' })
 const { t } = useI18n()
+const { isMobile } = storeToRefs(useGsmsShellStore())
+const crumbs = useGsmsBreadcrumb({
+  current: computed(() => props.crumb || props.title), back: toRef(props, 'back'), backLabel: toRef(props, 'backLabel'),
+})
+const parent = computed(() => crumbs.value[crumbs.value.length - 2])
 </script>
 
 <style scoped lang="less">
@@ -64,6 +90,19 @@ const { t } = useI18n()
 .header-subtitle { margin: 0; font-family: var(--app-font-family); line-height: 20px; }
 .header-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.crumbs {
+  margin-bottom: 4px;
+  ol { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin: 0; padding: 0; list-style: none; }
+  li { display: inline-flex; align-items: center; min-width: 0; font-size: var(--app-text-sm); line-height: 20px; }
+}
+.crumb-link {
+  color: var(--td-text-color-secondary);
+  text-decoration: none;
+  &:hover { color: var(--td-brand-color); text-decoration: underline; }
+  &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; border-radius: var(--app-radius-xs); }
+}
+.crumb-current { color: var(--td-text-color-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
+.crumb-sep { margin: 0 6px; color: var(--td-text-color-placeholder); }
 .back {
   display: inline-flex;
   align-items: center;

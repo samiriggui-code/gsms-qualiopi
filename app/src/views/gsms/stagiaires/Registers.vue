@@ -20,7 +20,8 @@
     </template>
 
     <template #cell-stagiaire="{ row }">
-      <span class="person"><GsmsPersonAvatar :name="row.stagiaire" /><span class="person-name">{{ row.stagiaire }}</span></span>
+      <router-link v-if="row.stagiaire_id" :to="`/platform/stagiaires/${row.stagiaire_id}`" class="person person-link" :title="row.stagiaire" @click.stop><GsmsPersonAvatar :name="row.stagiaire" :email="row.stagiaire_email" /><span class="person-name">{{ row.stagiaire }}</span></router-link>
+      <span v-else class="person" :title="row.stagiaire"><GsmsPersonAvatar :name="row.stagiaire" /><span class="person-name">{{ row.stagiaire }}</span></span>
     </template>
     <template #cell-session="{ row }">
       <router-link :to="`/platform/sessions/${row.session.id}`" class="cell-link" @click.stop>{{ row.session.reference }}</router-link>
@@ -37,7 +38,7 @@
     <template #card="{ item }">
       <div class="card">
         <div class="card-header">
-          <router-link :to="rowTo(item)" class="card-header-left person"><GsmsPersonAvatar :name="item.stagiaire" :size="32" /><span class="card-title">{{ item.stagiaire }}</span></router-link>
+          <router-link :to="rowTo(item)" class="card-header-left person"><GsmsPersonAvatar :name="item.stagiaire" :email="item.stagiaire_email" :size="40" /><span class="card-title">{{ item.stagiaire }}</span></router-link>
           <GsmsStatusTag :code="stateOf(item)" />
         </div>
         <div class="card-content"><p class="card-description">{{ detailOf(item) }}</p></div>
@@ -127,7 +128,7 @@ const rows = computed(() => {
     && (!q || [r.stagiaire, r.session.reference, r.session.intitule, r.entreprise, r.financement].some((v) => v?.toLowerCase().includes(q)))) ?? null
 })
 const columns = computed<ListColumn[]>(() => [
-  { colKey: 'stagiaire', title: t('gsms.sessions.stagiaire') },
+  { colKey: 'stagiaire', title: t('gsms.sessions.stagiaire'), width: 220 },
   { colKey: 'session', title: t('gsms.sessions.session'), width: 190 },
   { colKey: 'etat', title: t('gsms.qualite.indicateurs.colEtat'), width: 130 },
   { colKey: 'detail', title: t('gsms.registres.colDetail') },
@@ -189,6 +190,6 @@ async function done() {
 .results { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .chip { .gsms-chip(); }
 .person { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none; }
-.person-name { color: var(--td-text-color-primary); font-weight: 500; overflow-wrap: anywhere; }
+.person-name { color: var(--td-text-color-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-link { color: var(--td-text-color-primary); font-weight: 500; text-decoration: none; &:hover { color: var(--td-brand-color); } }
 </style>

@@ -99,6 +99,9 @@ export interface RegisterProgress {
 export interface RegisterRow {
   inscription: string
   stagiaire: string
+  /** Fiche du stagiaire (lien) et e-mail (avatar de démonstration). */
+  stagiaire_id?: string | null
+  stagiaire_email?: string | null
   statut: string
   session: RegisterSession
   entreprise: string | null
@@ -139,6 +142,8 @@ type StepAction = (Capability & { cle: string }) | null
 export interface AssessmentRow {
   inscription: string
   stagiaire: string
+  stagiaire_id?: string | null
+  stagiaire_email?: string | null
   statut: string
   session: RegisterSession & { programme_id: string; programme_code: string | null; certifiante: boolean }
   entreprise: string | null
