@@ -413,6 +413,7 @@ Factures, avoirs et encaissements (`app/handler/invoicing.py`, `/api/v1/factures
 pièce figée (SHA-256 + déclencheur PostgreSQL), correction par avoir plafonné au restant, montants en centimes.
 Sources réglementaires et part « choix de GSMS » : `docs/facturation/SOURCES.md`. Démo : séries `DEMO-FA`/`DEMO-AV`
 retirées par `retirer-demo`. Reste : pages 19 et 20 du front, relances de paiement, facture électronique.
+Front (C8 + C10, 26/10) : `views/gsms/finances/` (vue d'ensemble, dossiers de financement et fiche, factures et avoirs et fiche, encaissements), `api/gsms/invoicing.ts` ; vérifications et capacités de l'API affichées telles quelles, aperçu A4 téléchargé ; modules `funding` et `invoicing` activés dans la base de dev. Reste : relances de paiement, facture électronique (aucune route).
 
 ## 5 vicies. Durcissement des routes publiques (26/10/2026, audit de sécurité)
 
@@ -430,6 +431,8 @@ vérifications, contenus, versions et programme imprimable, suivi pédagogique ;
 financement si le module est actif), registres du parcours (`parcours/:vue`). Manque côté API : la liste des inscriptions d'un
 stagiaire (la fiche les relève dans `GET /sessions/{id}`), le dépôt de pièce EDOF et la gestion des intervenants et ressources
 ne sont pas encore à l'écran.
+
+**Commercial (26/10/2026, C7 + page 4 de C9)** : `views/gsms/commercial/` — demandes (`demandes`, filtre et compteurs de l'API, fiche avec déclarations horodatées, prise en charge, refus motivé, conversion avec `sessions_proposees`, réservé à `leads.*`), devis (`devis`, création, lignes, titre et validité, circuit selon `capabilities`, aperçu A4 téléchargé, versions), entreprises (`entreprises`, CRUD, fiche avec stagiaires et devis) ; modules ajoutés à la vue d'ensemble École. Manque côté API : filtres par entreprise (`/learners`, `/editions`), devis dans `seed-demo`, édition des sections d'un devis à l'écran.
 
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
