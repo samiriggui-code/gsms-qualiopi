@@ -80,11 +80,33 @@ export interface ResultsTotals {
   taux_satisfaction: number | null
 }
 
+/** Mesure d'une formation sur la période ; un taux vaut `null` quand rien n'a été mesuré. */
+export interface ResultsMeasure extends ResultsTotals {
+  abandons: number
+  reussis: number
+  enquetes: number
+  satisfaits: number
+  taux_reponse: number | null
+  note_moyenne: number | null
+}
+
+/** Une formation du catalogue : `mesure` vaut `null` sans session terminée sur la période. */
+export interface ResultsFormation {
+  id: string
+  code: string | null
+  title: string
+  is_certifying: boolean
+  mesure: ResultsMeasure | null
+  publie: { taux_reussite: number | null; taux_satisfaction: number | null; base: unknown }
+  ecarts: unknown[]
+}
+
 export interface Results {
   periode: { du: string; au: string; mois: number }
   methode: Record<string, string>
   totaux: ResultsTotals
   formations_mesurees: number
+  formations?: ResultsFormation[]
 }
 
 /** GET /formation/resultats (`sessions.read` ou `quality.read`) : résultats mesurés sur `mois` mois. */

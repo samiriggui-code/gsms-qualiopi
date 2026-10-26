@@ -63,7 +63,7 @@ const options = computed(() => {
     // Petites valeurs : autant de graduations que d'unités (jamais « 0, 1, 1, 2, 2 » après arrondi).
     yaxis: {
       min: 0, forceNiceScale: true,
-      tickAmount: Math.min(4, Math.max(1, Math.ceil(Math.max(0, ...props.series.flatMap((s) => s.values))))),
+      tickAmount: Math.min(4, Math.max(1, Math.ceil(Math.max(0, ...props.series.flatMap((s) => s.values.map((v) => v ?? 0)))))),
       labels: { formatter: (v: number) => props.format(Math.round(v)) },
     },
     tooltip: { ...base.tooltip, shared: true, intersect: false, y: { formatter: (v: number) => props.format(v) } },

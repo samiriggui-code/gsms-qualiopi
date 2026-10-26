@@ -8,7 +8,7 @@
       <tbody>
         <tr v-for="(c, i) in categories" :key="c">
           <th scope="row">{{ c }}</th>
-          <td v-for="s in series" :key="s.key">{{ format(s.values[i] ?? 0) }}</td>
+          <td v-for="s in series" :key="s.key">{{ s.values[i] == null ? '—' : format(s.values[i] as number) }}</td>
         </tr>
       </tbody>
     </table>

@@ -99,6 +99,16 @@ const path = (id: string) => `/editions/${encodeURIComponent(id)}`
  * GET /editions (`documents.read`), plus récemment modifiés d'abord ; filtres `entreprise` (id du client) et `type`
  * (code de GET /editions/types, 422 si inconnu).
  */
+/** GET /editions/synthese (`documents.read`) : chiffres de l'accueil du module, comptés par l'API. */
+export interface EditionsOverview {
+  total: number
+  statuts: Record<string, number>
+  types: { code: string; libelle: string; nombre: number }[]
+  valides_par_mois: { mois: string; nombre: number }[]
+  alertes: { niveau: string; message: string; id: string }[]
+}
+export const getEditionsOverview = () => http.get<EditionsOverview>('/editions/synthese')
+
 export const listEditions = (filters: { entreprise?: string; type?: string } = {}) =>
   http.get<EditionRow[]>('/editions', { query: filters })
 /** GET /editions/{id} (`documents.read`) : contrôles et capacités. */

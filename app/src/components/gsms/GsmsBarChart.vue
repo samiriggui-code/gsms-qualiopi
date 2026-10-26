@@ -32,11 +32,13 @@ const props = withDefaults(defineProps<{
   /** Liens par catégorie (barres empilées). */
   links?: (string | undefined)[]
   horizontal?: boolean
+  /** Plusieurs séries côte à côte au lieu d'empilées (ex. taux de réussite, satisfaction, abandon par formation). */
+  grouped?: boolean
   format?: (n: number) => string
   /** Borne de l'axe des valeurs (ex. 100 pour des pourcentages). */
   max?: number
   emptyText?: string
-}>(), { data: () => [], categories: () => [], series: () => [], links: () => [], horizontal: false, format: fmtNumber })
+}>(), { data: () => [], categories: () => [], series: () => [], links: () => [], horizontal: false, grouped: false, format: fmtNumber })
 const { t } = useI18n()
 const router = useRouter()
 const palette = useChartPalette()
@@ -60,7 +62,9 @@ const apexSeries = computed(() => (single.value
   : props.series.map((s) => ({ name: s.label, data: s.values }))))
 
 // Hauteur : une rangée de 34 px par catégorie en horizontal (texte lisible à 390 px), 220 px en colonnes.
-const height = computed(() => (props.horizontal ? Math.max(120, categoryLabels.value.length * 34 + 36) : 220))
+// Côte à côte : chaque catégorie réserve une rangée par série.
+const rowHeight = computed(() => (props.grouped ? Math.max(1, props.series.length) * 16 + 18 : 34))
+const height = computed(() => (props.horizontal ? Math.max(120, categoryLabels.value.length * rowHeight.value + 36) : 220))
 
 /** Borne ronde juste au-dessus de la plus haute pile, découpée en 4 graduations rondes (ex. 22 → 24). */
 function niceCeil(n: number): number {
@@ -81,7 +85,9 @@ const options = computed(() => {
   // En empilé, la borne suit la plus haute pile (mise à l'échelle du dessin seulement).
   const top = props.max ?? (single.value
     ? Math.max(0, ...props.data.map((d) => d.value))
-    : Math.max(0, ...categoryLabels.value.map((_, i) => props.series.reduce((n, s) => n + (s.values[i] ?? 0), 0))))
+    : props.grouped
+      ? Math.max(0, ...props.series.flatMap((s) => s.values.map((v) => v ?? 0)))
+      : Math.max(0, ...categoryLabels.value.map((_, i) => props.series.reduce((n, s) => n + (s.values[i] ?? 0), 0))))
   // Une seule série : marge au bout de l'axe pour écrire la valeur après la plus longue barre (ApexCharts ramène
   // sinon l'étiquette dans la barre) ; plus l'étiquette est longue, plus la marge est grande.
   const longest = single.value ? Math.max(...props.data.map((d) => props.format(d.value).length), 1) : 0
@@ -93,7 +99,7 @@ const options = computed(() => {
   const categoryAxis = { categories: categoryLabels.value, axisBorder: { show: false }, axisTicks: { show: false } }
   return {
     ...base,
-    chart: { ...base.chart, type: 'bar', stacked: !single.value },
+    chart: { ...base.chart, type: 'bar', stacked: !single.value && !props.grouped },
     colors: single.value ? dataColors.value : seriesColors.value,
     plotOptions: {
       bar: {
@@ -102,8 +108,8 @@ const options = computed(() => {
         borderRadius: 4,
         borderRadiusApplication: 'end',
         borderRadiusWhenStacked: 'last',
-        barHeight: '56%',
-        columnWidth: '46%',
+        barHeight: props.grouped ? '80%' : '56%',
+        columnWidth: props.grouped ? '72%' : '46%',
         dataLabels: { position: 'top' },
       },
     },
@@ -119,7 +125,7 @@ const options = computed(() => {
     xaxis: props.horizontal ? { ...categoryAxis, ...valueAxis } : { ...categoryAxis, labels: { trim: true, hideOverlappingLabels: false } },
     // En horizontal, ApexCharts lit la borne des valeurs sur l'axe y.
     yaxis: props.horizontal ? { min: 0, max, labels: { maxWidth: 180, style: { colors: [p.muted] } } } : valueAxis,
-    tooltip: { ...base.tooltip, y: { formatter: (v: number) => props.format(v) } },
+    tooltip: { ...base.tooltip, y: { formatter: (v: number | null) => (v == null ? '—' : props.format(v)) } },
   }
 })
 </script>

@@ -34,7 +34,8 @@ export interface ChartDatum {
 export interface ChartSeries {
   key: string
   label: string
-  values: number[]
+  /** Une valeur par catégorie ; `null` = non mesuré par l'API (aucune barre, « — » dans le tableau, jamais 0). */
+  values: (number | null)[]
   tone?: ChartTone
 }
 
@@ -165,7 +166,7 @@ export function baseOptions(palette: ChartPalette, onSelect?: (index: number) =>
 }
 
 /** Vrai quand aucune valeur n'est strictement positive (rien à dessiner). */
-export const allZero = (values: number[]) => !values.some((v) => v > 0)
+export const allZero = (values: (number | null)[]) => !values.some((v) => v != null && v > 0)
 
 /** Calcul d'affichage seulement : la palette réactive et une couleur par donnée. */
 export function useDatumColors(data: Ref<ChartDatum[]> | (() => ChartDatum[])) {

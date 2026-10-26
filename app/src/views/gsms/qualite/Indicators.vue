@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { MessagePlugin } from 'tdesign-vue-next'
@@ -127,7 +127,14 @@ async function loadResults() {
     resultsError.value = e
   }
 }
-onMounted(load)
+onMounted(async () => {
+  await load()
+  // Lien « #crit-N » (barres par critère de Bilans et rapports) : la page s'ouvre sur ce critère.
+  if (/^#crit-\d+$/.test(route.hash)) {
+    await nextTick()
+    document.getElementById(route.hash.slice(1))?.scrollIntoView({ block: 'start' })
+  }
+})
 watch(view, (v, old) => {
   if (old) state.value = 'all'
   if (v === 'resultats' && !results.value) loadResults()
@@ -228,7 +235,7 @@ async function reevaluate() {
 .crit-num { font-size: var(--app-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--td-brand-color); }
 .crit-title { margin: 0; flex: 1 1 auto; font-family: var(--app-font-family-display); font-size: var(--app-text-2xl); font-weight: 600; color: var(--td-text-color-primary); }
 .crit-score { font-size: var(--app-text-sm); color: var(--td-text-color-secondary); }
-.crit-bar { display: flex; gap: 2px; height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 16px; background: var(--td-bg-color-component); }
+.crit-bar { display: flex; gap: 2px; height: 6px; border-radius: var(--app-radius-xs); overflow: hidden; margin-bottom: 16px; background: var(--td-bg-color-component); }
 .seg { min-width: 6px; }
 .tone-success { --tone: var(--td-success-color); }
 .tone-warning { --tone: var(--td-warning-color); }
@@ -241,7 +248,7 @@ async function reevaluate() {
   .gsms-elevated();
   display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 12px 16px; min-width: 0;
   background: var(--td-bg-color-container); border: 1px solid var(--td-component-stroke); border-left: 3px solid var(--tone);
-  color: inherit; text-decoration: none; transition: border-color .15s, transform .15s;
+  color: inherit; text-decoration: none; transition: border-color var(--app-motion-fast) ease, transform var(--app-motion-fast) ease;
   &:hover { border-color: var(--td-brand-color); border-left-color: var(--tone); transform: translateY(-1px); }
   &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 }
