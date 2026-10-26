@@ -112,8 +112,9 @@ def test_planning_portee_du_formateur(client, db: Session) -> None:  # noqa: ANN
     # le conflit de salle avec PL-A (session d'un autre formateur) n'est pas révélé
     assert body["conflits"] == [] and all(c["conflits"] == [] for c in body["creneaux"])
     assert {f["nom"] for f in body["filtres"]["formateurs"]} == {"Paul Durand"}
+    # Le rôle de l'assistant IA lit le planning (sessions.read, pour ses questions de planning), sans rien écrire.
     _, h_ia = make_user(db, "assistant_ia", email="ia@test.local")
-    assert client.get("/api/v1/planning", headers=h_ia).status_code == 403
+    assert client.get("/api/v1/planning", headers=h_ia).status_code == 200
 
 
 def test_planning_annulees_exclues_par_defaut(client, db: Session) -> None:  # noqa: ANN001

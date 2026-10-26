@@ -525,13 +525,11 @@ Fichiers : `backend/app/handler/ia.py`, `backend/app/handler/mcp.py` (protocole)
 | `GET` | `/api/v1/mcp` | 405 : pas de flux serveur (SSE). | — |
 | `DELETE` | `/api/v1/mcp` | 405 : pas de session à fermer. | — |
 
-**Outils MCP** (13, tous en lecture seule, annotés `readOnlyHint`) ; chacun appelle la fonction de la route HTTP indiquée,
+**Outils MCP** (14, tous en lecture seule, annotés `readOnlyHint`) ; chacun appelle la fonction de la route HTTP indiquée,
 sans rien recalculer, et exige la même permission qu'elle (quand la route en accepte plusieurs, l'une suffit, comme
 `require_any`). Les listes sont limitées par `limite` (50 par défaut, 200 au plus) et renvoient `total` et `affiches` ; une
 session ou une preuve se désigne par son identifiant ou sa référence, une formation par son identifiant, son code ou son slug
-de catalogue. Avec `quality.read` seul (compte technique), `lister_sessions` renvoie les sessions de la période de
-certification telles que `GET /api/v1/qualiopi/audits/echantillon` les montre déjà à ce droit (référence, formation, dates,
-statut) ; avec `sessions.read` ou `sessions.read_own`, celles de `GET /api/v1/sessions`, dans la portée du compte.
+de catalogue.
 
 | Outil | Arguments | Route reprise | Permission |
 |---|---|---|---|
@@ -544,7 +542,8 @@ statut) ; avec `sessions.read` ou `sessions.read_own`, celles de `GET /api/v1/se
 | `lister_actions_correctives` | `statut`, `en_retard`, `limite` | `GET /api/v1/qualiopi/actions` | `quality.read` |
 | `synthese_session` | `session` | `GET /api/v1/sessions/{id}/dossier` | `quality.read` |
 | `fiche_formation` | `formation` (identifiant, code ou slug) | `GET /api/v1/qualiopi/formations/{id}` | `quality.read` |
-| `lister_sessions` | `statut`, `du`, `au`, `limite` | `GET /api/v1/sessions` (ou `GET /api/v1/qualiopi/audits/echantillon` en lecture qualité seule) | `sessions.read`, `sessions.read_own` ou `quality.read` |
+| `lister_sessions` | `statut`, `du`, `au`, `limite` | `GET /api/v1/sessions` | `sessions.read` ou `sessions.read_own` |
+| `planning` | `du`, `au`, `formateur`, `lieu`, `programme`, `annulees` | `GET /api/v1/planning` | `sessions.read` ou `sessions.read_own` |
 | `lister_audits` | `limite` | `GET /api/v1/qualiopi/audits` | `quality.read` |
 | `lister_veille` | `limite` (la route n'a pas de filtre de domaine) | `GET /api/v1/watch-items` | `sessions.read` ou `quality.read` |
 | `lister_reclamations` | `limite` | `GET /api/v1/complaints` | `sessions.read` ou `quality.read` |
@@ -555,7 +554,7 @@ avec le motif en français (les messages des routes).
 **Authentification du serveur MCP.** Le back-office partage un seul compte de service WeKnora : il n'y a donc pas d'utilisateur
 GSMS derrière chaque appel de l'assistant. Le moteur IA présente un jeton « mcp » (`Authorization: Bearer`, stocké chiffré par
 WeKnora) émis pour le **compte technique** `assistant-ia@gsms.local` (`IA_COMPTE_TECHNIQUE_EMAIL`), rôle système
-`assistant_ia` = la seule permission `quality.read`. Ce compte a un mot de passe aléatoire jamais communiqué (aucune connexion
+`assistant_ia` = les permissions `quality.read` et `sessions.read` (lecture de l'état Qualiopi et du planning ; depuis le 26/10/2026, pour les questions de planning). Ce compte a un mot de passe aléatoire jamais communiqué (aucune connexion
 possible) ; ses rôles se voient et se changent dans la gestion des comptes. Le jeton « mcp » ne périme pas mais n'ouvre aucune
 autre route (401) ; il est lié à l'empreinte du mot de passe du compte : `ia-preparer --renouveler-jeton` l'invalide et
 dépose le nouveau, désactiver le compte coupe l'accès aussitôt. Un utilisateur GSMS peut aussi appeler `/api/v1/mcp` avec son

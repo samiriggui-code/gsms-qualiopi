@@ -58,7 +58,7 @@ def test_poignee_de_main_et_liste_des_outils(client, db: Session) -> None:  # no
     assert [t["name"] for t in tools] == [t.name for t in TOOLS]
     assert {"etat_indicateurs", "fiche_indicateur", "lister_preuves", "fiche_preuve", "lister_ecarts",
             "lister_echeances", "lister_actions_correctives", "synthese_session", "fiche_formation",
-            "lister_sessions", "lister_audits", "lister_veille", "lister_reclamations"} == {t["name"] for t in tools}
+            "lister_sessions", "planning", "lister_audits", "lister_veille", "lister_reclamations"} == {t["name"] for t in tools}
     assert all(t["annotations"]["readOnlyHint"] for t in tools)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
     # Aucun texte ne prononce la conformité.
@@ -106,7 +106,7 @@ def test_compte_technique_droits_explicites_revocation_et_renouvellement(client,
     assert client.post("/api/v1/auth/login", json={"email": account.email, "password": ""}).status_code != 200
 
     roles = {r["code"]: r for r in client.get("/api/v1/auth/roles", headers=make_user(db, "admin")[1]).json()}
-    assert roles[ROLE]["permissions"] == ["quality.read"]
+    assert sorted(roles[ROLE]["permissions"]) == ["quality.read", "sessions.read"]
 
     new = mcp_token(db, renew=True)
     db.commit()
@@ -194,15 +194,13 @@ def test_fiche_formation_par_identifiant_code_ou_slug(client, demo: Session) -> 
     assert tool(client, h, "fiche_formation")[0]
 
 
-def test_lister_sessions_selon_le_droit(client, demo: Session) -> None:  # noqa: ANN001
-    # Le compte technique n'a que quality.read : les sessions de la période, comme l'échantillon d'audit.
+def test_lister_sessions_comme_la_route(client, demo: Session) -> None:  # noqa: ANN001
+    # Le compte technique a sessions.read : mêmes sessions que la route.
     h = bearer(mcp_token(demo))
     demo.commit()
     is_error, out = tool(client, h, "lister_sessions")
-    sample = client.get("/api/v1/qualiopi/audits/echantillon", headers=make_user(demo, "qualite")[1]).json()
-    assert not is_error and out["sessions"] == sample["sessions"][:50] and out["periode"] == sample["periode"]
-    _, done = tool(client, h, "lister_sessions", statut="TERMINEE")
-    assert done["sessions"] == [s for s in sample["sessions"] if s["statut"] == "TERMINEE"][:50]
+    full = client.get("/api/v1/sessions", headers=make_user(demo, "qualite")[1]).json()
+    assert not is_error and out["total"] == len(full) and out["sessions"] == full[:50]
 
     _, user = make_user(demo, "qualite", email="qualite-sessions@test.local")
     _, out = tool(client, user, "lister_sessions", limite=2)
@@ -213,6 +211,19 @@ def test_lister_sessions_selon_le_droit(client, demo: Session) -> None:  # noqa:
                                           headers=user).json()[:50]
     assert tool(client, user, "lister_sessions", statut="INCONNU")[0]
     assert tool(client, user, "lister_sessions", du="hier")[0]
+
+
+def test_planning_comme_la_route(client, demo: Session) -> None:  # noqa: ANN001
+    h = bearer(mcp_token(demo))
+    demo.commit()
+    _, user = make_user(demo, "qualite", email="qualite-planning@test.local")
+    for args, query in (({}, ""), ({"du": "2020-01-01", "au": "2020-03-31"}, "?du=2020-01-01&au=2020-03-31"),
+                        ({"annulees": True}, "?annulees=true")):
+        is_error, out = tool(client, h, "planning", **args)
+        assert not is_error, out
+        assert out == client.get(f"/api/v1/planning{query}", headers=user).json()
+    assert tool(client, h, "planning", du="2020-01-01", au="2021-01-01")[0]  # plus de 93 jours : refus lisible
+    assert tool(client, h, "planning", annulees="oui")[0]
 
 
 def test_lister_audits(client, demo: Session) -> None:  # noqa: ANN001

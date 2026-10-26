@@ -19,7 +19,7 @@ Il y a bien **deux sens**, mais **un seul est en MCP**, et c'est le bon choix.
 
 | Sens | Moyen | Existe ? | À quoi ça sert |
 |---|---|---|---|
-| WeKnora → GSMS | **MCP** : WeKnora est client, GSMS est serveur (`POST /api/v1/mcp`) | **Oui**, 13 outils en lecture seule, compte technique `assistant_ia` (`quality.read`) | L'assistant va chercher les chiffres réels : indicateurs, preuves, écarts, échéances, actions, synthèse de session, formations, sessions, audits, veille, réclamations |
+| WeKnora → GSMS | **MCP** : WeKnora est client, GSMS est serveur (`POST /api/v1/mcp`) | **Oui**, 14 outils en lecture seule, compte technique `assistant_ia` (`quality.read`, `sessions.read`) | L'assistant va chercher les chiffres réels : indicateurs, preuves, écarts, échéances, actions, synthèse de session, formations, sessions, planning, audits, veille, réclamations |
 | GSMS → WeKnora | **API REST** de WeKnora (`service/ia/espace.py`, `session.py`) | **Oui**, pour l'installation : comptes, membres, déclaration du serveur MCP, base « Référentiel Qualiopi » | GSMS pilote WeKnora : crée les bases, dépose les documents, ouvre la session du navigateur |
 | GSMS → WeKnora | MCP (WeKnora publié comme serveur MCP, `/mcp/<endpoint>`) | Non, et **pas nécessaire** | Ne servirait que si un agent extérieur (Claude Code, Jarvis…) devait interroger les bases de connaissances |
 
@@ -52,9 +52,9 @@ nominatives. Les noms des stagiaires restent derrière le serveur MCP, qui filtr
 
 ### 3.3 Outils MCP (ce que l'assistant peut demander au moteur) (P1)
 
-Existants (lecture, 13 outils) : `etat_indicateurs`, `fiche_indicateur`, `lister_preuves`, `fiche_preuve`,
+Existants (lecture, 14 outils) : `etat_indicateurs`, `fiche_indicateur`, `lister_preuves`, `fiche_preuve`,
 `lister_ecarts`, `lister_echeances`, `lister_actions_correctives`, `synthese_session`, et depuis le 26/10/2026
-`fiche_formation`, `lister_sessions`, `lister_audits`, `lister_veille`, `lister_reclamations` (commit `c9f8736`).
+`fiche_formation`, `lister_sessions`, `lister_audits`, `lister_veille`, `lister_reclamations` (commit `c9f8736`), `planning`.
 Chacun reprend une route existante ; aucun calcul nouveau.
 
 Écriture : **pas d'écriture directe**. Si l'on veut que l'assistant agisse, il doit seulement déposer des

@@ -24,12 +24,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors.errors import InvalidStateError, NotFoundError
+from app.handler import pilotage as pilotage_routes
 from app.handler import qualiopi as routes
 from app.handler import qualiopi_ecrans as screens
 from app.handler import training as training_routes
 from app.handler.training_resources import QUALITY_READ
 from app.handler.training_resources import ROUTERS as CRUD_ROUTERS
-from app.middleware.auth import permissions_of
 from app.types import training as t
 from app.types.auth import User
 from app.types.qualiopi_capa import CAPA_STATUSES
@@ -239,17 +239,18 @@ def _sessions(db: Session, user: User, args: dict) -> object:
     if status is not None and status not in t.SESSION_STATUSES:
         raise InvalidStateError(f"Statut inconnu : {status} (attendus : {', '.join(t.SESSION_STATUSES)})")
     du, au = _date(args, "du"), _date(args, "au")
-    if not permissions_of(db, user) & {"sessions.read", "sessions.read_own"}:
-        # Lecture qualité seule (compte de l'assistant) : les sessions de la période de certification, telles que
-        # GET /qualiopi/audits/echantillon les montre déjà à ce droit ; les filtres ne font que trier ces lignes.
-        sample = screens.proposed_sample(db, user)
-        rows = [s for s in sample["sessions"] if (status is None or s["statut"] == status)
-                and (du is None or s["au"] >= du.isoformat()) and (au is None or s["du"] <= au.isoformat())]
-        return _capped(rows, _limit(args), "sessions", periode=sample["periode"],
-                       portee="Sessions de la période de certification (vue qualité)")
     rows = training_routes.list_sessions(db, user, statut=status, du=du, au=au)
     views = [training_routes.SessionView.model_validate(s).model_dump(mode="json") for s in rows]
     return _capped(views, _limit(args), "sessions")
+
+
+def _planning(db: Session, user: User, args: dict) -> object:
+    annulees = args.get("annulees", False)
+    if not isinstance(annulees, bool):
+        raise InvalidStateError("« annulees » doit valoir true ou false")
+    return pilotage_routes.get_planning(db, user, du=_date(args, "du"), au=_date(args, "au"),
+                                        formateur=_str(args, "formateur"), lieu=_str(args, "lieu"),
+                                        programme=_str(args, "programme"), annulees=annulees)
 
 
 def _audits(db: Session, user: User, args: dict) -> object:
@@ -333,13 +334,23 @@ TOOLS: tuple[Tool, ...] = (
          "quality.read", _program, ("formation",)),
     Tool("lister_sessions",
          "Sessions de formation, de la plus récente à la plus ancienne, avec leur formation, leur formateur, leur "
-         "statut et le nombre d'inscrits. Avec la seule lecture qualité : les sessions de la période de certification "
-         "(référence, formation, dates, statut), comme l'échantillon d'audit.",
+         "statut et le nombre d'inscrits.",
          {"statut": {"type": "string", "enum": list(t.SESSION_STATUSES)},
           "du": {"type": "string", "format": "date", "description": "Sessions finissant à partir de cette date"},
           "au": {"type": "string", "format": "date", "description": "Sessions commençant au plus tard à cette date"},
           "limite": _LIMIT},
-         ("sessions.read", "sessions.read_own", "quality.read"), _sessions),
+         ("sessions.read", "sessions.read_own"), _sessions),
+    Tool("planning",
+         "Planning des sessions sur une période (31 jours à partir d'aujourd'hui par défaut, 93 au plus) : créneaux "
+         "(demi-journées d'émargement, sinon dates de la session) avec formation, formateur et salle, et conflits de "
+         "formateur ou de salle signalés pour information (rien n'est bloqué : la personne qui planifie décide).",
+         {"du": {"type": "string", "format": "date", "description": "Début de période AAAA-MM-JJ"},
+          "au": {"type": "string", "format": "date", "description": "Fin de période AAAA-MM-JJ"},
+          "formateur": {"type": "string", "description": "Identifiant du formateur"},
+          "lieu": {"type": "string", "description": "Lieu ou salle"},
+          "programme": {"type": "string", "description": "Identifiant de la formation"},
+          "annulees": {"type": "boolean", "default": False, "description": "Inclure les sessions annulées"}},
+         ("sessions.read", "sessions.read_own"), _planning),
     Tool("lister_audits",
          "Audits internes et audits blancs de l'organisme, du plus récent au plus ancien : période, échantillon de "
          "sessions, avancement et jugements de l'organisme sur ses propres preuves. Ils ne remplacent pas l'audit du "

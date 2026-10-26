@@ -83,9 +83,10 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     "rh": ("Ressources humaines : personnel, contrats, absences, titres des formateurs", frozenset({
         "sessions.read", "trainers.write", "staff.read", "staff.write", "journal.read",
     })),
-    # Compte technique de l'assistant IA (serveur MCP) : lecture de l'état Qualiopi, rien d'autre.
-    "assistant_ia": ("Assistant IA : lecture de l'état Qualiopi par le serveur MCP (compte technique)",
-                     frozenset({"quality.read"})),
+    # Compte technique de l'assistant IA (serveur MCP, son jeton n'ouvre aucune autre route) : lecture de l'état
+    # Qualiopi et des sessions (planning, liste), rien d'autre ; aucune écriture.
+    "assistant_ia": ("Assistant IA : lecture de l'état Qualiopi et du planning par le serveur MCP (compte technique)",
+                     frozenset({"quality.read", "sessions.read"})),
     "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read",
                                            "documents.read", "ia.use"})),
 }

@@ -24,7 +24,7 @@ from app.config.config import get_settings
 MCP_NAME = "Moteur Qualiopi (GSMS)"
 MCP_TRANSPORT = "http-streamable"
 MCP_DESCRIPTION = ("Lecture seule du moteur Qualiopi de GSMS : état des indicateurs, preuves, écarts, échéances, "
-                   "actions correctives, synthèse d'une session, fiche d'une formation, sessions, audits internes, "
+                   "actions correctives, synthèse d'une session, fiche d'une formation, sessions et planning, audits internes, "
                    "veille, réclamations.")
 MCP_USAGE = (
     "Utilisez ces outils pour répondre sur la situation Qualiopi de l'organisme. Ils renvoient l'état de préparation "
