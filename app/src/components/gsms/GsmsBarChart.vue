@@ -66,7 +66,9 @@ const height = computed(() => (props.horizontal ? Math.max(120, categoryLabels.v
 function niceCeil(n: number): number {
   if (n <= 4) return 4
   const step = 10 ** Math.floor(Math.log10(n / 4))
-  const interval = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * step).find((v) => v * 4 >= n) ?? 10 * step
+  // Graduations entières seulement (des comptes) : 2,5 serait affiché « 3 ».
+  const interval = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * step)
+    .filter((v) => Number.isInteger(v)).find((v) => v * 4 >= n) ?? 10 * step
   return interval * 4
 }
 

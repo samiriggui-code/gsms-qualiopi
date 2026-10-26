@@ -60,7 +60,12 @@ const options = computed(() => {
       labels: { rotate: 0, hideOverlappingLabels: true, trim: false },
       tooltip: { enabled: false }, crosshairs: { show: true, stroke: { color: p.grid, width: 1, dashArray: 0 } },
     },
-    yaxis: { min: 0, forceNiceScale: true, tickAmount: 4, labels: { formatter: (v: number) => props.format(Math.round(v)) } },
+    // Petites valeurs : autant de graduations que d'unités (jamais « 0, 1, 1, 2, 2 » après arrondi).
+    yaxis: {
+      min: 0, forceNiceScale: true,
+      tickAmount: Math.min(4, Math.max(1, Math.ceil(Math.max(0, ...props.series.flatMap((s) => s.values))))),
+      labels: { formatter: (v: number) => props.format(Math.round(v)) },
+    },
     tooltip: { ...base.tooltip, shared: true, intersect: false, y: { formatter: (v: number) => props.format(v) } },
   }
 })
