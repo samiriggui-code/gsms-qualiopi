@@ -208,6 +208,13 @@ export default defineConfig({
               proxyTimeout: 180_000,
               rewrite: (path: string) => path.slice(APP_PREFIX.length),
             },
+            // Photos téléversées (médiathèque, app/handler/medias.py), comme deploy/Caddyfile.
+            [`${APP_PREFIX}/media/photos/`]: {
+              target: DEV_PROXY_TARGET,
+              changeOrigin: true,
+              secure: false,
+              rewrite: (path: string) => path.replace(`${APP_PREFIX}/media/photos/`, '/api/v1/medias/photos/'),
+            },
             [`${APP_PREFIX}/files`]: {
               target: DEV_PROXY_TARGET,
               changeOrigin: true,

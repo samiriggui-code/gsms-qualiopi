@@ -20,6 +20,7 @@ from app.handler.invoicing import router as invoicing_router
 from app.handler.journal import router as journal_router
 from app.handler.journey import router as journey_router
 from app.handler.mcp import router as mcp_router
+from app.handler.medias import router as medias_router
 from app.handler.pilotage import router as pilotage_router
 from app.handler.platform import router as platform_router
 from app.handler.preinscriptions import public_router as preinscriptions_public_router
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(qualiopi_screens_router)
     app.include_router(journal_router)
     app.include_router(documents_router)
+    app.include_router(medias_router)
     app.include_router(edof_router)
     app.include_router(editions_router)
     app.include_router(invoicing_router)

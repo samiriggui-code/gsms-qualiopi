@@ -145,7 +145,9 @@ def _postal_code(value: str | None) -> str | None:
     return value
 
 
-Text = Annotated[str | None, BeforeValidator(_blank_is_none)]
+def _text(max_length: int) -> object:
+    """Texte facultatif borné ; une chaîne vide vaut « non renseigné »."""
+    return Annotated[Annotated[str, StringConstraints(max_length=max_length)] | None, BeforeValidator(_blank_is_none)]
 
 
 class PersonIn(BaseModel):
@@ -158,17 +160,17 @@ class PersonIn(BaseModel):
     company_id: str | None = None
     photo_url: MediaPath = None
     civility: Annotated[Literal["M", "MME"] | None, BeforeValidator(_blank_is_none)] = None
-    usage_name: Annotated[Text, Field(max_length=100)] = None
+    usage_name: _text(100) = None
     birth_date: Annotated[date | None, BeforeValidator(_blank_is_none),
                           AfterValidator(lambda v: check_birth_date(v) if v else v)] = None
-    birth_city: Annotated[Text, Field(max_length=120)] = None
-    birth_department: Annotated[Text, Field(max_length=60)] = None
-    birth_country: Annotated[Text, Field(max_length=80)] = None
-    nationality: Annotated[Text, Field(max_length=80)] = None
-    address: Annotated[Text, Field(max_length=300)] = None
-    postal_code: Annotated[Text, AfterValidator(_postal_code)] = None
-    city: Annotated[Text, Field(max_length=120)] = None
-    current_situation: Annotated[Text, Field(max_length=300)] = None
+    birth_city: _text(120) = None
+    birth_department: _text(60) = None
+    birth_country: _text(80) = None
+    nationality: _text(80) = None
+    address: _text(300) = None
+    postal_code: Annotated[_text(10), AfterValidator(_postal_code)] = None
+    city: _text(120) = None
+    current_situation: _text(300) = None
 
 
 class LearnerOut(ORM):
@@ -184,6 +186,7 @@ class TrainerIn(BaseModel):
     first_name: str
     last_name: str
     email: str | None = None
+    phone: str | None = Field(default=None, max_length=40)
     is_external: bool = False
     specialties: list[str] = Field(default_factory=list)
     photo_url: MediaPath = None
@@ -205,6 +208,7 @@ class TrainerOut(ORM):
     first_name: str
     last_name: str
     email: str | None
+    phone: str | None = None
     is_external: bool
     specialties: list[str]
     photo_url: str | None = None

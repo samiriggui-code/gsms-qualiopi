@@ -47,6 +47,18 @@
 		respond 404
 	}
 
+	# ── Photos téléversées (médiathèque) ────────────────────────────────────────────────────────────────────
+	# Chemins « media/photos/<nom> » des fiches, servis sous /app/ : relayés vers la lecture publique de l'API
+	# (app/handler/medias.py), sans compte. Rien d'autre sous /app/media/ ne va à l'API.
+	@photos path_regexp photo ^/app/media/photos/([0-9a-f]{32}\.(jpg|png|webp))$
+	handle @photos {
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		rewrite * /api/v1/medias/photos/{re.photo.1}
+		reverse_proxy {$API_UPSTREAM:api:8000} {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
 	# ── API GSMS ──────────────────────────────────────────────────────────────────────────────────────────
 	# Réponses JSON ou documents HTML générés (styles en ligne) : aucun script autorisé.
 	@api path /api/* /health

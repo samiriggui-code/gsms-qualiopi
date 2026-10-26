@@ -99,6 +99,7 @@ class Trainer(TimestampMixin, Base):
     first_name: Mapped[str] = mapped_column(String(100))
     last_name: Mapped[str] = mapped_column(String(100))
     email: Mapped[str | None] = mapped_column(String(200))
+    phone: Mapped[str | None] = mapped_column(String(40))
     is_external: Mapped[bool] = mapped_column(Boolean, default=False)
     specialties: Mapped[list[str]] = mapped_column(JSON, default=list)
     # Compte GSMS du formateur : lui donne accès à ses propres sessions (permission sessions.read_own).

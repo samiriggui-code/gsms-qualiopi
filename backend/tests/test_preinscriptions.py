@@ -209,6 +209,9 @@ def test_conversion_en_stagiaire_inscrit(demo: Session, client) -> None:  # noqa
     learner = demo.get(t.Learner, data["resultat"]["stagiaire_id"])
     enrollment = demo.get(t.Enrollment, data["resultat"]["inscription_id"])
     assert (learner.first_name, learner.email) == ("Léa", "lea.martin@exemple.fr")
+    assert (learner.civility, learner.birth_city, learner.birth_department, learner.postal_code, learner.nationality,
+            learner.current_situation) == ("MME", "Lyon", "69", "69003", "Française", "Demandeuse d'emploi")
+    assert learner.birth_date.isoformat() == "1998-05-02", "identité recopiée de la préinscription"
     assert enrollment.session_id == s3.id and enrollment.funding == "CPF"
     assert data["conversion"]["session"]["reference"] == "SSIAP1-2026-03"
     names = set(demo.scalars(select(OutboxEvent.name).where(OutboxEvent.processed_at.is_(None))))
@@ -219,7 +222,7 @@ def test_conversion_en_stagiaire_inscrit(demo: Session, client) -> None:  # noqa
 
 
 def test_conversion_reprend_le_stagiaire_connu_sans_session(db: Session, client) -> None:  # noqa: ANN001
-    known = t.Learner(first_name="Léa", last_name="Martin", email="LEA.MARTIN@exemple.fr")
+    known = t.Learner(first_name="Léa", last_name="Martin", email="LEA.MARTIN@exemple.fr", city="Villeurbanne")
     db.add(known)
     db.commit()
     p = _demande(db, client)
@@ -230,6 +233,8 @@ def test_conversion_reprend_le_stagiaire_connu_sans_session(db: Session, client)
     assert r.json()["resultat"] == {"stagiaire_id": known.id, "stagiaire_existant": True, "inscription_id": None,
                                     "session_id": None}
     assert db.scalar(select(func.count()).select_from(t.Learner)) == 1
+    db.refresh(known)
+    assert known.city == "Villeurbanne" and known.postal_code == "69003", "seuls les champs vides sont complétés"
 
 
 def test_conversion_refusee_motivee(demo: Session, client) -> None:  # noqa: ANN001

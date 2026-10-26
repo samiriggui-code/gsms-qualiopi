@@ -307,3 +307,26 @@ def test_equipe_remplace_les_anciens_formateurs_de_la_demo(demo: Session) -> Non
              for r in demo.scalars(select(ControlResult)) if r.status not in OK}
     assert found == {(g.control, g.target, g.status) for g in PLANTED_GAPS}, "les trous plantés ne bougent pas"
     assert replace_demo_team(demo)["formateurs"] == [], "idempotent"
+
+
+def test_identites_et_telephones_fictifs_de_la_demo(demo: Session) -> None:
+    from app.application.service.demo import GENRES, complete_demo_identities
+    from app.types import training as t
+    from app.types.hr import StaffMember
+
+    learners = demo.scalars(select(t.Learner).where(t.Learner.created_by == "démo")).all()
+    today = TODAY
+    for p in learners:
+        assert p.civility == {"F": "MME", "H": "M"}[GENRES[p.first_name]], p.full_name
+        age = today.year - p.birth_date.year - ((today.month, today.day) < (p.birth_date.month, p.birth_date.day))
+        assert 18 <= age <= 56 and p.nationality and p.birth_country and p.current_situation
+        assert p.birth_department or p.birth_country != "France", "département pour une naissance en France"
+        assert p.postal_code[:2] in {"75", "77", "78", "91", "92", "93", "94", "95"} and p.city and p.address
+    phones = [x.phone for x in [*demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo")),
+                                *demo.scalars(select(StaffMember).where(StaffMember.created_by == "démo"))]]
+    assert len(phones) == 15 and len(set(phones)) == 15 and all(x.startswith("06 00 00 00 ") for x in phones)
+    # Une valeur saisie n'est jamais remplacée, et la fonction est idempotente.
+    learners[0].city, learners[1].birth_date = "Ville saisie", None
+    demo.flush()
+    assert complete_demo_identities(demo) == 1 and learners[0].city == "Ville saisie" and learners[1].birth_date
+    assert complete_demo_identities(demo) == 0

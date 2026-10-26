@@ -259,11 +259,61 @@ def complete_demo_photos(db: Session, corriger: bool = False) -> int:
     return changed
 
 
+# Identités fictives des stagiaires de la démo : rues inventées, communes d'Île-de-France, situations courantes.
+_RUES = ("rue des Coquelicots-Bleus", "allée du Verger-d'Hiver", "rue du Moulin-de-Pierre-Blanche", "impasse des Trois-Lanternes",
+         "rue de la Fontaine-aux-Merles", "avenue des Cèdres-Argentés", "rue du Clos-des-Hirondelles", "allée des Sept-Saules")
+_COMMUNES = (("93000", "Bobigny"), ("93100", "Montreuil"), ("93200", "Saint-Denis"), ("94000", "Créteil"),
+             ("94400", "Vitry-sur-Seine"), ("92000", "Nanterre"), ("95100", "Argenteuil"), ("91000", "Évry-Courcouronnes"),
+             ("77100", "Meaux"), ("78200", "Mantes-la-Jolie"), ("75011", "Paris"), ("75019", "Paris"))
+_NAISSANCES = (("Paris", "75", "France", "Française"), ("Lyon", "69", "France", "Française"), ("Lille", "59", "France", "Française"),
+               ("Créteil", "94", "France", "Française"), ("Marseille", "13", "France", "Française"),
+               ("Bobigny", "93", "France", "Française"), ("Casablanca", None, "Maroc", "Marocaine"),
+               ("Dakar", None, "Sénégal", "Sénégalaise"), ("Porto", None, "Portugal", "Portugaise"))
+_SITUATIONS = ("Demandeur d'emploi", "Salarié", "Reconversion professionnelle", "Salarié en CDD", "Intérimaire",
+               "Étudiant", "Demandeur d'emploi")
+
+
+def complete_demo_identities(db: Session) -> int:
+    """Identité et coordonnées fictives des personnes de la démo, seulement dans les champs vides.
+
+    Stagiaires : civilité selon le prénom (GENRES), naissance (19 à 55 ans), nationalité, adresse inventée en
+    Île-de-France, situation actuelle. Formateurs et personnel : téléphone fictif « 06 00 00 00 xx » (plage réservée
+    aux exemples, jamais un vrai numéro). Ordre stable (nom, prénom) : mêmes valeurs d'une installation à l'autre."""
+    year = date.today().year
+    changed = 0
+
+    def fill(obj: object, **values: object) -> None:
+        nonlocal changed
+        for key, value in values.items():
+            if getattr(obj, key) in (None, "") and value is not None:
+                setattr(obj, key, value)
+                changed += 1
+
+    learners = db.scalars(select(t.Learner).where(t.Learner.created_by == ACTOR)
+                          .order_by(t.Learner.last_name, t.Learner.first_name, t.Learner.id))
+    for i, learner in enumerate(learners):
+        city, department, country, nationality = _NAISSANCES[i % len(_NAISSANCES)]
+        postal_code, town = _COMMUNES[i % len(_COMMUNES)]
+        genre = GENRES.get(learner.first_name)
+        fill(learner, civility={"F": "MME", "H": "M"}.get(genre or ""),
+             birth_date=date(year - 19 - (i * 7) % 37, i % 12 + 1, (i * 5) % 28 + 1),
+             birth_city=city, birth_department=department, birth_country=country, nationality=nationality,
+             address=f"{(i * 13) % 90 + 2} {_RUES[i % len(_RUES)]}", postal_code=postal_code, city=town,
+             current_situation=_SITUATIONS[i % len(_SITUATIONS)])
+    people = [*db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR).order_by(t.Trainer.last_name, t.Trainer.first_name)),
+              *db.scalars(select(StaffMember).where(StaffMember.created_by == ACTOR)
+                          .order_by(StaffMember.last_name, StaffMember.first_name))]
+    for i, person in enumerate(people, start=1):
+        fill(person, phone=f"06 00 00 00 {i:02d}")
+    db.flush()
+    return changed
+
+
 def complete_demo(db: Session, corriger: bool = False) -> dict:
-    """Complète une démo déjà installée (adresses des formateurs, photos, vignettes des formations) sans rien remplacer ;
-    `corriger` réattribue aussi les photos d'exemple de la démo (voir complete_demo_photos)."""
+    """Complète une démo déjà installée (adresses des formateurs, photos, identités et téléphones fictifs, vignettes
+    des formations) sans rien remplacer ; `corriger` réattribue aussi les photos d'exemple (voir complete_demo_photos)."""
     return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db, corriger),
-            "vignettes": complete_program_images(db, PROGRAM_CODES)}
+            "identites": complete_demo_identities(db), "vignettes": complete_program_images(db, PROGRAM_CODES)}
 
 
 def seed_demo(db: Session, today: date | None = None) -> dict:
