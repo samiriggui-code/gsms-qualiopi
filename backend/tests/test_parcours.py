@@ -46,7 +46,7 @@ def test_convocation_redigee_par_le_moteur(client, demo: Session) -> None:  # no
     f = client.get(f"{_url(paul).rsplit('/', 1)[0]}/documents/{doc['id']}", headers=h)
     html = f.content.decode()
     assert f.status_code == 200 and hashlib.sha256(f.content).hexdigest() == doc["sha256"] == f.headers["X-Content-SHA256"]
-    for expected in ("Convocation", "Paul Lambert", "Sauveteur secouriste du travail", "Site client ACME", "09:00–12:30", "Julie Martin"):
+    for expected in ("Convocation", "Paul Lambert", "Sauveteur secouriste du travail", "Site client ACME", "09:00–12:30", "Marc Perrin"):
         assert expected in html, expected
 
     # Réémission : nouvelle version, l'ancienne est remplacée, rien n'est écrasé.
@@ -192,6 +192,6 @@ def test_etat_des_etapes_et_affichage(client, demo: Session) -> None:  # noqa: A
     assert futures and set(futures) == {"A_VENIR"}, "demain n'est pas un manque"
 
     row = next(x for x in client.get("/api/v1/sessions", headers=h).json() if x["id"] == s.id)
-    assert (row["program_code"], row["trainer_name"], row["learners_count"]) == ("SST", "Julie Martin", 3)
+    assert (row["program_code"], row["trainer_name"], row["learners_count"]) == ("SST", "Marc Perrin", 3)
     org = client.get("/api/v1/bootstrap", headers=h).json()["organization"]
     assert org["brand_color"] == "#0369a1" and org["short_name"]

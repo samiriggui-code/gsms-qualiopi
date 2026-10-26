@@ -3,8 +3,8 @@
 from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 
 from app.common.media import MediaPath
 from app.errors.errors import ConflictError, InvalidStateError, NotFoundError
@@ -12,7 +12,7 @@ from app.event.publish import publish
 from app.middleware.auth import DB, StaffReader, StaffWriter, TrainersWriter, UserManager
 from app.types import training as t
 from app.types.auth import User
-from app.types.hr import ABSENCE_KINDS, CONTRACT_KINDS, STAFF_KINDS, WORK_TIMES, StaffAbsence, StaffContract, StaffMember
+from app.types.hr import ABSENCE_KINDS, CONTRACT_KINDS, STAFF_KINDS, STAFF_SERVICES, WORK_TIMES, StaffAbsence, StaffContract, StaffMember
 
 router = APIRouter(prefix="/api/v1", tags=["rh"])
 
@@ -46,7 +46,9 @@ def _check_kind(value: str | None, allowed: tuple[str, ...], what: str) -> None:
 def _view(m: StaffMember, today: date) -> dict:
     current = [c for c in m.contracts if c.covers(today, today)]
     return {
-        "id": m.id, "nom": m.full_name, "email": m.email, "photo_url": m.photo_url, "statut": m.kind, "fonction": m.job_title, "actif": m.active,
+        "id": m.id, "nom": m.full_name, "email": m.email, "photo_url": m.photo_url,
+        "service": m.service, "service_libelle": STAFF_SERVICES.get(m.service or ""),
+        "site": {"visible": m.site_visible, "fonction": m.site_title, "bio": m.site_bio}, "statut": m.kind, "fonction": m.job_title, "actif": m.active,
         "compte_id": m.user_id, "formateur_id": m.trainer_id,
         "contrat_en_cours": {"type": current[0].kind, "fin": current[0].end_date.isoformat() if current[0].end_date else None}
         if current else None,
@@ -69,19 +71,38 @@ class StaffIn(BaseModel):
     user_id: str | None = None
     trainer_id: str | None = None
     photo_url: MediaPath = None
+    service: str | None = None  # STAFF_SERVICES
+    site_visible: bool = False  # présenté sur le site de l'organisme, dans le volet de son service
+    site_title: str | None = Field(default=None, max_length=200)
+    site_bio: str | None = Field(default=None, max_length=1000)
 
 
 @router.get("/rh/personnel")
-def list_staff(db: DB, _: StaffReader, actifs: bool = True) -> list[dict]:
+def list_staff(db: DB, _: StaffReader, actifs: bool = True, service: str | None = None) -> list[dict]:
     q = select(StaffMember).order_by(StaffMember.last_name)
     if actifs:
         q = q.where(StaffMember.active.is_(True))
+    if service:
+        _check_kind(service, tuple(STAFF_SERVICES), "Service")
+        q = q.where(StaffMember.service == service)
     return [_view(m, date.today()) for m in db.scalars(q)]
+
+
+@router.get("/rh/personnel/services")
+def staff_services(db: DB, _: StaffReader, actifs: bool = True) -> list[dict]:
+    """Effectif par service (volets de la page Personnel), puis le personnel sans service."""
+    q = select(StaffMember.service, func.count()).group_by(StaffMember.service)
+    if actifs:
+        q = q.where(StaffMember.active.is_(True))
+    counts = dict(db.execute(q).all())
+    return [*({"code": k, "libelle": v, "effectif": counts.get(k, 0)} for k, v in STAFF_SERVICES.items()),
+            {"code": None, "libelle": "Sans service", "effectif": counts.get(None, 0)}]
 
 
 @router.post("/rh/personnel", status_code=201)
 def create_staff(body: StaffIn, db: DB, _: StaffWriter) -> dict:
     _check_kind(body.kind, STAFF_KINDS, "Statut")
+    _check_kind(body.service, tuple(STAFF_SERVICES), "Service")
     _check_links(db, body.user_id, body.trainer_id)
     m = StaffMember(**body.model_dump())
     db.add(m)

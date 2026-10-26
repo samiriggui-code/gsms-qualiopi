@@ -107,9 +107,9 @@ def test_formateur_sans_adresse_puis_evaluations_manquantes(demo: Session, outbo
     plan(demo, day)
     demo.commit()
     [msg] = _messages(demo, "formateur.evaluations")
-    assert msg.status == "SANS_ADRESSE" and msg.recipient_name == "Julie Martin", "signalé, pas perdu"
+    assert msg.status == "SANS_ADRESSE" and msg.recipient_name == "Marc Perrin", "signalé, pas perdu"
 
-    s.trainer.email = "julie.martin@exemple.fr"
+    s.trainer.email = "marc.perrin@exemple.fr"
     demo.commit()
     plan(demo, day)
     demo.commit()
@@ -117,7 +117,7 @@ def test_formateur_sans_adresse_puis_evaluations_manquantes(demo: Session, outbo
     assert sent.status == "PREVU" and "Noah Clement" in sent.body_html
     dispatch(demo, day)
     demo.commit()
-    assert outbox.sent[-1]["to"] == "julie.martin@exemple.fr"
+    assert outbox.sent[-1]["to"] == "marc.perrin@exemple.fr"
 
 
 def test_synthese_hebdomadaire_le_lundi_seulement(demo: Session, outbox) -> None:  # noqa: ANN001

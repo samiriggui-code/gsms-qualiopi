@@ -103,18 +103,41 @@ def test_preuve_tracable(demo: Session) -> None:
     assert {link.indicator_number for link in ev.links} == {21}
 
 
+def test_equipe_de_la_landing_reprise_a_l_identique(demo: Session) -> None:
+    from app.application.service.demo import equipe
+    from app.types import training as t
+    from app.types.hr import StaffMember
+
+    team = equipe()["equipe"]
+    assert len(team) == 15 and [p["photo"] for p in team] == list(range(6, 21)), "photos de la landing : 300-{6 + rang}"
+    trainers = {tr.full_name: tr for tr in demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo"))}
+    staff = {m.full_name: m for m in demo.scalars(select(StaffMember).where(StaffMember.created_by == "démo"))}
+    assert sorted(trainers) == sorted(f"{p['prenom']} {p['nom']}" for p in team if p["volet"] == "formateur")
+    assert sorted(staff) == sorted(f"{p['prenom']} {p['nom']}" for p in team if p["volet"] != "formateur")
+    assert "Karim Benali" in staff and "Karim Benali" not in trainers, "Karim Benali est RH sur la landing"
+    sandrine = trainers["Sandrine Moreau"]
+    assert (sandrine.photo_url, sandrine.site_title, sandrine.site_visible) == (
+        "media/avatars/300-10.png", "Sécurité Incendie & SSIAP", True)
+    assert sandrine.specialties == ["SSIAP 3", "Formateur Incendie certifié"] and sandrine.email == "sandrine.moreau@exemple.fr"
+    assert trainers["Jean-Claude Renard"].email == "jean-claude.renard@exemple.fr"
+    karim = staff["Karim Benali"]
+    assert (karim.service, karim.job_title, karim.photo_url) == (
+        "RH", "Responsable recrutement & sourcing formateurs", "media/avatars/300-18.png")
+    assert all(m.site_visible and m.site_bio for m in [*trainers.values(), *staff.values()])
+    refs = {s.reference: s.trainer.full_name for s in demo.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == "démo"))}
+    assert refs == {"SSIAP1-2026-01": "Sandrine Moreau", "SSIAP1-2026-03": "Sandrine Moreau", "SST-2026-02": "Marc Perrin",
+                    "SST-2026-04": "Marc Perrin", "SST-2026-05": "Marc Perrin", "MAC-SST-2026-01": "Nadia Khelifi"}
+
+
 def test_formateurs_de_demo_avec_adresse_fictive(demo: Session) -> None:
     from app.types import training as t
 
-    emails = demo.scalars(select(t.Trainer.email).where(t.Trainer.created_by == "démo")).all()
-    assert sorted(emails) == ["julie.martin@exemple.fr", "karim.benali@exemple.fr", "élodie.marchand@exemple.fr"]
-    # Base installée avant l'ajout des adresses : complétée, sans toucher une adresse saisie ni un formateur réel.
-    karim, julie = (demo.scalar(select(t.Trainer).where(t.Trainer.last_name == n)) for n in ("Benali", "Martin"))
-    karim.email, julie.email = None, "julie@organisme.fr"
+    marc, sandrine = (demo.scalar(select(t.Trainer).where(t.Trainer.last_name == n)) for n in ("Perrin", "Moreau"))
+    marc.email, sandrine.email = None, "sandrine@organisme.fr"
     demo.add(t.Trainer(first_name="Réel", last_name="Formateur", created_by="admin"))
     demo.flush()
-    assert complete_demo_trainer_emails(demo) == ["karim.benali@exemple.fr"]
-    assert julie.email == "julie@organisme.fr"
+    assert complete_demo_trainer_emails(demo) == ["marc.perrin@exemple.fr"]
+    assert sandrine.email == "sandrine@organisme.fr", "une adresse saisie n'est jamais remplacée"
     assert demo.scalar(select(t.Trainer.email).where(t.Trainer.last_name == "Formateur")) is None
 
 
@@ -198,11 +221,11 @@ def test_exemples_des_pages_ressources_rh_financement_puis_retrait(db: Session) 
     subs = {s.name: s.qualiopi_certified for s in db.scalars(select(t.Subcontractor).where(t.Subcontractor.created_by == "démo"))}
     assert sorted(subs.values()) == [False, True]
     assert {p.kind for p in db.scalars(select(t.PartnerNetwork))} == {"HANDICAP", "SOCIO_ECONOMIQUE"}
-    assert db.scalar(select(func.count()).select_from(StaffMember).where(StaffMember.created_by == "démo")) == 4
+    assert db.scalar(select(func.count()).select_from(StaffMember).where(StaffMember.created_by == "démo")) == 9
     assert db.scalar(select(func.count()).select_from(StaffAbsence)) == 1
     soon = db.scalars(select(t.TrainerQualification.label).where(
         t.TrainerQualification.valid_until.between(TODAY, TODAY + timedelta(days=90)))).all()
-    assert soon == ["Habilitation électrique H0B0"], "un titre à renouveler"
+    assert soon == ["SSIAP 3"], "un titre à renouveler (Jean-Claude Renard)"
     states = {(s.scheme, s.state) for s in db.scalars(select(FundingSource))}
     assert states == {("OPCO", "REALISEE"), ("ENTREPRISE", "CONVENTION_SIGNEE"), ("CPF", "ACCEPTEE"), ("OPCO", "DEPOSEE")}
 
@@ -213,7 +236,7 @@ def test_exemples_des_pages_ressources_rh_financement_puis_retrait(db: Session) 
     removed = remove_demo(db)
     refresh_all(db, trigger="test", today=TODAY)
     db.commit()
-    assert removed["funding_case"] == 4 and removed["staff_member"] == 4 and removed["premises"] == 7
+    assert removed["funding_case"] == 4 and removed["staff_member"] == 9 and removed["premises"] == 7
     for model in (t.Equipment, FundingCase, FundingSource, StaffAbsence, t.PartnerNetwork, t.SatisfactionSurvey,
                   t.TrainerQualification, t.StaffDevelopmentAction):
         assert db.scalar(select(func.count()).select_from(model)) == 0, model

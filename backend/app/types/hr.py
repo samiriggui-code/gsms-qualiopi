@@ -16,6 +16,8 @@ from app.common.media import MEDIA_PATH_MAX
 from app.database.db import Base, TimestampMixin, new_id
 
 R = {"schema": "rh"}
+# Service d'un membre du personnel (volets de la page Personnel et de l'équipe présentée sur le site).
+STAFF_SERVICES = {"DIRECTION": "Direction", "PEDAGOGIE": "Équipe pédagogique", "RH": "Équipe RH"}
 STAFF_KINDS = ("SALARIE", "INDEPENDANT", "SOUS_TRAITANT", "INTERIMAIRE", "STAGIAIRE")
 CONTRACT_KINDS = ("CDI", "CDD", "INTERIM", "STAGE", "APPRENTISSAGE", "PRESTATION", "SOUS_TRAITANCE")
 WORK_TIMES = ("TEMPS_PLEIN", "TEMPS_PARTIEL")
@@ -36,6 +38,11 @@ class StaffMember(TimestampMixin, Base):
     user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
     trainer_id: Mapped[str | None] = mapped_column(ForeignKey("formation.trainer.id", ondelete="SET NULL"), unique=True)
     photo_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # chemin de la médiathèque (media_path)
+    service: Mapped[str | None] = mapped_column(String(20))  # STAFF_SERVICES
+    # Présentation sur le site de l'organisme (équipe) : affichée seulement si site_visible, dans le volet de son service.
+    site_visible: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    site_title: Mapped[str | None] = mapped_column(String(200))  # fonction affichée
+    site_bio: Mapped[str | None] = mapped_column(Text)  # bio courte
 
     contracts: Mapped[list["StaffContract"]] = relationship(back_populates="staff", cascade="all, delete-orphan",
                                                             order_by="StaffContract.start_date")

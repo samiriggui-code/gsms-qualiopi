@@ -11,10 +11,12 @@ les exemples s'ajoutent à cet organisme sans le modifier ; `remove_demo` les re
 from __future__ import annotations
 
 import hashlib
+import unicodedata
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
+import yaml
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -23,6 +25,7 @@ from app.application.service.documents.service import upload
 from app.application.service.platform.features import is_enabled
 from app.application.service.training.images import complete_program_images
 from app.common.journal import set_actor
+from app.config.config import BACKEND_DIR
 from app.errors.errors import ConflictError
 from app.types import training as t
 from app.types.funding import FundingCase
@@ -151,8 +154,9 @@ def _enroll(db: Session, s: t.TrainingSession, learner: t.Learner, status: str) 
 
 
 def demo_email(first: str, last: str) -> str:
-    """Adresse fictive d'une personne de la démo (domaine réservé exemple.fr) : la même pour sa fiche RH et formateur."""
-    return f"{first.lower()}.{last.lower()}@exemple.fr"
+    """Adresse fictive d'une personne de la démo (domaine réservé exemple.fr), sans accents."""
+    local = unicodedata.normalize("NFKD", f"{first}.{last}".lower().replace(" ", "-")).encode("ascii", "ignore").decode()
+    return f"{local}@exemple.fr"
 
 
 def complete_demo_trainer_emails(db: Session) -> list[str]:
@@ -167,39 +171,98 @@ def complete_demo_trainer_emails(db: Session) -> list[str]:
     return done
 
 
-# Photos des personnes fictives (app/public/media/avatars/, CDC §3 : démonstration seulement ; une personne réelle
-# garde ses initiales). Attribuées dans un ordre fixe, une photo différente par personne tant qu'il y en a assez.
-AVATARS = tuple(f"media/avatars/300-{i}.png" for i in range(1, 35))
+# Équipe de la landing (config/organisme/equipe.yaml) : formateurs et personnel de la démo, avec leur photo.
+EQUIPE = BACKEND_DIR / "config" / "organisme" / "equipe.yaml"
+AVATARS_DIR = "media/avatars/"
 
 
-def complete_demo_photos(db: Session) -> int:
-    """Donne leur photo aux personnes de la démo qui n'en ont pas : formateurs, stagiaires, personnel.
+def avatar(number: int) -> str:
+    return f"{AVATARS_DIR}300-{number}.png"
 
-    L'ordre (formateurs, stagiaires, personnel sans fiche formateur ; puis nom, prénom) rend l'attribution stable
-    d'une installation à l'autre ; une fiche RH reliée à un formateur reprend sa photo. Rien d'autre n'est touché."""
-    def mine(model: type) -> list:
-        return list(db.scalars(select(model).where(model.created_by == ACTOR)
-                               .order_by(model.last_name, model.first_name, model.id)))
 
-    staff = mine(StaffMember)
-    people = [*mine(t.Trainer), *mine(t.Learner), *(m for m in staff if m.trainer_id is None)]
-    done = 0
-    for i, person in enumerate(people):
-        if person.photo_url is None:
-            person.photo_url = AVATARS[i % len(AVATARS)]
-            done += 1
-    for m in staff:
-        trainer = db.get(t.Trainer, m.trainer_id) if m.trainer_id else None
-        if trainer is not None and m.photo_url is None and trainer.photo_url:
-            m.photo_url = trainer.photo_url
-            done += 1
+def equipe() -> dict:
+    return yaml.safe_load(EQUIPE.read_text(encoding="utf-8"))
+
+
+# Genre des prénoms des stagiaires de la démo, écrit à la main (aucune déduction) : un prénom absent n'a pas de photo.
+GENRES = {
+    **dict.fromkeys(("Camille", "Inès", "Léa", "Chloé", "Manon", "Sarah", "Jade", "Emma", "Lina", "Nora", "Zoé"), "F"),
+    **dict.fromkeys(("Hugo", "Lucas", "Nathan", "Yanis", "Théo", "Adam", "Louis", "Noah", "Raphaël", "Paul", "Éric"), "H"),
+}
+
+
+# Volet de la landing → service du personnel (STAFF_SERVICES).
+SERVICES = {"direction": "DIRECTION", "pedagogique": "PEDAGOGIE", "rh": "RH"}
+
+
+def _member(db: Session, p: dict) -> t.Trainer | StaffMember | None:
+    model = t.Trainer if p["volet"] == "formateur" else StaffMember
+    return db.scalar(select(model).where(model.created_by == ACTOR, model.first_name == p["prenom"],
+                                         model.last_name == p["nom"]))
+
+
+def seed_team(db: Session) -> dict[str, t.Trainer | StaffMember]:
+    """Crée l'équipe de la landing : formateurs (spécialités = certifications affichées, aucun titre) et personnel
+    (volet du site). Présentés sur le site, avec la photo du fichier. Une personne déjà là n'est pas recréée."""
+    people: dict[str, t.Trainer | StaffMember] = {}
+    for p in equipe()["equipe"]:
+        found = _member(db, p)
+        if found is None:
+            common = {"first_name": p["prenom"], "last_name": p["nom"], "email": demo_email(p["prenom"], p["nom"]),
+                      "photo_url": avatar(p["photo"]), "site_visible": True, "site_title": p["fonction"],
+                      "site_bio": p["bio"], "created_by": ACTOR}
+            if p["volet"] == "formateur":
+                found = t.Trainer(**common, specialties=list(p["certifications"]))
+            else:
+                found = StaffMember(**common, kind="SALARIE", job_title=p["fonction"], service=SERVICES[p["volet"]])
+            db.add(found)
+        people[p["id"]] = found
     db.flush()
-    return done
+    return people
 
 
-def complete_demo(db: Session) -> dict:
-    """Complète une démo déjà installée (adresses des formateurs, photos, vignettes des formations) sans rien remplacer."""
-    return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db),
+def demo_photos(db: Session) -> dict[str, str | None]:
+    """Photo voulue pour chaque personne de la démo (id → chemin, ou None : initiales).
+
+    Équipe : la photo du fichier. Stagiaires (par nom, prénom) : les photos réservées aux stagiaires, selon le genre du
+    prénom, distinctes sauf le partage permis par le fichier ; ensuite, initiales."""
+    data = equipe()
+    out: dict[str, str | None] = {}
+    for p in data["equipe"]:
+        member = _member(db, p)
+        if member is not None:
+            out[member.id] = avatar(p["photo"])
+    # Chaque photo une fois dans l'ordre, puis (si le partage est permis) une deuxième fois, etc.
+    pools = {g: [n for _ in range(data["partage_max"][g]) for n in numbers] for g, numbers in data["stagiaires"].items()}
+    learners = db.scalars(select(t.Learner).where(t.Learner.created_by == ACTOR)
+                          .order_by(t.Learner.last_name, t.Learner.first_name, t.Learner.id))
+    for learner in learners:
+        pool = pools.get(GENRES.get(learner.first_name, ""), [])
+        out[learner.id] = avatar(pool.pop(0)) if pool else None
+    return out
+
+
+def complete_demo_photos(db: Session, corriger: bool = False) -> int:
+    """Donne leur photo aux personnes de la démo. Par défaut, seulement à celles qui n'en ont pas ; avec `corriger`,
+    remplace aussi une photo d'exemple (media/avatars/) mal attribuée. Une autre photo n'est jamais touchée, et rien
+    hors de la démo n'est modifié."""
+    wanted = demo_photos(db)
+    changed = 0
+    for model in (t.Trainer, StaffMember, t.Learner):
+        for person in db.scalars(select(model).where(model.created_by == ACTOR)):
+            target = wanted.get(person.id)
+            replaceable = person.photo_url is None or (corriger and person.photo_url.startswith(AVATARS_DIR))
+            if replaceable and person.photo_url != target:
+                person.photo_url = target
+                changed += 1
+    db.flush()
+    return changed
+
+
+def complete_demo(db: Session, corriger: bool = False) -> dict:
+    """Complète une démo déjà installée (adresses des formateurs, photos, vignettes des formations) sans rien remplacer ;
+    `corriger` réattribue aussi les photos d'exemple de la démo (voir complete_demo_photos)."""
+    return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db, corriger),
             "vignettes": complete_program_images(db, PROGRAM_CODES)}
 
 
@@ -221,7 +284,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     if org is None:
         org = t.Organization(
             name="Organisme de démonstration", nda_number="00 00 00000 00", siret="00000000000000",
-            action_categories=["AF"], disability_referent_name="Nadia Roux", created_by=ACTOR,
+            action_categories=["AF"], disability_referent_name="Émilie Bernard", created_by=ACTOR,
         )  # trou : référent handicap sans e-mail (I26)
         db.add(org)
         db.flush()
@@ -282,23 +345,22 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     )
     db.add_all([ssiap, sst, mac_sst])
 
-    karim = t.Trainer(first_name="Karim", last_name="Benali", specialties=["SSIAP", "SST"], created_by=ACTOR)
-    julie = t.Trainer(first_name="Julie", last_name="Martin", specialties=["SST"], is_external=True, created_by=ACTOR)
-    elodie = t.Trainer(first_name="Élodie", last_name="Marchand", specialties=["SST"], created_by=ACTOR)
-    db.add_all([karim, julie, elodie])
-    db.flush()
-    db.add(t.TrainerQualification(trainer_id=karim.id, kind="SSIAP3", label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
-                                  document_id=_doc(db, "JUSTIFICATIF", "Diplôme SSIAP 3 — K. Benali").id, created_by=ACTOR))
-    db.add(t.TrainerQualification(trainer_id=julie.id, kind="FORMATEUR_SST", label="Formatrice SST", obtained_on=d(-800), valid_until=d(-10),
-                                  document_id=_doc(db, "JUSTIFICATIF", "Certificat formatrice SST — J. Martin").id,
+    # Formateurs et personnel : l'équipe de la landing. Sessions selon les spécialités affichées : SSIAP pour
+    # Sandrine Moreau (SSIAP 3), SST pour Marc Perrin (formateur SST), MAC SST pour Nadia Khelifi (prévention).
+    team = seed_team(db)
+    sandrine, marc, nadia = team["sandrine-moreau"], team["marc-perrin"], team["nadia-khelifi"]
+    db.add(t.TrainerQualification(trainer_id=sandrine.id, kind="SSIAP3", label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
+                                  document_id=_doc(db, "JUSTIFICATIF", "Diplôme SSIAP 3 — S. Moreau").id, created_by=ACTOR))
+    db.add(t.TrainerQualification(trainer_id=marc.id, kind="FORMATEUR_SST", label="Formateur SST", obtained_on=d(-800), valid_until=d(-10),
+                                  document_id=_doc(db, "JUSTIFICATIF", "Certificat formateur SST — M. Perrin").id,
                                   created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
-    upload(db, subject="FORMATEUR", subject_id=karim.id, requirement="CV", content=_pdf("CV K. Benali"),
-           filename="cv-karim-benali.pdf", mime="application/pdf",
+    upload(db, subject="FORMATEUR", subject_id=sandrine.id, requirement="CV", content=_pdf("CV S. Moreau"),
+           filename="cv-sandrine-moreau.pdf", mime="application/pdf",
            checklist=_grid_yes("FORMATEUR", "CV", sans_objet=("CARTE_FORMATEUR_CNAPS",)),
-           note="Formateur incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
-    db.add(t.StaffDevelopmentAction(trainer_id=karim.id, label="Recyclage pédagogique", planned_on=d(-120),
+           note="Formatrice incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
+    db.add(t.StaffDevelopmentAction(trainer_id=sandrine.id, label="Recyclage pédagogique", planned_on=d(-120),
                                     completed_on=d(-100), created_by=ACTOR))
-    _formateurs(db, d, karim, julie, elodie)
+    _formateurs(db, d, team)
 
     learners = [t.Learner(first_name=f, last_name=n, email=f"{f.lower()}.{n.lower()}@exemple.fr", created_by=ACTOR) for f, n in LEARNERS]
     db.add_all(learners)
@@ -306,7 +368,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     # ── Session terminée : SSIAP1-2026-01 ────────────────────────────────────────
     s1 = t.TrainingSession(reference="SSIAP1-2026-01", program_id=ssiap.id, start_date=d(-40), end_date=d(-36),
-                           location="Centre de Bobigny", room="Plateau technique", trainer_id=karim.id,
+                           location="Centre de Bobigny", room="Plateau technique", trainer_id=sandrine.id,
                            capacity=14, status="TERMINEE", created_by=ACTOR)
     db.add(s1)
     db.flush()
@@ -339,7 +401,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     # ── Session en cours : SST-2026-02 ───────────────────────────────────────────
     s2 = t.TrainingSession(reference="SST-2026-02", program_id=sst.id, start_date=d(-3), end_date=d(1),
-                           location="Centre de Bobigny", room="Salle 2", trainer_id=julie.id, capacity=10,
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=marc.id, capacity=10,
                            status="EN_COURS", created_by=ACTOR)
     db.add(s2)
     db.flush()
@@ -361,7 +423,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     # ── Session à venir : SSIAP1-2026-03 (rien n'est encore exigible) ─────────────
     s3 = t.TrainingSession(reference="SSIAP1-2026-03", program_id=ssiap.id, start_date=d(30), end_date=d(34),
-                           location="Centre de Bobigny", room="Plateau technique", trainer_id=karim.id, capacity=14,
+                           location="Centre de Bobigny", room="Plateau technique", trainer_id=sandrine.id, capacity=14,
                            status="PLANIFIEE", created_by=ACTOR)
     db.add(s3)
     db.flush()
@@ -370,7 +432,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     # ── Session qui démarre dans 8 jours : SST-2026-04 ───────────────────────────
     # Encore « planifiée » : aucun contrôle Qualiopi n'est exigible, seul l'échéancier alerte.
     s4 = t.TrainingSession(reference="SST-2026-04", program_id=sst.id, start_date=d(8), end_date=d(9),
-                           location="Site client ACME", trainer_id=julie.id, capacity=8, status="PLANIFIEE",
+                           location="Site client ACME", trainer_id=marc.id, capacity=8, status="PLANIFIEE",
                            created_by=ACTOR)
     db.add(s4)
     db.flush()
@@ -391,10 +453,10 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     # ── Deux sessions à venir dans la même salle, le même jour : le conflit visible au planning ─────
     # Pas encore d'inscrit : aucun jalon de l'échéancier n'est dû.
     s5 = t.TrainingSession(reference="SST-2026-05", program_id=sst.id, start_date=d(14), end_date=d(15),
-                           location="Centre de Bobigny", room="Salle 2", trainer_id=elodie.id, capacity=10,
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=marc.id, capacity=10,
                            status="PLANIFIEE", created_by=ACTOR)
     s6 = t.TrainingSession(reference="MAC-SST-2026-01", program_id=mac_sst.id, start_date=d(15), end_date=d(15),
-                           location="Centre de Bobigny", room="Salle 2", trainer_id=karim.id, capacity=10,
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=nadia.id, capacity=10,
                            status="PLANIFIEE", created_by=ACTOR)
     db.add_all([s5, s6])
 
@@ -403,7 +465,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     company = _factures(db, today, s1)
     _enquetes(db, d, s1)
     _ressources(db, d)
-    _personnel(db, d, karim, elodie)
+    _personnel(db, d, team)
     complete_demo(db)
     cases = _financements(db, today, {"s1": learners[0], "s2": learners[14], "s3": learners[17], "s4": acme[0]},
                           [s1, s2, s3, s4], company)
@@ -490,24 +552,20 @@ def _factures(db: Session, today: date, s1: t.TrainingSession) -> t.Company:
     db.flush()
     return company
 
-def _formateurs(db: Session, d, karim: t.Trainer, julie: t.Trainer, elodie: t.Trainer) -> None:  # noqa: ANN001
-    """Titres et actions de développement : un titre à renouveler dans 45 jours (Karim Benali, en plus de son
-    SSIAP 3 valide), une action réalisée et deux prévues. Aucun ne change l'état des contrôles plantés."""
-    for trainer, kind, label, number, obtained, until in (
-        (karim, "FORMATEUR_SST", "Formateur SST", "SST-DEMO-0001", -600, 130),
-        (karim, "HABILITATION_ELECTRIQUE", "Habilitation électrique H0B0", None, -1050, 45),
-        (elodie, "FORMATEUR_SST", "Formatrice SST", "SST-DEMO-0002", -300, 430),
-    ):
-        doc = _doc(db, "JUSTIFICATIF", f"{label} — {trainer.first_name[0]}. {trainer.last_name}")
-        db.add(t.TrainerQualification(trainer_id=trainer.id, kind=kind, label=label, number=number, obtained_on=d(obtained),
-                                      valid_until=d(until), document_id=doc.id, created_by=ACTOR))
+def _formateurs(db: Session, d, team: dict) -> None:  # noqa: ANN001
+    """Titres et actions de développement : un titre à renouveler dans 45 jours (SSIAP 3 de Jean-Claude Renard), une
+    action réalisée et deux prévues. Seuls des titres que la landing affiche. Aucun ne change l'état des contrôles plantés."""
+    jean_claude = team["jean-claude-renard"]
+    doc = _doc(db, "JUSTIFICATIF", "SSIAP 3 — J.-C. Renard")
+    db.add(t.TrainerQualification(trainer_id=jean_claude.id, kind="SSIAP3", label="SSIAP 3", number="SSIAP3-DEMO-0001",
+                                  obtained_on=d(-1050), valid_until=d(45), document_id=doc.id, created_by=ACTOR))
     db.add_all([
-        t.StaffDevelopmentAction(trainer_id=elodie.id, label="Accueil des personnes en situation de handicap",
+        t.StaffDevelopmentAction(trainer_id=team["nadia-khelifi"].id, label="Accueil des personnes en situation de handicap",
                                  planned_on=d(-45), completed_on=d(-40), created_by=ACTOR),
-        t.StaffDevelopmentAction(trainer_id=julie.id, label="Maintien et actualisation des compétences de formatrice SST",
+        t.StaffDevelopmentAction(trainer_id=team["marc-perrin"].id, label="Maintien et actualisation des compétences de formateur SST",
                                  planned_on=d(25), created_by=ACTOR),
-        t.StaffDevelopmentAction(trainer_id=karim.id, label="Actualisation réglementaire ERP et IGH", planned_on=d(20),
-                                 created_by=ACTOR),
+        t.StaffDevelopmentAction(trainer_id=team["sandrine-moreau"].id, label="Actualisation réglementaire ERP et IGH",
+                                 planned_on=d(20), created_by=ACTOR),
     ])
 
 
@@ -584,26 +642,20 @@ def _ressources(db: Session, d) -> None:  # noqa: ANN001
     ])
 
 
-def _personnel(db: Session, d, karim: t.Trainer, elodie: t.Trainer) -> None:  # noqa: ANN001
-    """Fiches RH : contrats qui couvrent les sessions prévues, une absence (formation de Karim Benali) hors session.
-    Julie Martin, intervenante extérieure ponctuelle, n'a pas de fiche : la confirmation de ses sessions ne dépend pas
-    du module RH."""
-    people = (
-        ("Karim", "Benali", "SALARIE", "Formateur incendie (SSIAP)", karim, [("CDI", -1200, None, "TEMPS_PLEIN")]),
-        ("Élodie", "Marchand", "SALARIE", "Formatrice SST", elodie, [("CDD", -60, 120, "TEMPS_PARTIEL")]),
-        ("Nadia", "Roux", "SALARIE", "Responsable pédagogique, référente handicap", None, [("CDI", -900, None, "TEMPS_PLEIN")]),
-        ("Thomas", "Girard", "SALARIE", "Assistant de formation", None,
-         [("CDD", -700, -335, "TEMPS_PLEIN"), ("CDI", -334, None, "TEMPS_PLEIN")]),
-    )
-    for first, last, kind, job, trainer, contracts in people:
-        m = StaffMember(first_name=first, last_name=last, email=demo_email(first, last), kind=kind,
-                        job_title=job, trainer_id=trainer.id if trainer else None, created_by=ACTOR)
-        m.contracts = [StaffContract(kind=k, start_date=d(start), end_date=d(end) if end is not None else None, work_time=wt,
-                                     created_by=ACTOR) for k, start, end, wt in contracts]
-        if trainer is karim:
-            m.absences = [StaffAbsence(start_date=d(20), end_date=d(21), kind="FORMATION",
-                                       note="Actualisation réglementaire ERP et IGH", created_by=ACTOR)]
-        db.add(m)
+def _personnel(db: Session, d, team: dict) -> None:  # noqa: ANN001
+    """Contrats du personnel de la landing (fictifs) et une absence (Karim Benali, en formation) hors session. Les
+    formateurs n'ont pas de fiche RH : la confirmation de leurs sessions ne dépend pas du module RH."""
+    contracts = {"thomas-leroy": [("CDD", -700, -335, "TEMPS_PLEIN"), ("CDI", -334, None, "TEMPS_PLEIN")],
+                 "julie-marchand": [("CDD", -60, 120, "TEMPS_PARTIEL")]}
+    for key, member in team.items():
+        if not isinstance(member, StaffMember):
+            continue
+        member.contracts = [StaffContract(kind=k, start_date=d(start), end_date=d(end) if end is not None else None,
+                                          work_time=wt, created_by=ACTOR)
+                            for k, start, end, wt in contracts.get(key, [("CDI", -900, None, "TEMPS_PLEIN")])]
+        if key == "karim-benali":
+            member.absences = [StaffAbsence(start_date=d(20), end_date=d(21), kind="FORMATION", note="Formation",
+                                            created_by=ACTOR)]
     db.flush()
 
 

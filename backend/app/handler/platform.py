@@ -12,6 +12,7 @@ from app.application.service.platform.settings import ConfigurationService
 from app.errors.errors import InvalidStateError
 from app.event.publish import publish
 from app.middleware.auth import DB, CurrentUser, SettingsManager, permissions_of
+from app.types import hr
 from app.types import training as t
 
 router = APIRouter(prefix="/api/v1", tags=["socle"])
@@ -107,7 +108,8 @@ def _org_view(org: t.Organization | None) -> dict:
     }
 
 
-# Listes de valeurs que l'API accepte en saisie : (code de la liste, libellé, nom de la constante dans app/types/training.py).
+# Listes de valeurs que l'API accepte en saisie : (code de la liste, libellé, constante de app/types/training.py, ou de
+# app/types/hr.py si le nom commence par « hr. »).
 VALUE_LISTS = (
     ("types_de_lieu", "Types de lieu", "PREMISES_KINDS"),
     ("statuts_de_lieu", "Statuts d'un lieu ou d'un équipement", "PLACE_STATUSES"),
@@ -118,6 +120,7 @@ VALUE_LISTS = (
     ("parties_prenantes", "Parties prenantes d'une réclamation", "COMPLAINT_STAKEHOLDERS"),
     ("publics_d_enquete", "Publics d'une enquête de satisfaction", "SURVEY_AUDIENCES"),
     ("types_de_titre", "Types de titre d'un formateur", "QUALIFICATION_KINDS"),
+    ("services_du_personnel", "Services du personnel", "hr.STAFF_SERVICES"),
 )
 
 
@@ -125,7 +128,8 @@ VALUE_LISTS = (
 def value_lists(_: CurrentUser) -> list[dict]:
     """Listes code → libellé définies dans le code (lecture seule) : le front n'a pas à les recopier."""
     return [{"code": code, "libelle": label, "source": name,
-             "valeurs": [{"code": k, "libelle": v} for k, v in getattr(t, name).items()]}
+             "valeurs": [{"code": k, "libelle": v} for k, v in
+                         (getattr(hr, name[3:]) if name.startswith("hr.") else getattr(t, name)).items()]}
             for code, label, name in VALUE_LISTS]
 
 

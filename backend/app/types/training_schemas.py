@@ -159,6 +159,9 @@ class TrainerIn(BaseModel):
     is_external: bool = False
     specialties: list[str] = Field(default_factory=list)
     photo_url: MediaPath = None
+    site_visible: bool = False  # présenté sur le site de l'organisme
+    site_title: str | None = Field(default=None, max_length=200)
+    site_bio: str | None = Field(default=None, max_length=1000)
 
 
 class QualificationOut(ORM):
@@ -177,6 +180,9 @@ class TrainerOut(ORM):
     is_external: bool
     specialties: list[str]
     photo_url: str | None = None
+    site_visible: bool = False
+    site_title: str | None = None
+    site_bio: str | None = None
     qualifications: list[QualificationOut] = []
 
 

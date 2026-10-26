@@ -87,6 +87,10 @@ class Trainer(TimestampMixin, Base):
     # Compte GSMS du formateur : lui donne accès à ses propres sessions (permission sessions.read_own).
     user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
     photo_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # chemin de la médiathèque (media_path)
+    # Présentation sur le site de l'organisme (équipe) : affichée seulement si site_visible.
+    site_visible: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    site_title: Mapped[str | None] = mapped_column(String(200))  # fonction affichée
+    site_bio: Mapped[str | None] = mapped_column(Text)  # bio courte
 
     qualifications: Mapped[list["TrainerQualification"]] = relationship(back_populates="trainer", cascade="all, delete-orphan")
 
