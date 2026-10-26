@@ -141,7 +141,7 @@ def test_nomenclature_et_carnet_imprimable(client, demo: Session) -> None:  # no
     client.post("/api/v1/qualiopi/evaluate", headers=h)
     book = client.get("/api/v1/qualiopi/carnet", headers=h).json()
     fiches = {f["numero"]: f for f in book["fiches"]}
-    assert fiches[4]["nom"] == "Analyse des besoins" and fiches[4]["critere"]["nom"] == "Conception des prestations"
+    assert fiches[4]["nom"] == "Analyse du besoin" and fiches[4]["critere"]["nom"] == "Concevoir les formations"
     assert "i04" in fiches[4]["recherche"] and "indicateur 4" in fiches[4]["recherche"]
     for n, f in fiches.items():  # rattachement réglementaire respecté
         lo, hi = criterion_range(f["critere"]["numero"])
@@ -149,9 +149,9 @@ def test_nomenclature_et_carnet_imprimable(client, demo: Session) -> None:  # no
     na = [f for f in book["fiches"] if f["etat"] == "NON_APPLICABLE"]
     assert na and all(f["sans_objet"] for f in na), [(f["numero"], f["sans_objet"]) for f in na]
     indicators = client.get("/api/v1/referentials/active/indicators", headers=h).json()
-    assert indicators[3]["short_title"] == "Analyse des besoins"
+    assert indicators[3]["short_title"] == "Analyse du besoin"
     r = client.get("/api/v1/qualiopi/carnet/impression", headers=h)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
     assert 'counter(page) " / " counter(pages)' in r.text and "@top-left" in r.text  # en-tête et pagination
-    assert "Analyse des besoins" in r.text and "&#39;" not in r.text.split("</style>")[0]
+    assert "Analyse du besoin" in r.text and "&#39;" not in r.text.split("</style>")[0]
     assert "Le prestataire analyse le besoin" in r.text  # libellé officiel conservé
