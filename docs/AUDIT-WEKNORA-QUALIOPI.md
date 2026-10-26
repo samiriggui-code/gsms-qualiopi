@@ -148,7 +148,8 @@ de commande, fournisseurs chinois, analyse WeKnora Cloud, guides d'accueil.
 ## 5. Ordre conseillé
 
 1. **P0** : choisir le fournisseur et déclarer les modèles dans `ia/config/builtin_models.yaml` (clés dans `ia/.env`,
-   relu à chaque démarrage du moteur) : pas besoin de route d'administration.
+   relu à chaque démarrage du moteur) : pas besoin de route d'administration pour la mise en service. Changer de
+   modèle depuis le back-office (§3.1, compte navigateur refusé en 403) reste un point ouvert.
 2. Indexer le référentiel et vérifier une question simple de bout en bout (texte + outil MCP).
 3. ~~Assistants préréglés dans `ia-preparer`~~ : fait (trois assistants, `assistants.py`, commits `3852784` à `3b7ab11`).
 4. Ajouter le contexte de page GSMS (les 5 outils MCP de lecture sont faits).
