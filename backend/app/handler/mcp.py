@@ -92,8 +92,8 @@ def _call_tool(db: Session, user: User, params: dict) -> dict:
     args = params.get("arguments") or {}
     if not isinstance(args, dict):
         return _text_result("Les arguments doivent être un objet", is_error=True)
-    if tool.permission not in permissions_of(db, user):
-        return _text_result(_refusal(db, user, (tool.permission,)).detail, is_error=True)
+    if not set(tool.permissions) & permissions_of(db, user):  # l'une des permissions de la route suffit
+        return _text_result(_refusal(db, user, tool.permissions).detail, is_error=True)
     try:
         return _text_result(tool.run(db, user, args))
     except DomainError as e:

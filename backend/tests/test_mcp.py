@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.application.service.ia.compte import ROLE, mcp_token, technical_account
 from app.handler.mcp_outils import TOOLS
+from app.types import training as t
 from app.types.qualiopi_evidence import Evidence
 from tests.conftest import find_session, make_user
 
@@ -56,7 +57,8 @@ def test_poignee_de_main_et_liste_des_outils(client, db: Session) -> None:  # no
     tools = rpc(client, h, "tools/list").json()["result"]["tools"]
     assert [t["name"] for t in tools] == [t.name for t in TOOLS]
     assert {"etat_indicateurs", "fiche_indicateur", "lister_preuves", "fiche_preuve", "lister_ecarts",
-            "lister_echeances", "lister_actions_correctives", "synthese_session"} == {t["name"] for t in tools}
+            "lister_echeances", "lister_actions_correctives", "synthese_session", "fiche_formation",
+            "lister_sessions", "lister_audits", "lister_veille", "lister_reclamations"} == {t["name"] for t in tools}
     assert all(t["annotations"]["readOnlyHint"] for t in tools)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
     # Aucun texte ne prononce la conformité.
@@ -175,3 +177,68 @@ def test_outils_reprennent_les_routes_existantes(client, demo: Session) -> None:
 
     is_error, text = tool(client, h, "outil_inconnu")
     assert is_error and "inconnu" in text
+
+
+def test_fiche_formation_par_identifiant_code_ou_slug(client, demo: Session) -> None:  # noqa: ANN001
+    h = bearer(mcp_token(demo))
+    demo.commit()
+    _, user = make_user(demo, ROLE, email="pair@test.local")
+    program = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1"))
+    expected = client.get(f"/api/v1/qualiopi/formations/{program.id}", headers=user).json()
+    assert tool(client, h, "fiche_formation", formation=program.id) == (False, expected)
+    assert tool(client, h, "fiche_formation", formation="SSIAP1") == (False, expected)
+    if program.catalog_slug:
+        assert tool(client, h, "fiche_formation", formation=program.catalog_slug) == (False, expected)
+    is_error, text = tool(client, h, "fiche_formation", formation="INCONNUE")
+    assert is_error and "introuvable" in text
+    assert tool(client, h, "fiche_formation")[0]
+
+
+def test_lister_sessions_exige_le_droit_de_la_route(client, demo: Session) -> None:  # noqa: ANN001
+    # Le compte technique n'a que quality.read : la route des sessions lui est fermée, l'outil aussi.
+    h = bearer(mcp_token(demo))
+    demo.commit()
+    is_error, text = tool(client, h, "lister_sessions")
+    assert is_error and "sessions.read ou sessions.read_own" in text
+
+    _, user = make_user(demo, "qualite")
+    _, out = tool(client, user, "lister_sessions", limite=2)
+    full = client.get("/api/v1/sessions", headers=user).json()
+    assert out["total"] == len(full) and out["sessions"] == full[:2]
+    _, done = tool(client, user, "lister_sessions", statut="TERMINEE", du="2020-01-01", au="2035-12-31")
+    assert done["sessions"] == client.get("/api/v1/sessions?statut=TERMINEE&du=2020-01-01&au=2035-12-31",
+                                          headers=user).json()[:50]
+    assert tool(client, user, "lister_sessions", statut="INCONNU")[0]
+    assert tool(client, user, "lister_sessions", du="hier")[0]
+
+
+def test_lister_audits(client, demo: Session) -> None:  # noqa: ANN001
+    h = bearer(mcp_token(demo))
+    demo.commit()
+    _, user = make_user(demo, ROLE, email="pair@test.local")
+    _, out = tool(client, h, "lister_audits")
+    full = client.get("/api/v1/qualiopi/audits", headers=user).json()
+    assert out["audits"] == full["audits"][:50] and out["total"] == len(full["audits"])
+    assert out["avertissement"] == full["avertissement"] and out["capabilities"] == full["capabilities"]
+
+    _, formateur = make_user(demo, "formateur")
+    is_error, text = tool(client, formateur, "lister_audits")
+    assert is_error and "quality.read" in text
+
+
+def test_lister_veille_et_reclamations(client, demo: Session) -> None:  # noqa: ANN001
+    h = bearer(mcp_token(demo))
+    demo.commit()
+    _, user = make_user(demo, ROLE, email="pair@test.local")
+    _, watch = tool(client, h, "lister_veille", limite=2)
+    full = client.get("/api/v1/watch-items", headers=user).json()
+    assert full and watch["total"] == len(full) and watch["veille"] == full[:2]
+
+    _, complaints = tool(client, h, "lister_reclamations")
+    full = client.get("/api/v1/complaints", headers=user).json()
+    assert full and complaints["reclamations"] == full[:50] and complaints["total"] == len(full)
+
+    # Les routes acceptent sessions.read ou quality.read : un formateur (sessions.read_own) est refusé.
+    _, formateur = make_user(demo, "formateur")
+    is_error, text = tool(client, formateur, "lister_reclamations")
+    assert is_error and "sessions.read ou quality.read" in text

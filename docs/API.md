@@ -525,20 +525,28 @@ Fichiers : `backend/app/handler/ia.py`, `backend/app/handler/mcp.py` (protocole)
 | `GET` | `/api/v1/mcp` | 405 : pas de flux serveur (SSE). | — |
 | `DELETE` | `/api/v1/mcp` | 405 : pas de session à fermer. | — |
 
-**Outils MCP** (tous en lecture seule, annotés `readOnlyHint`, permission `quality.read`) ; chacun appelle la fonction de la
-route HTTP indiquée, sans rien recalculer. Les listes sont limitées par `limite` (50 par défaut, 200 au plus) ; une session ou
-une preuve se désigne par son identifiant ou sa référence.
+**Outils MCP** (13, tous en lecture seule, annotés `readOnlyHint`) ; chacun appelle la fonction de la route HTTP indiquée,
+sans rien recalculer, et exige la même permission qu'elle (quand la route en accepte plusieurs, l'une suffit, comme
+`require_any`). Les listes sont limitées par `limite` (50 par défaut, 200 au plus) et renvoient `total` et `affiches` ; une
+session ou une preuve se désigne par son identifiant ou sa référence, une formation par son identifiant, son code ou son slug
+de catalogue. Le compte technique (`quality.read` seul) n'a donc pas `lister_sessions`, dont la route exige `sessions.read`
+ou `sessions.read_own`.
 
-| Outil | Arguments | Route reprise |
-|---|---|---|
-| `etat_indicateurs` | `du`, `au` | `GET /api/v1/qualiopi/readiness` |
-| `fiche_indicateur` | `numero` | `GET /api/v1/qualiopi/indicateurs/{n}` |
-| `lister_preuves` | `statut[]`, `type`, `indicateur`, `session`, `recherche`, `limite` | `GET /api/v1/qualiopi/preuves` |
-| `fiche_preuve` | `preuve` | `GET /api/v1/qualiopi/preuves/{id}` |
-| `lister_ecarts` | `statut[]` (défaut `OUVERT`, `EN_TRAITEMENT`), `indicateur`, `limite` | `GET /api/v1/qualiopi/constats` |
-| `lister_echeances` | `jours` (15), `responsable`, `limite` | `GET /api/v1/qualiopi/echeances` |
-| `lister_actions_correctives` | `statut`, `en_retard`, `limite` | `GET /api/v1/qualiopi/actions` |
-| `synthese_session` | `session` | `GET /api/v1/sessions/{id}/dossier` |
+| Outil | Arguments | Route reprise | Permission |
+|---|---|---|---|
+| `etat_indicateurs` | `du`, `au` | `GET /api/v1/qualiopi/readiness` | `quality.read` |
+| `fiche_indicateur` | `numero` | `GET /api/v1/qualiopi/indicateurs/{n}` | `quality.read` |
+| `lister_preuves` | `statut[]`, `type`, `indicateur`, `session`, `recherche`, `limite` | `GET /api/v1/qualiopi/preuves` | `quality.read` |
+| `fiche_preuve` | `preuve` | `GET /api/v1/qualiopi/preuves/{id}` | `quality.read` |
+| `lister_ecarts` | `statut[]` (défaut `OUVERT`, `EN_TRAITEMENT`), `indicateur`, `limite` | `GET /api/v1/qualiopi/constats` | `quality.read` |
+| `lister_echeances` | `jours` (15), `responsable`, `limite` | `GET /api/v1/qualiopi/echeances` | `quality.read` |
+| `lister_actions_correctives` | `statut`, `en_retard`, `limite` | `GET /api/v1/qualiopi/actions` | `quality.read` |
+| `synthese_session` | `session` | `GET /api/v1/sessions/{id}/dossier` | `quality.read` |
+| `fiche_formation` | `formation` (identifiant, code ou slug) | `GET /api/v1/qualiopi/formations/{id}` | `quality.read` |
+| `lister_sessions` | `statut`, `du`, `au`, `limite` | `GET /api/v1/sessions` | `sessions.read` ou `sessions.read_own` |
+| `lister_audits` | `limite` | `GET /api/v1/qualiopi/audits` | `quality.read` |
+| `lister_veille` | `limite` (la route n'a pas de filtre de domaine) | `GET /api/v1/watch-items` | `sessions.read` ou `quality.read` |
+| `lister_reclamations` | `limite` | `GET /api/v1/complaints` | `sessions.read` ou `quality.read` |
 
 Un droit manquant, un module éteint, un objet introuvable ou un argument invalide donnent un résultat d'outil `isError: true`
 avec le motif en français (les messages des routes).

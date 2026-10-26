@@ -2,8 +2,10 @@
 
 Chaque outil appelle la fonction de la route HTTP correspondante (mêmes services, mêmes politiques, même
 forme de réponse) : aucune règle métier n'est recodée ici. On n'ajoute que :
-- la permission exigée, identique à celle de la route (vérifiée avant l'appel, refus lisible sinon) ;
-- la traduction des arguments (une session ou une preuve se désigne aussi par sa référence) ;
+- la permission exigée, identique à celle de la route (vérifiée avant l'appel, refus lisible sinon) ; quand la route
+  accepte plusieurs permissions (l'une ou l'autre), l'outil porte le même tuple ;
+- la traduction des arguments (une session ou une preuve se désigne aussi par sa référence, une formation par son
+  code ou son slug de catalogue) ;
 - une limite sur les listes, pour ne pas noyer l'assistant.
 
 Tous les outils sont en lecture seule : aucun n'écrit en base.
@@ -11,16 +13,22 @@ Tous les outils sont en lecture seule : aucun n'écrit en base.
 
 from __future__ import annotations
 
+import inspect
+import typing
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors.errors import InvalidStateError, NotFoundError
 from app.handler import qualiopi as routes
 from app.handler import qualiopi_ecrans as screens
+from app.handler import training as training_routes
+from app.handler.training_resources import QUALITY_READ
+from app.handler.training_resources import ROUTERS as CRUD_ROUTERS
 from app.types import training as t
 from app.types.auth import User
 from app.types.qualiopi_capa import CAPA_STATUSES
@@ -37,9 +45,13 @@ class Tool:
     name: str
     description: str
     properties: dict
-    permission: str
+    permission: str | tuple[str, ...]  # une permission, ou plusieurs dont l'une suffit (comme `require_any`)
     run: Callable[[Session, User, dict], object]
     required: tuple[str, ...] = ()
+
+    @property
+    def permissions(self) -> tuple[str, ...]:
+        return (self.permission,) if isinstance(self.permission, str) else self.permission
 
     def descriptor(self) -> dict:
         schema: dict = {"type": "object", "properties": self.properties, "additionalProperties": False}
@@ -127,6 +139,31 @@ def _evidence_id(db: Session, value: str) -> str:
     return found
 
 
+def _program_id(db: Session, value: str) -> str:
+    """Une formation se désigne par son identifiant, son code ou son slug de catalogue."""
+    if db.get(t.Program, value) is not None:
+        return value
+    found = db.scalar(select(t.Program.id).where((t.Program.code == value) | (t.Program.catalog_slug == value)))
+    if found is None:
+        raise NotFoundError(f"Formation introuvable : {value}")
+    return found
+
+
+_ROWS = TypeAdapter(list[dict])
+
+
+def _crud_list(path: str) -> Callable[[Session, User], list[dict]]:
+    """La fonction de la route de liste `GET /api/v1/<path>` déclarée par `crud_router` (sans filtre)."""
+    for router in CRUD_ROUTERS:
+        for route in router.routes:
+            if getattr(route, "path", None) == f"/api/v1/{path}" and "GET" in getattr(route, "methods", ()):
+                endpoint = route.endpoint
+                filters = typing.get_args(inspect.signature(endpoint).parameters["params"].annotation)[0]
+                # Même encodage JSON que la réponse HTTP (modèle de réponse `list[dict]` de la route).
+                return lambda db, user: _ROWS.dump_python(endpoint(db=db, params=filters(), _=user), mode="json")
+    raise LookupError(f"route GET /api/v1/{path} introuvable")
+
+
 # ── Outils ───────────────────────────────────────────────────────────────────────
 
 
@@ -189,6 +226,39 @@ def _session_summary(db: Session, user: User, args: dict) -> object:
     return routes.get_session_dossier(_session_id(db, value), db, user)
 
 
+def _program(db: Session, user: User, args: dict) -> object:
+    value = _str(args, "formation")
+    if value is None:
+        raise InvalidStateError("Indiquez la formation (« formation » : identifiant, code ou slug)")
+    return screens.formation_view(_program_id(db, value), db, user)
+
+
+def _sessions(db: Session, user: User, args: dict) -> object:
+    status = _str(args, "statut")
+    if status is not None and status not in t.SESSION_STATUSES:
+        raise InvalidStateError(f"Statut inconnu : {status} (attendus : {', '.join(t.SESSION_STATUSES)})")
+    rows = training_routes.list_sessions(db, user, statut=status, du=_date(args, "du"), au=_date(args, "au"))
+    views = [training_routes.SessionView.model_validate(s).model_dump(mode="json") for s in rows]
+    return _capped(views, _limit(args), "sessions")
+
+
+def _audits(db: Session, user: User, args: dict) -> object:
+    out = screens.list_audits(db, user)
+    return {**out, **_capped(out["audits"], _limit(args), "audits")}
+
+
+_watch_items = _crud_list("watch-items")
+_complaints = _crud_list("complaints")
+
+
+def _watch(db: Session, user: User, args: dict) -> object:
+    return _capped(_watch_items(db, user), _limit(args), "veille")
+
+
+def _complaint_list(db: Session, user: User, args: dict) -> object:
+    return _capped(_complaints(db, user), _limit(args), "reclamations")
+
+
 _NUMBER = {"type": "integer", "minimum": 1, "maximum": 99}
 _LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT, "default": DEFAULT_LIMIT,
           "description": "Nombre maximal de lignes renvoyées"}
@@ -245,6 +315,36 @@ TOOLS: tuple[Tool, ...] = (
          "émargements, évaluations, attestations…), état des indicateurs pour la session, contrôles et preuves.",
          {"session": {"type": "string", "description": "Identifiant ou référence de la session"}},
          "quality.read", _session_summary, ("session",)),
+    Tool("fiche_formation",
+         "Ce que le moteur sait d'une formation : par indicateur, l'état de préparation calculé sur ses contrôles et "
+         "ceux de ses sessions, le détail des contrôles, ses preuves et ses écarts ouverts. Les éléments communs à "
+         "tout l'organisme restent dans l'état des indicateurs.",
+         {"formation": {"type": "string", "description": "Identifiant, code ou slug de catalogue de la formation"}},
+         "quality.read", _program, ("formation",)),
+    Tool("lister_sessions",
+         "Sessions de formation, de la plus récente à la plus ancienne, avec leur formation, leur formateur, leur "
+         "statut et le nombre d'inscrits.",
+         {"statut": {"type": "string", "enum": list(t.SESSION_STATUSES)},
+          "du": {"type": "string", "format": "date", "description": "Sessions finissant à partir de cette date"},
+          "au": {"type": "string", "format": "date", "description": "Sessions commençant au plus tard à cette date"},
+          "limite": _LIMIT},
+         ("sessions.read", "sessions.read_own"), _sessions),
+    Tool("lister_audits",
+         "Audits internes et audits blancs de l'organisme, du plus récent au plus ancien : période, échantillon de "
+         "sessions, avancement et jugements de l'organisme sur ses propres preuves. Ils ne remplacent pas l'audit du "
+         "certificateur.",
+         {"limite": _LIMIT},
+         "quality.read", _audits),
+    Tool("lister_veille",
+         "Éléments de veille notés par l'organisme (légale et réglementaire, métiers et compétences, pédagogique et "
+         "technologique), les plus récents d'abord, avec leur source et leur exploitation.",
+         {"limite": _LIMIT},
+         QUALITY_READ, _watch),
+    Tool("lister_reclamations",
+         "Réclamations, difficultés et aléas enregistrés, les plus récents d'abord, avec la session concernée, les "
+         "dates d'accusé de réception, de réponse et de résolution.",
+         {"limite": _LIMIT},
+         QUALITY_READ, _complaint_list),
 )
 
 BY_NAME = {tool.name: tool for tool in TOOLS}
