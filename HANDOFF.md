@@ -418,6 +418,15 @@ Limites de débit en mémoire (`app/common/limites.py`, mono-instance, 429 en fr
 verrou `FOR UPDATE` sur la réponse à un questionnaire ; fastapi 0.141.1 + starlette 1.7.0 figée ; Caddy plafonne le corps
 à 20 Mo. Détail : `docs/API.md` §1.
 
+## 5 vicies. Offre de formation et apprenants (26/10/2026, chantier C5)
+
+Back-office : vue d'ensemble École (`/platform/ecole`), catalogue (`formations`), fiche formation (programme, certification et
+vérifications, contenus, versions et programme imprimable, suivi pédagogique ; boutons selon `capabilities`), référencement CPF
+(`edof`, dossier `edof/dossiers/:id` : anomalies, pièces, instruction, cycle de vie), stagiaires et fiche (parcours, documents,
+financement si le module est actif), registres du parcours (`parcours/:vue`). Manque côté API : la liste des inscriptions d'un
+stagiaire (la fiche les relève dans `GET /sessions/{id}`), le dépôt de pièce EDOF et la gestion des intervenants et ressources
+ne sont pas encore à l'écran.
+
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
 L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau

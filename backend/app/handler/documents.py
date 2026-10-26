@@ -21,6 +21,10 @@ router = APIRouter(prefix="/api/v1", tags=["dossiers"])
 
 # Qui peut déposer ou demander une pièce, selon le dossier.
 WRITE_PERMISSION = {"ORGANISME": "quality.write", "FORMATEUR": "trainers.write"}
+# Téléchargement : quality.read suffit pour les pièces des dossiers et les preuves Qualiopi (convocations,
+# attestations, conventions…). Les documents d'un autre module, qui ne sont pas des preuves, gardent la
+# permission de ce module (en plus de quality.read).
+READ_PERMISSION = {"EDITION": "documents.read", "FACTURE": "invoices.read"}
 
 
 def _require_for(db, user: User, subject: str) -> None:  # noqa: ANN001
@@ -86,6 +90,9 @@ def download(document_id: str, db: DB, user: QualityReader) -> Response:
         needed = "edof.sensitive" if doc.kind == "EDOF_SENSIBLE" else "edof.read"
         if needed not in permissions_of(db, user):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Pièce de référencement EDOF : accès réservé")
+    needed = READ_PERMISSION.get(doc.entity_type or "")
+    if needed and needed not in permissions_of(db, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"Permission « {needed} » requise pour ce document")
     content = storage.read(doc.storage_path, expected_sha256=doc.sha256)
     name = (doc.original_name or doc.title).replace('"', "")
     return Response(content, media_type=doc.mime_type,

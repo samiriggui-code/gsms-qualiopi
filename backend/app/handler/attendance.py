@@ -2,12 +2,13 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.application.access.training_scope import visible_session
 from app.application.service.attendance import service
 from app.common.journal import set_actor
+from app.common.limites import Limite, par_adresse
 from app.errors.errors import NotFoundError
 from app.middleware.auth import DB, AttendanceWriter, SessionsReader
 from app.types import training as t
@@ -72,7 +73,12 @@ class SignIn(BaseModel):
     jeton: str
 
 
-@router.post("/emargement/signer")
+# Signature publique : 120 par adresse sur 10 min (une salle entière signe souvent depuis le même réseau).
+SIGNATURE_PAR_ADRESSE = Limite(120, 600.0)
+
+
+@router.post("/emargement/signer", dependencies=[Depends(par_adresse(
+    SIGNATURE_PAR_ADRESSE, "Trop de signatures depuis cette adresse : réessayez dans quelques minutes."))])
 def learner_sign(body: SignIn, db: DB) -> dict:
     """Route publique : le stagiaire signe avec le code de la salle et son lien personnel."""
     set_actor(db, "stagiaire (lien personnel)")

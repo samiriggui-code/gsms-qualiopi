@@ -157,7 +157,7 @@ class Planner:
             doc_id = e.convocation.document_id if rule.document == "CONVOCATION" else e.certificate.document_id
             sujet, phrase, bouton = DOCUMENTS[rule.document]
             ctx |= {"document": {"sujet": sujet, "phrase": phrase},
-                    "action": {"libelle": bouton, "lien": f"{self.url}/api/public/documents/{tokens.sign('document', f'{e.id}:{doc_id}')}"}}
+                    "action": {"libelle": bouton, "lien": f"{self.url}/api/public/documents/{tokens.sign_document(e.id, doc_id)}"}}
         elif rule.modele == "evaluations_manquantes":
             ctx |= {"stagiaires": [x.learner.full_name for x in s.enrollments
                                    if x.status in ("INSCRIT", "CONFIRME", "TERMINE") and not x.assessments],

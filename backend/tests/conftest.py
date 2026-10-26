@@ -100,6 +100,14 @@ def db(database_url: str) -> Iterator[Session]:
 # ── API ──────────────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _limites() -> None:
+    """Compteurs de débit (en mémoire du processus) remis à zéro : chaque test part d'une adresse neuve."""
+    from app.common.limites import reset_all
+
+    reset_all()
+
+
 @pytest.fixture
 def client(db: Session) -> Iterator["TestClient"]:
     from fastapi.testclient import TestClient

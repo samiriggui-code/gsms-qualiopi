@@ -7,11 +7,13 @@ plus puissant que le sien.
 """
 
 import re
+import secrets
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app.common.limites import Limite, client_ip, trop_de_demandes
 from app.middleware.auth import (
     DB,
     CurrentUser,
@@ -50,11 +52,28 @@ class TokenOut(BaseModel):
     user: UserOut
 
 
+# Débit de la connexion (app/common/limites.py) : toutes les tentatives par adresse, les échecs par identifiant.
+LOGIN_PAR_ADRESSE = Limite(30, 600.0)
+LOGIN_ECHECS_PAR_COMPTE = Limite(10, 900.0)
+TROP_DE_TENTATIVES = "Trop de tentatives de connexion : réessayez dans quelques minutes."
+# Empreinte factice : un e-mail inconnu coûte le même calcul bcrypt qu'un compte réel (pas d'énumération au temps de réponse).
+_EMPREINTE_FACTICE = hash_password(secrets.token_urlsafe(16))
+
+
 @router.post("/login", response_model=TokenOut)
-def login(body: LoginIn, db: DB) -> TokenOut:
-    user = db.scalar(select(User).where(User.email == body.email.lower().strip()))
-    if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
+def login(body: LoginIn, request: Request, db: DB) -> TokenOut:
+    email = body.email.lower().strip()
+    ip = client_ip(request)
+    attente = max(LOGIN_PAR_ADRESSE.attente(ip), LOGIN_ECHECS_PAR_COMPTE.attente(email))
+    if attente:
+        raise trop_de_demandes(TROP_DE_TENTATIVES, attente)
+    LOGIN_PAR_ADRESSE.compter(ip)
+    user = db.scalar(select(User).where(User.email == email))
+    password_ok = verify_password(body.password, user.password_hash if user is not None else _EMPREINTE_FACTICE)
+    if user is None or not user.is_active or not password_ok:
+        LOGIN_ECHECS_PAR_COMPTE.compter(email)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Identifiants invalides")
+    LOGIN_ECHECS_PAR_COMPTE.oublier(email)
     return TokenOut(access_token=create_token(user), user=UserOut.model_validate(user))
 
 

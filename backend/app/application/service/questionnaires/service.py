@@ -49,9 +49,10 @@ def link(inv: Invitation) -> str:
     return f"{get_settings().public_url.rstrip('/')}/q/{tokens.sign(PURPOSE, inv.id)}"
 
 
-def _invitation(db: Session, token: str, today: date) -> Invitation:
+def _invitation(db: Session, token: str, today: date, lock: bool = False) -> Invitation:
+    """Invitation du lien ; `lock` la verrouille (SELECT … FOR UPDATE) jusqu'à la fin de la transaction."""
     inv_id = tokens.verify(PURPOSE, token)
-    inv = db.get(Invitation, inv_id) if inv_id else None
+    inv = db.get(Invitation, inv_id, with_for_update=lock, populate_existing=lock) if inv_id else None
     if inv is None:
         raise NotFoundError("Lien invalide")
     if inv.answered_at is not None:
@@ -99,7 +100,8 @@ def _yes(v: object) -> str:
 
 def submit(db: Session, token: str, answers: dict, today: date | None = None) -> dict:
     today = today or date.today()
-    inv = _invitation(db, token, today)
+    # Verrou : deux envois simultanés du même lien sont traités l'un après l'autre ; le second voit la réponse.
+    inv = _invitation(db, token, today, lock=True)
     q = definitions.load(inv.kind)
     e = db.get(t.Enrollment, inv.enrollment_id)
     clean = definitions.check(q, answers or {}, _skip(e))

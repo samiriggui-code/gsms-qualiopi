@@ -24,6 +24,7 @@ from app.application.access.training import TrainingPolicy
 from app.application.service.preinscriptions import limiter, service
 from app.application.service.training.lifecycle import ENROLLABLE_STATES
 from app.common.journal import set_actor
+from app.common.limites import client_ip
 from app.errors.errors import DomainError, InvalidStateError
 from app.middleware.auth import DB, require
 from app.types import training as t
@@ -175,13 +176,6 @@ def _validation_details(exc: ValidationError) -> list[dict]:
     return out
 
 
-def _origin(request: Request) -> str:
-    """Adresse d'origine : celle de la connexion et la dernière ajoutée par le reverse proxy (non falsifiable)."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    last = forwarded.split(",")[-1].strip() if forwarded else ""
-    return f"{request.client.host if request.client else '?'}|{last}"
-
-
 @public_router.post("/preinscriptions", status_code=201)
 async def submit(request: Request, db: DB) -> JSONResponse:
     """Demande envoyée par le formulaire du site, sans compte."""
@@ -208,7 +202,7 @@ async def submit(request: Request, db: DB) -> JSONResponse:
         details = _validation_details(exc)
         return _refusal(422, "invalid_state", details[0]["message"] if len(details) == 1
                         else f"{len(details)} champs à corriger : {' ; '.join(d['message'] for d in details)}", details)
-    if not limiter.allow(_origin(request)):
+    if not limiter.allow(client_ip(request)):
         return _refusal(429, "trop_de_demandes", "Trop de demandes envoyées depuis cette adresse : réessayez dans quelques minutes.")
 
     def save() -> None:

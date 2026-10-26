@@ -66,7 +66,7 @@ def public_view(db: Session, token: str, today: date | None = None) -> dict:
         if d.status != "REMPLACE" and d.storage_path:
             latest[d.kind] = d
     docs = [{"type": d.kind, "titre": d.title, "emis_le": d.created_at.date().isoformat() if d.created_at else None,
-             "lien": f"{base}/api/public/documents/{tokens.sign('document', f'{e.id}:{d.id}')}"}
+             "lien": f"{base}/api/public/documents/{tokens.sign_document(e.id, d.id)}"}
             for d in latest.values()]
 
     # Questionnaires : ouverts (à remplir, avec leur lien) ou déjà répondus ; jamais ceux de l'entreprise

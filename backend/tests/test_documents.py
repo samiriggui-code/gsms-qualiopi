@@ -96,3 +96,18 @@ def test_fichier_altere_sur_disque_refuse() -> None:
     path.write_bytes(PDF + b"falsifie")
     with pytest.raises(DomainError, match="Intégrité"):
         storage.read(stored.relative_path, stored.sha256)
+
+
+@pytest.mark.parametrize(("entity", "permission"), [("EDITION", "documents.read"), ("FACTURE", "invoices.read")])
+def test_document_d_un_autre_module_garde_sa_permission(demo: Session, client, entity: str, permission: str) -> None:  # noqa: ANN001
+    stored = storage.store(PDF + entity.encode(), "application/pdf")
+    doc = t.Document(kind="DEVIS" if entity == "EDITION" else "FACTURE", title="Pièce", entity_type=entity, status="EMIS",
+                     mime_type="application/pdf", storage_path=stored.relative_path, sha256=stored.sha256)
+    demo.add(doc)
+    demo.commit()
+    _, assistant = make_user(demo, "assistant_qualite")  # quality.read, sans documents.read ni invoices.read
+    _, admin = make_user(demo, "admin")
+    r = client.get(f"/api/v1/documents/{doc.id}/contenu", headers=assistant)
+    assert r.status_code == 403 and permission in r.json()["detail"]
+    if entity == "EDITION":  # module Documents actif par défaut
+        assert client.get(f"/api/v1/documents/{doc.id}/contenu", headers=admin).status_code == 200
