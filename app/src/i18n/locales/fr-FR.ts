@@ -640,6 +640,8 @@ export default {
         parIndicateur: "Par indicateur",
         resultats: "Résultats des contrôles",
         derniere: "dernière évaluation le {le} ({par})",
+        demontrablesSur: "Démontrables : {n} / {total}",
+        indCourt: "ind. {n}",
         nControles: "{n} contrôle(s)",
         nEcarts: "{n} écart(s) ouvert(s)",
         reevalue: "Réévaluation terminée",

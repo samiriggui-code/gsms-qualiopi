@@ -22,6 +22,9 @@ export interface EvaluationRun {
 
 export interface IndicatorState {
   numero: number
+  /** Nom d'usage (config/qualiopi/nomenclature.yaml), libellé officiel du référentiel à côté. */
+  nom: string
+  libelle_officiel: string | null
   critere: number
   critere_nom: string
   etat: string

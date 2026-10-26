@@ -640,6 +640,8 @@ export default {
         parIndicateur: "By indicator",
         resultats: "Control results",
         derniere: "last evaluation on {le} ({par})",
+        demontrablesSur: "Demonstrable: {n} / {total}",
+        indCourt: "ind. {n}",
         nControles: "{n} control(s)",
         nEcarts: "{n} open gap(s)",
         reevalue: "Re-evaluation complete",
