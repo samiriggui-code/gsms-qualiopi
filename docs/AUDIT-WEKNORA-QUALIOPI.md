@@ -1,6 +1,6 @@
 # Audit : adapter WeKnora au cœur Qualiopi
 
-État au 26/10/2026, branche `refonte-front`. Le document distingue ce qui **existe** (vérifié dans le code)
+État au 26/10/2026, branche `refonte-front`. Le moteur WeKnora adapté est dans `ia/moteur/` (voir HANDOFF). Le document distingue ce qui **existe** (vérifié dans le code)
 de ce qui est **proposé**.
 
 ## 1. Le principe à garder
@@ -35,7 +35,7 @@ Priorité : **P0** bloque l'usage, **P1** apporte la valeur principale, **P2** v
 
 | Besoin | État | À faire |
 |---|---|---|
-| Modèle d'embedding et modèle de discussion réglés | **Manquant** : les 65 textes du référentiel attendent l'indexation | Choisir les modèles (hébergement, coût, RGPD) et les régler |
+| Modèle d'embedding et modèle de discussion réglés | **En dev** : Ollama local (`ia/config/builtin_models.dev-ollama.yaml`), 65 textes indexés (vérifié le 26/10/2026). **Production** : non choisi (fichier Mistral non essayé) | Choisir le fournisseur de production (hébergement, coût, RGPD) |
 | Régler les modèles sans le compte de service | **Point ouvert** (HANDOFF §5 quattuordecies) : le compte navigateur est contributeur, il reçoit 403 | Route GSMS d'administration (nouvelle permission `ia.admin`) qui règle les modèles avec le compte de service, côté serveur. Écran dans Paramètres |
 | Français dans l'interface WeKnora | `fr-FR.ts` existe dans `app/` | Vérifier la couverture des clés (`npm run scan-i18n-gaps`) |
 
@@ -43,7 +43,7 @@ Priorité : **P0** bloque l'usage, **P1** apporte la valeur principale, **P2** v
 
 | Base | État | Contenu | Alimentée par |
 |---|---|---|---|
-| Référentiel Qualiopi | **Créée**, non indexée | Textes officiels v9 et v10 | `ia-preparer` (existe) |
+| Référentiel Qualiopi | **Créée**, 65 textes indexés en dev (26/10/2026) | Textes officiels v9 et v10 | `ia-preparer` (existe) |
 | Documents de l'organisme | Proposée | Procédures, livret d'accueil, règlement intérieur, CGV, programmes, modèles | GSMS par REST, à chaque dépôt ou modification de ces documents dans GSMS |
 | Dossiers des stagiaires | **À ne pas créer** | — | Données personnelles : elles restent dans GSMS, lues au cas par cas par MCP |
 

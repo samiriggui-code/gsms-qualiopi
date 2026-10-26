@@ -65,10 +65,14 @@ services:
     command: ["python", "-m", "app.cmd.worker"]
 
   # ── Moteur IA (fork WeKnora de Global-IT-SS) : bases de connaissances, recherche, chat, agents ──
-  # Images construites depuis global-it-ss-template/backend (jamais tirées de Docker Hub).
+  # Images construites depuis ia/moteur (le moteur WeKnora adapté, versionné dans ce dépôt ; jamais tirées de Docker Hub) :
+  #   docker compose build ia-app ia-docreader
   # Secrets dans ia/.env (voir ia/.env.example). API WeKnora : 127.0.0.1:${IA_PORT:-4103}.
   ia-app:
-    image: gitss-app:local
+    image: gsms-ia-app:local
+    build:
+      context: ./ia/moteur
+      dockerfile: docker/Dockerfile.app
     pull_policy: never
     restart: unless-stopped
     env_file: [ia/.env]
@@ -98,7 +102,10 @@ services:
       start_period: 90s
 
   ia-docreader:
-    image: gitss-docreader:local
+    image: gsms-ia-docreader:local
+    build:
+      context: ./ia/moteur
+      dockerfile: docker/Dockerfile.docreader
     pull_policy: never
     restart: unless-stopped
     environment:
