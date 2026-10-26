@@ -10,6 +10,13 @@
       </t-input>
     </template>
 
+    <template #cell-program_title="{ row }">
+      <span class="cell-media"><FormationThumb :image="row.program_image_url" :size="28" />{{ row.program_title || row.program_code || '—' }}</span>
+    </template>
+    <template #cell-trainer_name="{ row }">
+      <span v-if="row.trainer_name" class="cell-media"><GsmsPersonAvatar :name="row.trainer_name" :photo="row.trainer_photo_url" :size="24" />{{ row.trainer_name }}</span>
+      <template v-else>—</template>
+    </template>
     <template #cell-dates="{ row }">{{ fmtDate(row.start_date) }} → {{ fmtDate(row.end_date) }}</template>
     <template #cell-status="{ row }"><GsmsStatusTag :code="row.status" /></template>
     <template #cell-inscrits="{ row }">{{ row.learners_count }}<template v-if="row.capacity"> / {{ row.capacity }}</template></template>
@@ -17,7 +24,7 @@
     <template #card="{ item }">
       <router-link :to="`/platform/sessions/${item.id}`" class="card">
         <div class="card-header">
-          <div class="card-header-left"><span class="card-title">{{ item.reference }}</span></div>
+          <div class="card-header-left head"><FormationThumb :image="item.program_image_url" :size="48" /><span class="card-title">{{ item.reference }}</span></div>
           <GsmsStatusTag :code="item.status" />
         </div>
         <div class="card-content"><p class="card-description">{{ item.program_title || item.program_code || '—' }}</p></div>
@@ -25,7 +32,7 @@
           <div class="card-meta">
             <span><t-icon name="time" size="14px" />{{ fmtDate(item.start_date) }} → {{ fmtDate(item.end_date) }}</span>
             <span v-if="item.location"><t-icon name="location" size="14px" />{{ item.location }}</span>
-            <span v-if="item.trainer_name"><t-icon name="user" size="14px" />{{ item.trainer_name }}</span>
+            <span v-if="item.trainer_name" class="meta-person"><GsmsPersonAvatar :name="item.trainer_name" :photo="item.trainer_photo_url" :size="18" />{{ item.trainer_name }}</span>
             <span><t-icon name="usergroup" size="14px" />{{ item.learners_count }}<template v-if="item.capacity"> / {{ item.capacity }}</template></span>
           </div>
         </div>
@@ -40,6 +47,8 @@ import { useI18n } from 'vue-i18n'
 import GsmsListPage, { type ListColumn } from '@/components/gsms/GsmsListPage.vue'
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
 import { listSessions, type SessionRow } from '@/api/gsms/sessions'
 import { fmtDate, stateLabel } from '@/components/gsms/format'
 
@@ -91,4 +100,7 @@ const columns = computed<ListColumn[]>(() => [
 @import (reference) '@/components/gsms/gsms-list.less';
 .search { .gsms-search(); }
 .card { .gsms-card(); text-decoration: none; color: inherit; }
+.head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cell-media, .meta-person { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.meta-person { gap: 5px; }
 </style>

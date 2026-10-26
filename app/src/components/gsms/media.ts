@@ -40,31 +40,14 @@ export function fileTypeIcon(name?: string | null, mime?: string | null): string
 }
 
 /**
- * Photos des personnes FICTIVES de la démonstration (`seed-demo`, backend/app/application/service/demo.py), reconnues
- * à leur adresse exacte. Table explicite : une personne réelle, même avec une adresse du même domaine, n'y figure pas
- * et garde ses initiales (règle du CDC). Une adresse de démo absente de la table garde aussi ses initiales.
+ * Adresse d'une photo ou d'une vignette enregistrée en base (`photo_url`, `image_url`…) : l'API rend un chemin relatif
+ * à la médiathèque du back-office (`media/avatars/300-1.png`), jamais une adresse externe. Le front ne devine rien :
+ * sans chemin, `null` (la page garde les initiales ou son icône).
  */
-const DEMO_AVATARS: Record<string, number> = {
-  // Stagiaires (@exemple.fr)
-  'camille.durand@exemple.fr': 1, 'hugo.lefèvre@exemple.fr': 2, 'inès.moreau@exemple.fr': 7, 'lucas.garnier@exemple.fr': 4,
-  'léa.faure@exemple.fr': 15, 'nathan.rousseau@exemple.fr': 22, 'chloé.blanc@exemple.fr': 13, 'yanis.guerin@exemple.fr': 18,
-  'manon.muller@exemple.fr': 19, 'théo.henry@exemple.fr': 31, 'sarah.roussel@exemple.fr': 23, 'adam.nicolas@exemple.fr': 29,
-  'jade.perrin@exemple.fr': 21, 'louis.morin@exemple.fr': 30, 'emma.mathieu@exemple.fr': 34, 'noah.clement@exemple.fr': 28,
-  'lina.gauthier@exemple.fr': 5, 'raphaël.dumont@exemple.fr': 14,
-  // Stagiaires de l'entreprise cliente (@acme.exemple)
-  'paul.lambert@acme.exemple': 11, 'nora.fontaine@acme.exemple': 10, 'éric.chevalier@acme.exemple': 9, 'zoé.robin@acme.exemple': 19,
-  // Demandes de préinscription du site
-  'sarah.benali@exemple.fr': 7, 'mehdi.caron@exemple.fr': 33, 'yanis.perrin@exemple.fr': 8,
-  // Personnel et formateurs (même adresse pour la fiche RH et la fiche formateur)
-  'karim.benali@exemple.fr': 26, 'élodie.marchand@exemple.fr': 10, 'nadia.roux@exemple.fr': 23, 'thomas.girard@exemple.fr': 25,
-  'julie.martin@exemple.fr': 5,
-}
-
-/** Photo d'une personne de démonstration, ou `null` (initiales). */
-export function demoAvatar(email?: string | null): string | null {
-  if (!email) return null
-  const n = DEMO_AVATARS[email.normalize('NFC').trim().toLowerCase()]
-  return n ? mediaUrl(`avatars/300-${n}.png`) : null
+export function mediaSrc(path?: string | null): string | null {
+  const p = (path ?? '').trim().replace(/^\/+/, '')
+  if (!p || p.includes('..') || /^[a-z][a-z0-9+.-]*:/i.test(p)) return null
+  return `${import.meta.env.BASE_URL}${p}`
 }
 
 /** Drapeau d'une langue de l'interface (sélecteur de langue). */

@@ -1,6 +1,6 @@
 <template>
   <GsmsRecordSheet :title="request ? fullName : t('gsms.commercial.demandes.fiche')" icon="user-add" back="/platform/demandes"
-    :avatar-name="request ? fullName : null" :avatar-email="request?.email"
+    :avatar-name="request ? fullName : null" :avatar-photo="candidatePhoto"
     :back-label="t('gsms.commercial.demandes.titre')" :subtitle="request ? `${request.reference} · ${request.formation.nom || '—'}` : ''"
     :ready="!!request" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="request" #status><GsmsStatusTag :code="request.statut" :label="request.statut_libelle" /></template>
@@ -34,7 +34,7 @@
 
     <template v-if="request" #side>
       <section class="side-section">
-        <h3 class="side-head"><GsmsPersonAvatar :name="fullName" :email="request?.email" :size="40" />{{ t('gsms.commercial.demandes.candidat') }}</h3>
+        <h3 class="side-head"><GsmsPersonAvatar :name="fullName" :photo="candidatePhoto" :size="40" />{{ t('gsms.commercial.demandes.candidat') }}</h3>
         <dl>
           <div><dt>{{ t('gsms.commercial.demandes.civilite') }}</dt><dd>{{ request.civilite_libelle || '—' }}</dd></div>
           <div v-if="request.nom_usage"><dt>{{ t('gsms.commercial.demandes.nomNaissance') }}</dt><dd>{{ request.nom }}</dd></div>
@@ -186,6 +186,8 @@ const fullName = computed(() => {
   const r = request.value
   return r ? [r.prenom, r.nom_usage || r.nom].filter(Boolean).join(' ') : ''
 })
+// Photo du stagiaire déjà enregistré (converti ou reconnu par l'API) ; un candidat seul garde ses initiales.
+const candidatePhoto = computed(() => request.value?.conversion?.stagiaire?.photo_url ?? request.value?.stagiaire_existant?.photo_url ?? null)
 const address = computed(() => {
   const a = request.value?.adresse
   return a ? [a.adresse, [a.code_postal, a.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ') : ''

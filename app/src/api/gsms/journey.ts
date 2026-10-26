@@ -8,6 +8,7 @@ import type { Capabilities, Capability } from './common'
 export interface SessionJourneyRow {
   inscription: string
   stagiaire: string
+  stagiaire_photo_url?: string | null
   statut: string
   etapes: Record<string, boolean>
   etats: Record<string, string>
@@ -48,6 +49,7 @@ export interface JourneyDocument {
 export interface LearnerJourney {
   inscription: string
   stagiaire: string
+  stagiaire_photo_url?: string | null
   session: string
   statut: string
   contact: { email: string | null; telephone: string | null; entreprise: string | null; financement: string | null; inscrit_le: string | null }
@@ -85,6 +87,8 @@ export interface RegisterSession {
   id: string
   reference: string
   intitule: string | null
+  /** Vignette de la formation de la session (chemin de la médiathèque). */
+  image_url?: string | null
   debut: string
   fin: string
   statut: string
@@ -99,9 +103,10 @@ export interface RegisterProgress {
 export interface RegisterRow {
   inscription: string
   stagiaire: string
-  /** Fiche du stagiaire (lien) et e-mail (avatar de démonstration). */
+  /** Fiche du stagiaire (lien), e-mail et photo (chemin de la médiathèque). */
   stagiaire_id?: string | null
   stagiaire_email?: string | null
+  stagiaire_photo_url?: string | null
   statut: string
   session: RegisterSession
   entreprise: string | null
@@ -144,6 +149,7 @@ export interface AssessmentRow {
   stagiaire: string
   stagiaire_id?: string | null
   stagiaire_email?: string | null
+  stagiaire_photo_url?: string | null
   statut: string
   session: RegisterSession & { programme_id: string; programme_code: string | null; certifiante: boolean }
   entreprise: string | null

@@ -13,6 +13,8 @@ export interface RoadmapItem {
   detail: string
   lien: string | null
   indicateurs: number[]
+  /** Personne citée par l'échéance (formateur, stagiaire), avec sa photo (chemin de la médiathèque). */
+  personne?: { nom: string; photo_url: string | null } | null
 }
 
 export interface Roadmap {
@@ -45,8 +47,8 @@ export interface PlanningSlot {
   heure_debut: string | null
   heure_fin: string | null
   session: { id: string; reference: string; statut: string }
-  programme: { id: string; code: string | null; intitule: string | null }
-  formateur: { id: string; nom: string | null } | null
+  programme: { id: string; code: string | null; intitule: string | null; image_url?: string | null }
+  formateur: { id: string; nom: string | null; photo_url?: string | null } | null
   lieu: string | null
   salle: string | null
   effectif: number

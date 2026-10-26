@@ -10,7 +10,12 @@
   .tab-count { margin-left: 5px; font-size: var(--app-text-xs); font-variant-numeric: tabular-nums; }
 }
 
-.gsms-grid() { .resource-card-grid(); }
+// Cartes des listes : 300 px au moins, soit 4 colonnes vers 1440-1600 px (titres lisibles sur deux lignes).
+.gsms-grid() {
+  .resource-card-grid();
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
 
 // Relief doux commun aux cartes, panneaux et tableaux des pages GSMS (rayon large, ombre légère).
 .gsms-elevated() {
@@ -24,14 +29,20 @@
   .resource-card-quiet();
   .gsms-elevated();
   min-height: 0;
-  .card-header { padding-right: 0; flex-wrap: wrap; }
-  // Titre sur deux lignes au plus (intitulés de formation longs), sans couper un mot.
+  // Titre sur toute la largeur de la carte, étiquettes (statut) en dessous : le titre n'est plus coupé par elles.
+  .card-header { padding-right: 0; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .card-header-left { width: 100%; flex: none; }
+  // Titre sur deux lignes au plus (intitulés de formation longs), sans couper un mot ni une référence.
   .card-title:not(:has(.card-title-text)) {
     display: -webkit-box;
+    flex: none;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     white-space: normal;
     overflow: hidden;
+    overflow-wrap: normal;
+    word-break: normal;
   }
   .card-meta {
     display: flex;

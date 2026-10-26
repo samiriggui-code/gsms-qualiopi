@@ -1,13 +1,13 @@
 <template>
   <GsmsRecordSheet :title="sheet?.program.title || t('gsms.formations.fiche')" icon="book" back="/platform/formations"
-    :image="formationThumbnail(sheet?.program.code)"
+    :image="sheet?.program.image_url"
     :back-label="t('gsms.formations.titre')" :subtitle="sheet?.program.code || ''"
     :ready="!!sheet" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="sheet" #status><GsmsStatusTag :code="sheet.version_state.state" /></template>
     <template v-if="sheet" #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
     <template v-if="sheet" #side>
       <section class="side-section">
-        <h3 class="side-head"><FormationThumb :code="sheet.program.code" :size="40" />{{ t('gsms.formations.infos') }}</h3>
+        <h3 class="side-head"><FormationThumb :image="sheet.program.image_url" :size="40" />{{ t('gsms.formations.infos') }}</h3>
         <dl>
           <div><dt>{{ t('gsms.formations.colCode') }}</dt><dd>{{ sheet.program.code }}</dd></div>
           <div><dt>{{ t('gsms.formations.colDuree') }}</dt><dd>{{ hours(sheet.program.duration_hours) }}</dd></div>
@@ -104,7 +104,7 @@
           <p v-if="!sheet.trainers.length" class="muted">{{ t('gsms.formations.aucunIntervenant') }}</p>
           <ul v-else class="rows">
             <li v-for="tr in sheet.trainers" :key="tr.id" class="row">
-              <GsmsPersonAvatar :name="tr.name" />
+              <GsmsPersonAvatar :name="tr.name" :photo="tr.photo_url" />
               <span class="row-main">{{ tr.name }}</span>
               <span class="muted">{{ sheet.roles[tr.role] || tr.role }}<template v-if="tr.modules.length"> · {{ tr.modules.join(', ') }}</template></span>
             </li>
@@ -180,7 +180,6 @@ import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
 import FormationThumb from './FormationThumb.vue'
-import { formationThumbnail } from './thumbnail'
 import {
   attestProgramVerification, getProgramPedagogy, getProgramSheet, programmePath, putProgramCertification, updateProgram,
   validateProgramVersion, type ProgramPedagogy, type ProgramSheet,

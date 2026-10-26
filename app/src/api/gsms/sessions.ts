@@ -20,6 +20,9 @@ export interface SessionRow {
   program_code: string | null
   program_title: string | null
   trainer_name: string | null
+  /** Vignette de la formation, héritée par la session (chemin de la médiathèque). */
+  program_image_url?: string | null
+  trainer_photo_url?: string | null
   learners_count: number
 }
 
@@ -27,6 +30,7 @@ export interface SessionInscription {
   id: string
   learner_id: string
   stagiaire: string
+  photo_url?: string | null
   statut: string
   financement: string | null
 }
@@ -46,6 +50,7 @@ export interface LearnerRow {
   first_name: string
   last_name: string
   email: string | null
+  photo_url?: string | null
   [extra: string]: unknown
 }
 
@@ -76,6 +81,8 @@ export interface LearnerRecord {
   last_name: string
   full_name: string
   email: string | null
+  /** Photo : chemin de la médiathèque (media/…), ou null (initiales). */
+  photo_url?: string | null
   phone: string | null
   company_id: string | null
   company_name: string | null
@@ -104,8 +111,10 @@ export interface LearnerInscription {
     formation_id: string | null
     formation_code: string | null
     formation_titre: string | null
+    formation_image_url?: string | null
     formateur_id: string | null
     formateur: string | null
+    formateur_photo_url?: string | null
   }
 }
 

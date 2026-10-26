@@ -69,7 +69,7 @@
                   <slot :name="`cell-${col.colKey}`" :row="row as T">
                     <component :is="col.link && rowTo ? RouterLink : 'span'" v-bind="col.link && rowTo ? { to: rowTo(row as T), class: 'cell-link', onClick: stop } : { class: 'cell-plain' }">
                       <span v-if="col.kind === 'person'" class="cell-person">
-                        <GsmsPersonAvatar :name="raw(row, col.colKey)" :email="col.emailKey ? row[col.emailKey] : null" :size="density === 'compact' ? 24 : 30" />
+                        <GsmsPersonAvatar :name="raw(row, col.colKey)" :photo="col.photoKey ? row[col.photoKey] : null" :size="density === 'compact' ? 24 : 30" />
                         <span class="cell-person__text">
                           <span class="cell-person__name">{{ display(row, col.colKey) }}</span>
                           <span v-if="col.emailKey && row[col.emailKey]" class="cell-person__mail">{{ row[col.emailKey] }}</span>
@@ -132,11 +132,12 @@ export interface ListColumn {
   /** Cellule cliquable vers la fiche (`rowTo`). */
   link?: boolean
   /**
-   * Rendu riche sans gabarit de la page : personne (avatar + nom + e-mail `emailKey`), statut (`labelKey`),
+   * Rendu riche sans gabarit de la page : personne (photo `photoKey` ou initiales + nom + e-mail `emailKey`), statut (`labelKey`),
    * montant en centimes ou en euros (aligné à droite), date, date et heure, date relative (date exacte au survol).
    */
   kind?: 'text' | 'person' | 'status' | 'centimes' | 'euros' | 'date' | 'datetime' | 'relative'
   emailKey?: string
+  photoKey?: string
   labelKey?: string
   align?: 'left' | 'right' | 'center'
   minWidth?: number

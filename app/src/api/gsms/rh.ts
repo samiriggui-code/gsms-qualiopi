@@ -15,6 +15,8 @@ export interface Trainer {
   last_name: string
   full_name: string
   email: string | null
+  /** Photo : chemin de la médiathèque (media/…), ou null (initiales). */
+  photo_url?: string | null
   is_external: boolean
   specialties: string[]
   /** Compte GSMS relié (portée `sessions.read_own`). */
@@ -48,6 +50,7 @@ export interface TrainerQualification {
   id: string
   trainer_id: string
   trainer_name: string | null
+  trainer_photo_url?: string | null
   /** CARTE_PRO_FORMATEUR_CNAPS, SSIAP3, FORMATEUR_SST, HABILITATION_ELECTRIQUE, DIPLOME, AUTRE (app/types/training.py). */
   kind: string
   label: string
@@ -82,6 +85,7 @@ export interface TitleDeadline {
   titre_id: string
   formateur: string
   formateur_id: string
+  formateur_photo_url?: string | null
   type: string
   libelle: string
   fin: string
@@ -98,6 +102,7 @@ export interface StaffDevelopment {
   id: string
   trainer_id: string | null
   trainer_name: string | null
+  trainer_photo_url?: string | null
   label: string
   planned_on: string | null
   completed_on: string | null
@@ -124,6 +129,7 @@ export interface StaffMember {
   id: string
   nom: string
   email: string | null
+  photo_url?: string | null
   /** SALARIE, INDEPENDANT, SOUS_TRAITANT, INTERIMAIRE, STAGIAIRE. */
   statut: string
   fonction: string | null

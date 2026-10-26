@@ -15,14 +15,14 @@
 
     <template #cell-full_name="{ row }">
       <router-link :to="`/platform/stagiaires/${row.id}`" class="person" @click.stop>
-        <GsmsPersonAvatar :name="row.full_name" :email="row.email" /><span class="person-name">{{ row.full_name }}</span>
+        <GsmsPersonAvatar :name="row.full_name" :photo="row.photo_url" /><span class="person-name">{{ row.full_name }}</span>
       </router-link>
     </template>
 
     <template #card="{ item }">
       <router-link :to="`/platform/stagiaires/${item.id}`" class="card">
         <div class="card-header">
-          <div class="card-header-left person"><GsmsPersonAvatar :name="item.full_name" :email="item.email" :size="40" /><span class="card-title">{{ item.full_name }}</span></div>
+          <div class="card-header-left person"><GsmsPersonAvatar :name="item.full_name" :photo="item.photo_url" :size="40" /><span class="card-title">{{ item.full_name }}</span></div>
           <span class="chip">{{ t('gsms.stagiaires.nInscriptions', { n: item.enrollments }, item.enrollments) }}</span>
         </div>
         <div class="card-bottom">

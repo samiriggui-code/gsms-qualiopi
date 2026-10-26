@@ -6,8 +6,13 @@
       <GsmsStatusTag v-if="item.session.statut === 'ANNULEE'" code="ANNULEE" />
     </div>
     <router-link :to="`/platform/sessions/${item.session.id}`" class="slot-ref">{{ item.session.reference }}</router-link>
-    <span class="slot-line" :title="item.programme.intitule || undefined">{{ item.programme.code || item.programme.intitule || '—' }}</span>
-    <span class="slot-line"><t-icon name="user" size="13px" />{{ item.formateur?.nom || t('gsms.planning.sansFormateur') }}</span>
+    <span class="slot-line slot-program" :title="item.programme.intitule || undefined">
+      <FormationThumb :image="item.programme.image_url" :size="20" />{{ item.programme.code || item.programme.intitule || '—' }}
+    </span>
+    <span class="slot-line">
+      <GsmsPersonAvatar v-if="item.formateur" :name="item.formateur.nom" :photo="item.formateur.photo_url" :size="18" />
+      <t-icon v-else name="user" size="13px" />{{ item.formateur?.nom || t('gsms.planning.sansFormateur') }}
+    </span>
     <span v-if="place" class="slot-line"><t-icon name="location" size="13px" />{{ place }}</span>
     <span class="slot-line"><t-icon name="usergroup" size="13px" />{{ headcount }}</span>
     <ul v-if="item.conflits.length" class="slot-conflicts">
@@ -24,6 +29,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
 import type { PlanningSlot } from '@/api/gsms/pilotage'
 import { fmtDate } from '@/components/gsms/format'
 
@@ -79,6 +86,7 @@ const others = (refs: string[]) => refs.filter((r) => r !== props.item.session.r
   overflow-wrap: anywhere;
   .t-icon { flex-shrink: 0; }
 }
+.slot-program { gap: 6px; }
 .slot-conflicts {
   list-style: none;
   margin: 4px 0 0;

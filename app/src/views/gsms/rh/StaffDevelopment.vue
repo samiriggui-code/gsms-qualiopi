@@ -14,7 +14,7 @@
     <template #cell-label="{ row }"><span class="cell-title">{{ row.label }}</span></template>
     <template #cell-trainer_name="{ row }">
       <router-link v-if="row.trainer_id" :to="`/platform/formateurs/${row.trainer_id}`" class="person" @click.stop>
-        <GsmsPersonAvatar :name="row.trainer_name" :size="24" />{{ row.trainer_name }}
+        <GsmsPersonAvatar :name="row.trainer_name" :photo="row.trainer_photo_url" :size="24" />{{ row.trainer_name }}
       </router-link>
       <span v-else class="cell-sub">{{ t('gsms.rh.developpement.sansFormateur') }}</span>
     </template>
@@ -36,7 +36,7 @@
         </div>
         <div class="card-meta">
           <router-link v-if="item.trainer_id" :to="`/platform/formateurs/${item.trainer_id}`" class="person">
-            <GsmsPersonAvatar :name="item.trainer_name" :size="20" />{{ item.trainer_name }}
+            <GsmsPersonAvatar :name="item.trainer_name" :photo="item.trainer_photo_url" :size="20" />{{ item.trainer_name }}
           </router-link>
           <span v-else>{{ t('gsms.rh.developpement.sansFormateur') }}</span>
           <span>{{ t('gsms.rh.developpement.prevueLe', { date: fmtDate(item.planned_on) }) }}</span>

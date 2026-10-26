@@ -72,8 +72,13 @@
                 <router-link :to="`/platform/sessions/${row.session.id}`" class="cell-link" @click.stop>{{ row.session.reference }}</router-link>
                 <GsmsStatusTag v-if="row.session.statut === 'ANNULEE'" code="ANNULEE" />
               </template>
-              <template #programme="{ row }">{{ row.programme.intitule || row.programme.code || '—' }}</template>
-              <template #formateur="{ row }">{{ row.formateur?.nom || t('gsms.planning.sansFormateur') }}</template>
+              <template #programme="{ row }">
+                <span class="cell-media"><FormationThumb :image="row.programme.image_url" :size="28" />{{ row.programme.intitule || row.programme.code || '—' }}</span>
+              </template>
+              <template #formateur="{ row }">
+                <span v-if="row.formateur" class="cell-media"><GsmsPersonAvatar :name="row.formateur.nom" :photo="row.formateur.photo_url" :size="24" />{{ row.formateur.nom || '—' }}</span>
+                <template v-else>{{ t('gsms.planning.sansFormateur') }}</template>
+              </template>
               <template #lieu="{ row }">{{ [row.lieu, row.salle].filter(Boolean).join(' · ') || '—' }}</template>
               <template #effectif="{ row }">{{ row.capacite !== null ? `${row.effectif} / ${row.capacite}` : row.effectif }}</template>
               <template #conflits="{ row }">
@@ -117,6 +122,8 @@ import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsKpiRow from '@/components/gsms/GsmsKpiRow.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
 import PlanningSlot from './PlanningSlot.vue'
 import type { KpiItem } from '@/components/gsms/types'
 import { getPlanning, type Planning, type PlanningSlot as PlanningSlotRow } from '@/api/gsms/pilotage'
@@ -290,6 +297,7 @@ const columns = computed(() => [
 .day-head { margin: 0 0 2px; color: var(--td-text-color-primary); font-size: var(--app-text-sm); font-weight: 600; }
 .day-empty { margin: 0; color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); }
 .table { .gsms-table(); }
+.cell-media { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .cell-link { margin-right: 6px; color: var(--td-text-color-primary); font-weight: 500; text-decoration: none; &:hover { color: var(--td-brand-color); } }
 .days { display: flex; flex-direction: column; gap: 12px; }
 .mday { display: flex; flex-direction: column; gap: 6px; }

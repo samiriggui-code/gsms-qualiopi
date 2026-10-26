@@ -20,12 +20,17 @@
     </template>
 
     <template #cell-stagiaire="{ row }">
-      <router-link v-if="row.stagiaire_id" :to="`/platform/stagiaires/${row.stagiaire_id}`" class="person person-link" :title="row.stagiaire" @click.stop><GsmsPersonAvatar :name="row.stagiaire" :email="row.stagiaire_email" /><span class="person-name">{{ row.stagiaire }}</span></router-link>
-      <span v-else class="person" :title="row.stagiaire"><GsmsPersonAvatar :name="row.stagiaire" /><span class="person-name">{{ row.stagiaire }}</span></span>
+      <router-link v-if="row.stagiaire_id" :to="`/platform/stagiaires/${row.stagiaire_id}`" class="person person-link" :title="row.stagiaire" @click.stop><GsmsPersonAvatar :name="row.stagiaire" :photo="row.stagiaire_photo_url" /><span class="person-name">{{ row.stagiaire }}</span></router-link>
+      <span v-else class="person" :title="row.stagiaire"><GsmsPersonAvatar :name="row.stagiaire" :photo="row.stagiaire_photo_url" /><span class="person-name">{{ row.stagiaire }}</span></span>
     </template>
     <template #cell-session="{ row }">
-      <router-link :to="`/platform/sessions/${row.session.id}`" class="cell-link" @click.stop>{{ row.session.reference }}</router-link>
-      <span class="muted block">{{ fmtDate(row.session.debut) }} → {{ fmtDate(row.session.fin) }}</span>
+      <span class="session-cell">
+        <FormationThumb :image="row.session.image_url" :size="28" />
+        <span>
+          <router-link :to="`/platform/sessions/${row.session.id}`" class="cell-link" @click.stop>{{ row.session.reference }}</router-link>
+          <span class="muted block">{{ fmtDate(row.session.debut) }} → {{ fmtDate(row.session.fin) }}</span>
+        </span>
+      </span>
     </template>
     <template #cell-etat="{ row }"><GsmsStatusTag :code="stateOf(row)" /></template>
     <template #cell-detail="{ row }"><span class="muted">{{ detailOf(row) }}</span></template>
@@ -38,7 +43,7 @@
     <template #card="{ item }">
       <div class="card">
         <div class="card-header">
-          <router-link :to="rowTo(item)" class="card-header-left person"><GsmsPersonAvatar :name="item.stagiaire" :email="item.stagiaire_email" :size="40" /><span class="card-title">{{ item.stagiaire }}</span></router-link>
+          <router-link :to="rowTo(item)" class="card-header-left person"><GsmsPersonAvatar :name="item.stagiaire" :photo="item.stagiaire_photo_url" :size="40" /><span class="card-title">{{ item.stagiaire }}</span></router-link>
           <GsmsStatusTag :code="stateOf(item)" />
         </div>
         <div class="card-content"><p class="card-description">{{ detailOf(item) }}</p></div>
@@ -67,6 +72,7 @@ import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
 import { getJourneyRegister, journeyAction, JOURNEY_REGISTERS, type JourneyRegister, type RegisterRow } from '@/api/gsms/journey'
@@ -191,5 +197,6 @@ async function done() {
 .chip { .gsms-chip(); }
 .person { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none; }
 .person-name { color: var(--td-text-color-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-cell { display: inline-flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .cell-link { color: var(--td-text-color-primary); font-weight: 500; text-decoration: none; &:hover { color: var(--td-brand-color); } }
 </style>

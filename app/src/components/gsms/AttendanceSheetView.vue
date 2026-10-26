@@ -37,7 +37,7 @@
           </p>
           <ul class="presences">
             <li v-for="p in slot.presences" :key="p.enrollment_id" class="presence">
-              <GsmsPersonAvatar :name="p.stagiaire" />
+              <GsmsPersonAvatar :name="p.stagiaire" :photo="p.stagiaire_photo_url" />
               <div class="presence-who">
                 <span class="presence-name">{{ p.stagiaire }}</span>
                 <span v-if="p.heure || p.procede || p.note" class="muted">

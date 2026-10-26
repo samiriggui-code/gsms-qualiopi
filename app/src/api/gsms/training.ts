@@ -28,6 +28,8 @@ export interface CatalogueFormation {
   code: string
   title: string
   catalog_slug: string | null
+  /** Vignette : chemin de la médiathèque (media/…), ou null. */
+  image_url?: string | null
   track: string | null
   track_label: string | null
   pathway: string | null
@@ -100,6 +102,7 @@ export interface Program {
   id: string
   code: string
   title: string
+  image_url?: string | null
   action_category: string | null
   is_certifying: boolean
   rncp_code: string | null
@@ -144,6 +147,7 @@ export interface ProgramTrainer {
   id: string
   trainer_id: string
   name: string
+  photo_url?: string | null
   role: string
   modules: string[]
   qualifications: { label: string; kind: string; valid_until: string | null }[]

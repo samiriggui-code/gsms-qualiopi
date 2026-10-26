@@ -10,7 +10,7 @@
 
     <template #cell-nom="{ row }">
       <button type="button" class="person" @click.stop="open(row)">
-        <GsmsPersonAvatar :name="row.nom" :email="row.email" />
+        <GsmsPersonAvatar :name="row.nom" :photo="row.photo_url" />
         <span class="person-text"><span class="cell-title">{{ row.nom }}</span><span v-if="row.fonction" class="cell-sub">{{ row.fonction }}</span></span>
       </button>
     </template>
@@ -29,7 +29,7 @@
       <button type="button" class="card" @click="open(item)">
         <div class="card-header">
           <div class="card-header-left person-static">
-            <GsmsPersonAvatar :name="item.nom" :email="item.email" :size="40" />
+            <GsmsPersonAvatar :name="item.nom" :photo="item.photo_url" :size="40" />
             <span class="card-title" :title="item.nom">{{ item.nom }}</span>
           </div>
           <t-tag variant="light" size="small">{{ codeLabel(item.statut) }}</t-tag>

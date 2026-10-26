@@ -220,7 +220,6 @@ import { useRouter } from 'vue-router'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
-import { demoAvatar } from '@/components/gsms/media'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { logout as logoutApi } from '@/api/auth'
 import { useI18n } from 'vue-i18n'
@@ -297,8 +296,8 @@ const userInfo = computed(() => {
   return {
     username: gsmsUser?.full_name || authStore.user?.username || t('common.defaultUser'),
     email: gsmsUser?.email || authStore.user?.email || '',
-    // Photo seulement pour un compte fictif de démonstration (table de media.ts), sinon initiales.
-    avatar: gsmsUser ? demoAvatar(gsmsUser.email) ?? '' : authStore.user?.avatar || '',
+    // Le compte GSMS n'a pas de photo dans l'API (GET /bootstrap) : initiales, rien n'est deviné.
+    avatar: gsmsUser ? '' : authStore.user?.avatar || '',
   }
 })
 

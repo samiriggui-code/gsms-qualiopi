@@ -21,7 +21,10 @@
       <router-link :to="`/platform/sessions/${row.session_id}`" class="cell-link" @click.stop>{{ row.session_reference || '—' }}</router-link>
     </template>
     <template #cell-audience="{ row }">{{ audienceLabel(row.audience) }}</template>
-    <template #cell-learner_name="{ row }">{{ row.learner_name || '—' }}</template>
+    <template #cell-learner_name="{ row }">
+      <span v-if="row.learner_name" class="person-cell"><GsmsPersonAvatar :name="row.learner_name" :photo="row.learner_photo_url" :size="24" />{{ row.learner_name }}</span>
+      <template v-else>—</template>
+    </template>
     <template #cell-sent_on="{ row }">{{ fmtDate(row.sent_on) }}</template>
     <template #cell-answered_on="{ row }">{{ row.answered_on ? fmtDate(row.answered_on) : t('gsms.satisfaction.sansReponse') }}</template>
     <template #cell-score="{ row }"><span class="score">{{ scoreText(row.score) }}</span></template>
@@ -37,7 +40,7 @@
         <div v-if="item.comment" class="card-content"><p class="card-description">{{ item.comment }}</p></div>
         <div class="card-meta">
           <router-link :to="`/platform/sessions/${item.session_id}`" class="meta-link"><t-icon name="calendar-1" size="14px" />{{ item.session_reference || '—' }}</router-link>
-          <span v-if="item.learner_name"><t-icon name="user" size="14px" />{{ item.learner_name }}</span>
+          <span v-if="item.learner_name" class="person-cell"><GsmsPersonAvatar :name="item.learner_name" :photo="item.learner_photo_url" :size="18" />{{ item.learner_name }}</span>
           <span>{{ t('gsms.satisfaction.envoyeeLe', { date: fmtDate(item.sent_on) }) }}</span>
           <span>{{ item.answered_on ? t('gsms.satisfaction.reponduLe', { date: fmtDate(item.answered_on) }) : t('gsms.satisfaction.sansReponse') }}</span>
         </div>
@@ -62,6 +65,7 @@ import GsmsListPage, { type ListColumn } from '@/components/gsms/GsmsListPage.vu
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsRowActions from '@/components/gsms/GsmsRowActions.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
 import { createSurvey, deleteSurvey, listSurveys, updateSurvey, type Survey, type SurveyIn } from '@/api/gsms/qualite'
 import { listSessions, type SessionRow } from '@/api/gsms/sessions'
@@ -158,6 +162,7 @@ async function remove(s: Survey) {
 .search { .gsms-search(); }
 .notice { .gsms-notice(); }
 .card { .gsms-card(); }
+.person-cell { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .card--static { cursor: default; }
 .card .card-content { overflow: visible; }
 .card .card-description { -webkit-line-clamp: 4; line-clamp: 4; }

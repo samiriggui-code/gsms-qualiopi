@@ -8,6 +8,7 @@ import type { Capabilities } from './common'
 export interface Presence {
   enrollment_id: string
   stagiaire: string
+  stagiaire_photo_url?: string | null
   etat: string
   heure: string | null
   procede: string | null

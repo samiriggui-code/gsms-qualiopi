@@ -37,7 +37,7 @@
         <ul v-else class="rows">
           <li v-for="l in learners" :key="l.id">
             <router-link :to="`/platform/stagiaires/${l.id}`" class="row">
-              <GsmsPersonAvatar :name="l.full_name" :email="l.email" />
+              <GsmsPersonAvatar :name="l.full_name" :photo="l.photo_url" />
               <span class="row-main">{{ l.full_name }}</span>
               <span class="muted">{{ l.email || '—' }}</span>
               <span class="chip">{{ t('gsms.stagiaires.nInscriptions', { n: l.enrollments }, l.enrollments) }}</span>

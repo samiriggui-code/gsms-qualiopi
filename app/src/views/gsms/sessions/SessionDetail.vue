@@ -1,6 +1,6 @@
 <template>
   <GsmsRecordSheet :title="detail?.session.reference || t('gsms.sessions.session')" icon="calendar-1" back="/platform/sessions"
-    :back-label="t('gsms.sessions.titre')" :subtitle="detail?.session.program_title || ''" :meta="meta"
+    :back-label="t('gsms.sessions.titre')" :subtitle="detail?.session.program_title || ''" :meta="meta" :image="detail?.session.program_image_url"
     :ready="!!detail" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="detail" #status><GsmsStatusTag :code="detail.session.status" /></template>
     <template v-if="detail" #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
@@ -10,7 +10,9 @@
         <dl>
           <div><dt>{{ t('gsms.sessions.colDates') }}</dt><dd>{{ fmtDate(detail.session.start_date) }} → {{ fmtDate(detail.session.end_date) }}</dd></div>
           <div><dt>{{ t('gsms.sessions.colLieu') }}</dt><dd>{{ [detail.session.location, detail.session.room].filter(Boolean).join(' · ') || '—' }}</dd></div>
-          <div><dt>{{ t('gsms.sessions.colFormateur') }}</dt><dd>{{ detail.session.trainer_name || '—' }}</dd></div>
+          <div><dt>{{ t('gsms.sessions.colFormateur') }}</dt><dd>
+            <span v-if="detail.session.trainer_name" class="side-person"><GsmsPersonAvatar :name="detail.session.trainer_name" :photo="detail.session.trainer_photo_url" :size="24" />{{ detail.session.trainer_name }}</span>
+            <template v-else>—</template></dd></div>
           <div><dt>{{ t('gsms.sessions.colInscrits') }}</dt><dd>{{ detail.session.learners_count }}<template v-if="detail.session.capacity"> / {{ t('gsms.sessions.nPlaces', { n: detail.session.capacity }) }}</template></dd></div>
           <div v-if="detail.session.cancel_reason"><dt>{{ t('gsms.sessions.motifAnnulation') }}</dt><dd>{{ detail.session.cancel_reason }}</dd></div>
         </dl>
@@ -40,7 +42,7 @@
         <ul v-else class="rows">
           <li v-for="e in detail.inscriptions" :key="e.id">
             <router-link :to="`/platform/sessions/${id}/inscriptions/${e.id}`" class="row">
-              <GsmsPersonAvatar :name="e.stagiaire" />
+              <GsmsPersonAvatar :name="e.stagiaire" :photo="e.photo_url" />
               <span class="row-main">{{ e.stagiaire }}</span>
               <span class="muted">{{ e.financement || t('gsms.sessions.financementNonRenseigne') }}</span>
               <GsmsStatusTag :code="e.statut" />
@@ -58,7 +60,7 @@
         <ul v-else class="rows">
           <li v-for="r in journey.stagiaires" :key="r.inscription">
             <router-link :to="`/platform/sessions/${id}/inscriptions/${r.inscription}`" class="row">
-              <GsmsPersonAvatar :name="r.stagiaire" />
+              <GsmsPersonAvatar :name="r.stagiaire" :photo="r.stagiaire_photo_url" />
               <span class="row-main">{{ r.stagiaire }}</span>
               <span class="steps">
                 <GsmsStepMark v-for="s in journey.etapes" :key="s" :state="r.etats[s]" :label="stepLabel(s)" />
@@ -247,6 +249,7 @@ async function openEnroll() {
 
 <style scoped lang="less">
 @import (reference) '@/components/gsms/gsms-list.less';
+.side-person { display: inline-flex; align-items: center; gap: 8px; }
 .side-section { .gsms-side-section(); }
 .panel { .gsms-panel(); }
 .title { .gsms-panel-title(); margin: 0; }

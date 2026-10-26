@@ -1,11 +1,11 @@
 <template>
   <GsmsRecordSheet :title="learner?.full_name || t('gsms.stagiaires.fiche')" icon="user" back="/platform/stagiaires"
-    :avatar-name="learner?.full_name" :avatar-email="learner?.email"
+    :avatar-name="learner?.full_name" :avatar-photo="learner?.photo_url"
     :back-label="t('gsms.stagiaires.titre')" :subtitle="learner ? t('gsms.stagiaires.nInscriptions', { n: learner.enrollments }, learner.enrollments) : ''"
     :ready="!!learner" :loading="loading" :error="error" :tabs="tabs" :tab="current" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="learner" #side>
       <section class="side-section">
-        <h3 class="side-head"><GsmsPersonAvatar :name="learner.full_name" :email="learner.email" :size="40" />{{ t('gsms.parcours.contact') }}</h3>
+        <h3 class="side-head"><GsmsPersonAvatar :name="learner.full_name" :photo="learner.photo_url" :size="40" />{{ t('gsms.parcours.contact') }}</h3>
         <dl>
           <div><dt>{{ t('gsms.parcours.email') }}</dt><dd>{{ learner.email || '—' }}</dd></div>
           <div><dt>{{ t('gsms.parcours.telephone') }}</dt><dd>{{ learner.phone || '—' }}</dd></div>
@@ -24,6 +24,7 @@
       <template v-else-if="current === 'parcours'">
         <section v-for="j in journeys" :key="j.inscription.id" class="panel">
           <div class="panel-bar">
+            <FormationThumb :image="j.inscription.session.formation_image_url" :size="40" />
             <div class="enrollment-head">
               <router-link :to="`/platform/sessions/${j.inscription.session.id}`" class="title link">{{ j.inscription.session.reference }}</router-link>
               <span class="muted">{{ j.inscription.session.formation_titre }} · {{ fmtDate(j.inscription.session.debut) }} → {{ fmtDate(j.inscription.session.fin) }}</span>
@@ -100,6 +101,7 @@ import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import GsmsStepMark from '@/components/gsms/GsmsStepMark.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
 import { getLearner, listLearnerInscriptions, type LearnerInscription, type LearnerRecord } from '@/api/gsms/sessions'
 import { getLearnerJourney, journeyDocumentPath, type JourneyDocument, type LearnerJourney } from '@/api/gsms/journey'
 import { listFundingCases, type FundingCase } from '@/api/gsms/funding'
@@ -210,7 +212,7 @@ async function download(enrollmentId: string, documentId: string, name: string) 
 .side-head { display: flex; align-items: center; gap: 10px; }
 .panel { .gsms-panel(); display: flex; flex-direction: column; gap: 10px; }
 .panel-bar { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.enrollment-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.enrollment-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .title { .gsms-panel-title(); margin: 0; }
 .muted { .gsms-muted(); margin: 0; }
 .kv { .gsms-kv(); }

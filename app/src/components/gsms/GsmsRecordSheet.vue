@@ -2,9 +2,9 @@
   <div class="gsms-page">
     <div class="gsms-page-content">
       <GsmsPageHeader :title="title" :icon="icon" :subtitle="subtitle" :back="back" :back-label="backLabel" class="sheet-header">
-        <template v-if="avatarName || image" #icon>
-          <span v-if="image" class="sheet-thumb" aria-hidden="true"><img :src="image" alt="" /></span>
-          <GsmsPersonAvatar v-else :name="avatarName" :email="avatarEmail" :size="40" />
+        <template v-if="avatarName || imageSrc" #icon>
+          <span v-if="imageSrc" class="sheet-thumb" aria-hidden="true"><img :src="imageSrc" alt="" /></span>
+          <GsmsPersonAvatar v-else :name="avatarName" :photo="avatarPhoto" :size="40" />
         </template>
         <template v-if="$slots.status" #title-extra><slot name="status" /></template>
         <template v-if="$slots.actions" #actions><slot name="actions" /></template>
@@ -40,7 +40,9 @@
  * onglets avec compteurs, sections en cartes, panneau de résumé (à droite et fixe sur grand écran, en tête sur
  * téléphone). Tout le contenu vient de la page, qui l'a reçu de l'API ; rien n'est décidé ici.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { mediaSrc } from './media'
 import GsmsPageHeader from './GsmsPageHeader.vue'
 import GsmsRefusal from './GsmsRefusal.vue'
 import GsmsPersonAvatar from './GsmsPersonAvatar.vue'
@@ -52,7 +54,7 @@ export interface SheetMeta {
   title?: string
 }
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   icon?: string
   subtitle?: string
@@ -64,14 +66,15 @@ withDefaults(defineProps<{
   error?: unknown
   tabs?: FilterOption[]
   tab?: string
-  /** Fiche d'une personne : avatar (photo de démo ou initiales) à la place de l'icône. */
+  /** Fiche d'une personne : avatar (photo enregistrée, chemin de l'API, sinon initiales) à la place de l'icône. */
   avatarName?: string | null
-  avatarEmail?: string | null
-  /** Vignette (formation) à la place de l'icône. */
+  avatarPhoto?: string | null
+  /** Vignette (formation), chemin de la médiathèque rendu par l'API, à la place de l'icône. */
   image?: string | null
   meta?: SheetMeta[]
 }>(), { icon: 'app', subtitle: '', back: '', backLabel: '', loading: false, tabs: () => [], tab: '', avatarName: null,
-  avatarEmail: null, image: null, meta: () => [] })
+  avatarPhoto: null, image: null, meta: () => [] })
+const imageSrc = computed(() => mediaSrc(props.image))
 const emit = defineEmits<{ retry: []; 'update:tab': [string] }>()
 const { t } = useI18n()
 </script>

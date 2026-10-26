@@ -1,6 +1,6 @@
 <template>
   <GsmsRecordSheet :title="trainer?.full_name || t('gsms.rh.fiche.formateur')" icon="user-talk" back="/platform/formateurs"
-    :avatar-name="trainer?.full_name" :avatar-email="trainer?.email"
+    :avatar-name="trainer?.full_name" :avatar-photo="trainer?.photo_url"
     :back-label="t('gsms.rh.formateurs.titre')" :subtitle="trainer?.specialties.join(' · ') || ''"
     :ready="!!trainer" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="trainer" #status>
@@ -15,7 +15,7 @@
     <template v-if="trainer" #side>
       <section class="side-section">
         <div class="identity">
-          <GsmsPersonAvatar :name="trainer.full_name" :size="48" />
+          <GsmsPersonAvatar :name="trainer.full_name" :photo="trainer.photo_url" :size="48" />
           <span class="identity-name">{{ trainer.full_name }}</span>
         </div>
         <dl>

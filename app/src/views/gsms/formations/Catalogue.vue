@@ -20,7 +20,7 @@
 
     <template #cell-title="{ row }">
       <router-link :to="`/platform/formations/${row.id}`" class="title-cell" @click.stop>
-        <FormationThumb :code="row.code" :size="36" />
+        <FormationThumb :image="row.image_url" :size="40" />
         <span class="title-text"><span class="title-main">{{ row.title }}</span><span class="muted">{{ row.code }}</span></span>
       </router-link>
     </template>
@@ -36,10 +36,13 @@
       <router-link :to="`/platform/formations/${item.id}`" class="card">
         <div class="card-header">
           <div class="card-header-left head">
-            <FormationThumb :code="item.code" :size="44" />
-            <span class="title-text"><span class="card-title">{{ item.title }}</span><span class="muted">{{ item.code }}</span></span>
+            <FormationThumb :image="item.image_url" :size="64" />
+            <span class="title-text">
+              <span class="card-title">{{ item.title }}</span>
+              <span class="muted">{{ item.code }}</span>
+              <span class="card-tags"><GsmsStatusTag :code="item.fiche" /></span>
+            </span>
           </div>
-          <GsmsStatusTag :code="item.fiche" />
         </div>
         <div class="card-bottom">
           <div class="card-meta">
@@ -130,7 +133,8 @@ function opened(created: unknown) {
 .totals { margin: 0 0 12px; }
 .title-cell { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; min-width: 0;
   &:hover .title-main { color: var(--td-brand-color); } }
-.title-text { display: flex; flex-direction: column; min-width: 0; }
+.title-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .title-main { color: var(--td-text-color-primary); font-weight: 500; overflow-wrap: anywhere; }
-.head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.head { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 </style>

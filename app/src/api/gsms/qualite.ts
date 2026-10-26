@@ -372,6 +372,7 @@ export interface Survey {
   session_reference: string | null
   enrollment_id: string | null
   learner_name: string | null
+  learner_photo_url?: string | null
   audience: string
   sent_on: string | null
   answered_on: string | null
@@ -380,7 +381,7 @@ export interface Survey {
   comment: string | null
 }
 
-export type SurveyIn = Partial<Omit<Survey, 'id' | 'session_reference' | 'learner_name'>>
+export type SurveyIn = Partial<Omit<Survey, 'id' | 'session_reference' | 'learner_name' | 'learner_photo_url'>>
 
 export const listSurveys = () => http.get<Survey[]>('/surveys')
 export const createSurvey = (body: SurveyIn) => http.post<Survey>('/surveys', body)

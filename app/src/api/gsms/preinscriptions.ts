@@ -18,7 +18,7 @@ export interface PreinscriptionRow {
   nom_usage: string | null
   email: string
   telephone: string | null
-  formation: { slug: string | null; nom: string | null; id: string | null; code: string | null }
+  formation: { slug: string | null; nom: string | null; id: string | null; code: string | null; image_url?: string | null }
   session_souhaitee: string | null
   financement: string | null
   situation: string | null
@@ -60,11 +60,11 @@ export interface PreinscriptionDetail extends PreinscriptionRow {
   motif_refus: string | null
   conversion: {
     le: string | null
-    stagiaire: { id: string; nom: string } | null
+    stagiaire: { id: string; nom: string; photo_url?: string | null } | null
     session: { id: string; reference: string } | null
     inscription_id: string | null
   } | null
-  stagiaire_existant: { id: string; nom: string } | null
+  stagiaire_existant: { id: string; nom: string; photo_url?: string | null } | null
   sessions_proposees: ProposedSession[]
   /** `EN_COURS`, `REFUSEE` (saisie `motif`) et `convertir`. */
   capabilities: { EN_COURS: Capability; REFUSEE: Capability; convertir: Capability }

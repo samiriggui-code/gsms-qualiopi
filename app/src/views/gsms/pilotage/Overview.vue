@@ -71,6 +71,9 @@
                       <component :is="entry.item.to ? 'router-link' : 'div'" :to="entry.item.to || undefined" class="task" :class="{ 'task--static': !entry.item.to }">
                         <span class="task-source" :style="{ '--source': sourceColor(entry.item.source) }">{{ sourceLabel(entry.item.source) }}</span>
                         <span class="task-title">{{ entry.item.titre }}</span>
+                        <span v-if="entry.item.personne" class="task-person">
+                          <GsmsPersonAvatar :name="entry.item.personne.nom" :photo="entry.item.personne.photo_url" :size="20" />{{ entry.item.personne.nom }}
+                        </span>
                         <span v-if="entry.item.detail" class="task-detail">{{ entry.item.detail }}</span>
                         <span class="task-foot">
                           <span class="task-when" :class="{ 'task-when--late': col.etat === 'EN_RETARD' }">
@@ -107,6 +110,7 @@ import { useI18n } from 'vue-i18n'
 import EmptyState from '@/components/EmptyState.vue'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
 import GsmsDonut from '@/components/gsms/GsmsDonut.vue'
 import GsmsTrendChart from '@/components/gsms/GsmsTrendChart.vue'
@@ -412,6 +416,7 @@ function showAllColumns() {
   font-size: var(--app-text-xs); font-weight: 600; line-height: 18px;
   &::before { content: ''; flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--source); }
 }
+.task-person { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--td-text-color-secondary); font-size: var(--app-text-sm); }
 .task-title { color: var(--td-text-color-primary); font-size: var(--app-text-base); font-weight: 600; line-height: 19px;
   display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .task-detail { color: var(--td-text-color-secondary); font-size: var(--app-text-sm); line-height: 17px;

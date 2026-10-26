@@ -1,13 +1,13 @@
 <template>
   <GsmsRecordSheet :title="data?.stagiaire || t('gsms.parcours.titre')" icon="user-checked" :back="backTo"
-    :avatar-name="data?.stagiaire" :avatar-email="data?.contact?.email"
+    :avatar-name="data?.stagiaire" :avatar-photo="data?.stagiaire_photo_url"
     :back-label="data?.session || t('gsms.sessions.titre')" :subtitle="data ? t('gsms.parcours.sessionRef', { ref: data.session }) : ''"
     :ready="!!data" :loading="loading" :error="error" @retry="load">
     <template v-if="data" #status><GsmsStatusTag :code="data.statut" /></template>
     <template v-if="data" #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
     <template v-if="data" #side>
       <section class="side-section">
-        <h3><GsmsPersonAvatar :name="data.stagiaire" :email="data.contact?.email" :size="32" /> {{ t('gsms.parcours.contact') }}</h3>
+        <h3><GsmsPersonAvatar :name="data.stagiaire" :photo="data.stagiaire_photo_url" :size="32" /> {{ t('gsms.parcours.contact') }}</h3>
         <dl>
           <div><dt>{{ t('gsms.parcours.email') }}</dt><dd>{{ data.contact.email || '—' }}</dd></div>
           <div><dt>{{ t('gsms.parcours.telephone') }}</dt><dd>{{ data.contact.telephone || '—' }}</dd></div>
