@@ -47,7 +47,7 @@ withDefaults(defineProps<{
   error?: unknown
   tabs?: FilterOption[]
   tab?: string
-}>(), { icon: 'app', subtitle: '', back: '', backLabel: '', loading: false, error: null, tabs: () => [], tab: '' })
+}>(), { icon: 'app', subtitle: '', back: '', backLabel: '', loading: false, tabs: () => [], tab: '' })
 const emit = defineEmits<{ retry: []; 'update:tab': [string] }>()
 const { t } = useI18n()
 </script>

@@ -69,7 +69,7 @@ withDefaults(defineProps<{
   alerts: { title: string; subtitle?: string; items: AlertItem[]; loading?: boolean; error?: unknown; empty: string; moreTo?: string }
   engine?: { subtitle: string; rows: EngineRow[]; loading?: boolean; error?: unknown } | null
   modules: ModuleItem[]
-}>(), { error: null, kpiLoading: false, engine: null })
+}>(), { kpiLoading: false })
 const { t } = useI18n()
 </script>
 

@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export const MOBILE_QUERY = '(max-width: 767px)'
+const MOBILE_QUERY = '(max-width: 767px)'
 
 export const useGsmsShellStore = defineStore('gsmsShell', () => {
   const isMobile = ref(typeof window !== 'undefined' && !!window.matchMedia?.(MOBILE_QUERY).matches)

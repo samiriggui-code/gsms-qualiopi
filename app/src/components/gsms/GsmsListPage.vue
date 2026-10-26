@@ -86,7 +86,7 @@ const props = withDefaults(defineProps<{
   emptyIcon?: string
   pageSize?: number
 }>(), {
-  icon: 'app', subtitle: '', back: '', backLabel: '', loading: false, error: null, columns: () => [], rowKey: 'id',
+  icon: 'app', subtitle: '', back: '', backLabel: '', loading: false, columns: () => [], rowKey: 'id',
   rowTo: undefined, emptyTitle: '', emptyDescription: '', emptyIcon: '', pageSize: 24,
 })
 const emit = defineEmits<{ retry: [] }>()

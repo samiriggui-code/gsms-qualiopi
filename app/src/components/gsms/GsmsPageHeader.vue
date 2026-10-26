@@ -72,7 +72,7 @@ const { t } = useI18n()
   font-size: var(--app-text-sm);
   text-decoration: none;
   &:hover { color: var(--td-brand-color); }
-  &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; border-radius: 4px; }
+  &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; border-radius: var(--app-radius-xs); }
 }
 
 .resource-list-header();

@@ -58,9 +58,9 @@ const icon = computed(() => {
   border-radius: 50%;
   background: var(--td-warning-color-light);
   color: var(--td-warning-color);
-  font-size: 18px;
+  font-size: var(--app-text-2xl);
 
-  .gsms-refusal--inline & { width: 28px; height: 28px; font-size: 16px; }
+  .gsms-refusal--inline & { width: 28px; height: 28px; font-size: var(--app-text-xl); }
 }
 
 .gsms-refusal__body { min-width: 0; flex: 1; }

@@ -43,7 +43,7 @@ withDefaults(defineProps<{
   empty: string
   max?: number
   moreTo?: string
-}>(), { subtitle: '', icon: 'error-circle', loading: false, error: null, max: 6, moreTo: '' })
+}>(), { subtitle: '', icon: 'error-circle', loading: false, max: 6, moreTo: '' })
 const { t } = useI18n()
 </script>
 

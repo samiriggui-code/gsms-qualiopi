@@ -23,13 +23,6 @@ export interface SessionJourney {
   ouvertes: string[]
 }
 
-export interface JourneySummary {
-  etapes: Record<string, Record<string, number>>
-  inscriptions: Record<string, number>
-  examens?: { presentes: number; reussis: number }
-  en_retard: { stagiaire: string; session: string; session_id: string; etape: string; echeance: string | null }[]
-}
-
 export interface JourneyStep {
   etape: string
   fait: boolean
@@ -58,7 +51,6 @@ export interface LearnerJourney {
 const enc = encodeURIComponent
 
 export const getSessionJourney = (sessionId: string) => http.get<SessionJourney>(`/sessions/${enc(sessionId)}/parcours`)
-export const getJourneySummary = () => http.get<JourneySummary>('/parcours/synthese')
 export const getLearnerJourney = (enrollmentId: string) => http.get<LearnerJourney>(`/inscriptions/${enc(enrollmentId)}/parcours`)
 /** Exécute une étape ; le corps porte les saisies demandées par `a_saisir`. */
 export const journeyAction = (enrollmentId: string, action: string, body: Record<string, unknown>) =>

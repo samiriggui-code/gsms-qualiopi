@@ -93,10 +93,13 @@ const tabs = computed(() => [
 ])
 
 async function load() {
+  const asked = number.value
   loading.value = true
   error.value = null
   try {
-    chain.value = await getIndicatorChain(number.value)
+    const res = await getIndicatorChain(asked)
+    if (asked !== number.value) return // réponse d'une fiche quittée entre-temps
+    chain.value = res
   } catch (e) {
     error.value = e
     chain.value = null

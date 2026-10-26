@@ -2,7 +2,7 @@
     <div class="main" :class="{ 'main--mobile': shell.isMobile }" ref="dropzone" :style="{ '--sidebar-width': `${uiStore.sidebarDisplayWidth}px` }">
         <!-- Téléphone : barre du haut avec le bouton du menu (le menu devient un tiroir) -->
         <header v-if="shell.isMobile" class="mobile-bar">
-            <button type="button" class="mobile-bar__btn" :aria-expanded="shell.navOpen" aria-label="Ouvrir le menu" @click="shell.openNav()">
+            <button type="button" class="mobile-bar__btn" :aria-expanded="shell.navOpen" :aria-label="t('gsms.menu.ouvrir')" @click="shell.openNav()">
                 <t-icon name="view-list" size="20px" />
             </button>
             <img class="mobile-bar__logo mobile-bar__logo--light" src="@/assets/img/gsms-logo.svg" alt="GSMS">

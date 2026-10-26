@@ -28,7 +28,7 @@
                         <img class="header-icon-img" :src="getImgSrc('search.svg')" alt="">
                     </div>
                 </t-tooltip>
-                <div class="sidebar-toggle" @click="shell.isMobile ? shell.closeNav() : uiStore.toggleSidebar()" :title="shell.isMobile ? 'Fermer le menu' : t('menu.collapseSidebar')">
+                <div class="sidebar-toggle" @click="shell.isMobile ? shell.closeNav() : uiStore.toggleSidebar()" :title="shell.isMobile ? t('gsms.menu.fermer') : t('menu.collapseSidebar')">
                     <svg viewBox="0 0 20 20" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.5" />
                         <line x1="7.5" y1="1.5" x2="7.5" y2="18.5" stroke="currentColor" stroke-width="1.5" />
@@ -97,69 +97,75 @@
                     </div>
                 </t-tooltip>
             </div>
-            <div class="menu_box" :class="{ 'menu_box--sticky': item.children && !isCollapsed }"
-                v-for="(item, index) in topMenuItems" :key="index">
-                <t-tooltip :content="item.title" placement="right" :disabled="!isCollapsed">
-                    <div @click="handleMenuClick(item.path)" @mouseenter="mouseenteMenu(item.path)"
-                        @mouseleave="mouseleaveMenu(item.path)" :data-guide="`nav-${item.path}`"
-                        :class="['menu_item', item.childrenPath && item.childrenPath == currentpath ? 'menu_item_c_active' : isMenuItemActive(item.path) ? 'menu_item_active' : '']">
-                        <div class="menu_item-box">
-                            <div class="menu_icon" :class="`menu_icon--${item.icon}`">
-                                <img class="icon"
-                                    :src="getImgSrc(item.icon == 'zhishiku' ? knowledgeIcon : item.icon == 'agent' ? agentIcon : item.icon == 'artifact' ? artifactIcon : item.icon == 'automation' ? automationIcon : item.icon == 'toolbox' ? toolboxIcon : item.icon == 'organization' ? organizationIcon : item.icon == 'logout' ? logoutIcon : item.icon == 'setting' ? settingIcon : prefixIcon)"
-                                    alt="">
-                            </div>
-                            <template v-if="!isCollapsed">
-                                <span class="menu_title" :title="item.title">{{ item.title }}</span>
-                                <span v-if="item.path === 'organizations' && orgStore.totalPendingJoinRequestCount > 0"
-                                    class="menu-pending-badge"
-                                    :title="t('organization.settings.pendingJoinRequestsBadge')">{{
-                                        orgStore.totalPendingJoinRequestCount }}</span>
-                                <span v-if="item.path === 'toolbox' && toolboxPreview.length" class="menu-toolbox-stack"
-                                    :title="toolboxPreview.map((tool) => tool.key === 'browserconnection' && browserStackStatus
-                                        ? `${t(tool.title)} (${t(`localBrowser.${browserStackStatus}`)})` : t(tool.title)).join(' · ')">
-                                    <span v-for="tool in toolboxPreview" :key="tool.key" class="menu-toolbox-stack__item">
-                                        <template v-if="tool.key === 'browserconnection'">
-                                            <BrowserIcon width="12" height="12" />
-                                            <i v-if="browserStackStatus" class="menu-toolbox-stack__status"
-                                                :class="`is-${browserStackStatus}`" aria-hidden="true" />
-                                        </template>
-                                        <t-icon v-else :name="tool.icon" size="12px" />
-                                    </span>
-                                </span>
-                            </template>
-                        </div>
+            <!-- Sections du menu (CDC §3) : Pilotage, École, Finances, RH, Qualiopi, Communication, IA, Administration.
+                 Entrées filtrées par GET /api/v1/bootstrap ; la section IA porte les écrans WeKnora. -->
+            <template v-for="section in sectionsToRender" :key="section.key">
+                <nav class="gsms-menu-group" :class="{ 'gsms-menu-group--flat': !gsmsSections.length }" :aria-label="t(`gsms.menu.sections.${section.key}`)">
+                    <div v-if="!isCollapsed && gsmsSections.length" class="gsms-menu-group__header">
+                        <router-link v-if="section.overview" :to="{ name: section.overview.route }" class="gsms-menu-group__title"
+                            :class="{ 'is-active': isGsmsActive(section.overview.key) }">{{ t(`gsms.menu.sections.${section.key}`) }}</router-link>
+                        <span v-else class="gsms-menu-group__title">{{ t(`gsms.menu.sections.${section.key}`) }}</span>
+                        <button type="button" class="gsms-menu-group__toggle" :aria-expanded="!gsmsCollapsed[section.key]"
+                            :aria-label="t(`gsms.menu.sections.${section.key}`)" @click="toggleGsmsGroup(section.key)">
+                            <t-icon :name="gsmsCollapsed[section.key] ? 'chevron-right' : 'chevron-down'" size="14px" />
+                        </button>
                     </div>
-                </t-tooltip>
-            </div>
-
-            <!-- Rubriques métier Qualiopi : séparées des fonctions IA, filtrées par GET /api/v1/bootstrap -->
-            <nav v-for="group in gsmsGroups" :key="group.key" class="gsms-menu-group" :aria-label="group.title">
-                <div v-if="!isCollapsed" class="gsms-menu-group__header" role="button" tabindex="0"
-                    :aria-expanded="!gsmsCollapsed[group.key]" @click="toggleGsmsGroup(group.key)"
-                    @keydown.enter.prevent="toggleGsmsGroup(group.key)" @keydown.space.prevent="toggleGsmsGroup(group.key)">
-                    <span>{{ group.title }}</span>
-                    <t-icon :name="gsmsCollapsed[group.key] ? 'chevron-right' : 'chevron-down'" size="14px" />
-                </div>
-                <div v-else class="gsms-menu-group__rule" aria-hidden="true" />
-                <template v-if="isCollapsed || !gsmsCollapsed[group.key]">
-                    <div v-for="entry in group.entries" :key="entry.path" class="menu_box">
-                        <t-tooltip :content="entry.title" placement="right" :disabled="!isCollapsed">
-                            <router-link :to="`/platform/${entry.path}`" class="menu_item gsms-menu-item"
-                                :class="{ menu_item_active: isGsmsActive(entry.path) }"
-                                :aria-current="isGsmsActive(entry.path) ? 'page' : undefined" :aria-label="entry.title">
-                                <div class="menu_item-box">
-                                    <div class="menu_icon"><t-icon :name="entry.icon" size="18px" /></div>
-                                    <span v-if="!isCollapsed" class="menu_title" :title="entry.title">{{ entry.title }}</span>
+                    <div v-else-if="gsmsSections.length" class="gsms-menu-group__rule" aria-hidden="true" />
+                    <template v-if="isCollapsed || !gsmsSections.length || !gsmsCollapsed[section.key]">
+                        <template v-if="section.key === IA_SECTION">
+                <div class="menu_box" :class="{ 'menu_box--sticky': item.children && !isCollapsed && !gsmsSections.length }"
+                    v-for="(item, index) in topMenuItems" :key="index">
+                    <t-tooltip :content="item.title" placement="right" :disabled="!isCollapsed">
+                        <div @click="handleMenuClick(item.path)" @mouseenter="mouseenteMenu(item.path)"
+                            @mouseleave="mouseleaveMenu(item.path)" :data-guide="`nav-${item.path}`"
+                            :class="['menu_item', item.childrenPath && item.childrenPath == currentpath ? 'menu_item_c_active' : isMenuItemActive(item.path) ? 'menu_item_active' : '']">
+                            <div class="menu_item-box">
+                                <div class="menu_icon" :class="`menu_icon--${item.icon}`">
+                                    <img class="icon"
+                                        :src="getImgSrc(item.icon == 'zhishiku' ? knowledgeIcon : item.icon == 'agent' ? agentIcon : item.icon == 'artifact' ? artifactIcon : item.icon == 'automation' ? automationIcon : item.icon == 'toolbox' ? toolboxIcon : item.icon == 'organization' ? organizationIcon : item.icon == 'logout' ? logoutIcon : item.icon == 'setting' ? settingIcon : prefixIcon)"
+                                        alt="">
                                 </div>
-                            </router-link>
-                        </t-tooltip>
-                    </div>
-                </template>
-            </nav>
-            <div v-if="gsmsGroups.length && !isCollapsed" class="gsms-menu-group__header gsms-menu-group__header--static">
-                <span>Assistant IA · conversations</span>
-            </div>
+                                <template v-if="!isCollapsed">
+                                    <span class="menu_title" :title="item.title">{{ item.title }}</span>
+                                    <span v-if="item.path === 'organizations' && orgStore.totalPendingJoinRequestCount > 0"
+                                        class="menu-pending-badge"
+                                        :title="t('organization.settings.pendingJoinRequestsBadge')">{{
+                                            orgStore.totalPendingJoinRequestCount }}</span>
+                                    <span v-if="item.path === 'toolbox' && toolboxPreview.length" class="menu-toolbox-stack"
+                                        :title="toolboxPreview.map((tool) => tool.key === 'browserconnection' && browserStackStatus
+                                            ? `${t(tool.title)} (${t(`localBrowser.${browserStackStatus}`)})` : t(tool.title)).join(' · ')">
+                                        <span v-for="tool in toolboxPreview" :key="tool.key" class="menu-toolbox-stack__item">
+                                            <template v-if="tool.key === 'browserconnection'">
+                                                <BrowserIcon width="12" height="12" />
+                                                <i v-if="browserStackStatus" class="menu-toolbox-stack__status"
+                                                    :class="`is-${browserStackStatus}`" aria-hidden="true" />
+                                            </template>
+                                            <t-icon v-else :name="tool.icon" size="12px" />
+                                        </span>
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+                    </t-tooltip>
+                </div>
+                        </template>
+                        <div v-for="entry in section.entries" v-else :key="entry.key" class="menu_box">
+                            <t-tooltip :content="t(`gsms.menu.entrees.${entry.key}`)" placement="right" :disabled="!isCollapsed">
+                                <router-link :to="{ name: entry.route }" class="menu_item gsms-menu-item"
+                                    :class="{ menu_item_active: isGsmsActive(entry.key) || (entry.route === 'settings' && route.name === 'settings') }"
+                                    :aria-current="isGsmsActive(entry.key) ? 'page' : undefined" :aria-label="t(`gsms.menu.entrees.${entry.key}`)"
+                                    @click="entry.route === 'settings' && uiStore.openSettings()">
+                                    <div class="menu_item-box">
+                                        <div class="menu_icon"><t-icon :name="entry.icon" size="18px" /></div>
+                                        <span v-if="!isCollapsed" class="menu_title">{{ t(`gsms.menu.entrees.${entry.key}`) }}</span>
+                                    </div>
+                                </router-link>
+                            </t-tooltip>
+                        </div>
+                    </template>
+                </nav>
+            </template>
+
 
             <!-- 历史会话：按来源筛选后统一按日期分组展示 -->
             <div class="submenu" v-if="!isCollapsed">
@@ -264,7 +270,7 @@
 import { storeToRefs } from 'pinia';
 import { useGsmsAccessStore } from '@/stores/gsmsAccess';
 import { useGsmsShellStore } from '@/stores/gsmsShell';
-import { GSMS_MENU } from '@/config/gsmsMenu';
+import { GSMS_MENU, IA_SECTION, type GsmsAccessRule } from '@/config/gsmsMenu';
 import { onMounted, onUnmounted, watch, computed, ref, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getSessionsList, batchDelSessions, deleteAllSessions, getSession } from "@/api/chat/index";
@@ -396,18 +402,32 @@ const toggleGsmsGroup = (key: string) => {
     gsmsCollapsed.value = { ...gsmsCollapsed.value, [key]: !gsmsCollapsed.value[key] };
     try { localStorage.setItem(GSMS_COLLAPSE_KEY, JSON.stringify(gsmsCollapsed.value)); } catch { /* préférence locale seulement */ }
 };
-// N'affiche que les entrées que GET /bootstrap ouvre (navigation + modules actifs) ; rien tant qu'il n'a pas répondu.
-const gsmsGroups = computed(() => {
+// Une entrée s'affiche si sa page existe (route enregistrée) et si GET /bootstrap l'ouvre ; rien avant sa réponse.
+const allowed = (rule?: GsmsAccessRule) => {
+    if (!rule) return true;
+    if (rule.feature && !gsmsAccess.hasFeature(rule.feature)) return false;
+    if (!rule.nav && !rule.perm) return true;
+    return (rule.nav ? gsmsAccess.hasNav(...rule.nav) : false) || (rule.perm ?? []).some((p) => gsmsAccess.can(p));
+};
+const gsmsSections = computed(() => {
     if (!gsmsAccess.bootstrap) return [];
     return GSMS_MENU
-        .map((group) => ({
-            ...group,
-            entries: group.entries.filter((e) => (!e.nav.length || gsmsAccess.hasNav(...e.nav))
-                && (!e.feature || gsmsAccess.hasFeature(e.feature))),
+        .filter((s) => s.key !== IA_SECTION)
+        .map((s) => ({
+            ...s,
+            overview: s.overview && router.hasRoute(s.overview.route) && allowed(s.overview.access) ? s.overview : undefined,
+            entries: s.entries.filter((e) => router.hasRoute(e.route) && allowed(e.access)),
         }))
-        .filter((group) => group.entries.length);
+        .filter((s) => s.entries.length || s.overview);
 });
-const isGsmsActive = (path: string) => route.meta?.gsms === path;
+// Sans réponse de /bootstrap (ou sans aucune page métier ouverte), le menu WeKnora reste tel quel.
+const sectionsToRender = computed(() => {
+    const ia = GSMS_MENU.find((s) => s.key === IA_SECTION)!;
+    if (!gsmsSections.value.length) return [{ ...ia, overview: undefined }];
+    const order = GSMS_MENU.map((s) => s.key);
+    return [...gsmsSections.value, { ...ia, overview: undefined }].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+});
+const isGsmsActive = (key: string) => route.meta?.gsms === key;
 gsmsAccess.load();
 watch(() => route.fullPath, () => { if (shell.isMobile) shell.closeNav(); });
 const total = ref(0);
@@ -2063,25 +2083,47 @@ const resizeSidebar = (delta: number, keyboard: boolean) => {
     justify-content: space-between;
     height: 26px;
     margin-top: 4px;
-    padding: 0 8px 0 var(--sidebar-inset-x);
-    border-radius: var(--app-radius-xs);
+    padding: 0 4px 0 var(--sidebar-inset-x);
+}
+
+.gsms-menu-group__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
     color: var(--td-text-color-placeholder);
     font-family: var(--app-font-family);
     font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:is(a):hover, &.is-active { color: var(--td-brand-color); }
+    &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; border-radius: var(--app-radius-xs); }
+}
+
+.gsms-menu-group__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--app-radius-xs);
+    background: transparent;
+    color: var(--td-text-color-placeholder);
     cursor: pointer;
-    user-select: none;
 
-    &:hover { color: var(--td-text-color-secondary); }
+    &:hover { background: var(--td-bg-color-container-hover); color: var(--td-text-color-secondary); }
     &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; }
+}
 
-    &--static {
-        margin-top: 10px;
-        cursor: default;
-        &:hover { color: var(--td-text-color-placeholder); }
-    }
+.gsms-menu-group--flat {
+    // Menu WeKnora seul (pas de section métier) : le « Nouvelle conversation » reste collant dans .menu_top.
+    display: contents;
 }
 
 .gsms-menu-group__rule {

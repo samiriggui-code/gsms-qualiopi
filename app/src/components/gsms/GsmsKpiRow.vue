@@ -60,7 +60,7 @@ withDefaults(defineProps<{ items: KpiItem[]; loading?: boolean }>(), { loading: 
 .tone-success { --accent: var(--td-success-color); }
 .kpi-text { display: flex; flex-direction: column; min-width: 0; }
 .kpi-label { color: var(--td-text-color-secondary); font-size: var(--app-text-xs); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
-.kpi-value { margin-top: 4px; color: var(--td-text-color-primary); font-size: 24px; font-weight: 700; line-height: 28px; font-variant-numeric: tabular-nums; }
+.kpi-value { margin-top: 4px; color: var(--td-text-color-primary); font-size: var(--app-text-4xl); font-weight: 700; line-height: 28px; font-variant-numeric: tabular-nums; }
 .kpi-sub { margin-top: 2px; color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); line-height: 16px; overflow-wrap: anywhere; }
 .kpi-icon {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;

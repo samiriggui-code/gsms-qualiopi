@@ -103,10 +103,13 @@ const tabs = computed(() => [
 const canDecide = computed(() => !!(ev.value?.capabilities.valider?.allowed || ev.value?.capabilities.rejeter?.allowed))
 
 async function load() {
+  const asked = id.value
   loading.value = true
   error.value = null
   try {
-    ev.value = await getEvidence(id.value)
+    const res = await getEvidence(asked)
+    if (asked !== id.value) return // réponse d'une fiche quittée entre-temps
+    ev.value = res
     checklist.value = {}
     comment.value = ''
   } catch (e) {

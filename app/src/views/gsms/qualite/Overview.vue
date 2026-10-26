@@ -5,9 +5,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
+import { useApiSource } from '@/components/gsms/useApiSource'
 import type { AlertItem, KpiItem, ModuleItem } from '@/components/gsms/types'
 import {
   getCarnet, getEvaluations, listAudits, listCapa, listComplaints, listEvidence, listMilestones, listOpenGaps, listWatchItems,
@@ -18,27 +19,21 @@ import { fmtDate } from '@/components/gsms/format'
 
 const { t } = useI18n()
 
-/** Une source de chiffres : sa réponse, ou son refus (affiché tel quel, jamais remplacé par des zéros). */
-function source<T>(load: () => Promise<T>) {
-  const s = reactive({ data: null as T | null, error: null as unknown })
-  load().then((d) => { s.data = d as never }).catch((e) => { s.error = e })
-  return s
-}
 
-const evaluations = source(getEvaluations)
-const carnet = source(getCarnet)
-const evidence = source(() => listEvidence())
-const gaps = source(listOpenGaps)
-const capas = source(listCapa)
-const audits = source(listAudits)
-const complaints = source(listComplaints)
-const watch = source(listWatchItems)
-const milestones = source(() => listMilestones(15))
-const dossier = source(async () => {
+const evaluations = useApiSource(getEvaluations).state
+const carnet = useApiSource(getCarnet).state
+const evidence = useApiSource(() => listEvidence()).state
+const gaps = useApiSource(listOpenGaps).state
+const capas = useApiSource(listCapa).state
+const audits = useApiSource(listAudits).state
+const complaints = useApiSource(listComplaints).state
+const watch = useApiSource(listWatchItems).state
+const milestones = useApiSource(() => listMilestones(15)).state
+const dossier = useApiSource(async () => {
   const org = await getOrganisme()
   if (!org.id) throw new Error(t('gsms.qualite.dossier.organismeAbsent'))
   return getPieceDossier('ORGANISME', org.id)
-})
+}).state
 
 const loadingOf = (s: { data: unknown; error: unknown }) => !s.data && !s.error
 const byState = (etat: string) => (evaluations.data?.indicateurs ?? []).filter((i) => i.etat === etat).length

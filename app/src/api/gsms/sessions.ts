@@ -64,17 +64,6 @@ export const enrollLearner = (id: string, learnerId: string) =>
 /** GET /stagiaires (`sessions.read`). */
 export const listLearners = () => http.get<LearnerRow[]>('/stagiaires')
 
-export interface TrainerRow {
-  id: string
-  first_name: string
-  last_name: string
-  email: string | null
-  is_external?: boolean
-  [extra: string]: unknown
-}
-
-/** GET /formateurs (`sessions.read` ou `sessions.read_own`). */
-export const listTrainers = () => http.get<TrainerRow[]>('/formateurs')
 
 /** DELETE /sessions/{id} : session planifiée sans inscription (TrainingPolicy, refus 409). */
 export const deleteSession = (id: string) => http.delete<void>(`/sessions/${encodeURIComponent(id)}`)

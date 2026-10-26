@@ -55,6 +55,7 @@ import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
+import { useApiSource } from '@/components/gsms/useApiSource'
 import { capaStep, listCapa, listFindings, listOpenGaps, openCapa, type CapaIn, type CapaRow, type Finding } from '@/api/gsms/qualite'
 import { fmtDate } from '@/components/gsms/format'
 
@@ -81,47 +82,37 @@ const query = ref('')
 const actionError = ref<unknown>(null)
 const busy = ref('')
 
-function source<T>(load: () => Promise<T>) {
-  const s = reactive({ data: null as T | null, error: null as unknown, loading: false })
-  const run = async () => {
-    s.loading = true
-    s.error = null
-    try { s.data = (await load()) as never } catch (e) { s.error = e; s.data = null } finally { s.loading = false }
-  }
-  return { s, run }
-}
-const gaps = source(listOpenGaps)
-const findings = source(listFindings)
-const capas = source(listCapa)
-gaps.run(); findings.run(); capas.run()
-const current = computed(() => (tab.value === 'ecarts' ? gaps.s : tab.value === 'constats' ? findings.s : capas.s))
+const gaps = useApiSource(listOpenGaps)
+const findings = useApiSource(listFindings)
+const capas = useApiSource(listCapa)
+const current = computed(() => (tab.value === 'ecarts' ? gaps.state : tab.value === 'constats' ? findings.state : capas.state))
 const reload = () => (tab.value === 'ecarts' ? gaps.run() : tab.value === 'constats' ? findings.run() : capas.run())
 watch(tab, (v) => router.replace({ query: { ...route.query, onglet: v } }))
 
 const tabs = computed(() => [
-  { value: 'ecarts', label: t('gsms.qualite.constats.aTraiter'), count: gaps.s.data?.length },
-  { value: 'constats', label: t('gsms.qualite.constats.tous'), count: findings.s.data?.length },
-  { value: 'actions', label: t('gsms.qualite.constats.actions'), count: capas.s.data?.length },
+  { value: 'ecarts', label: t('gsms.qualite.constats.aTraiter'), count: gaps.state.data?.length },
+  { value: 'constats', label: t('gsms.qualite.constats.tous'), count: findings.state.data?.length },
+  { value: 'actions', label: t('gsms.qualite.constats.actions'), count: capas.state.data?.length },
 ])
 const emptyTitle = computed(() => t(tab.value === 'ecarts' ? 'gsms.qualite.constats.aucunATraiter' : tab.value === 'constats' ? 'gsms.qualite.constats.aucun' : 'gsms.qualite.constats.aucuneAction'))
 const originLabel = (o: string) => (te(`gsms.qualite.constats.origines.${o}`) ? t(`gsms.qualite.constats.origines.${o}`) : o)
 
 const allRows = computed<Row[] | null>(() => {
   if (tab.value === 'ecarts') {
-    return gaps.s.data?.map((f) => ({
+    return gaps.state.data?.map((f) => ({
       id: f.id, reference: f.reference, indicateur: f.indicateur, titre: f.titre, texte: f.explication ?? '',
       sous: f.remediation ? t('gsms.qualite.aFaire', { texte: f.remediation }) : '', statut: f.statut, date: fmtDate(f.constate_le),
       meta: [f.gravite ? t('gsms.qualite.constats.gravite', { g: f.gravite }) : '', fmtDate(f.constate_le)].filter(Boolean), gap: f,
     })) ?? null
   }
   if (tab.value === 'constats') {
-    return findings.s.data?.map((f) => ({
+    return findings.state.data?.map((f) => ({
       id: f.id, reference: f.reference, indicateur: f.indicateur, titre: f.titre, texte: f.explication ?? '',
       sous: f.a_faire ? t('gsms.qualite.aFaire', { texte: f.a_faire }) : '', statut: f.statut, statutLibelle: f.statut_libelle,
       date: fmtDate(f.constate_le), meta: [originLabel(f.origine), f.cible ?? '', fmtDate(f.constate_le)].filter(Boolean),
     })) ?? null
   }
-  return capas.s.data?.map((c) => ({
+  return capas.state.data?.map((c) => ({
     id: c.id, reference: c.reference, indicateur: c.ecart?.indicateur ?? null, titre: c.titre, texte: c.plan,
     sous: c.ecart ? `${c.ecart.reference} · ${c.ecart.titre}` : '', statut: c.statut, date: fmtDate(c.echeance),
     meta: [t(c.type === 'PREVENTIVE' ? 'gsms.qualite.constats.preventive' : 'gsms.qualite.constats.corrective'), c.responsable,

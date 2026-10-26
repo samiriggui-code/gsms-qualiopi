@@ -109,7 +109,7 @@ watch(table, reload)
 .search { .gsms-search(); }
 .card { .gsms-card(); }
 .card--static { cursor: default; }
-.mono { font-family: var(--td-font-family-mono, monospace); font-size: var(--app-text-sm); overflow-wrap: anywhere; }
+.mono { font-family: var(--app-font-family-mono); font-size: var(--app-text-sm); overflow-wrap: anywhere; }
 .cell-sub { display: block; color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); overflow-wrap: anywhere; }
 .more { display: flex; justify-content: center; margin-top: 12px; }
 :deep(.changes) {

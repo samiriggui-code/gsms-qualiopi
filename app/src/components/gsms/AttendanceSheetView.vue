@@ -160,7 +160,7 @@ const code = (slot: string) => act('code', async () => {
 </script>
 
 <style scoped lang="less">
-@import (reference) '../gsms-list.less';
+@import (reference) './gsms-list.less';
 .panel { .gsms-panel(); }
 .muted { .gsms-muted(); }
 .att-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 10px; }
@@ -182,7 +182,7 @@ const code = (slot: string) => act('code', async () => {
 .presence-name { font-size: var(--app-text-md); color: var(--td-text-color-primary); }
 .presence-actions { display: flex; gap: 6px; }
 .code-box { text-align: center; }
-.code-value { font-size: 32px; font-weight: 700; letter-spacing: 4px; color: var(--td-brand-color); font-variant-numeric: tabular-nums; }
+.code-value { font-size: var(--app-text-4xl); font-weight: 700; letter-spacing: 4px; color: var(--td-brand-color); font-variant-numeric: tabular-nums; }
 .code-link { display: block; margin-top: 8px; padding: 6px 8px; border-radius: var(--app-radius-sm); background: var(--td-bg-color-secondarycontainer); overflow-wrap: anywhere; font-size: var(--app-text-sm); }
 @media (max-width: 720px) {
   .presence-actions { width: 100%; .t-button { flex: 1; } }

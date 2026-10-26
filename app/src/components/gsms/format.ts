@@ -51,7 +51,7 @@ export function stateTheme(code: string | null | undefined): TagTheme {
 }
 
 /** Un détail de refus (chaîne ou objet) en une ligne lisible. */
-export function detailLine(d: unknown): string {
+function detailLine(d: unknown): string {
   if (d === null || d === undefined) return ''
   if (typeof d === 'string') return d
   if (typeof d === 'object') {

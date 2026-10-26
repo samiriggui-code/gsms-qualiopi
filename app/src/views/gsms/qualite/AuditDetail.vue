@@ -92,10 +92,13 @@ const closeVisible = ref(false)
 const judged = ref(0)
 
 async function load() {
+  const asked = id.value
   loading.value = true
   error.value = null
   try {
-    audit.value = await getAudit(id.value)
+    const res = await getAudit(asked)
+    if (asked !== id.value) return // réponse d'une fiche quittée entre-temps
+    audit.value = res
   } catch (e) {
     error.value = e
     audit.value = null
