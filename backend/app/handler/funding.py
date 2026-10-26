@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.application.service.funding import service
-from app.application.service.funding.schemes import rule_at, schemes
+from app.application.service.funding.schemes import rule_at, rules_at, schemes
 from app.application.service.platform.features import is_enabled
 from app.errors.errors import NotFoundError
 from app.middleware.auth import DB, FundingReader, FundingWriter
@@ -23,6 +23,12 @@ def list_schemes(db: DB, _: FundingReader) -> list[dict]:
     return [{"code": s.code, "libelle": s.label, "financeur": s.provider, "payeur": s.payer, "prorata": s.prorata,
              "etats": s.states, "actions": {k: a.label for k, a in s.actions.items()}}
             for s in schemes().values() if is_enabled(db, s.feature)]
+
+
+@router.get("/financement/regles")
+def list_rules(_: FundingReader, le: date | None = None) -> list[dict]:
+    """Règles datées (config/financement/regles.yaml), avec leur historique et la valeur en vigueur à `le`."""
+    return rules_at(le or date.today())
 
 
 @router.get("/financement/regles/{key}")

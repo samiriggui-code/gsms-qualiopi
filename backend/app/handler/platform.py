@@ -107,6 +107,28 @@ def _org_view(org: t.Organization | None) -> dict:
     }
 
 
+# Listes de valeurs que l'API accepte en saisie : (code de la liste, libellé, nom de la constante dans app/types/training.py).
+VALUE_LISTS = (
+    ("types_de_lieu", "Types de lieu", "PREMISES_KINDS"),
+    ("statuts_de_lieu", "Statuts d'un lieu ou d'un équipement", "PLACE_STATUSES"),
+    ("categories_d_equipement", "Catégories d'équipement", "EQUIPMENT_CATEGORIES"),
+    ("types_de_partenaire", "Types de partenaire", "PARTNER_KINDS"),
+    ("domaines_de_veille", "Domaines de veille", "WATCH_DOMAINS"),
+    ("types_de_reclamation", "Types de réclamation", "COMPLAINT_KINDS"),
+    ("parties_prenantes", "Parties prenantes d'une réclamation", "COMPLAINT_STAKEHOLDERS"),
+    ("publics_d_enquete", "Publics d'une enquête de satisfaction", "SURVEY_AUDIENCES"),
+    ("types_de_titre", "Types de titre d'un formateur", "QUALIFICATION_KINDS"),
+)
+
+
+@router.get("/listes-de-valeurs")
+def value_lists(_: CurrentUser) -> list[dict]:
+    """Listes code → libellé définies dans le code (lecture seule) : le front n'a pas à les recopier."""
+    return [{"code": code, "libelle": label, "source": name,
+             "valeurs": [{"code": k, "libelle": v} for k, v in getattr(t, name).items()]}
+            for code, label, name in VALUE_LISTS]
+
+
 @router.get("/organisme")
 def get_organization(db: DB, _: CurrentUser) -> dict:
     return _org_view(db.scalar(select(t.Organization)))

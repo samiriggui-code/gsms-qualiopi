@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.application.access.training import TrainingPolicy
 from app.application.access.training_scope import own_trainer_ids, sees_all, visible_session
 from app.application.service.training import activity, service
+from app.errors.errors import NotFoundError
 from app.middleware.auth import DB, AllSessionsReader, SessionsReader, SessionsWriter
 from app.types import training as t
 from app.types.training_schemas import LearnerOut, ProgramOut, SessionOut, TrainerOut
@@ -31,6 +32,24 @@ def list_learners(db: DB, _: AllSessionsReader) -> list[t.Learner]:
     return list(db.scalars(select(t.Learner).order_by(t.Learner.last_name)))
 
 
+@router.get("/learners/{learner_id}/inscriptions")
+def learner_enrollments(learner_id: str, db: DB, _: AllSessionsReader) -> list[dict]:
+    """Inscriptions d'un stagiaire, de la session la plus récente à la plus ancienne (même droit que sa fiche)."""
+    if db.get(t.Learner, learner_id) is None:
+        raise NotFoundError("Apprenant introuvable")
+    rows = db.scalars(
+        select(t.Enrollment).join(t.TrainingSession, t.TrainingSession.id == t.Enrollment.session_id)
+        .where(t.Enrollment.learner_id == learner_id).order_by(t.TrainingSession.start_date.desc())
+    )
+    return [{
+        "id": e.id, "statut": e.status, "financement": e.funding, "entreprise_id": e.company_id,
+        "abandon_le": e.abandoned_on.isoformat() if e.abandoned_on else None,
+        "session": {"id": s.id, "reference": s.reference, "statut": s.status, "debut": s.start_date.isoformat(),
+                    "fin": s.end_date.isoformat(), "formation_id": s.program_id, "formation_code": s.program_code,
+                    "formation_titre": s.program_title, "formateur_id": s.trainer_id, "formateur": s.trainer_name},
+    } for e in rows for s in (e.session,)]
+
+
 class SessionView(SessionOut):
     cancel_reason: str | None = None
     program_code: str | None = None
@@ -43,11 +62,14 @@ class SessionView(SessionOut):
 
 
 @router.get("/sessions", response_model=list[SessionView])
-def list_sessions(db: DB, user: SessionsReader, statut: str | None = None,
-                  du: date | None = None, au: date | None = None) -> list[t.TrainingSession]:
+def list_sessions(db: DB, user: SessionsReader, statut: str | None = None, du: date | None = None,
+                  au: date | None = None, formateur: str | None = None) -> list[t.TrainingSession]:
+    """Sessions, de la plus récente à la plus ancienne ; `formateur` filtre à l'intérieur de la portée du compte."""
     q = select(t.TrainingSession).order_by(t.TrainingSession.start_date.desc())
     if not sees_all(db, user):  # formateur : ses propres sessions
         q = q.where(t.TrainingSession.trainer_id.in_(own_trainer_ids(db, user)))
+    if formateur:
+        q = q.where(t.TrainingSession.trainer_id == formateur)
     if statut:
         q = q.where(t.TrainingSession.status == statut)
     if du:

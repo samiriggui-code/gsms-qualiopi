@@ -1,7 +1,7 @@
 """Fabrique de routes CRUD pour les tables « simples » (une table = une ressource).
 
 Chaque ressource expose :
-  GET    /api/v1/<path>          liste (triée)
+  GET    /api/v1/<path>          liste (triée), filtrable par égalité sur les colonnes déclarées dans `filters`
   GET    /api/v1/<path>/{id}     détail
   POST   /api/v1/<path>          création   (permission d'écriture)
   PATCH  /api/v1/<path>/{id}     mise à jour partielle
@@ -12,9 +12,9 @@ Les écrans spécifiques (sessions, référentiel…) gardent leur propre routeu
 
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, create_model
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
@@ -59,8 +59,12 @@ def crud_router(
     serialize: Serializer | None = None,
     validate: Callable[[Session, dict], None] | None = None,
     read_permissions: tuple[str, ...] = ("sessions.read",),
+    filters: dict[str, Any] | None = None,
 ) -> APIRouter:
+    """`filters` : paramètre de requête → colonne (ex. {"entreprise": Learner.company_id}), égalité stricte."""
     router = APIRouter(prefix=f"/api/v1/{path}", tags=[label])
+    columns = filters or {}
+    filter_model = create_model(f"{model.__name__}Filtres", **{name: (str | None, None) for name in columns})
     schema_patch = _partial(schema_in)
     writer = Depends(require(write_permission))
     reader = Depends(require_any(*read_permissions))
@@ -104,8 +108,12 @@ def crud_router(
             )
 
     @router.get("")
-    def list_items(db: DB, _: User = reader) -> list[dict]:
+    def list_items(db: DB, params: Annotated[filter_model, Query()], _: User = reader) -> list[dict]:  # type: ignore[valid-type]
         stmt = select(model)
+        for name, column in columns.items():
+            value = getattr(params, name)
+            if value is not None:
+                stmt = stmt.where(column == value)
         if order_by:
             stmt = stmt.order_by(*order_by)
         return dump(db, list(db.scalars(stmt).all()))

@@ -515,7 +515,13 @@ class Certificate(TimestampMixin, Base):
     enrollment: Mapped[Enrollment] = relationship(back_populates="certificate")
 
 
-SURVEY_AUDIENCES = ("APPRENANT_CHAUD", "APPRENANT_FROID", "ENTREPRISE", "FORMATEUR", "FINANCEUR")
+SURVEY_AUDIENCES = {
+    "APPRENANT_CHAUD": "Stagiaire à chaud",
+    "APPRENANT_FROID": "Stagiaire à froid",
+    "ENTREPRISE": "Entreprise",
+    "FORMATEUR": "Formateur",
+    "FINANCEUR": "Financeur",
+}
 
 
 class SatisfactionSurvey(TimestampMixin, Base):
@@ -534,6 +540,16 @@ class SatisfactionSurvey(TimestampMixin, Base):
     comment: Mapped[str | None] = mapped_column(Text)
 
 
+COMPLAINT_KINDS = {"RECLAMATION": "Réclamation", "DIFFICULTE": "Difficulté", "ALEA": "Aléa"}
+COMPLAINT_STAKEHOLDERS = {
+    "APPRENANT": "Apprenant",
+    "ENTREPRISE": "Entreprise",
+    "FINANCEUR": "Financeur",
+    "FORMATEUR": "Formateur",
+    "AUTRE": "Autre",
+}
+
+
 class Complaint(TimestampMixin, Base):
     """Réclamation, difficulté ou aléa (I31)."""
 
@@ -550,6 +566,13 @@ class Complaint(TimestampMixin, Base):
     answered_on: Mapped[date | None] = mapped_column(Date)
     resolved_on: Mapped[date | None] = mapped_column(Date)
     resolution: Mapped[str | None] = mapped_column(Text)
+
+
+WATCH_DOMAINS = {
+    "LEGALE": "Légale et réglementaire",
+    "METIERS": "Métiers et compétences",
+    "PEDAGOGIQUE": "Pédagogique et technologique",
+}
 
 
 class WatchItem(TimestampMixin, Base):
@@ -579,6 +602,9 @@ class Subcontractor(TimestampMixin, Base):
     qualiopi_certified: Mapped[bool] = mapped_column(Boolean, default=False)
     contract_signed_on: Mapped[date | None] = mapped_column(Date)
     last_review_on: Mapped[date | None] = mapped_column(Date)
+
+
+PARTNER_KINDS = {"HANDICAP": "Handicap", "SOCIO_ECONOMIQUE": "Socio-économique"}
 
 
 class PartnerNetwork(TimestampMixin, Base):

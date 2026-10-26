@@ -22,7 +22,7 @@ from app.application.service.qualiopi.evidence.service import validate
 from app.application.service.qualiopi.nomenclature import criterion_name, indicator_name
 from app.application.service.qualiopi.referential.importer import active_version, import_referential
 from app.application.service.qualiopi.review.service import record_review
-from app.application.service.qualiopi.schedule.service import milestone_view
+from app.application.service.qualiopi.schedule.service import load_circuit, milestone_view
 from app.config.config import get_settings
 from app.errors.errors import InvalidStateError, NotFoundError
 from app.middleware.auth import DB, EvidenceValidator, QualityReader, QualityWriter, ReferentialManager
@@ -176,6 +176,17 @@ def validate_evidence(evidence_id: str, body: ValidationIn, db: DB, user: Eviden
     ev = validate(db, evidence_id, body.decision, body.comment, user.id, user.full_name, checklist=body.checklist)
     db.commit()
     return {"id": ev.id, "reference": ev.reference, "status": ev.status}
+
+
+@router.get("/qualiopi/circuit")
+def session_circuit(_: QualityReader) -> dict:
+    """Circuit de session appliqué (config/circuits/standard.yaml), en lecture : jalons, échéances, preuves attendues."""
+    c = load_circuit()
+    return {"code": c.code, "titre": c.title, "jalons": [{
+        "cle": m.key, "libelle": m.label, "ancre": m.anchor, "decalage_jours": m.offset_days,
+        "alerte_jours": m.warn_days, "preuve": m.evidence, "faits": m.facts, "inscriptions": m.enrollments,
+        "responsable": m.owner, "indicateurs": m.indicators,
+    } for m in c.milestones]}
 
 
 @router.get("/qualiopi/echeances")

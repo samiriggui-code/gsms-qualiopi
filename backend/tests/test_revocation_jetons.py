@@ -75,7 +75,7 @@ def test_changement_de_roles_ne_deconnecte_pas_mais_s_applique_aussitot(client, 
     _, admin = make_user(db, "admin", email="chef@test.local")
     cible, h = make_user(db, "gestion", email="roles@test.local")
     assert client.get("/api/v1/stagiaires", headers=h).status_code == 200
-    r = client.put(f"/api/v1/auth/users/{cible.id}/roles", json={"roles": ["rh"]}, headers=admin)
+    r = client.put(f"/api/v1/auth/users/{cible.id}/roles", json={"roles": ["formateur"]}, headers=admin)
     assert r.status_code == 200
     assert client.get(ME, headers=h).status_code == 200
     assert client.get("/api/v1/stagiaires", headers=h).status_code == 403

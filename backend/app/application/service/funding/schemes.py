@@ -95,3 +95,17 @@ def rule_at(key: str, at: date) -> dict:
         raise NotFoundError(f"Règle {key} : aucune valeur en vigueur au {at:%d/%m/%Y}")
     v = max(valid, key=lambda v: v["from"])
     return {"key": key, "value": v["value"], "since": v["from"].isoformat(), "source": v["source"]}
+
+
+def rules_at(at: date) -> list[dict]:
+    """Toutes les règles datées : description, historique des valeurs (sources citées) et valeur en vigueur à `at`."""
+    out = []
+    for key, spec in sorted(_rules().items()):
+        current = [v for v in spec["values"] if v["from"] <= at]
+        out.append({
+            "cle": key, "description": spec.get("description"),
+            "valeurs": [{"depuis": v["from"].isoformat(), "valeur": v["value"], "source": v["source"]}
+                        for v in sorted(spec["values"], key=lambda v: v["from"])],
+            "en_vigueur": rule_at(key, at) if current else None,
+        })
+    return out

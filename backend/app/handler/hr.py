@@ -147,7 +147,7 @@ def expiring_titles(db: DB, _: StaffReader, jours: int = 90) -> list[dict]:
         .order_by(t.TrainerQualification.valid_until)
     )
     today = date.today()
-    return [{"formateur": tr.full_name, "formateur_id": tr.id, "type": q.kind, "libelle": q.label,
+    return [{"titre_id": q.id, "formateur": tr.full_name, "formateur_id": tr.id, "type": q.kind, "libelle": q.label,
              "fin": q.valid_until.isoformat(), "etat": "EXPIRE" if q.valid_until < today else "A_RENOUVELER"}
             for q, tr in rows]
 

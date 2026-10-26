@@ -103,9 +103,17 @@ def kinds(_: Reader) -> dict:
 
 
 @router.get("")
-def list_projects(db: DB, _: Reader) -> list[dict]:
+def list_projects(db: DB, _: Reader, entreprise: str | None = None, type: str | None = None) -> list[dict]:  # noqa: A002
+    """Documents, du plus récemment modifié au plus ancien ; filtres : `entreprise` (client), `type` (DEVIS…)."""
+    if type is not None and type not in KINDS:
+        raise InvalidStateError(f"Type inconnu, valeurs possibles : {', '.join(KINDS)}")
     today = date.today()
-    rows = list(db.scalars(select(Project).order_by(Project.updated_at.desc())))
+    q = select(Project).order_by(Project.updated_at.desc())
+    if entreprise:
+        q = q.where(Project.company_id == entreprise)
+    if type:
+        q = q.where(Project.kind == type)
+    rows = list(db.scalars(q))
     companies = _companies(db, rows)
     return [_summary(p, companies, today) for p in rows]
 

@@ -21,8 +21,18 @@ de domaine (`*/policy.py`).
 ### Authentification
 
 - `POST /api/v1/auth/login` avec `{"email", "password"}` → `{"access_token", "token_type": "bearer", "user": {id, email, full_name, roles, is_active}}`.
-- Le jeton est un **JWT HS256** signé avec `JWT_SECRET`, charge utile `{"sub": <id utilisateur>, "exp": …}`, durée
-  `JWT_TTL_MINUTES` (défaut 720 min = 12 h). Pas de route de rafraîchissement ni de déconnexion côté API.
+- Le jeton est un **JWT HS256** signé avec `JWT_SECRET`, charge utile `{"sub": <id utilisateur>, "ver": <version>, "iat": …,
+  "exp": …}`, durée `JWT_TTL_MINUTES` (défaut 720 min = 12 h). Pas de route de rafraîchissement.
+- **Révocation** (version de jeton, colonne `iam.user.token_version`, migration 0023) : chaque requête compare `ver` à la
+  version du compte ; un écart répond **401** « Session révoquée : reconnectez-vous ». La version s'incrémente :
+  - au **changement de mot de passe** (`POST /auth/me/password`, qui rend un jeton neuf pour la session courante :
+    le client doit remplacer le sien) ;
+  - à la **désactivation** d'un compte (`PUT /auth/users/{id}/active`) : une réactivation ne rouvre pas les anciennes sessions ;
+  - à la **déconnexion partout** (`POST /auth/me/deconnexion-partout`, celle-ci comprise).
+  Un **changement de rôles** ne révoque pas : le jeton ne porte aucun droit, les permissions sont relues en base à chaque
+  requête, le retrait d'un rôle s'applique donc dès la requête suivante sans déconnecter la personne. Un jeton émis avant
+  la migration 0023 (sans `ver`) est refusé : chacun se reconnecte une fois. Le jeton technique `mcp` n'est pas concerné
+  (il reste lié à l'empreinte du mot de passe du compte technique, voir « Moteur IA et serveur MCP »).
 - Il se transmet dans l'en-tête **`Authorization: Bearer <jeton>`** (`HTTPBearer(auto_error=False)` dans `app/middleware/auth.py`).
   Jeton absent → 401 « Authentification requise » ; invalide ou expiré → 401 ; compte inactif ou supprimé → 401.
 - L'ancien front stockait le jeton dans un cookie httpOnly via ses propres routes Next (`/api/auth/login`, relais
@@ -97,7 +107,7 @@ Corps de requête plafonné à 20 Mo par Caddy (`request_body { max_size 20MB }`
 
 ## 2. Inventaire des routes HTTP
 
-**Total : 258 routes** (257 sous `/api/v1` + `GET /health`, décompte du 26/10/2026), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
+**Total : 263 routes** (262 sous `/api/v1` + `GET /health`, décompte du 26/10/2026), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
 `/openapi.json` (absentes en production). Les 65 routes CRUD sont générées par `crud_router()` (`app/handler/crud.py`) pour 13
 ressources déclarées dans `app/handler/training_resources.py` (liste `ROUTERS`).
 
@@ -114,14 +124,15 @@ Fichier : `backend/app/cmd/server.py` — 1 route(s).
 
 ### Authentification, comptes et rôles
 
-Fichier : `backend/app/handler/auth.py` — 13 route(s).
+Fichier : `backend/app/handler/auth.py` — 14 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `POST` | `/api/v1/auth/login` | Connexion e-mail + mot de passe ; renvoie `access_token` (JWT HS256), `token_type`, `user`. | Public — limite de débit (429, §1) |
 | `GET` | `/api/v1/auth/me` | Compte connecté et ses permissions effectives (modules actifs seulement). | Authentifié |
 | `PATCH` | `/api/v1/auth/me` | Modifie son propre nom affiché. | Authentifié |
-| `POST` | `/api/v1/auth/me/password` | Change son mot de passe (actuel redemandé, 12 caractères min., 72 octets max.). | Authentifié — 403 si mot de passe actuel incorrect |
+| `POST` | `/api/v1/auth/me/password` | Change son mot de passe (actuel redemandé, 12 caractères min., 72 octets max.) ; révoque tous ses jetons et rend `{access_token, token_type, user}` pour la session courante. | Authentifié — 403 si mot de passe actuel incorrect |
+| `POST` | `/api/v1/auth/me/deconnexion-partout` | Déconnecte toutes ses sessions, celle-ci comprise (révoque tous ses jetons) ; 204. | Authentifié |
 | `GET` | `/api/v1/auth/permissions` | Catalogue des permissions (code, libellé, fonctionnalité). | Authentifié |
 | `GET` | `/api/v1/auth/roles` | Rôles système puis rôles personnalisés de l'organisme. | Authentifié |
 | `POST` | `/api/v1/auth/roles` | Crée un rôle personnalisé (code, libellé, permissions). | `users.manage` — anti-escalade : on ne donne pas une permission qu'on n'a pas |
@@ -130,11 +141,11 @@ Fichier : `backend/app/handler/auth.py` — 13 route(s).
 | `GET` | `/api/v1/auth/users` | Liste des comptes. | `users.manage` |
 | `POST` | `/api/v1/auth/users` | Crée un compte (rôle `lecture` par défaut). | `users.manage` — anti-escalade sur les rôles donnés |
 | `PUT` | `/api/v1/auth/users/{user_id}/roles` | Remplace les rôles d'un compte. | `users.manage` — ni son propre compte, ni un compte plus puissant ; anti-escalade |
-| `PUT` | `/api/v1/auth/users/{user_id}/active` | Active ou désactive un compte. | `users.manage` — ni son propre compte, ni un compte plus puissant |
+| `PUT` | `/api/v1/auth/users/{user_id}/active` | Active ou désactive un compte (la désactivation révoque ses jetons). | `users.manage` — ni son propre compte, ni un compte plus puissant |
 
 ### Socle : démarrage, modules, réglages, organisme
 
-Fichier : `backend/app/handler/platform.py` — 8 route(s).
+Fichier : `backend/app/handler/platform.py` — 9 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
@@ -144,6 +155,7 @@ Fichier : `backend/app/handler/platform.py` — 8 route(s).
 | `GET` | `/api/v1/settings` | Réglages des modules actifs : schéma JSON, défaut, valeur en vigueur, prochaine valeur. | `settings.manage` |
 | `GET` | `/api/v1/settings/{key}/history` | Historique daté d'un réglage. | `settings.manage` |
 | `PUT` | `/api/v1/settings/{key}` | Nouvelle valeur d'un réglage à une date d'effet (motif obligatoire si réglementaire). | `settings.manage` |
+| `GET` | `/api/v1/listes-de-valeurs` | Listes code → libellé que l'API accepte en saisie (`code`, `libelle`, `source` = constante de `app/types/training.py`, `valeurs[]`) : types de lieu, statuts de lieu ou d'équipement, catégories d'équipement, types de partenaire, domaines de veille, types et parties prenantes de réclamation, publics d'enquête, types de titre. | Authentifié |
 | `GET` | `/api/v1/organisme` | Identité réglementaire de l'organisme et catégories d'actions possibles. | Authentifié |
 | `PATCH` | `/api/v1/organisme` | Modifie l'organisme (crée la ligne si absente) ; relance le moteur. | `settings.manage` |
 
@@ -167,7 +179,7 @@ Fichier : `backend/app/handler/pilotage.py` — 3 route(s). Services : `backend/
 
 ### Qualiopi : référentiel, moteur, revues, cycles, actions correctives
 
-Fichier : `backend/app/handler/qualiopi.py` — 23 route(s).
+Fichier : `backend/app/handler/qualiopi.py` — 24 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
@@ -180,6 +192,7 @@ Fichier : `backend/app/handler/qualiopi.py` — 23 route(s).
 | `GET` | `/api/v1/qualiopi/readiness` | État de préparation par indicateur sur une période (`du`/`au`, sinon cycle en cours). | `quality.read` |
 | `GET` | `/api/v1/sessions/{session_id}/dossier` | Dossier qualité d'une session (preuves par indicateur). | `quality.read` |
 | `POST` | `/api/v1/evidence/{evidence_id}/validation` | Valide ou rejette une preuve, avec grille de relecture. | `evidence.validate` — auto-validation refusée sauf réglage `quality.allow_self_validation` |
+| `GET` | `/api/v1/qualiopi/circuit` | Circuit de session appliqué (`config/circuits/standard.yaml`) : `code`, `titre`, `jalons[]` (`cle`, `libelle`, `ancre` start / end, `decalage_jours`, `alerte_jours`, `preuve`, `faits`, `inscriptions`, `responsable`, `indicateurs`). Lecture seule. | `quality.read` |
 | `GET` | `/api/v1/qualiopi/echeances` | Jalons de l'échéancier en retard ou à échéance sous `days` jours. | `quality.read` |
 | `POST` | `/api/v1/qualiopi/indicateurs/{number}/revues` | Revue humaine attestée d'un indicateur (état et preuves figés). | `evidence.validate` |
 | `GET` | `/api/v1/qualiopi/indicateurs/{number}/revues` | Historique des revues d'un indicateur. | `quality.read` |
@@ -239,14 +252,15 @@ Fichier : `backend/app/handler/documents.py` — 6 route(s).
 
 ### Formation : sessions, cycle de vie, inscriptions
 
-Fichier : `backend/app/handler/training.py` — 12 route(s).
+Fichier : `backend/app/handler/training.py` — 13 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `GET` | `/api/v1/formations` | Liste des formations (programmes). | `sessions.read` ou `sessions.read_own` |
 | `GET` | `/api/v1/formateurs` | Liste des formateurs. | `sessions.read` ou `sessions.read_own` |
 | `GET` | `/api/v1/stagiaires` | Liste des stagiaires. | `sessions.read` |
-| `GET` | `/api/v1/sessions` | Sessions (filtres statut, du, au) ; un formateur ne voit que les siennes. | `sessions.read` ou `sessions.read_own` — portée : sans `sessions.read`, sessions du formateur relié au compte |
+| `GET` | `/api/v1/learners/{learner_id}/inscriptions` | Inscriptions d'un stagiaire, session la plus récente d'abord (`id`, `statut`, `financement`, `entreprise_id`, `abandon_le`, `session` : référence, statut, dates, formation, formateur) ; 404 si stagiaire inconnu. | `sessions.read` (même droit que la fiche `GET /learners/{id}`) |
+| `GET` | `/api/v1/sessions` | Sessions (filtres `statut`, `du`, `au`, `formateur` = id du formateur, appliqué dans la portée du compte) ; un formateur ne voit que les siennes. | `sessions.read` ou `sessions.read_own` — portée : sans `sessions.read`, sessions du formateur relié au compte |
 | `POST` | `/api/v1/sessions` | Crée une session. | `sessions.write` |
 | `GET` | `/api/v1/sessions/{session_id}` | Session, inscriptions et capacités de l'utilisateur. | `sessions.read` ou `sessions.read_own` — portée : hors de ses sessions → 404 |
 | `GET` | `/api/v1/sessions/{session_id}/activite` | Fil d'activité de la session. | `sessions.read` ou `sessions.read_own` — portée : hors de ses sessions → 404 |
@@ -284,7 +298,7 @@ Fichier : `backend/app/handler/training_resources.py (fabrique backend/app/handl
 | `POST` | `/api/v1/companies` | Création : entreprises clientes. | `sessions.write` |
 | `PATCH` | `/api/v1/companies/{item_id}` | Mise à jour partielle : entreprises clientes. | `sessions.write` |
 | `DELETE` | `/api/v1/companies/{item_id}` | Suppression (409 si encore référencée) : entreprises clientes. | `sessions.write` |
-| `GET` | `/api/v1/learners` | Liste : apprenants. | `sessions.read` |
+| `GET` | `/api/v1/learners` | Liste : apprenants ; filtre `entreprise` (id de l'entreprise). | `sessions.read` |
 | `GET` | `/api/v1/learners/{item_id}` | Détail : apprenants. | `sessions.read` |
 | `POST` | `/api/v1/learners` | Création : apprenants. | `sessions.write` |
 | `PATCH` | `/api/v1/learners/{item_id}` | Mise à jour partielle : apprenants. | `sessions.write` |
@@ -294,12 +308,12 @@ Fichier : `backend/app/handler/training_resources.py (fabrique backend/app/handl
 | `POST` | `/api/v1/trainers` | Création : formateurs. | `trainers.write` |
 | `PATCH` | `/api/v1/trainers/{item_id}` | Mise à jour partielle : formateurs. | `trainers.write` |
 | `DELETE` | `/api/v1/trainers/{item_id}` | Suppression (409 si encore référencée) : formateurs. | `trainers.write` |
-| `GET` | `/api/v1/trainer-qualifications` | Liste : qualifications des formateurs. | `sessions.read` |
+| `GET` | `/api/v1/trainer-qualifications` | Liste : qualifications des formateurs ; filtre `formateur` (id). | `sessions.read` |
 | `GET` | `/api/v1/trainer-qualifications/{item_id}` | Détail : qualifications des formateurs. | `sessions.read` |
 | `POST` | `/api/v1/trainer-qualifications` | Création : qualifications des formateurs. | `trainers.write` |
 | `PATCH` | `/api/v1/trainer-qualifications/{item_id}` | Mise à jour partielle : qualifications des formateurs. | `trainers.write` |
 | `DELETE` | `/api/v1/trainer-qualifications/{item_id}` | Suppression (409 si encore référencée) : qualifications des formateurs. | `trainers.write` |
-| `GET` | `/api/v1/staff-development` | Liste : actions de développement des compétences (formateurs). | `sessions.read` |
+| `GET` | `/api/v1/staff-development` | Liste : actions de développement des compétences (formateurs) ; filtre `formateur` (id). | `sessions.read` |
 | `GET` | `/api/v1/staff-development/{item_id}` | Détail : actions de développement des compétences (formateurs). | `sessions.read` |
 | `POST` | `/api/v1/staff-development` | Création : actions de développement des compétences (formateurs). | `trainers.write` |
 | `PATCH` | `/api/v1/staff-development/{item_id}` | Mise à jour partielle : actions de développement des compétences (formateurs). | `trainers.write` |
@@ -381,7 +395,7 @@ Fichier : `backend/app/handler/editions.py` — 12 route(s).
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `GET` | `/api/v1/editions/types` | Types de documents (devis…), statuts et unités. | `documents.read` |
-| `GET` | `/api/v1/editions` | Liste des documents professionnels. | `documents.read` |
+| `GET` | `/api/v1/editions` | Liste des documents professionnels ; filtres `entreprise` (id du client) et `type` (code de `GET /editions/types`, 422 si inconnu). | `documents.read` |
 | `GET` | `/api/v1/editions/synthese` | Chiffres de l'accueil du module Documents. | `documents.read` |
 | `GET` | `/api/v1/editions/formations` | Formations proposables dans un devis (tarif, durée). | `documents.read` |
 | `GET` | `/api/v1/editions/clients` | Clients (entreprises) et complétude de l'adresse. | `documents.read` |
@@ -451,11 +465,12 @@ Fichier : `backend/app/handler/journey.py` — 9 route(s).
 
 ### Financement
 
-Fichier : `backend/app/handler/funding.py` — 8 route(s).
+Fichier : `backend/app/handler/funding.py` — 9 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `GET` | `/api/v1/financement/dispositifs` | Dispositifs de financement activés et leurs étapes. | `funding.read` |
+| `GET` | `/api/v1/financement/regles` | Toutes les règles datées : `cle`, `description`, `valeurs[]` (`depuis`, `valeur`, `source`), `en_vigueur` à la date `le` (défaut : aujourd'hui ; `null` si aucune). | `funding.read` |
 | `GET` | `/api/v1/financement/regles/{key}` | Valeur d'une règle datée à une date (`le`), avec sa source. | `funding.read` |
 | `POST` | `/api/v1/inscriptions/{enrollment_id}/financement` | Ouvre le dossier de financement d'une inscription. | `funding.write` |
 | `GET` | `/api/v1/inscriptions/{enrollment_id}/financement` | Dossier de financement d'une inscription, sources et capacités. | `funding.read` |
@@ -475,7 +490,7 @@ Fichier : `backend/app/handler/hr.py` — 8 route(s).
 | `GET` | `/api/v1/rh/personnel/{staff_id}` | Fiche du personnel avec contrats et absences. | `staff.read` |
 | `POST` | `/api/v1/rh/personnel/{staff_id}/contrats` | Ajoute un contrat. | `staff.write` |
 | `POST` | `/api/v1/rh/personnel/{staff_id}/absences` | Ajoute une absence. | `staff.write` |
-| `GET` | `/api/v1/rh/echeances` | Titres des formateurs expirés ou expirant sous `jours` jours. | `staff.read` |
+| `GET` | `/api/v1/rh/echeances` | Titres des formateurs expirés ou expirant sous `jours` jours (`titre_id`, formateur, type, libellé, fin, état). | `staff.read` |
 | `POST` | `/api/v1/formateurs/{trainer_id}/titres` | Ajoute un titre ou une qualification à un formateur. | `trainers.write` |
 | `PUT` | `/api/v1/formateurs/{trainer_id}/compte` | Relie un compte utilisateur à une fiche formateur. | `users.manage` |
 
@@ -649,7 +664,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 
 | # | Entité | Où elle vit | Champs principaux | Routes | Section |
 |---|---|---|---|---|---|
-| 4 | Utilisateurs | tables `iam.user`, `iam.user_role` (`auth.models`) | `email`, `full_name`, `password_hash`, `is_active`, rôles | `GET/POST /api/v1/auth/users`, `PUT …/{user_id}/roles`, `PUT …/{user_id}/active` (`users.manage`) ; `GET/PATCH /api/v1/auth/me`, `POST /api/v1/auth/me/password` (soi-même). Création du premier admin : CLI `create-admin` | Équipe et accès › Comptes |
+| 4 | Utilisateurs | tables `iam.user`, `iam.user_role` (`auth.models`) | `email`, `full_name`, `password_hash`, `is_active`, rôles | `GET/POST /api/v1/auth/users`, `PUT …/{user_id}/roles`, `PUT …/{user_id}/active` (`users.manage`) ; `GET/PATCH /api/v1/auth/me`, `POST /api/v1/auth/me/password`, `POST /api/v1/auth/me/deconnexion-partout` (soi-même) ; `token_version` sert à la révocation des jetons, jamais exposé. Création du premier admin : CLI `create-admin` | Équipe et accès › Comptes |
 | 5 | Rôles | rôles système dans le code (`SYSTEM_ROLES`, 9 rôles, dont `assistant_ia`, compte technique du serveur MCP) + rôles personnalisés en table `iam.role` | `code`, `label`, `description`, `permissions` (liste de codes) | `GET /api/v1/auth/roles` (authentifié) ; `POST`, `PUT /{code}`, `DELETE /{code}` (`users.manage`, rôles personnalisés seulement, anti-escalade) | Équipe et accès › Rôles |
 | 6 | Catalogue des permissions | code `app/router/rbac.py` (`CATALOGUE`, 27 permissions) | `code`, `label`, `feature` | `GET /api/v1/auth/permissions` (lecture seule) | Équipe et accès › Rôles (cases à cocher groupées par module) |
 | 7 | Liaison compte ↔ formateur / personnel | colonnes `formation.trainer.user_id`, `rh.staff_member.user_id` | compte relié (donne la portée `sessions.read_own`) | `PUT /api/v1/formateurs/{trainer_id}/compte` (`users.manage`) ; `POST /api/v1/rh/personnel` (`staff.write`) | Équipe et accès › Comptes |
@@ -672,7 +687,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 | 14 | Types de preuve | code `app/application/service/qualiopi/labels.py` (`EVIDENCE_TYPES`, 31 codes : AGREEMENT, ATTENDANCE, PUBLIC_INFO…) | code → libellé | aucune route dédiée (libellés renvoyés dans les vues preuves) ; code seulement | Preuves et dossiers › Types de preuve (lecture seule) |
 | 15 | Dossiers de pièces attendues et grilles de relecture | fichier `backend/config/dossiers/standard.yaml` (ORGANISME : 7 pièces, FORMATEUR : 2 pièces) + trames `config/dossiers/modeles/*.md` | par pièce : `code`, `label`, `evidence`, `indicators`, `validity_days`, `required`, `modele`, `grille[]` (`code`, `question`, `exigence` REFERENTIEL / REGLEMENTAIRE / GSMS, `source`, `condition`) | `GET /api/v1/dossiers/{subject}/{subject_id}`, `GET /api/v1/dossiers/{subject}/modeles/{requirement}` (`quality.read`) ; fichier seulement | Preuves et dossiers › Pièces attendues |
 | 16 | Règle d'auto-validation des preuves | réglage `quality.allow_self_validation` (voir 3.1) | booléen daté, motif obligatoire | `PUT /api/v1/settings/quality.allow_self_validation` | Preuves et dossiers › Validation |
-| 17 | Circuit de session (jalons de l'échéancier) | fichier `backend/config/circuits/standard.yaml` (8 jalons, J-15 → J+45) ; état calculé en `qualite.milestone_status` | `key`, `label`, `anchor` (start / end), `offset_days`, `warn_days`, `evidence`, `facts`, `enrollments`, `owner` | lus via `GET /api/v1/qualiopi/echeances`, `GET /api/v1/pilotage/feuille-de-route` ; fichier seulement | Échéancier |
+| 17 | Circuit de session (jalons de l'échéancier) | fichier `backend/config/circuits/standard.yaml` (8 jalons, J-15 → J+45) ; état calculé en `qualite.milestone_status` | `key`, `label`, `anchor` (start / end), `offset_days`, `warn_days`, `evidence`, `facts`, `enrollments`, `owner` | lu en clair via `GET /api/v1/qualiopi/circuit` ; appliqué dans `GET /api/v1/qualiopi/echeances`, `GET /api/v1/pilotage/feuille-de-route` ; modifiable dans le fichier seulement | Échéancier |
 
 ### 3.5 Communications et questionnaires
 
@@ -688,7 +703,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 | # | Entité | Où elle vit | Champs principaux | Routes | Section |
 |---|---|---|---|---|---|
 | 22 | Dispositifs de financement (circuits) | fichier `backend/config/financement/dispositifs.yaml` (version 2026-09-29 : CPF, OPCO, FRANCE_TRAVAIL, ENTREPRISE, PERSONNEL) ; activés par les modules `funding`, `funding.cpf`, `funding.opco`, `funding.france_travail` | `label`, `feature`, `provider`, `payer`, `prorata`, `initial`, `final`, `states`, `actions` (`from`, `to`, `requires`, `due`, `portal`, `label`), `pieces` | `GET /api/v1/financement/dispositifs` (`funding.read`, lecture) ; fichier seulement | Financement › Dispositifs |
-| 23 | Règles datées du financement | fichier `backend/config/financement/regles.yaml` (`cpf.participation_titulaire_eur`, `personnel.delai_retractation_jours`, `personnel.acompte_max_pourcent`) | `description`, `values[]` (`from`, `value`, `source`) | `GET /api/v1/financement/regles/{key}?le=` (`funding.read`) ; fichier seulement | Financement › Règles réglementaires (lecture seule) |
+| 23 | Règles datées du financement | fichier `backend/config/financement/regles.yaml` (`cpf.participation_titulaire_eur`, `personnel.delai_retractation_jours`, `personnel.acompte_max_pourcent`) | `description`, `values[]` (`from`, `value`, `source`) | `GET /api/v1/financement/regles?le=` (liste) et `GET /api/v1/financement/regles/{key}?le=` (`funding.read`) ; modifiable dans le fichier seulement | Financement › Règles réglementaires (lecture seule) |
 | 24 | Référentiel des pièces EDOF | fichier `backend/config/edof/referencement.yaml` (version 2026-10-02, 25 pièces) chargé par `app/application/service/edof/requirements.py` | `version`, `sources`, `pieces[]` (`code`, `label`, `scope` ETABLISSEMENT / FORMATION, `stage`, `when`, `group`, `max_age_days`, `expires`, `siret`, `sensitive`, `generated`, `provided_by`) | `GET /api/v1/edof/referentiel` (`edof.read`) ; fichier seulement | EDOF › Pièces exigées |
 | 25 | Profil EDOF de l'établissement | table `edof.establishment` (créée à la première lecture) ; amorçage possible par `config/edof/formssi.yaml` (CLI `import-formssi`) | `legal_name`, `legal_form`, `structure_type`, `address`, `naf_code`, représentant, `qualiopi_certificate/certifier/valid_until/categories`, `efp_connect_status`, dates de vérification, `cgu_version_read`, `uses_subcontracting`, `note` | `GET`/`PATCH /api/v1/edof/etablissement` (`edof.read` / `edof.write`, vérifications : `edof.validate`) | EDOF › Établissement (ou Organisme) |
 
@@ -698,7 +713,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 |---|---|---|---|---|---|
 | 26 | Modèles de documents | fichiers `backend/config/documents_generes/` (convocation, attestation de fin, programme, `_base.html`), `config/documents_pro/` (devis, facture et avoir, `_base_a4.html`), `config/qualiopi/carnet.html`, logo `config/organisme/logo.png` ; coordonnées imprimées via les réglages `documents.*` | gabarits Jinja HTML | rendus par `GET /api/v1/fiches/{id}/versions/{vid}/programme`, `GET /api/v1/editions/{id}/apercu`, `GET /api/v1/qualiopi/carnet/impression`, documents du parcours ; aucune route d'édition (le logo n'est pas téléversable) | Documents et modèles |
 | 27 | Moyens et partenaires de l'organisme | tables `formation.premises`, `formation.equipment`, `formation.subcontractor`, `formation.partner`, `formation.watch_item` | lieux (`code`, `name`, `kind`, `parent_id`, `capacity`, `accessibility`, `status`…), équipements (`category`, `quantity`, `regulatory_ref`, `next_check_on`…), sous-traitants (`siret`, `qualiopi_certified`, `contract_signed_on`), partenaires (`kind` HANDICAP / SOCIO_ECONOMIQUE), veille (`domain` LEGALE / METIERS / PEDAGOGIQUE) | CRUD `/api/v1/premises`, `/equipment` (écriture `sessions.write`), `/subcontractors`, `/partners`, `/watch-items` (écriture `quality.write`) ; lecture `sessions.read` ou `quality.read` | Moyens et partenaires |
-| 28 | Listes de valeurs codées | constantes dans `app/types/training.py` (`TRACKS`, `PATHWAYS`, `DELIVERY_MODES`, `CERTIFICATION_BASES`, `HABILITATIONS`, `PROGRAM_TRAINER_ROLES`, `RESOURCE_*`, `QUALIFICATION_KINDS`, `PREMISES_KINDS`, `PLACE_STATUSES`, `EQUIPMENT_CATEGORIES`, `SURVEY_AUDIENCES`…), `app/types/edof.py`, `app/types/hr.py` (`STAFF_KINDS`, `CONTRACT_KINDS`, `ABSENCE_KINDS`), `app/types/editions.py` (`KINDS`, `STATUSES`, `UNITS`), `ACTION_CATEGORIES` (`platform/router.py`) | code → libellé | certaines exposées en lecture (`GET /api/v1/fiches/{id}` : `certification_bases`, `habilitations`… ; `GET /api/v1/editions/types` ; `GET /api/v1/organisme` : `categories_possibles`) ; code seulement | Listes de valeurs (lecture seule) |
+| 28 | Listes de valeurs codées | constantes dans `app/types/training.py` (`TRACKS`, `PATHWAYS`, `DELIVERY_MODES`, `CERTIFICATION_BASES`, `HABILITATIONS`, `PROGRAM_TRAINER_ROLES`, `RESOURCE_*`, `QUALIFICATION_KINDS`, `PREMISES_KINDS`, `PLACE_STATUSES`, `EQUIPMENT_CATEGORIES`, `SURVEY_AUDIENCES`…), `app/types/edof.py`, `app/types/hr.py` (`STAFF_KINDS`, `CONTRACT_KINDS`, `ABSENCE_KINDS`), `app/types/editions.py` (`KINDS`, `STATUSES`, `UNITS`), `ACTION_CATEGORIES` (`platform/router.py`) | code → libellé | certaines exposées en lecture (`GET /api/v1/listes-de-valeurs` : lieux, équipements, partenaires, veille, réclamations, publics d'enquête, titres ; `GET /api/v1/fiches/{id}` : `certification_bases`, `habilitations`… ; `GET /api/v1/editions/types` ; `GET /api/v1/organisme` : `categories_possibles`) ; code seulement | Listes de valeurs (lecture seule) |
 | 29 | Configuration de déploiement | variables d'environnement lues par `app/config/config.py` (`Settings`) | `APP_ENV`, `DATABASE_URL`, `JWT_SECRET`, `JWT_TTL_MINUTES`, `CORS_ORIGINS`, `REFERENTIALS_DIR`, `DOCUMENTS_DIR`, `FEATURES_AVAILABLE`, `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/SSL/FROM`, `PUBLIC_URL`, `WEKNORA_URL`, `WEKNORA_SERVICE_EMAIL/PASSWORD`, `IA_MCP_URL`, `IA_COMPTE_TECHNIQUE_EMAIL` | aucune route (seul `FEATURES_AVAILABLE` se voit indirectement par `available` dans `GET /api/v1/features`) | Déploiement (informatif, hors panneau) |
 | 30 | Données d'amorçage | `backend/config/catalogue/gsms-school.yaml` (offre, lieux, équipements), `backend/config/edof/formssi.yaml` + `formssi-tfp-aps-modules.json`, données de démonstration (`app/application/service/demo.py`) | — | aucune route : CLI `import-gsms-school`, `import-formssi`, `seed-demo`, `retirer-demo` | hors panneau (outil d'installation) |
 

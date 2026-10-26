@@ -185,6 +185,7 @@ ROUTERS = [
         model=t.Learner, path="learners", schema_in=PersonIn, label="Apprenant",
         write_permission="sessions.write", order_by=[t.Learner.last_name, t.Learner.first_name],
         serialize=serialize_learners, validate=_exists("company_id", t.Company, "Entreprise"),
+        filters={"entreprise": t.Learner.company_id},
     ),
     crud_router(
         model=t.Trainer, path="trainers", schema_in=TrainerIn, label="Formateur",
@@ -196,13 +197,14 @@ ROUTERS = [
         label="Qualification", write_permission="trainers.write",
         order_by=[t.TrainerQualification.valid_until], updated_event="trainer.qualification_updated",
         event_entity="trainer_qualification", serialize=_with_trainer,
-        validate=_exists("trainer_id", t.Trainer, "Formateur"),
+        validate=_exists("trainer_id", t.Trainer, "Formateur"), filters={"formateur": t.TrainerQualification.trainer_id},
     ),
     crud_router(
         model=t.StaffDevelopmentAction, path="staff-development", schema_in=StaffDevelopmentIn,
         label="Action de développement", write_permission="trainers.write",
         order_by=[t.StaffDevelopmentAction.planned_on.desc()], updated_event="staff_development.updated",
         serialize=_with_trainer, validate=_exists("trainer_id", t.Trainer, "Formateur"),
+        filters={"formateur": t.StaffDevelopmentAction.trainer_id},
     ),
     crud_router(
         model=t.Premises, path="premises", schema_in=PremisesIn, label="Lieu",
@@ -229,20 +231,20 @@ ROUTERS = [
     crud_router(
         model=t.PartnerNetwork, path="partners", schema_in=PartnerIn, label="Partenaire",
         write_permission="quality.write", read_permissions=QUALITY_READ, order_by=[t.PartnerNetwork.name], updated_event="partner.updated",
-        validate=_one_of("kind", ("HANDICAP", "SOCIO_ECONOMIQUE"), "Type de partenaire"),
+        validate=_labels("kind", t.PARTNER_KINDS, "Type de partenaire"),
     ),
     crud_router(
         model=t.WatchItem, path="watch-items", schema_in=WatchIn, label="Veille",
         write_permission="quality.write", read_permissions=QUALITY_READ, order_by=[t.WatchItem.noted_on.desc()], updated_event="watch.updated",
-        validate=_one_of("domain", ("LEGALE", "METIERS", "PEDAGOGIQUE"), "Domaine de veille"),
+        validate=_labels("domain", t.WATCH_DOMAINS, "Domaine de veille"),
     ),
     crud_router(
         model=t.Complaint, path="complaints", schema_in=ComplaintIn, label="Réclamation",
         write_permission="quality.write", read_permissions=QUALITY_READ, order_by=[t.Complaint.received_on.desc()],
         created_event="complaint.created", updated_event="complaint.updated", serialize=_with_session,
         validate=_all(
-            _one_of("kind", ("RECLAMATION", "DIFFICULTE", "ALEA"), "Type"),
-            _one_of("stakeholder", ("APPRENANT", "ENTREPRISE", "FINANCEUR", "FORMATEUR", "AUTRE"), "Partie prenante"),
+            _labels("kind", t.COMPLAINT_KINDS, "Type"),
+            _labels("stakeholder", t.COMPLAINT_STAKEHOLDERS, "Partie prenante"),
             _exists("session_id", t.TrainingSession, "Session"),
         ),
     ),
@@ -251,7 +253,7 @@ ROUTERS = [
         write_permission="quality.write", read_permissions=QUALITY_READ, order_by=[t.SatisfactionSurvey.sent_on.desc()],
         updated_event="survey.completed", serialize=serialize_surveys,
         validate=_all(
-            _one_of("audience", ("APPRENANT_CHAUD", "APPRENANT_FROID", "ENTREPRISE", "FINANCEUR", "FORMATEUR"), "Public"),
+            _labels("audience", t.SURVEY_AUDIENCES, "Public"),
             _exists("session_id", t.TrainingSession, "Session"),
         ),
     ),
