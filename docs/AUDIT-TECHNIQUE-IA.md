@@ -86,8 +86,12 @@ politiques). La base `weknora` ne contient que des textes officiels (65 document
 
 ## 6. Partiel ou non vérifié
 
-- **Génération (chat, agents)** : non mesurée. Le modèle de dev est petit et tourne sur processeur ; il sert à vérifier
-  le circuit, pas la qualité des réponses.
+- **Génération (agents)** : mesurée le 27/10/2026, **inutilisable avec le modèle local de dev sur cette machine**. Une
+  question à « Préparation d'audit » envoie environ 7 500 jetons (consignes et 14 outils) ; Ollama, réglé à 4 096 jetons
+  de contexte, **tronque le début de la requête, donc les consignes** (dont celle contre l'injection d'instructions), puis
+  ne produit rien en 2 minutes sur 4 cœurs sans carte graphique : le moteur abandonne. Le test d'injection au niveau de
+  l'assistant n'a donc pas pu conclure. Il faut un modèle à plus grand contexte (local sur une machine dédiée, ou
+  fournisseur) avant toute mise en service des assistants ; la troncature des consignes est un risque de sécurité.
 - **Production** : aucun fournisseur choisi. Le fichier Mistral (`builtin_models.mistral.yaml.example`) n'a jamais été
   essayé.
 - **Absence de preuve** : la recherche hybride rend toujours ses meilleurs passages, avec des scores normalisés (1,0 pour
@@ -197,7 +201,8 @@ fermée ; sandbox coupée en production.
 
 ## 12. Plan, par priorité
 
-1. **P0** : choisir le fournisseur de production (local ou UE) et mesurer la génération sur le même jeu de questions.
+1. **P0** : choisir le fournisseur de production (local ou UE), avec un contexte d'au moins 16 000 jetons (consignes
+   jamais tronquées), puis rejouer le pilote et le test d'injection au niveau des assistants.
 2. **P1** : observations du modèle dans le contrat (version 2) : réponse JSON validée par schéma, chaque citation
    rattachée à un passage réellement retrouvé (sinon rejetée), statut « proposition IA » jusqu'à validation humaine ;
    c'est là que se jugeront contradictions, incomplétude et absence de preuve (§6 bis).
