@@ -59,7 +59,14 @@ export function extractSignToken(input: string): string | null {
   const text = input.trim()
   if (!text) return null
   const fromQuery = /[?&]jeton=([^&#\s]+)/.exec(text)
-  const raw = fromQuery ? decodeURIComponent(fromQuery[1]) : text
+  let raw = text
+  if (fromQuery) {
+    try {
+      raw = decodeURIComponent(fromQuery[1])
+    } catch {
+      return null // pourcentage mal formé (lien abîmé au copier-coller) : refusé, la page affiche le message
+    }
+  }
   return /^[A-Za-z0-9_-]{16,128}$/.test(raw) ? raw : null
 }
 

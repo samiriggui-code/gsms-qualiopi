@@ -10,7 +10,7 @@ de domaine (`*/policy.py`).
 ### Service et préfixes
 
 - Application : `create_app()` dans `backend/app/cmd/server.py`, servie par `uvicorn app.cmd.server:app` (port 8000 dans le conteneur).
-- Le reverse proxy (`deploy/Caddyfile`) publie l'API **à la racine du domaine, sans préfixe ajouté** : `reverse_proxy api:8000`.
+- Le reverse proxy (service `web`, `deploy/Caddyfile`) relaie `/api/*` et `/health` vers l'API **sans préfixe ajouté ni retiré** ; la landing est à `/`, le back-office à `/app/`, le moteur IA à `/ia/` (voir `deploy/README.md`).
 - En revanche, **chaque routeur porte lui-même le préfixe `/api/v1`** (ex. `/api/v1/auth/login`). Seule `GET /health` est hors
   `/api/v1`.
 - Documentation interactive : `/docs` (Swagger) et `/openapi.json`, **uniquement si `APP_ENV != production`**

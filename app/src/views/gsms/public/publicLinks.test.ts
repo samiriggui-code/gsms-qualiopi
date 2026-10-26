@@ -41,6 +41,7 @@ test('jeton d\'émargement : lien entier collé ou jeton seul', () => {
   assert.equal(extractSignToken(` ${jeton} `), jeton)
   assert.equal(extractSignToken('https://of.test/emarger?code=abc'), null)
   assert.equal(extractSignToken('court'), null)
+  assert.equal(extractSignToken('https://of.test/emarger?jeton=%E0%A4%A'), null) // encodage abîmé : pas d'exception
 })
 
 test('statuts de l\'API traduits en genres d\'erreur, message de l\'API gardé quand il est pour la personne', () => {

@@ -3,6 +3,8 @@
 Dernière mise à jour : 05/10/2026 (parcours EDOF fusionné dans `main` ; données réelles de Form'SSI complétées, §5 ter).
 À lire en entier avant de toucher au code.
 
+> **26/10/2026 — Front branché sur 5eb5d8a.** Profil = compte qualiopi (mot de passe → nouveau jeton gardé, « Se déconnecter partout ») ; accueil `/platform/accueil` → Pilotage ou 1re section ouverte par /bootstrap (logo idem) ; guides WeKnora coupés (`WEKNORA_GUIDES_ENABLED` dans `config/gitssFeatures.ts`) ; listes de codes via `GET /listes-de-valeurs` (store `gsmsValueLists`), filtres `entreprise`/`type`/`formateur`, `titre_id`, `/learners/{id}/inscriptions`, Paramètres › Échéancier et règles de financement lues par l'API.
+
 > **26/10/2026 — Front retiré.** le front Next.js/Metronic a été **retiré volontairement** (26/10/2026) : il sera refait en Vue 3 + TDesign, avec la coquille du back-office Global-IT-SS (kit dérivé de WeKnora : menu, panneau Paramètres). Le dépôt ne contient plus que le moteur Qualiopi et ses API ; l'inventaire des routes et des entités de paramétrage est dans [`docs/API.md`](docs/API.md). L'ancien front reste consultable dans l'historique git (commit `814e838`). Les mentions du front dans les §5 et suivants décrivent l'historique ; elles ne correspondent plus au contenu du dépôt.
 
 ## 1. Le produit
@@ -440,6 +442,10 @@ ne sont pas encore à l'écran.
 
 **Démo complétée (26/10/2026, C13)** : `seed-demo` ajoute la formation MAC-SST (vignette : celle du SST, `thumbnail.ts`), 7 lieux et salles en `DEMO-` (capacité, accessibilité, une antenne « à vérifier »), 7 équipements (une vérification échue, une dans 12 jours), 2 sous-traitants (un certifié, un vérifié non certifié), partenaires handicap et socio-économiques, 4 fiches RH (contrats, une absence ; Julie Martin, intervenante extérieure, sans fiche), titres (H0B0 de Karim Benali à renouveler dans 45 jours), actions de développement, enquêtes entreprise, formateur et financeur, 4 dossiers de financement (OPCO, entreprise, CPF, créés seulement si le dispositif est actif) et deux sessions à venir dans la même salle (SST-2026-05, MAC-SST-2026-01 : un conflit au planning). Trous plantés inchangés ; `retirer-demo` retire tout (`test_demo.py`). `funding.apply` accepte un acteur système (`None`).
 
+**Sécurité front et publication (26/10/2026, C17)** : dépendances de `app/` figées et corrigées (dompurify 3.4.17, axios 1.20.0, mermaid 11.17.2, katex 0.18.10, vue 3.5.43, vite 7.3.7 ; webpack et less-loader retirés ; `npm audit` à zéro) ; production sur une seule origine par le service `web` (`deploy/web.Dockerfile`, Caddy : `/` landing, `/app/` back-office, `/api/` API, `/ia/` moteur IA ; `/api/v1/mcp` et l'embed WeKnora non publiés), CSP stricte sur `/app/` (scripts en ligne déplacés dans `app/public/boot.js`), restes nginx de WeKnora supprimés. Détail : `deploy/README.md`.
+
+**Pages publiques par lien signé et contact (26/10/2026)** : `/q/{jeton}`, `/espace/{jeton}`, `/emarger` vivent dans `app/` (`views/gsms/public/`, routes `requiresAuth: false` sans coque, base `/` du routeur quand l'adresse est à la racine) ; Caddy réécrit ces chemins vers `/app/index.html` (`@pages_publiques`), Vite fait de même en dev et réécrit `/api/public/documents/` vers `/api/v1/…`. Émargement : jeton du lien personnel gardé dans le stockage local de l'appareil puis retiré de l'adresse, signature au clic quand le code de salle est là. Formulaire de contact de la landing → `POST /api/v1/public/contact` (e-mail interne du journal des communications aux comptes `leads.read`, limite 5/10 min, `test_contact.py`). L'API Docker de dev doit être reconstruite pour servir `/public/contact`.
+
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
 L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau
@@ -454,8 +460,7 @@ Points de départ :
 - le front n'affiche que les décisions de l'API (capacités, refus motivés `Decision`) ;
 - pages publiques par lien signé à refaire (questionnaires, espace du stagiaire), adresse du front dans
   `PUBLIC_URL` ;
-- en production, Caddy ou Traefik publient aujourd'hui l'API seule (`deploy/`) : y remettre le front
-  quand il existera.
+- en production, le service `web` (`deploy/`) publie la landing, le back-office, l'API et le moteur IA.
 
 ## 7. Reste à faire (ordre proposé)
 
