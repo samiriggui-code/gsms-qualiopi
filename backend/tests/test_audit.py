@@ -4,11 +4,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.qualiopi.audit.service import close_audit, compare, create_audit, judge
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evaluation.models import Finding
-from app.training import models as t
+from app.application.service.qualiopi.audit.service import close_audit, compare, create_audit, judge
+from app.application.service.qualiopi.engine import refresh_all
+from app.errors.errors import InvalidStateError
+from app.types import training as t
+from app.types.qualiopi_evaluation import Finding
 from tests.conftest import TODAY
 
 

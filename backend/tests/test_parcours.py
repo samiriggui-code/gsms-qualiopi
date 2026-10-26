@@ -7,13 +7,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.journey import service
-from app.platform.decisions import PolicyDenied
-from app.platform.settings import ConfigurationService
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evidence.models import Evidence
-from app.training import models as t
+from app.application.service.journey import service
+from app.application.service.platform.decisions import PolicyDenied
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.qualiopi.engine import refresh_all
+from app.errors.errors import InvalidStateError
+from app.types import training as t
+from app.types.qualiopi_evidence import Evidence
 from tests.conftest import TODAY, find_session, make_user
 
 

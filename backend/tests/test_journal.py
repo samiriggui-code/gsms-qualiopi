@@ -3,8 +3,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.journal import ChangeLog, set_actor
-from app.training import models as t
+from app.common.journal import ChangeLog, set_actor
+from app.types import training as t
 from tests.conftest import make_user
 
 

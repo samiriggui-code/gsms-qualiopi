@@ -7,12 +7,12 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.attendance import service
-from app.core.errors import InvalidStateError
-from app.platform.decisions import PolicyDenied
-from app.platform.settings import ConfigurationService
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evaluation.models import ControlResult
+from app.application.service.attendance import service
+from app.application.service.platform.decisions import PolicyDenied
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.qualiopi.engine import refresh_all
+from app.errors.errors import InvalidStateError
+from app.types.qualiopi_evaluation import ControlResult
 from tests.conftest import TODAY, find_session, make_user
 
 PARIS = ZoneInfo("Europe/Paris")

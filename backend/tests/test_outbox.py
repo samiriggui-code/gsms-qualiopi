@@ -4,12 +4,12 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.events.models import OutboxEvent
-from app.events.publish import publish
-from app.qualiopi.engine import process_pending
-from app.qualiopi.evaluation.models import ControlResult, EvaluationRun
-from app.qualiopi.evidence.models import Evidence
-from app.training import models as t
+from app.application.service.qualiopi.engine import process_pending
+from app.event.publish import publish
+from app.types import training as t
+from app.types.event import OutboxEvent
+from app.types.qualiopi_evaluation import ControlResult, EvaluationRun
+from app.types.qualiopi_evidence import Evidence
 from tests.conftest import TODAY, find_session
 
 

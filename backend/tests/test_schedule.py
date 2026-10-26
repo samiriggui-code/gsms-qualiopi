@@ -5,13 +5,13 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.demo import PLANTED_MILESTONES
-from app.events.publish import publish
-from app.qualiopi.engine import process_pending, refresh_all
-from app.qualiopi.evidence.models import Evidence
-from app.qualiopi.schedule.models import MilestoneStatus
-from app.qualiopi.schedule.service import MilestoneDef, assess, load_circuit
-from app.training import models as t
+from app.application.service.demo import PLANTED_MILESTONES
+from app.application.service.qualiopi.engine import process_pending, refresh_all
+from app.application.service.qualiopi.schedule.service import MilestoneDef, assess, load_circuit
+from app.event.publish import publish
+from app.types import training as t
+from app.types.qualiopi_evidence import Evidence
+from app.types.qualiopi_schedule import MilestoneStatus
 from tests.conftest import TODAY, find_session, make_user
 
 

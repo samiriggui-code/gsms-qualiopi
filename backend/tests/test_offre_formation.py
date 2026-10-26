@@ -3,8 +3,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.training import models as t
-from app.training.import_school import import_gsms_school, load
+from app.application.service.training.import_school import import_gsms_school, load
+from app.types import training as t
 from tests.conftest import make_user
 
 API = "/api/v1"

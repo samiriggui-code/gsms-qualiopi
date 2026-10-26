@@ -2,8 +2,8 @@
 
 from sqlalchemy.orm import Session
 
-from app.journey.service import journey_view
-from app.training import models as t
+from app.application.service.journey.service import journey_view
+from app.types import training as t
 from tests.conftest import make_user
 
 

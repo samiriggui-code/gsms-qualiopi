@@ -54,7 +54,7 @@ def test_indicateurs_du_referentiel_en_vigueur(client, demo: Session) -> None:  
 
 
 def test_nom_de_fichier_accentue_dans_l_en_tete() -> None:
-    from app.core.downloads import content_disposition
+    from app.common.downloads import content_disposition
 
     header = content_disposition("Procédure réclamations — œuvre.pdf")
     header.encode("latin-1")  # un en-tête HTTP doit rester encodable, sinon le serveur répond 500
@@ -135,7 +135,7 @@ def test_carnet_d_une_session(client, demo: Session) -> None:  # noqa: ANN001
 
 
 def test_nomenclature_et_carnet_imprimable(client, demo: Session) -> None:  # noqa: ANN001
-    from app.qualiopi.nomenclature import criterion_range
+    from app.application.service.qualiopi.nomenclature import criterion_range
 
     _, h = make_user(demo, "qualite")
     client.post("/api/v1/qualiopi/evaluate", headers=h)

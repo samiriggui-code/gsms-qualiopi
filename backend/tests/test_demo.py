@@ -8,13 +8,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import ConflictError
-from app.demo import PLANTED_GAPS, seed_demo
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evaluation.models import ControlResult, Finding
-from app.qualiopi.evaluation.service import indicator_readiness
-from app.qualiopi.evidence.models import Evidence
-from app.qualiopi.referential.importer import import_referential
+from app.application.service.demo import PLANTED_GAPS, seed_demo
+from app.application.service.qualiopi.engine import refresh_all
+from app.application.service.qualiopi.evaluation.service import indicator_readiness
+from app.application.service.qualiopi.referential.importer import import_referential
+from app.errors.errors import ConflictError
+from app.types.qualiopi_evaluation import ControlResult, Finding
+from app.types.qualiopi_evidence import Evidence
 from tests.conftest import TODAY, make_user
 from tests.conftest import find_session as _session
 from tests.conftest import target_names as _names
@@ -109,8 +109,8 @@ def test_demo_refusee_si_deja_installee(demo: Session) -> None:
 
 def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
     """Base déjà remplie (organisme et formation importés) : les exemples s'y ajoutent, puis repartent seuls."""
-    from app.demo import remove_demo
-    from app.training import models as t
+    from app.application.service.demo import remove_demo
+    from app.types import training as t
     from tests.conftest import V9
 
     import_referential(db, V9)

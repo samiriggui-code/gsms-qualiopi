@@ -1,0 +1,83 @@
+from sqlalchemy.orm import Session
+
+from app.types.event import OutboxEvent
+
+# Catalogue des événements métier émis par le domaine formation.
+EVENT_NAMES = {
+    "settings.changed",
+    "feature.changed",
+    "funding.source_changed",
+    "organization.updated",
+    "program.created",
+    "program.updated",
+    "session.created",
+    "session.updated",
+    "session.status_changed",
+    "learner.enrolled",
+    "enrollment.updated",
+    "needs_analysis.completed",
+    "positioning.completed",
+    "convocation.sent",
+    "agreement.signed",
+    "attendance.signed",
+    "attendance.slot_validated",
+    "assessment.completed",
+    "certificate.issued",
+    "survey.completed",
+    "complaint.created",
+    "complaint.updated",
+    "trainer.updated",
+    "trainer.qualification_updated",
+    "staff_development.updated",
+    "watch.updated",
+    "subcontractor.updated",
+    "partner.updated",
+    "document.issued",
+    "document.signed",
+    "capa.verification_requested",
+    "capa.closed",
+    # Fiche formation et référencement EDOF : préparation administrative, sans effet sur les preuves Qualiopi.
+    "program.version_validated",
+    "edof.dossier_created",
+    "edof.establishment_updated",
+    "edof.piece_attached",
+    "edof.piece_reviewed",
+    "edof.valider",
+    "edof.rouvrir",
+    "edof.declarer_depot",
+    "edof.enregistrer_complements",
+    "edof.declarer_complements_transmis",
+    "edof.enregistrer_decision",
+    # Documents professionnels (devis…) : documents commerciaux, sans effet sur les preuves Qualiopi.
+    "edition.created",
+    "edition.updated",
+    *(f"edition.{action}" for action in ("soumettre", "renvoyer", "valider", "envoyer", "reprendre", "archiver",
+                                         "abandonner")),
+}
+
+
+def publish(
+    db: Session,
+    name: str,
+    entity_type: str,
+    entity_id: str,
+    *,
+    session_id: str | None = None,
+    program_id: str | None = None,
+    actor_id: str | None = None,
+    payload: dict | None = None,
+) -> OutboxEvent:
+    """Ajoute l'événement à la transaction en cours (pas de commit ici)."""
+    if name not in EVENT_NAMES:
+        raise ValueError(f"Événement inconnu : {name}")
+    ev = OutboxEvent(
+        name=name,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        session_id=session_id,
+        program_id=program_id,
+        actor_id=actor_id,
+        payload=payload or {},
+    )
+    db.add(ev)
+    return ev

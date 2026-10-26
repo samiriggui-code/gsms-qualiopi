@@ -6,11 +6,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError, NotFoundError
-from app.core.journal import ChangeLog
-from app.events.models import OutboxEvent
-from app.platform.features import enabled_features, set_feature
-from app.platform.settings import ConfigurationService, definitions
+from app.application.service.platform.features import enabled_features, set_feature
+from app.application.service.platform.settings import ConfigurationService, definitions
+from app.common.journal import ChangeLog
+from app.errors.errors import InvalidStateError, NotFoundError
+from app.types.event import OutboxEvent
 from tests.conftest import make_user
 
 KEY = "quality.allow_self_validation"
@@ -101,7 +101,7 @@ def test_role_personnalise_cree_par_l_organisme(client, db: Session) -> None:  #
         "code": "x_inconnu", "label": "X", "permissions": ["tout.faire"]}).status_code == 422
     assert client.put(f"/api/v1/auth/users/{staff.id}/roles", headers=hq, json={"roles": ["relecteur_qualite"]}).status_code == 200
 
-    from app.auth.security import create_token
+    from app.middleware.auth import create_token
 
     hs = {"Authorization": f"Bearer {create_token(staff)}"}
     boot = client.get("/api/v1/bootstrap", headers=hs).json()

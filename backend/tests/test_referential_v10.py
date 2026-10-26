@@ -5,13 +5,13 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.demo import _grid_yes
-from app.documents.service import upload
-from app.qualiopi.evaluation.models import ControlResult
-from app.qualiopi.evaluation.service import evaluate, indicator_readiness
-from app.qualiopi.evidence.service import Scope, reconcile
-from app.qualiopi.referential.importer import activate_due, active_version, import_referential, load_referential
-from app.training import models as t
+from app.application.service.demo import _grid_yes
+from app.application.service.documents.service import upload
+from app.application.service.qualiopi.evaluation.service import evaluate, indicator_readiness
+from app.application.service.qualiopi.evidence.service import Scope, reconcile
+from app.application.service.qualiopi.referential.importer import activate_due, active_version, import_referential, load_referential
+from app.types import training as t
+from app.types.qualiopi_evaluation import ControlResult
 from tests.conftest import TODAY, V9
 
 V10 = V9.parent / "v10"

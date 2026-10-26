@@ -5,7 +5,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine
 
-from app.models import SCHEMAS, metadata
+from app.types.registry import SCHEMAS, metadata
 from tests.conftest import alembic_config
 
 

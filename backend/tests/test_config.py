@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.config.config import Settings
 
 STRONG = "x" * 40
 SAFE_DB = "postgresql+psycopg://gsms:un-vrai-mot-de-passe@db:5432/gsms"

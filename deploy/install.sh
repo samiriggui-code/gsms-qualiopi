@@ -5,7 +5,7 @@
 #   bash install.sh
 #
 # Installe Docker et git si besoin, ouvre les ports 80/443, récupère le code dans /opt/gsms-qualiopi,
-# démarre base + API + worker + front + HTTPS (branché sur Traefik s'il est déjà là, sinon Caddy),
+# démarre base + API + worker + HTTPS (branché sur Traefik s'il est déjà là, sinon Caddy),
 # puis crée le compte de direction.
 # Relancer le même script met l'application à jour (les données sont conservées).
 set -euo pipefail
@@ -58,9 +58,9 @@ if $first_install; then
   read -rp "E-mail : " email
   read -rp "Nom affiché : " name
   echo "Mot de passe (12 caractères minimum, rien ne s'affiche pendant la saisie) :"
-  docker compose exec api python -m app.cli create-admin "$email" "$name"
+  docker compose exec api python -m app.cmd.cli create-admin "$email" "$name"
 fi
 
 say "Terminé"
-echo "Application : https://$DOMAIN"
+echo "API : https://$DOMAIN/health (front retiré, refonte en cours : voir docs/API.md)"
 echo "E-mails : renseignez SMTP_USER, SMTP_PASSWORD et SMTP_FROM dans $DIR/.env, puis relancez : bash install.sh"

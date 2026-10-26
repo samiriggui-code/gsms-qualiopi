@@ -4,13 +4,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.documents.dossier import load_templates
-from app.documents.service import upload
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evidence.models import Evidence, EvidenceValidation
-from app.qualiopi.evidence.service import validate
-from app.training import models as t
+from app.application.service.documents.dossier import load_templates
+from app.application.service.documents.service import upload
+from app.application.service.qualiopi.engine import refresh_all
+from app.application.service.qualiopi.evidence.service import validate
+from app.errors.errors import InvalidStateError
+from app.types import training as t
+from app.types.qualiopi_evidence import Evidence, EvidenceValidation
 from tests.conftest import TODAY, make_user
 
 PDF = b"%PDF-1.4\n% procedure violences\n%%EOF\n"

@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.events.models import OutboxEvent
+from app.types.event import OutboxEvent
 from tests.conftest import make_user
 
 

@@ -1,7 +1,8 @@
-# Serveur où Traefik tient déjà les ports 80 et 443 (autres sites) : le front s'y déclare par étiquettes,
+# Serveur où Traefik tient déjà les ports 80 et 443 (autres sites) : l'API s'y déclare par étiquettes
+# (front retiré, refonte en cours),
 # Traefik obtient le certificat HTTPS. Valeurs détectées par deploy/deploy.sh et écrites dans .env.
 services:
-  web:
+  api:
     networks:
       - default
       - traefik
@@ -12,7 +13,7 @@ services:
       traefik.http.routers.gsms-qualiopi.entrypoints: ${TRAEFIK_ENTRYPOINT}
       traefik.http.routers.gsms-qualiopi.tls: "true"
       traefik.http.routers.gsms-qualiopi.tls.certresolver: ${TRAEFIK_CERTRESOLVER}
-      traefik.http.services.gsms-qualiopi.loadbalancer.server.port: "3000"
+      traefik.http.services.gsms-qualiopi.loadbalancer.server.port: "8000"
 
 networks:
   traefik:

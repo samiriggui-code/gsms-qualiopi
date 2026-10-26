@@ -7,14 +7,14 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.events.models import OutboxEvent
-from app.platform.features import set_feature
-from app.platform.settings import ConfigurationService
-from app.questionnaires import service
-from app.questionnaires.models import Invitation
-from app.relances.models import Message
-from app.relances.planner import plan
-from app.training import models as t
+from app.application.service.platform.features import set_feature
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.questionnaires import service
+from app.application.service.relances.planner import plan
+from app.types import training as t
+from app.types.event import OutboxEvent
+from app.types.questionnaires import Invitation
+from app.types.relances import Message
 from tests.conftest import find_session, make_user
 from tests.test_relances import outbox  # noqa: F401  (fixture)
 

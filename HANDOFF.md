@@ -3,6 +3,8 @@
 Dernière mise à jour : 05/10/2026 (parcours EDOF fusionné dans `main` ; données réelles de Form'SSI complétées, §5 ter).
 À lire en entier avant de toucher au code.
 
+> **26/10/2026 — Front retiré.** le front Next.js/Metronic a été **retiré volontairement** (26/10/2026) : il sera refait en Vue 3 + TDesign, avec la coquille du back-office Global-IT-SS (kit dérivé de WeKnora : menu, panneau Paramètres). Le dépôt ne contient plus que le moteur Qualiopi et ses API ; l'inventaire des routes et des entités de paramétrage est dans [`docs/API.md`](docs/API.md). L'ancien front reste consultable dans l'historique git (commit `814e838`). Les mentions du front dans les §5 et suivants décrivent l'historique ; elles ne correspondent plus au contenu du dépôt.
+
 ## 1. Le produit
 
 - **GSMS** = « Global Security Management System » : suite d'applications éditée par **Global-IT-SS**,
@@ -33,22 +35,19 @@ Dernière mise à jour : 05/10/2026 (parcours EDOF fusionné dans `main` ; donn�
 - **Backend** : FastAPI, SQLAlchemy 2, Alembic (migrations `0001` → `0017`), PostgreSQL 16,
   Pydantic 2, Jinja2.
   - Schémas : `iam`, `config`, `formation`, `qualite`, `rh`, `financement`, `communication`, `edof`.
-  - Un worker (`app/worker.py`) lit l'outbox des événements, réévalue le moteur, planifie et envoie les
+  - Un worker (`app/cmd/worker.py`) lit l'outbox des événements, réévalue le moteur, planifie et envoie les
     relances.
-- **Front** : Next.js 16 (App Router, `proxy.ts` et non `middleware.ts`, `params` asynchrones),
-  Tailwind 4 avec tokens CSS, Radix, TanStack Query.
-  - BFF : `/api/auth/login` pose le cookie httpOnly `gsms_session`.
-  - `/api/gsms/[...path]` relaie les appels avec le jeton.
-  - `/api/public/[...path]` relaie sans session, pour les liens signés uniquement.
-  - Lire `frontend/AGENTS.md` : cette version de Next diffère de ce que tu connais.
+- **Front** : retiré (voir l'encadré en tête). L'ancien front Next.js passait par un BFF (cookie httpOnly
+  `gsms_session`, relais `/api/backend/…` et `/api/public/…`) ; le nouveau devra fournir l'équivalent ou
+  appeler l'API directement (CORS_ORIGINS). Routes : `docs/API.md`.
 - **Motifs du moteur, à réutiliser partout** :
   - `Decision` / `PolicyDenied` (409 `{error, detail, details}`), capacités par objet ;
-  - réglages datés (`ConfigurationService`, registre dans `app/platform/settings.py`) ;
-  - fonctionnalités activables (`app/platform/features.py`) ;
-  - catalogue de permissions (`app/auth/permissions.py`) ;
+  - réglages datés (`ConfigurationService`, registre dans `app/application/service/platform/settings.py`) ;
+  - fonctionnalités activables (`app/application/service/platform/features.py`) ;
+  - catalogue de permissions (`app/router/rbac.py`) ;
   - événements outbox (`publish`), journal des modifications, références `next_reference(db, prefix)`.
 
-Détail des modules : `README.md`. Détail du front : `frontend/README.md`.
+Détail des modules : `README.md`. Routes et paramétrage : `docs/API.md`.
 
 ## 4. Démarrer et vérifier
 
@@ -57,15 +56,12 @@ Détail des modules : `README.md`. Détail du front : `frontend/README.md`.
 cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt
 export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
 export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
-alembic upgrade head && python -m app.cli seed-demo
+alembic upgrade head && python -m app.cmd.cli seed-demo
 # seed-demo marche aussi sur une base déjà importée (Form'SSI, GSMS School) : les exemples (sessions,
 # apprenants, formateurs, réclamations… créés par « démo ») rejoignent l'organisme existant sans le modifier.
-# python -m app.cli retirer-demo les retire tous avant la mise en service réelle.
-uvicorn app.main:app --reload          # :8000, doc sur /docs
-python -m app.worker                   # second terminal
-
-# Front
-cd frontend && npm install && GSMS_API_URL=http://127.0.0.1:8000 npm run dev   # :3000
+# python -m app.cmd.cli retirer-demo les retire tous avant la mise en service réelle.
+uvicorn app.cmd.server:app --reload          # :8000, doc sur /docs
+python -m app.cmd.worker                   # second terminal
 ```
 
 E-mails en local : Mailpit (`docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit`,
@@ -76,11 +72,9 @@ VPS : un vrai SMTP (`SMTP_*` dans `.env`).
 
 ```bash
 cd backend && ruff check . && python -m pytest && alembic check        # 182 tests au 02/10
-cd frontend && npm run typecheck && npm run lint && npm run format:check && npm run build
-npm run test:e2e     # 18 passés, 4 ignorés (écritures sur mobile) ; captures dans e2e-results/captures/
 ```
 
-Comptes de la base e2e (mot de passe `demo-gsms-2026`) :
+Comptes de démonstration (mot de passe `demo-gsms-2026`) :
 
 - `direction@demo.fr`
 - `gestion@demo.fr`
@@ -143,7 +137,7 @@ réintroduire.
   (entreprises, apprenants, formateurs, qualifications, développement, sous-traitants, partenaires,
   veille, réclamations, satisfaction, programmes) appellent des routes absentes (404) : à rebrancher sur
   `/formations`, `/formateurs`, `/stagiaires`, `/rh/*`, `/qualiopi/*`, ou à ajouter côté API.
-  **Fait le 30/09** : l'API CRUD de `main` est réintégrée (`app/core/crud.py`, `app/training/resources.py`,
+  **Fait le 30/09** : l'API CRUD de `main` est réintégrée (`app/handler/crud.py`, `app/handler/training_resources.py`,
   droits actuels : `sessions.write`, `trainers.write`, `quality.write`) ainsi que
   `/referentials/active/indicators[/{n}]`. Les 43 pages du menu n'ont plus aucun appel en erreur.
 - Pages et composants Metronic à récupérer : `C:/laragon/www/gsms-school/apps/lms-crm` (171 pages, dont
@@ -165,11 +159,11 @@ Documentation : `docs/edof/PARCOURS.md` (parcours, contrôles, informations à o
     à des `formation.document` (une pièce commune n'est jamais copiée), compléments de la CDC,
     accompagnement de la CDC ;
   - référentiel des pièces `config/edof/referencement.yaml` (conditions, ancienneté, SIRET, pièces
-    sensibles) ; contrôles `app/edof/checks.py` avec niveau et cible ;
+    sensibles) ; contrôles `app/application/service/edof/checks.py` avec niveau et cible ;
   - cycle **déclaratif** : aucune API de dépôt EDOF n'existe, GSMS ne transmet rien ;
   - permissions `edof.read|write|validate|sensitive`, `programs.validate` ; fonctionnalité `edof`
     (active par défaut) ; les événements `edof.*` ne relancent pas le moteur Qualiopi ;
-  - `python -m app.cli import-formssi` : identité de Form'SSI et formation TFP APS, sans rien écraser.
+  - `python -m app.cmd.cli import-formssi` : identité de Form'SSI et formation TFP APS, sans rien écraser.
 - **Front** : `/formation/edof` (établissement) et `/formation/edof/[programId]` (onglets Contrôles,
   Programme, Contenus, Certification, Documents et aperçu, Transmission, Suivi pédagogique) ;
   composants `components/edof/`, requêtes `lib/gsms/edof.ts`.
@@ -188,7 +182,7 @@ Documentation : `docs/edof/PARCOURS.md` (parcours, contrôles, informations à o
 
 La rubrique Qualiopi du menu n'a plus de page « À construire ».
 
-- **API** `app/qualiopi/ecrans.py` (lectures prêtes à afficher, décisions motivées) :
+- **API** `app/handler/qualiopi_ecrans.py` (lectures prêtes à afficher, décisions motivées) :
   `GET /qualiopi/preuves[/{id}]`, `GET /qualiopi/evaluations`, `/qualiopi/evaluations/resultats`,
   `/qualiopi/constats`, et les audits internes `GET|POST /qualiopi/audits`, `/audits/echantillon`,
   `/audits/comparaison`, `GET /audits/{id}`, `POST /audits/{id}/indicateurs/{n}`, `POST /audits/{id}/cloture`.
@@ -205,7 +199,7 @@ La rubrique Qualiopi du menu n'a plus de page « À construire ».
 
 La rubrique « Offre de formation » n'a plus de page « À construire ».
 
-- **Import** `python -m app.cli import-gsms-school` (`app/training/import_school.py`) lit
+- **Import** `python -m app.cmd.cli import-gsms-school` (`app/application/service/training/import_school.py`) lit
   `config/catalogue/gsms-school.yaml`, produit par lecture du dépôt gsms-school-aps (fiches vitrine, catalogue,
   sites et salles, inventaire). Il crée 29 formations (TFP APS reste à `import-formssi` ; « Commission de
   sécurité » et « Formation intra-entreprise » écartées : conseil et sur-mesure), 10 lieux et 43 équipements.
@@ -217,10 +211,10 @@ La rubrique « Offre de formation » n'a plus de page « À construire ».
 - **Tables** (migration 0018) : `formation.premises` (site, salle, plateau technique, stockage) et
   `formation.equipment` (article, quantité, lieu, vérifications) ; `program.results_basis` garde la période et
   les effectifs d'un taux publié. `satisfaction_rate` est une part de répondants satisfaits, en %.
-- **API** `app/training/offre.py` : `GET /formation/resultats?mois=` (réussite à l'examen, abandons,
+- **API** `app/handler/training_offre.py` : `GET /formation/resultats?mois=` (réussite à l'examen, abandons,
   satisfaction à chaud mesurés par formation, écarts avec les taux publiés), `POST
   /formation/resultats/{id}/publication` (refus motivé `NOTHING_MEASURED`), `GET /formation/ressources`.
-  CRUD `premises` et `equipment` (`app/training/resources.py`). Tests : `tests/test_offre_formation.py`.
+  CRUD `premises` et `equipment` (`app/handler/training_resources.py`). Tests : `tests/test_offre_formation.py`.
 - **Front** : `/formation/resultats`, `/formation/ressources` (même formulaire que l'onglet Contenus de la fiche,
   `components/edof/resource-fields.ts`), `/formation/locaux`, `/formation/moyens`.
 - Pas encore fait : affecter un lieu et du matériel à une session (la session garde ses champs texte), débouchés
@@ -289,7 +283,7 @@ Module local, sans service externe ni lien avec GSMS-Security ou un moteur de pr
   Chaque validation archive une version HTML figée dans `formation.document` (empreinte SHA-256, la précédente
   passe « remplacée »). Les événements `edition.*` n'entrent pas dans le moteur Qualiopi.
 - Rendu A4 : `config/documents_pro/` (imprimé ou enregistré en PDF par le navigateur). Les helpers communs avec
-  le carnet d'audit sont dans `app/core/rendu_a4.py` ; le carnet n'a pas changé (sortie identique octet pour octet).
+  le carnet d'audit sont dans `app/common/rendu_a4.py` ; le carnet n'a pas changé (sortie identique octet pour octet).
 - Front : section **Documents** (accueil, liste, fiche) sur les modèles de page ; droits `documents.read`,
   `documents.write`, `documents.validate`.
 
@@ -338,7 +332,7 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 
 ## 5 duodecies. Fiche formation reliée au moteur (13/10/2026)
 
-- API `GET /api/v1/qualiopi/formations/{id}` (`app/qualiopi/ecrans.py`, lecture qualité) : par indicateur, l'état
+- API `GET /api/v1/qualiopi/formations/{id}` (`app/handler/qualiopi_ecrans.py`, lecture qualité) : par indicateur, l'état
   calculé (`readiness_of`) sur les contrôles de la formation et de ses sessions, le détail de chaque contrôle,
   les preuves rattachées à la formation ou à ses sessions, les écarts ouverts. Les éléments de l'organisme
   restent dans le carnet. Test : `test_vue_qualiopi_d_une_formation`.
@@ -358,43 +352,22 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 - Restent sans page de section : Pilotage (le tableau de bord en tient lieu), Clients & financement et
   Parcours apprenant (la plupart de leurs modules sont encore à construire), Administration.
 
-## 6. Prochaine étape : front avec Metronic
+## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
-Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
-deux démos ont été proposées :
+L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau
+sera fait en **Vue 3 + TDesign**, avec la même coquille et la même ergonomie que le back-office
+Global-IT-SS (kit dérivé de WeKnora : menu latéral, panneau Paramètres).
 
-- **Demo 4** : rail d'icônes et menu contextuel par module ;
-- **Demo 6** : barre latérale moderne avec recherche et favoris.
+Points de départ :
 
-Demo1 reste possible. Le choix final revient au propriétaire.
-
-**Où mettre la démo** :
-
-- en local dans `research/` à la racine de ce dépôt. Ce dossier est **ignoré par git** (`.gitignore`) :
-  il ne sera jamais publié ;
-- ou dans le dépôt privé `samiriggui-code/metronic`.
-
-**Avant d'intégrer du code Metronic dans `frontend/`**, il faut soit rendre `gsms-qualiopi` privé, soit
-garder le front Metronic dans un dépôt privé. À trancher avec le propriétaire avant le premier commit
-qui contient du Metronic.
-
-**Méthode recommandée**
-
-1. Lire la démo dans `research/` et relever sa structure : layout, sidebar, header, tokens, composants.
-2. Garder tel quel tout ce qui fait marcher l'application :
-   - BFF et cookie ;
-   - `src/lib/api.ts`, `types.ts`, `labels.ts` ;
-   - les requêtes TanStack (`features/*/queries.ts`) ;
-   - `ActionGate` ;
-   - les états renvoyés par l'API ;
-   - les tests e2e.
-
-   **Seule la couche visuelle change** : AppShell, composants `ui/`, tokens.
-3. Brancher la couleur de l'organisme (`general.brand_color`, via `/bootstrap`) sur la couleur
-   principale de Metronic.
-4. Construire la navigation depuis `/bootstrap` (modules actifs et permissions), jamais en dur.
-5. Refaire passer `npm run test:e2e` (ordinateur et mobile, axe-core, débordement) et relire les
-   captures.
+- `docs/API.md` : routes HTTP par module (méthode, chemin, droits) et entités de paramétrage à
+  regrouper dans le panneau Paramètres ;
+- navigation construite depuis `GET /api/v1/bootstrap` (modules actifs, permissions), jamais en dur ;
+- le front n'affiche que les décisions de l'API (capacités, refus motivés `Decision`) ;
+- pages publiques par lien signé à refaire (questionnaires, espace du stagiaire), adresse du front dans
+  `PUBLIC_URL` ;
+- en production, Caddy ou Traefik publient aujourd'hui l'API seule (`deploy/`) : y remettre le front
+  quand il existera.
 
 ## 7. Reste à faire (ordre proposé)
 
@@ -416,5 +389,5 @@ qui contient du Metronic.
 - Toute nouvelle table passe par une migration Alembic autogénérée puis relue ; `alembic check` doit
   rester propre.
 - Tout nouveau comportement métier vient avec son test pytest sur un vrai PostgreSQL.
-- Tout nouvel écran vient avec son test Playwright (ordinateur et mobile) et une capture relue.
+- Tout nouvel écran (nouveau front) vient avec son test de bout en bout (ordinateur et mobile) et une capture relue.
 - Les réglages et modèles de texte vont dans `config/` (YAML, Jinja), pas en dur dans le code.

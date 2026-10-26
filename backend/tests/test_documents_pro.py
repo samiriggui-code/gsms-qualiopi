@@ -5,11 +5,11 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.editions.models import Project
-from app.events.models import OutboxEvent
-from app.platform.settings import ConfigurationService
-from app.qualiopi.engine import scope_of
-from app.training import models as t
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.qualiopi.engine import scope_of
+from app.types import training as t
+from app.types.editions import Project
+from app.types.event import OutboxEvent
 from tests.conftest import make_user
 
 BASE = "/api/v1/editions"

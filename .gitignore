@@ -3,18 +3,16 @@ __pycache__/
 .venv/
 .env
 .env.local
-backend/var/
 node_modules/
 .next/
+dist/
 *.tsbuildinfo
+.env.development.local
+backend/var/
 
 # Démos sous licence (Metronic…) : consultation locale uniquement, jamais publiées
 research/
 Research/
-
-# Résultats des tests de bout en bout (générés)
-frontend/e2e-results/
-frontend/e2e-report/
 
 # Serveur : réglages et marqueur de première mise en service
 .gsms-initialise

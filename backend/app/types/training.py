@@ -1,0 +1,693 @@
+"""Domaine « organisme de formation » : la vie réelle de l'OF.
+
+Ces tables ne connaissent pas Qualiopi. Elles produisent les données que le moteur
+transforme en preuves potentielles. Schéma PostgreSQL : `formation`.
+"""
+
+from datetime import date, datetime, time
+from decimal import Decimal
+
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database.db import Base, TimestampMixin, new_id
+
+S = {"schema": "formation"}
+
+
+def fk(table: str) -> ForeignKey:
+    return ForeignKey(f"formation.{table}.id", ondelete="CASCADE")
+
+
+class Organization(TimestampMixin, Base):
+    """Paramètres de l'organisme (instance mono-organisme)."""
+
+    __tablename__ = "organization"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(200))
+    nda_number: Mapped[str | None] = mapped_column(String(40))
+    siret: Mapped[str | None] = mapped_column(String(20))
+    # Catégories d'actions certifiées : AF (action de formation), BC (bilan de compétences),
+    # VAE, APPRENTISSAGE. Détermine l'applicabilité des indicateurs.
+    action_categories: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["AF"])
+    is_new_entrant: Mapped[bool] = mapped_column(Boolean, default=False)
+    disability_referent_name: Mapped[str | None] = mapped_column(String(200))
+    disability_referent_email: Mapped[str | None] = mapped_column(String(200))
+    mobility_referent_name: Mapped[str | None] = mapped_column(String(200))
+
+
+class Company(TimestampMixin, Base):
+    __tablename__ = "company"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(200))
+    siret: Mapped[str | None] = mapped_column(String(20))
+    contact_name: Mapped[str | None] = mapped_column(String(200))
+    contact_email: Mapped[str | None] = mapped_column(String(200))
+    # Code court du client : ses devis ont leur propre suite de numéros (DEV-<code>-001).
+    code: Mapped[str | None] = mapped_column(String(12), unique=True)
+    address: Mapped[str | None] = mapped_column(String(300))
+    postal_code: Mapped[str | None] = mapped_column(String(10))
+    city: Mapped[str | None] = mapped_column(String(120))
+    phone: Mapped[str | None] = mapped_column(String(40))
+    contact_role: Mapped[str | None] = mapped_column(String(120))  # fonction du contact
+
+
+class Learner(TimestampMixin, Base):
+    __tablename__ = "learner"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    first_name: Mapped[str] = mapped_column(String(100))
+    last_name: Mapped[str] = mapped_column(String(100))
+    email: Mapped[str | None] = mapped_column(String(200))
+    phone: Mapped[str | None] = mapped_column(String(40))
+    company_id: Mapped[str | None] = mapped_column(ForeignKey("formation.company.id", ondelete="SET NULL"))
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+class Trainer(TimestampMixin, Base):
+    __tablename__ = "trainer"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    first_name: Mapped[str] = mapped_column(String(100))
+    last_name: Mapped[str] = mapped_column(String(100))
+    email: Mapped[str | None] = mapped_column(String(200))
+    is_external: Mapped[bool] = mapped_column(Boolean, default=False)
+    specialties: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Compte GSMS du formateur : lui donne accès à ses propres sessions (permission sessions.read_own).
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
+
+    qualifications: Mapped[list["TrainerQualification"]] = relationship(back_populates="trainer", cascade="all, delete-orphan")
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+# Titres réglementés propres aux filières de l'organisme (sûreté, incendie, secourisme, électricité).
+QUALIFICATION_KINDS = {
+    "CARTE_PRO_FORMATEUR_CNAPS": "Carte professionnelle de formateur en sécurité privée (CNAPS, 5 ans)",
+    "SSIAP3": "Diplôme SSIAP 3 (formateur incendie)",
+    "FORMATEUR_SST": "Certificat de formateur SST (INRS)",
+    "HABILITATION_ELECTRIQUE": "Habilitation électrique",
+    "DIPLOME": "Diplôme ou titre professionnel",
+    "AUTRE": "Autre qualification",
+}
+
+
+class TrainerQualification(TimestampMixin, Base):
+    """Diplôme, carte professionnelle, habilitation d'un intervenant (I21)."""
+
+    __tablename__ = "trainer_qualification"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    trainer_id: Mapped[str] = mapped_column(fk("trainer"))
+    kind: Mapped[str] = mapped_column(String(40), default="AUTRE", server_default="AUTRE")  # QUALIFICATION_KINDS
+    label: Mapped[str] = mapped_column(String(200))
+    number: Mapped[str | None] = mapped_column(String(60))  # numéro de carte ou de certificat
+    obtained_on: Mapped[date | None] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
+
+    trainer: Mapped[Trainer] = relationship(back_populates="qualifications")
+
+
+class StaffDevelopmentAction(TimestampMixin, Base):
+    """Développement des compétences des salariés / intervenants (I22)."""
+
+    __tablename__ = "staff_development_action"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    trainer_id: Mapped[str | None] = mapped_column(fk("trainer"))
+    label: Mapped[str] = mapped_column(String(200))
+    planned_on: Mapped[date | None] = mapped_column(Date)
+    completed_on: Mapped[date | None] = mapped_column(Date)
+
+
+class Program(TimestampMixin, Base):
+    """Formation (offre) : programme, objectifs, prérequis, information publique."""
+
+    __tablename__ = "program"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    title: Mapped[str] = mapped_column(String(250))
+    action_category: Mapped[str] = mapped_column(String(20), default="AF")
+    is_certifying: Mapped[bool] = mapped_column(Boolean, default=False)
+    rncp_code: Mapped[str | None] = mapped_column(String(40))
+    duration_hours: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
+    price_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    prerequisites: Mapped[list[str]] = mapped_column(JSON, default=list)
+    objectives: Mapped[list[str]] = mapped_column(JSON, default=list)
+    content: Mapped[str | None] = mapped_column(Text)
+    teaching_methods: Mapped[str | None] = mapped_column(Text)
+    evaluation_methods: Mapped[str | None] = mapped_column(Text)
+    access_delay: Mapped[str | None] = mapped_column(String(200))
+    accessibility_info: Mapped[str | None] = mapped_column(Text)
+    certification_alignment: Mapped[str | None] = mapped_column(Text)
+    public_info_reviewed_on: Mapped[date | None] = mapped_column(Date)
+    success_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    satisfaction_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))  # part des répondants satisfaits, en %
+    # Fiche formation unique : alimente programme, catalogue, contrôles Qualiopi et dossier EDOF.
+    audience: Mapped[str | None] = mapped_column(Text)  # public visé
+    skills: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")  # compétences visées
+    delivery_mode: Mapped[str | None] = mapped_column(String(20))  # DELIVERY_MODES
+    # Modules : [{"code", "title", "details": [...], "hours"}] ; `content` reste le résumé libre.
+    modules: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    teaching_means: Mapped[str | None] = mapped_column(Text)  # moyens pédagogiques et techniques
+    catalog_slug: Mapped[str | None] = mapped_column(String(80), unique=True)  # fiche du catalogue Form'SSI
+    # Points à arbitrer par une personne : [{"champ", "message", "source"}] (sources divergentes, manques).
+    review_notes: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # Base des taux publiés (success_rate, satisfaction_rate) : période, effectifs, date et auteur de la publication.
+    results_basis: Mapped[dict | None] = mapped_column(JSON)
+    track: Mapped[str | None] = mapped_column(String(20))  # filière du catalogue (TRACKS)
+    pathway: Mapped[str | None] = mapped_column(String(10))  # INITIAL, MAC, RAN ou AUTRE (PATHWAYS)
+    # Épreuves et attestations, dans l'ordre : [{"title", "description", "kind"}] ; evaluation_methods reste le résumé.
+    evaluation_steps: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+
+
+TRACKS = {"SURETE": "Sûreté", "INCENDIE": "Incendie", "HABILITATION": "Habilitation électrique",
+          "SST": "Secourisme (SST)", "ENTREPRISE": "Formations en entreprise", "AUTRES": "Autres"}
+PATHWAYS = {"INITIAL": "Formation initiale", "MAC": "Maintien et actualisation (MAC)", "RAN": "Remise à niveau",
+            "AUTRE": "Autre parcours"}
+
+DELIVERY_MODES = ("PRESENTIEL", "DISTANCE", "MIXTE")
+
+# Fondement de l'éligibilité au CPF (code du travail, L. 6323-6) : à identifier formation par formation.
+CERTIFICATION_BASES = {
+    "A_DETERMINER": "À déterminer",
+    "RNCP": "Certification inscrite au RNCP",
+    "RS": "Certification ou habilitation inscrite au répertoire spécifique (RS)",
+    "AUTRE_ELIGIBLE": "Autre action éligible (permis, bilan, VAE, création d'entreprise…)",
+    "NON_CERTIFIANTE": "Non certifiante : pas éligible au CPF à ce titre",
+}
+# Ce que le certificateur autorise l'établissement (SIRET) à faire.
+HABILITATIONS = {
+    "A_VERIFIER": "À vérifier auprès du certificateur",
+    "FORMER": "Habilité à former (évaluation par un organisme habilité)",
+    "FORMER_ET_EVALUER": "Habilité à former et à organiser l'évaluation",
+    "AUCUNE": "Pas d'habilitation",
+}
+
+
+class ProgramCertification(TimestampMixin, Base):
+    """Certification visée et habilitations de l'établissement : déclarées, puis vérifiées par une personne.
+
+    Rien n'est déduit : un contenu acheté ou repris n'apporte ni certification ni habilitation.
+    """
+
+    __tablename__ = "program_certification"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"), unique=True)
+    basis: Mapped[str] = mapped_column(String(20), default="A_DETERMINER", server_default="A_DETERMINER")
+    code: Mapped[str | None] = mapped_column(String(20))  # ex. RNCP36648, RS5642
+    title: Mapped[str | None] = mapped_column(String(250))
+    certifier: Mapped[str | None] = mapped_column(String(250))
+    registration_end: Mapped[date | None] = mapped_column(Date)  # échéance de l'enregistrement (France compétences)
+    source_url: Mapped[str | None] = mapped_column(String(400))
+    checked_on: Mapped[date | None] = mapped_column(Date)  # fiche relue sur France compétences
+    checked_by: Mapped[str | None] = mapped_column(String(200))
+    habilitation: Mapped[str] = mapped_column(String(20), default="A_VERIFIER", server_default="A_VERIFIER")
+    partner_siret: Mapped[str | None] = mapped_column(String(20))  # SIRET référencé chez le certificateur
+    habilitation_checked_on: Mapped[date | None] = mapped_column(Date)
+    habilitation_checked_by: Mapped[str | None] = mapped_column(String(200))
+    evaluator_name: Mapped[str | None] = mapped_column(String(250))  # organisme qui organise l'évaluation
+    # Correspondance [{"competence", "modules": [...], "evaluation"}] : programme ↔ référentiel ↔ évaluation.
+    competence_mapping: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # Autres autorisations propres au métier (ex. autorisation d'exercice CNAPS de l'organisme).
+    other_requirements: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+PROGRAM_TRAINER_ROLES = ("FORMATEUR", "EVALUATEUR", "RESPONSABLE_PEDAGOGIQUE")
+
+
+class ProgramTrainer(TimestampMixin, Base):
+    """Intervenant prévu sur une formation (le programme le cite, le dossier EDOF le justifie)."""
+
+    __tablename__ = "program_trainer"
+    __table_args__ = (UniqueConstraint("program_id", "trainer_id"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"))
+    trainer_id: Mapped[str] = mapped_column(fk("trainer"))
+    role: Mapped[str] = mapped_column(String(30), default="FORMATEUR")
+    modules: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")  # codes de modules
+
+
+RESOURCE_KINDS = ("COURS", "QUIZ", "CAS_PRATIQUE", "EVALUATION", "SUPPORT", "AUTRE")
+RESOURCE_ORIGINS = ("INTERNE", "ACHETE", "GSMS_SCHOOL", "AUTRE")
+RESOURCE_RIGHTS = ("PROPRIETAIRE", "LICENCE", "A_VERIFIER", "INTERDIT")
+RESOURCE_STATUSES = ("A_REDIGER", "BROUILLON", "VALIDE")
+
+
+class ProgramResource(TimestampMixin, Base):
+    """Contenu pédagogique d'une formation : d'où il vient, qui peut le réutiliser, où il en est."""
+
+    __tablename__ = "program_resource"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"), index=True)
+    title: Mapped[str] = mapped_column(String(250))
+    kind: Mapped[str] = mapped_column(String(20), default="SUPPORT")
+    module_code: Mapped[str | None] = mapped_column(String(20))
+    origin: Mapped[str] = mapped_column(String(20), default="INTERNE")
+    source_ref: Mapped[str | None] = mapped_column(String(300))  # ex. identifiant du cours LMS
+    rights: Mapped[str] = mapped_column(String(20), default="A_VERIFIER")
+    rights_note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="BROUILLON")
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class ProgramVersion(TimestampMixin, Base):
+    """Version validée d'une fiche formation, figée : un dossier déposé ou une session y renvoie.
+
+    Modifier la fiche ne change jamais une version : il faut en valider une nouvelle.
+    """
+
+    __tablename__ = "program_version"
+    __table_args__ = (UniqueConstraint("program_id", "version"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(fk("program"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    sha256: Mapped[str] = mapped_column(String(64))
+    validated_by: Mapped[str] = mapped_column(String(200))
+    validated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+SESSION_STATUSES = ("PLANIFIEE", "CONFIRMEE", "EN_COURS", "TERMINEE", "CLOTUREE", "ANNULEE")
+
+
+class TrainingSession(TimestampMixin, Base):
+    __tablename__ = "session"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    reference: Mapped[str] = mapped_column(String(40), unique=True)
+    program_id: Mapped[str] = mapped_column(fk("program"))
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    location: Mapped[str | None] = mapped_column(String(200))
+    room: Mapped[str | None] = mapped_column(String(100))
+    trainer_id: Mapped[str | None] = mapped_column(ForeignKey("formation.trainer.id", ondelete="SET NULL"))
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), default="PLANIFIEE")  # changé seulement par app.application.service.training.lifecycle
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
+    subcontractor_id: Mapped[str | None] = mapped_column(ForeignKey("formation.subcontractor.id", ondelete="SET NULL"))
+
+    program: Mapped[Program] = relationship()
+    trainer: Mapped[Trainer | None] = relationship()
+    enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="session", cascade="all, delete-orphan")
+    attendance_slots: Mapped[list["AttendanceSlot"]] = relationship(back_populates="session", cascade="all, delete-orphan")
+
+    # Lectures prêtes pour l'affichage (listes) : évitent au client de recroiser les identifiants.
+    @property
+    def program_code(self) -> str | None:
+        return self.program.code if self.program else None
+
+    @property
+    def program_title(self) -> str | None:
+        return self.program.title if self.program else None
+
+    @property
+    def program_track(self) -> str | None:
+        return self.program.track if self.program else None
+
+    @property
+    def program_track_label(self) -> str | None:
+        return TRACKS.get(self.program_track) if self.program_track else None
+
+    @property
+    def program_slug(self) -> str | None:
+        return self.program.catalog_slug if self.program else None
+
+    @property
+    def trainer_name(self) -> str | None:
+        return self.trainer.full_name if self.trainer else None
+
+    @property
+    def learners_count(self) -> int:
+        return sum(1 for e in self.enrollments if e.status != "ANNULE")
+
+
+ENROLLMENT_STATUSES = ("INSCRIT", "CONFIRME", "ANNULE", "ABANDON", "TERMINE")
+
+
+class Enrollment(TimestampMixin, Base):
+    __tablename__ = "enrollment"
+    __table_args__ = (UniqueConstraint("session_id", "learner_id"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    session_id: Mapped[str] = mapped_column(fk("session"))
+    learner_id: Mapped[str] = mapped_column(fk("learner"))
+    company_id: Mapped[str | None] = mapped_column(ForeignKey("formation.company.id", ondelete="SET NULL"))
+    status: Mapped[str] = mapped_column(String(20), default="INSCRIT")
+    funding: Mapped[str | None] = mapped_column(String(60))
+    abandoned_on: Mapped[date | None] = mapped_column(Date)
+    abandon_reason: Mapped[str | None] = mapped_column(Text)
+    # Lien personnel d'émargement envoyé au stagiaire : seule son empreinte est conservée.
+    sign_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+
+    session: Mapped[TrainingSession] = relationship(back_populates="enrollments")
+    learner: Mapped[Learner] = relationship()
+    needs_analysis: Mapped["NeedsAnalysis | None"] = relationship(back_populates="enrollment", cascade="all, delete-orphan", uselist=False)
+    positioning: Mapped["Positioning | None"] = relationship(back_populates="enrollment", cascade="all, delete-orphan", uselist=False)
+    convocation: Mapped["Convocation | None"] = relationship(back_populates="enrollment", cascade="all, delete-orphan", uselist=False)
+    agreement: Mapped["Agreement | None"] = relationship(back_populates="enrollment", cascade="all, delete-orphan", uselist=False)
+    assessments: Mapped[list["Assessment"]] = relationship(back_populates="enrollment", cascade="all, delete-orphan")
+    certificate: Mapped["Certificate | None"] = relationship(back_populates="enrollment", cascade="all, delete-orphan", uselist=False)
+    signatures: Mapped[list["AttendanceSignature"]] = relationship(back_populates="enrollment", cascade="all, delete-orphan")
+
+
+ADAPTATION_STATUSES = ("AUCUNE", "A_TRAITER", "VALIDEE", "MISE_EN_OEUVRE")
+
+
+class NeedsAnalysis(TimestampMixin, Base):
+    """Analyse du besoin du bénéficiaire (I04) + besoin d'adaptation (I10, I26)."""
+
+    __tablename__ = "needs_analysis"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"), unique=True)
+    completed_on: Mapped[date | None] = mapped_column(Date)
+    summary: Mapped[str | None] = mapped_column(Text)
+    adaptation_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    adaptation_status: Mapped[str] = mapped_column(String(20), default="AUCUNE")
+    adaptation_notes: Mapped[str | None] = mapped_column(Text)
+
+    enrollment: Mapped[Enrollment] = relationship(back_populates="needs_analysis")
+
+
+class Positioning(TimestampMixin, Base):
+    """Positionnement / évaluation des acquis à l'entrée (I08)."""
+
+    __tablename__ = "positioning"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"), unique=True)
+    method: Mapped[str | None] = mapped_column(String(100))
+    completed_on: Mapped[date | None] = mapped_column(Date)
+    level: Mapped[str | None] = mapped_column(String(100))
+    prerequisites_met: Mapped[bool | None] = mapped_column(Boolean)
+
+    enrollment: Mapped[Enrollment] = relationship(back_populates="positioning")
+
+
+class Convocation(TimestampMixin, Base):
+    """Convocation : conditions de déroulement communiquées (I09)."""
+
+    __tablename__ = "convocation"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"), unique=True)
+    sent_on: Mapped[date | None] = mapped_column(Date)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
+
+    enrollment: Mapped[Enrollment] = relationship(back_populates="convocation")
+
+
+class Agreement(TimestampMixin, Base):
+    """Convention ou contrat de formation."""
+
+    __tablename__ = "agreement"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"), unique=True)
+    kind: Mapped[str] = mapped_column(String(20), default="CONVENTION")
+    sent_on: Mapped[date | None] = mapped_column(Date)
+    signed_on: Mapped[date | None] = mapped_column(Date)
+    signed_by: Mapped[str | None] = mapped_column(String(200))  # signataire côté client (repris du Contract de Frappe)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
+
+    enrollment: Mapped[Enrollment] = relationship(back_populates="agreement")
+
+
+class AttendanceSlot(TimestampMixin, Base):
+    """Demi-journée de formation à émarger."""
+
+    __tablename__ = "attendance_slot"
+    __table_args__ = (UniqueConstraint("session_id", "day", "period"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    session_id: Mapped[str] = mapped_column(fk("session"))
+    day: Mapped[date] = mapped_column(Date)
+    period: Mapped[str] = mapped_column(String(10), default="MATIN")  # MATIN | APRES_MIDI
+    start_time: Mapped[time | None] = mapped_column(Time)  # heure locale (réglage attendance.slots)
+    end_time: Mapped[time | None] = mapped_column(Time)
+    trainer_signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trainer_signed_by: Mapped[str | None] = mapped_column(String(200))
+    # Code du créneau affiché en salle (QR imprimé) : seule son empreinte est conservée.
+    code_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+
+    session: Mapped[TrainingSession] = relationship(back_populates="attendance_slots")
+    signatures: Mapped[list["AttendanceSignature"]] = relationship(back_populates="slot", cascade="all, delete-orphan")
+
+
+class AttendanceSignature(TimestampMixin, Base):
+    __tablename__ = "attendance_signature"
+    __table_args__ = (UniqueConstraint("slot_id", "enrollment_id"), S)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    slot_id: Mapped[str] = mapped_column(fk("attendance_slot"))
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"))
+    present: Mapped[bool] = mapped_column(Boolean, default=True)
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # CODE_CRENEAU (le stagiaire signe avec le code de la salle et son lien personnel),
+    # FORMATEUR (présence ou absence constatée), CORRECTION (après coup, motivée).
+    method: Mapped[str | None] = mapped_column(String(20))
+    recorded_by: Mapped[str | None] = mapped_column(String(200))
+    note: Mapped[str | None] = mapped_column(Text)  # motif d'absence ou de correction
+
+    slot: Mapped[AttendanceSlot] = relationship(back_populates="signatures")
+    enrollment: Mapped[Enrollment] = relationship(back_populates="signatures")
+
+
+class Assessment(TimestampMixin, Base):
+    """Évaluation formative ou sommative (I11)."""
+
+    __tablename__ = "assessment"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"))
+    kind: Mapped[str] = mapped_column(String(20), default="FORMATIVE")  # FORMATIVE | SOMMATIVE | EXAMEN
+    label: Mapped[str] = mapped_column(String(200))
+    assessed_on: Mapped[date] = mapped_column(Date)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    passed: Mapped[bool | None] = mapped_column(Boolean)
+
+    enrollment: Mapped[Enrollment] = relationship(back_populates="assessments")
+
+
+class Certificate(TimestampMixin, Base):
+    """Attestation de fin de formation ou certificat (I11, I16)."""
+
+    __tablename__ = "certificate"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    enrollment_id: Mapped[str] = mapped_column(fk("enrollment"), unique=True)
+    kind: Mapped[str] = mapped_column(String(20), default="ATTESTATION")
+    issued_on: Mapped[date] = mapped_column(Date)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("formation.document.id", ondelete="SET NULL"))
+
+    enrollment: Mapped[Enrollment] = relationship(back_populates="certificate")
+
+
+SURVEY_AUDIENCES = ("APPRENANT_CHAUD", "APPRENANT_FROID", "ENTREPRISE", "FORMATEUR", "FINANCEUR")
+
+
+class SatisfactionSurvey(TimestampMixin, Base):
+    """Recueil des appréciations (I30)."""
+
+    __tablename__ = "satisfaction_survey"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    session_id: Mapped[str] = mapped_column(fk("session"))
+    enrollment_id: Mapped[str | None] = mapped_column(fk("enrollment"))
+    audience: Mapped[str] = mapped_column(String(20))
+    sent_on: Mapped[date | None] = mapped_column(Date)
+    answered_on: Mapped[date | None] = mapped_column(Date)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))  # sur 5
+    comment: Mapped[str | None] = mapped_column(Text)
+
+
+class Complaint(TimestampMixin, Base):
+    """Réclamation, difficulté ou aléa (I31)."""
+
+    __tablename__ = "complaint"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    session_id: Mapped[str | None] = mapped_column(ForeignKey("formation.session.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(20), default="RECLAMATION")  # RECLAMATION | DIFFICULTE | ALEA
+    stakeholder: Mapped[str] = mapped_column(String(20), default="APPRENANT")
+    received_on: Mapped[date] = mapped_column(Date)
+    description: Mapped[str] = mapped_column(Text)
+    acknowledged_on: Mapped[date | None] = mapped_column(Date)
+    answered_on: Mapped[date | None] = mapped_column(Date)
+    resolved_on: Mapped[date | None] = mapped_column(Date)
+    resolution: Mapped[str | None] = mapped_column(Text)
+
+
+class WatchItem(TimestampMixin, Base):
+    """Veille (I23 légale, I24 métiers, I25 pédagogique)."""
+
+    __tablename__ = "watch_item"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    domain: Mapped[str] = mapped_column(String(20))  # LEGALE | METIERS | PEDAGOGIQUE
+    title: Mapped[str] = mapped_column(String(250))
+    source: Mapped[str | None] = mapped_column(String(300))
+    noted_on: Mapped[date] = mapped_column(Date)
+    exploitation: Mapped[str | None] = mapped_column(Text)
+    exploited_on: Mapped[date | None] = mapped_column(Date)
+
+
+class Subcontractor(TimestampMixin, Base):
+    """Sous-traitant / portage (I27)."""
+
+    __tablename__ = "subcontractor"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(200))
+    siret: Mapped[str | None] = mapped_column(String(20))
+    qualiopi_certified: Mapped[bool] = mapped_column(Boolean, default=False)
+    contract_signed_on: Mapped[date | None] = mapped_column(Date)
+    last_review_on: Mapped[date | None] = mapped_column(Date)
+
+
+class PartnerNetwork(TimestampMixin, Base):
+    """Réseau handicap (I26) et partenaires socio-économiques (I28)."""
+
+    __tablename__ = "partner"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    kind: Mapped[str] = mapped_column(String(20))  # HANDICAP | SOCIO_ECONOMIQUE
+    name: Mapped[str] = mapped_column(String(200))
+    last_contact_on: Mapped[date | None] = mapped_column(Date)
+
+
+PREMISES_KINDS = {
+    "SITE": "Site",
+    "SALLE": "Salle de formation",
+    "PLATEAU_TECHNIQUE": "Plateau technique",
+    "STOCKAGE": "Stockage du matériel",
+    "AUTRE": "Autre",
+}
+# Statut d'un lieu ou d'un équipement : une donnée reprise d'ailleurs reste « à vérifier » tant que personne ne l'a vue.
+PLACE_STATUSES = {
+    "A_VERIFIER": "À vérifier sur place",
+    "EN_SERVICE": "En service",
+    "EN_MAINTENANCE": "En maintenance",
+    "HORS_SERVICE": "Hors service",
+}
+EQUIPMENT_CATEGORIES = {
+    "SECOURISME": "Secourisme",
+    "INCENDIE": "Incendie",
+    "SECURITE_PRIVEE": "Sécurité privée",
+    "EPI": "Équipements de protection",
+    "INFORMATIQUE": "Informatique et audiovisuel",
+    "MOBILIER": "Mobilier",
+    "AUTRE": "Autre",
+}
+
+
+class Premises(TimestampMixin, Base):
+    """Lieu de formation (I17) : site, salle, plateau technique. Une salle appartient à un site."""
+
+    __tablename__ = "premises"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(20), default="SALLE")  # PREMISES_KINDS
+    parent_id: Mapped[str | None] = mapped_column(ForeignKey("formation.premises.id", ondelete="SET NULL"))
+    address: Mapped[str | None] = mapped_column(String(300))
+    floor: Mapped[str | None] = mapped_column(String(120))
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    accessibility: Mapped[str | None] = mapped_column(Text)  # accès des personnes en situation de handicap
+    status: Mapped[str] = mapped_column(String(20), default="A_VERIFIER", server_default="A_VERIFIER")
+    checked_on: Mapped[date | None] = mapped_column(Date)
+    source: Mapped[str | None] = mapped_column(String(300))
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class Equipment(TimestampMixin, Base):
+    """Moyen technique (I17) : matériel pédagogique, compté par article, rangé dans un lieu."""
+
+    __tablename__ = "equipment"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    code: Mapped[str] = mapped_column(String(80), unique=True)
+    label: Mapped[str] = mapped_column(String(250))
+    category: Mapped[str] = mapped_column(String(20), default="AUTRE")  # EQUIPMENT_CATEGORIES
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    premises_id: Mapped[str | None] = mapped_column(ForeignKey("formation.premises.id", ondelete="SET NULL"))
+    regulatory_ref: Mapped[str | None] = mapped_column(String(300))
+    status: Mapped[str] = mapped_column(String(20), default="A_VERIFIER", server_default="A_VERIFIER")
+    last_check_on: Mapped[date | None] = mapped_column(Date)  # dernière vérification ou maintenance
+    next_check_on: Mapped[date | None] = mapped_column(Date)
+    source: Mapped[str | None] = mapped_column(String(300))
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class Document(TimestampMixin, Base):
+    """Document traçable : version, auteur, empreinte, statut, signature."""
+
+    __tablename__ = "document"
+    __table_args__ = S
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    kind: Mapped[str] = mapped_column(String(40))  # CONVOCATION, CONVENTION, ATTESTATION, PROGRAMME, PROCEDURE, ...
+    title: Mapped[str] = mapped_column(String(250))
+    entity_type: Mapped[str | None] = mapped_column(String(40))
+    entity_id: Mapped[str | None] = mapped_column(String(36))
+    session_id: Mapped[str | None] = mapped_column(ForeignKey("formation.session.id", ondelete="SET NULL"))
+    program_id: Mapped[str | None] = mapped_column(ForeignKey("formation.program.id", ondelete="SET NULL"))
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    previous_version_id: Mapped[str | None] = mapped_column(String(36))
+    status: Mapped[str] = mapped_column(String(20), default="BROUILLON")  # BROUILLON | EMIS | SIGNE | REMPLACE
+    author_id: Mapped[str | None] = mapped_column(String(36))
+    mime_type: Mapped[str] = mapped_column(String(80), default="text/html")
+    storage_path: Mapped[str | None] = mapped_column(String(400))
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    signed_by: Mapped[str | None] = mapped_column(String(200))
+    indicator_hints: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # Pièce de dossier : FICHIER déposé, ou PAPIER déclaré (l'original est conservé hors GSMS).
+    support: Mapped[str] = mapped_column(String(20), default="FICHIER", server_default="FICHIER")
+    # Grille cochée par la personne qui dépose, figée avec la version (question posée comprise).
+    checklist: Mapped[dict | None] = mapped_column(JSON)
+    checklist_note: Mapped[str | None] = mapped_column(Text)
+    # Pièce d'un dossier (code de config/dossiers) ; entity_type = ORGANISME | FORMATEUR
+    requirement: Mapped[str | None] = mapped_column(String(60), index=True)
+    original_name: Mapped[str | None] = mapped_column(String(250))
+    size_bytes: Mapped[int | None] = mapped_column(Integer)

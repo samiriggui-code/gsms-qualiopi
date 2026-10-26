@@ -8,12 +8,12 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.platform.features import set_feature
-from app.relances import sender as sender_module
-from app.relances.models import Message
-from app.relances.planner import plan
-from app.relances.service import dispatch
-from app.training import models as t
+from app.application.service.platform.features import set_feature
+from app.application.service.relances import sender as sender_module
+from app.application.service.relances.planner import plan
+from app.application.service.relances.service import dispatch
+from app.types import training as t
+from app.types.relances import Message
 from tests.conftest import TODAY, find_session, make_user
 
 
@@ -235,7 +235,7 @@ def test_expediteur_smtp_adresses_accentuees(monkeypatch) -> None:  # noqa: ANN0
     """Vrai code d'envoi, faux serveur : en-têtes, texte + HTML, SMTPUTF8 seulement quand il le faut."""
     import smtplib
 
-    from app.relances.sender import SmtpSender
+    from app.application.service.relances.sender import SmtpSender
 
     sent: list[tuple] = []
 

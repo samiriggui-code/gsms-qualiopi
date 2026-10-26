@@ -1,4 +1,5 @@
-# GSMS — un front, un monolithe, un worker, une base.
+# GSMS — un monolithe (API), un worker, une base. Le front a été retiré volontairement : il sera refait
+# (Vue 3 + TDesign, kit Global-IT-SS) ; voir docs/API.md pour les routes à consommer.
 # Sur un serveur, ajouter deploy/docker-compose.prod.yml (HTTPS automatique) : voir deploy/README.md.
 # Secrets obligatoires (pas de valeur par défaut) : POSTGRES_PASSWORD, JWT_SECRET. Voir .env.example.
 services:
@@ -37,6 +38,10 @@ services:
       SMTP_SSL: ${SMTP_SSL:-false}
       SMTP_FROM: ${SMTP_FROM:-no-reply@gsms.local}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      # Moteur IA (service ia-app ci-dessous) ; compte de service créé au premier appel.
+      WEKNORA_URL: ${WEKNORA_URL:-http://ia-app:8080}
+      WEKNORA_SERVICE_EMAIL: ${WEKNORA_SERVICE_EMAIL:-}
+      WEKNORA_SERVICE_PASSWORD: ${WEKNORA_SERVICE_PASSWORD:-}
     volumes:
       - gsms-documents:/app/var/documents
     ports:
@@ -57,20 +62,71 @@ services:
     environment:
       <<: *backend-env
       RUN_MIGRATIONS: "false"
-    command: ["python", "-m", "app.worker"]
+    command: ["python", "-m", "app.cmd.worker"]
 
-  web:
-    build: ./frontend
+  # ── Moteur IA (fork WeKnora de Global-IT-SS) : bases de connaissances, recherche, chat, agents ──
+  # Images construites depuis global-it-ss-template/backend (jamais tirées de Docker Hub).
+  # Secrets dans ia/.env (voir ia/.env.example). API WeKnora : 127.0.0.1:${IA_PORT:-4103}.
+  ia-app:
+    image: gitss-app:local
+    pull_policy: never
     restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
+    env_file: [ia/.env]
     environment:
-      # Le navigateur ne parle qu'au front ; le front relaie vers l'API sur le réseau interne.
-      API_URL: http://api:8000
+      FRONTEND_BASE_URL: ${PUBLIC_URL:-}
+    depends_on:
+      ia-postgres:
+        condition: service_healthy
+      ia-redis:
+        condition: service_started
+      ia-docreader:
+        condition: service_started
+    volumes:
+      - ia-files:/data/files
+      - ia-docreader-tmp:/tmp/docreader:ro
+      - ./ia/config/config.yaml:/app/config/config.yaml
     ports:
-      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${IA_PORT:-4103}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  ia-docreader:
+    image: gitss-docreader:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Paris
+      DOCREADER_IMAGE_OUTPUT_DIR: /tmp/docreader
+    volumes:
+      - ia-docreader-tmp:/tmp/docreader
+    expose:
+      - "50051"
+
+  ia-postgres:
+    image: paradedb/paradedb:v0.25.11-pg17
+    restart: unless-stopped
+    env_file: [ia/.env]
+    volumes:
+      - ia-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d weknora"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+
+  ia-redis:
+    image: redis:7.0-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${IA_REDIS_PASSWORD:?IA_REDIS_PASSWORD est obligatoire (voir ia/.env)}
 
 volumes:
   gsms-postgres:
   gsms-documents:
+  ia-postgres:
+  ia-files:
+  ia-docreader-tmp:

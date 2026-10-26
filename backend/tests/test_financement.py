@@ -5,11 +5,11 @@ from datetime import timedelta
 import pytest
 from sqlalchemy.orm import Session
 
-from app.funding import service
-from app.funding.policy import case_status
-from app.platform.decisions import PolicyDenied
-from app.platform.features import set_feature
-from app.training import models as t
+from app.application.access.funding import case_status
+from app.application.service.funding import service
+from app.application.service.platform.decisions import PolicyDenied
+from app.application.service.platform.features import set_feature
+from app.types import training as t
 from tests.conftest import TODAY, find_session, make_user
 
 

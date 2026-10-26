@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.training import models as t
+from app.types import training as t
 from tests.conftest import make_user
 
 

@@ -6,15 +6,15 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.demo import _grid_yes
-from app.documents.service import declare_paper, dossier_status, upload
-from app.platform.decisions import PolicyDenied
-from app.platform.settings import ConfigurationService
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evidence.models import Evidence, EvidenceValidation
-from app.qualiopi.evidence.service import validate
-from app.training import models as t
+from app.application.service.demo import _grid_yes
+from app.application.service.documents.service import declare_paper, dossier_status, upload
+from app.application.service.platform.decisions import PolicyDenied
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.qualiopi.engine import refresh_all
+from app.application.service.qualiopi.evidence.service import validate
+from app.errors.errors import InvalidStateError
+from app.types import training as t
+from app.types.qualiopi_evidence import Evidence, EvidenceValidation
 from tests.conftest import TODAY, make_user
 
 PDF = b"%PDF-1.4\n% reclamations\n%%EOF\n"

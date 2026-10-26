@@ -1,9 +1,12 @@
 # Déployer GSMS Qualiopi sur un serveur
 
-Une commande installe tout sur un VPS : base PostgreSQL, API, worker, front, et HTTPS automatique.
+Une commande installe tout sur un VPS : base PostgreSQL, API, worker, et HTTPS automatique.
 Si Traefik tient déjà les ports 80/443 (autres sites sur le serveur), l'application s'y branche par
-étiquettes, sans rien arrêter ; sinon Caddy s'en charge (Let's Encrypt). Seul le front est exposé ;
-l'API reste sur le réseau interne.
+étiquettes, sans rien arrêter ; sinon Caddy s'en charge (Let's Encrypt).
+
+> **Front retiré** (26/10/2026, refonte en Vue 3 + TDesign) : en attendant, c'est l'**API** qui est
+> publiée sur le domaine (routes sous `/api/v1`, voir `docs/API.md`). Quand le nouveau front existera, le
+> remettre devant l'API dans `docker-compose.yml`, `deploy/Caddyfile` et les fichiers Traefik.
 
 Installation la plus simple, depuis la console du VPS (root) :
 
@@ -12,13 +15,13 @@ curl -fsSLO https://raw.githubusercontent.com/samiriggui-code/gsms-qualiopi/clau
 ```
 
 ```
-Internet ──443──> Traefik ou Caddy ──> web (Next.js) ──> api (FastAPI) ──> db (PostgreSQL)
-                                               worker ─────────┘
+Internet ──443──> Traefik ou Caddy ──> api (FastAPI) ──> db (PostgreSQL)
+                                       worker ─────────┘
 ```
 
 ## Prérequis
 
-- Un VPS Linux (Ubuntu ou Debian), 2 Go de RAM au moins (4 Go conseillés pour construire le front).
+- Un VPS Linux (Ubuntu ou Debian), 2 Go de RAM au moins.
 - Docker et son extension compose : `curl -fsSL https://get.docker.com | sh`.
 - Un nom de domaine (enregistrement DNS **A**) qui pointe vers l'adresse IP du VPS.
 - Ports 80 et 443 ouverts (par exemple `ufw allow 80,443/tcp`).
@@ -41,7 +44,7 @@ Le script :
 5. affiche la commande pour créer le compte de direction :
 
 ```bash
-docker compose exec api python -m app.cli create-admin vous@exemple.fr "Votre nom"
+docker compose exec api python -m app.cmd.cli create-admin vous@exemple.fr "Votre nom"
 ```
 
 ## Mettre à jour
