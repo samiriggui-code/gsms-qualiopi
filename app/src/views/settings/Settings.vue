@@ -217,7 +217,7 @@ import RuntimeQueues from '@/views/system/RuntimeQueues.vue'
 import PlatformAPIKeys from '@/views/system/PlatformAPIKeys.vue'
 import SystemAuditLog from '@/views/system/SystemAuditLog.vue'
 import IntegrationSettingsSection from '@/views/integrations/IntegrationSettingsSection.vue'
-import { HIDDEN_SETTINGS_SECTIONS } from '@/config/gitssFeatures'
+import { HIDDEN_SETTINGS_SECTIONS, sandboxSectionVisible } from '@/config/gitssFeatures'
 import { GSMS_SECTIONS, isGsmsSection } from './gsms/sections'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { tokenStorage as gsmsToken } from '@/api/gsms/http'
@@ -326,6 +326,7 @@ const visibleSectionKeys = computed(() => [...gsmsItems.value.map((s) => s.key),
 const isSectionSupported = (key: string): boolean => {
   if (isGsmsSection(key)) return true
   if (HIDDEN_SETTINGS_SECTIONS.has(key)) return false
+  if (key === 'sandbox') return sandboxSectionVisible(deploymentCapabilities.capabilities)
   if (isIntegrationSection(key)) {
     return deploymentCapabilities.isSupported(
       INTEGRATION_TAB_CAPABILITY[integrationTabFromSection(key)],

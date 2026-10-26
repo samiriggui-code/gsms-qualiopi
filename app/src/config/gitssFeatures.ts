@@ -19,14 +19,25 @@ export const ENABLED_WEB_SEARCH_PROVIDERS = new Set([
 export const DISABLED_PARSER_ENGINES = new Set(['weknoracloud'])
 
 /**
- * Sections des paramètres masquées (le code reste : les skills dépendent du sandbox).
+ * Sections des paramètres masquées (le code reste).
  * GSMS : `members` (les comptes sont ceux de l'API Qualiopi, voir Paramètres › Équipe et accès),
- * `envvars` (secrets des skills, sans objet sans sandbox), `integration-im` (messageries) et
- * `integration-cli` (outil en ligne de commande du moteur IA) n'ont pas de sens pour un organisme de formation.
+ * `envvars` (secrets des skills), `integration-im` (messageries) et `integration-cli` (outil en ligne de commande du
+ * moteur IA) n'ont pas de sens pour un organisme de formation.
+ * `sandbox` n'est pas dans la liste : voir `sandboxSectionVisible`.
  */
 export const HIDDEN_SETTINGS_SECTIONS = new Set([
-  'sandbox', 'members', 'envvars', 'integration-im', 'integration-cli',
+  'members', 'envvars', 'integration-im', 'integration-cli',
 ])
+
+/**
+ * Section « sandbox » : visible seulement si le moteur IA déclare explicitement le sandbox Docker actif
+ * (`settings.sandbox.docker` à `supported: true`). Il ne l'est que sur un poste de développement
+ * (docker-compose.dev-sandbox.yml) : le sandbox Docker donne au moteur l'accès root à la machine, il reste éteint
+ * en production. Un échec de la détection laisse la section masquée.
+ */
+export function sandboxSectionVisible(capabilities: Record<string, { supported?: boolean } | undefined>): boolean {
+  return capabilities['settings.sandbox.docker']?.supported === true
+}
 
 /**
  * Guides d'accueil de WeKnora (dialogue « Bienvenue », visites guidées des bases de connaissances, des agents,

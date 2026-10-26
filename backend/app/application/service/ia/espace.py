@@ -140,6 +140,31 @@ def _embedding_models(token: str) -> int | None:
     return sum(1 for m in body.get("data") or [] if m.get("type") == "Embedding")
 
 
+def _default_model(token: str, kind: str) -> str | None:
+    """Modèle par défaut du moteur pour un type (`Embedding`, `KnowledgeQA`), sinon le premier déclaré."""
+    status, body = call("GET", "/api/v1/models", token=token)
+    models = [m for m in (body.get("data") or [] if _ok(status, body) else []) if m.get("type") == kind and m.get("id")]
+    chosen = next((m for m in models if m.get("is_default")), models[0] if models else None)
+    return chosen["id"] if chosen else None
+
+
+def _attach_models(kb: dict, token: str, report: Report) -> None:
+    """Base créée avant tout modèle : on lui donne les modèles par défaut, en gardant son découpage."""
+    embedding, chat = _default_model(token, "Embedding"), _default_model(token, "KnowledgeQA")
+    if not (embedding and chat):
+        return
+    chunking = kb.get("chunking_config") or {}
+    splitting = {"chunkSize": chunking.get("chunk_size") or 0, "chunkOverlap": chunking.get("chunk_overlap") or 0,
+                 "separators": chunking.get("separators") or []}
+    status, body = call("PUT", f"/api/v1/initialization/config/{kb['id']}",
+                        {"llmModelId": chat, "embeddingModelId": embedding, "documentSplitting": splitting}, token=token)
+    if _ok(status, body):
+        kb["embedding_model_id"] = embedding
+        report.done.append(f"Modèles par défaut du moteur attribués à la base « {KB_NAME} » ({embedding}, {chat})")
+    else:
+        report.problems.append(f"Modèles non attribués à la base « {KB_NAME} » : {message_of(body)} (HTTP {status})")
+
+
 def _all_knowledge(kb_id: str, token: str) -> list[dict]:
     rows, page = [], 1
     while True:
@@ -192,6 +217,8 @@ def ensure_referential_kb(token: str) -> Report:
         report.done.append(f"{already} document(s) déjà présent(s), laissés tels quels")
     if refused:
         report.problems.append(f"{len(refused)} document(s) refusé(s) par le moteur IA, par exemple « {refused[0]} »")
+    if not kb.get("embedding_model_id"):
+        _attach_models(kb, token, report)
     if not kb.get("embedding_model_id"):
         report.problems.append(f"La base « {KB_NAME} » n'a pas de modèle d'embedding : à choisir dans ses réglages "
                                "du moteur IA ; les documents seront alors réindexés au prochain « ia-preparer »")

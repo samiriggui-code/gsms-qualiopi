@@ -58,7 +58,8 @@ class FakeWorkspace:
             if self.kb_refused:
                 return 400, {"success": False, "error": {"message": self.kb_refused}}
             # Le moteur retient son modèle d'embedding par défaut quand il en a un.
-            kb = {**payload, "id": f"kb{len(self.bases) + 1}", "embedding_model_id": "m0" if self.models else ""}
+            kb = {**payload, "id": f"kb{len(self.bases) + 1}", "embedding_model_id": "m0" if self.models else "",
+                  "chunking_config": {"chunk_size": 512, "chunk_overlap": 50, "separators": ["\n\n"]}}
             self.bases.append(kb)
             self.knowledge[kb["id"]] = []
             return 201, {"success": True, "data": kb}  # le vrai moteur répond 201 ici
@@ -71,6 +72,12 @@ class FakeWorkspace:
                    "error_message": "" if self.models else "embedding model not configured"}
             self.knowledge[path.split("/")[4]].append(doc)
             return 200, {"success": True, "data": doc}
+        if path.startswith("/api/v1/initialization/config/") and method == "PUT":
+            kb = next(b for b in self.bases if b["id"] == path.split("/")[5])
+            assert payload["llmModelId"] and payload["embeddingModelId"]
+            assert payload["documentSplitting"]["chunkOverlap"] == 50  # découpage de la base conservé
+            kb["embedding_model_id"] = payload["embeddingModelId"]
+            return 200, {"success": True}
         if path.startswith("/api/v1/knowledge/") and path.endswith("/reparse"):
             doc = next(d for docs in self.knowledge.values() for d in docs if d["id"] == path.split("/")[4])
             doc.update(parse_status="pending", error_message="")
@@ -194,6 +201,20 @@ def test_documents_en_echec_reindexes_une_fois_le_modele_choisi(monkeypatch) -> 
     report = espace.ensure_referential_kb("jeton-weknora")
     assert report.ok, report.problems
     assert "65 document(s) en échec renvoyé(s) à l'indexation" in report.done
+    assert all(d["parse_status"] == "pending" for d in ws.knowledge["kb1"])
+
+
+def test_modeles_declares_apres_coup_attribues_a_la_base_puis_reindexation(monkeypatch) -> None:  # noqa: ANN001
+    ws = FakeWorkspace(embeddings=0)
+    monkeypatch.setattr(espace, "call", ws)
+    espace.ensure_referential_kb("jeton-weknora")  # base créée sans modèle, documents en échec
+
+    # Modèles déclarés ensuite (ia/config/builtin_models*.yaml) : ia-preparer les attribue à la base.
+    ws.models = [{"id": "emb", "type": "Embedding", "is_default": True}, {"id": "llm", "type": "KnowledgeQA"}]
+    report = espace.ensure_referential_kb("jeton-weknora")
+    assert report.ok, report.problems
+    assert ws.bases[0]["embedding_model_id"] == "emb"
+    assert any("Modèles par défaut du moteur attribués" in line for line in report.done)
     assert all(d["parse_status"] == "pending" for d in ws.knowledge["kb1"])
 
 
