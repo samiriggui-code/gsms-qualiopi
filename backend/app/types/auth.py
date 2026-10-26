@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Boolean, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.db import Base, TimestampMixin, new_id
@@ -13,6 +13,8 @@ class User(TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(200))
     password_hash: Mapped[str] = mapped_column(String(200))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Version des jetons de connexion : l'incrémenter révoque tous les jetons émis avant (app/middleware/auth.py).
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     role_links: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan", lazy="selectin")
 

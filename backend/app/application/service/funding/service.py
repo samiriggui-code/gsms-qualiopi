@@ -87,7 +87,7 @@ def add_source(db: Session, case: FundingCase, code: str, actor: User, *, provid
     return src
 
 
-def apply(db: Session, source: FundingSource, action_name: str, inputs: dict, actor: User,
+def apply(db: Session, source: FundingSource, action_name: str, inputs: dict, actor: User | None,
           today: date | None = None) -> FundingSource:
     today = today or date.today()
     enrollment = _enrollment_of(db, source)
@@ -113,7 +113,8 @@ def apply(db: Session, source: FundingSource, action_name: str, inputs: dict, ac
     source.steps.append(FundingStep(action=action_name, from_state=before, to_state=action.to, done_on=today,
                                     portal=action.portal, note=motif or inputs.get("note")))
     publish(db, "funding.source_changed", "funding_source", source.id, session_id=enrollment.session_id,
-            actor_id=actor.id, payload={"scheme": source.scheme, "from": before, "to": action.to, "action": action_name})
+            actor_id=actor.id if actor else None,
+            payload={"scheme": source.scheme, "from": before, "to": action.to, "action": action_name})
     return source
 
 

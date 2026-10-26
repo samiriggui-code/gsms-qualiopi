@@ -97,9 +97,11 @@ export const GSMS_MENU: GsmsMenuSection[] = [
   },
   {
     key: 'communication', icon: 'mail',
+    overview: { key: 'communication', route: 'gsmsCommunication', access: { perm: ['communications.manage', 'quality.read'] } },
     entries: [
       { key: 'messages', route: 'gsmsMessages', icon: 'mail', access: { perm: ['communications.manage'] } },
-      { key: 'documents', route: 'gsmsDocuments', icon: 'folder-open', access: { perm: ['quality.read', 'documents.read'] } },
+      // Documents rattachés aux preuves (GET /qualiopi/preuves) : quality.read.
+      { key: 'documents', route: 'gsmsDocuments', icon: 'folder-open', access: { perm: ['quality.read'] } },
     ],
   },
   { key: IA_SECTION, icon: 'chat', entries: [] },

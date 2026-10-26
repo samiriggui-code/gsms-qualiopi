@@ -125,12 +125,12 @@ def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
     seed_demo(db, today=TODAY)
     refresh_all(db, trigger="test", today=TODAY)
     assert db.scalars(select(t.Organization.name)).all() == ["Organisme réel"]
-    assert db.scalar(select(func.count()).select_from(t.TrainingSession)) == 4
+    assert db.scalar(select(func.count()).select_from(t.TrainingSession)) == 6
 
     removed = remove_demo(db)
     refresh_all(db, trigger="test", today=TODAY)
     db.commit()
-    assert removed["session"] == 4 and removed["learner"] == 22
+    assert removed["session"] == 6 and removed["learner"] == 22
     for model in (t.TrainingSession, t.Learner, t.Trainer, t.Enrollment, t.Complaint):
         assert db.scalar(select(func.count()).select_from(model)) == 0, model
     assert db.scalars(select(t.Program.code)).all() == ["REEL"]
@@ -141,6 +141,70 @@ def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
     assert not db.scalar(select(func.count()).select_from(MilestoneStatus)), "pas d'échéance orpheline (synthèse hebdo)"
     # Réinstallables ensuite
     seed_demo(db, today=TODAY)
+
+
+def test_exemples_des_pages_ressources_rh_financement_puis_retrait(db: Session) -> None:
+    """Modules RH et financement actifs : lieux, équipements, sous-traitants, partenaires, personnel, dossiers de
+    financement et un conflit de salle à venir ; les trous plantés ne bougent pas ; `remove_demo` retire tout, et
+    rien de ce qui a été saisi à côté."""
+    from datetime import timedelta
+
+    from app.application.service.demo import remove_demo
+    from app.application.service.pilotage.planning import planning
+    from app.application.service.platform.features import set_feature
+    from app.types import training as t
+    from app.types.funding import FundingCase, FundingSource
+    from app.types.hr import StaffAbsence, StaffMember
+    from tests.conftest import V9
+
+    for code in ("hr", "funding", "funding.cpf", "funding.opco"):
+        set_feature(db, code, True)
+    import_referential(db, V9)
+    real_place = t.Premises(code="REEL-SALLE", name="Salle réelle", created_by="import")
+    real_staff = StaffMember(first_name="Réel", last_name="Salarié", created_by="admin")
+    real_sub = t.Subcontractor(name="Sous-traitant réel", qualiopi_certified=True, contract_signed_on=TODAY, created_by="admin")
+    db.add_all([real_place, real_staff, real_sub])
+    db.flush()
+    info = seed_demo(db, today=TODAY)
+    refresh_all(db, trigger="test", today=TODAY)
+    db.commit()
+
+    assert info["funding_cases"] == 4
+    names = _names(db)
+    found = {(r.control_key, names.get(r.target_id, "organisme"), r.status)
+             for r in db.scalars(select(ControlResult)) if r.status not in OK}
+    assert found == {(g.control, g.target, g.status) for g in PLANTED_GAPS}, "les exemples ajoutés ne plantent aucun trou"
+
+    demo = t.Premises.created_by == "démo"
+    assert db.scalar(select(func.count()).select_from(t.Premises).where(demo)) == 7
+    checks = {e.code: e.next_check_on for e in db.scalars(select(t.Equipment))}
+    assert checks["DEMO-EXTINCTEURS"] < TODAY, "une vérification échue"
+    assert TODAY <= checks["DEMO-DEFIBRILLATEURS"] <= TODAY + timedelta(days=30), "une vérification proche"
+    subs = {s.name: s.qualiopi_certified for s in db.scalars(select(t.Subcontractor).where(t.Subcontractor.created_by == "démo"))}
+    assert sorted(subs.values()) == [False, True]
+    assert {p.kind for p in db.scalars(select(t.PartnerNetwork))} == {"HANDICAP", "SOCIO_ECONOMIQUE"}
+    assert db.scalar(select(func.count()).select_from(StaffMember).where(StaffMember.created_by == "démo")) == 5
+    assert db.scalar(select(func.count()).select_from(StaffAbsence)) == 1
+    soon = db.scalars(select(t.TrainerQualification.label).where(
+        t.TrainerQualification.valid_until.between(TODAY, TODAY + timedelta(days=90)))).all()
+    assert soon == ["Habilitation électrique H0B0"], "un titre à renouveler"
+    states = {(s.scheme, s.state) for s in db.scalars(select(FundingSource))}
+    assert states == {("OPCO", "REALISEE"), ("ENTREPRISE", "CONVENTION_SIGNEE"), ("CPF", "ACCEPTEE"), ("OPCO", "DEPOSEE")}
+
+    user, _ = make_user(db, "gestion")
+    plan = planning(db, user, TODAY, TODAY + timedelta(days=30))
+    assert [(c["type"], sorted(c["sessions"])) for c in plan["conflits"]] == [("SALLE", ["MAC-SST-2026-01", "SST-2026-05"])]
+
+    removed = remove_demo(db)
+    refresh_all(db, trigger="test", today=TODAY)
+    db.commit()
+    assert removed["funding_case"] == 4 and removed["staff_member"] == 5 and removed["premises"] == 7
+    for model in (t.Equipment, FundingCase, FundingSource, StaffAbsence, t.PartnerNetwork, t.SatisfactionSurvey,
+                  t.TrainerQualification, t.StaffDevelopmentAction):
+        assert db.scalar(select(func.count()).select_from(model)) == 0, model
+    assert db.scalars(select(t.Premises.code)).all() == ["REEL-SALLE"]
+    assert db.scalars(select(StaffMember.last_name)).all() == ["Salarié"]
+    assert db.scalars(select(t.Subcontractor.name)).all() == ["Sous-traitant réel"]
 
 
 def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN001

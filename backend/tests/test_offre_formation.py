@@ -64,7 +64,8 @@ def test_lieux_et_equipements(client, demo: Session) -> None:  # noqa: ANN001
     assert r.status_code == 201, r.text
     row = r.json()
     assert row["premises_name"] == "Salle A" and row["check_overdue"] and row["category_label"] == "Secourisme"
-    assert client.get(f"{API}/premises", headers=hl).json()[0]["equipment"] == 1
+    listed = {r["id"]: r for r in client.get(f"{API}/premises", headers=hl).json()}
+    assert listed[salle["id"]]["equipment"] == 1
 
 
 def test_resultats_mesures_et_publication(client, demo: Session) -> None:  # noqa: ANN001

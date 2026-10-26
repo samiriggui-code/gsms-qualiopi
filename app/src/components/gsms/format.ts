@@ -55,6 +55,8 @@ const THEMES: Record<string, TagTheme> = {
   // Demandes de préinscription et devis (libellés fournis par l'API)
   NOUVELLE: 'warning', CONVERTIE: 'success', REFUSEE: 'danger',
   EN_RELECTURE: 'warning', VALIDE: 'success', ENVOYE: 'primary', ABANDONNE: 'danger',
+  // Messages et relances (GET /communications)
+  A_VALIDER: 'warning', PREVU: 'primary', ECHEC: 'danger', SANS_ADRESSE: 'warning',
 }
 
 export function stateTheme(code: string | null | undefined): TagTheme {

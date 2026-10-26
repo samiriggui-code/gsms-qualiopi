@@ -20,14 +20,18 @@ from sqlalchemy.orm import Session
 
 from app.application.service.documents.dossier import find_item
 from app.application.service.documents.service import upload
+from app.application.service.platform.features import is_enabled
 from app.common.journal import set_actor
 from app.errors.errors import ConflictError
 from app.types import training as t
+from app.types.funding import FundingCase
+from app.types.hr import StaffAbsence, StaffContract, StaffMember
 from app.types.invoicing import Invoice, Payment
 from app.types.preinscriptions import COMPLIANCE, Preinscription
 from app.types.qualiopi_audit import Sequence
 
 ACTOR = "démo"
+PROGRAM_CODES = ("SSIAP1", "SST", "MAC-SST")
 
 LEARNERS = [
     ("Camille", "Durand"), ("Hugo", "Lefèvre"), ("Inès", "Moreau"), ("Lucas", "Garnier"),
@@ -36,6 +40,10 @@ LEARNERS = [
     ("Jade", "Perrin"), ("Louis", "Morin"), ("Emma", "Mathieu"), ("Noah", "Clement"),
     ("Lina", "Gauthier"), ("Raphaël", "Dumont"),
 ]
+
+
+HOT_COMMENTS = {0: "Plateau technique très concret, exercices de feu réels appréciés.",
+                3: "Rythme soutenu le troisième jour ; supports clairs."}
 
 
 @dataclass(frozen=True)
@@ -148,7 +156,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     set_actor(db, ACTOR)
     if db.scalar(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR).limit(1)) is not None:
         raise ConflictError("Les données d'exemple sont déjà installées")
-    taken = db.scalars(select(t.Program.code).where(t.Program.code.in_(("SSIAP1", "SST")))).all()
+    taken = db.scalars(select(t.Program.code).where(t.Program.code.in_(PROGRAM_CODES))).all()
     if taken:
         raise ConflictError(f"Formation {', '.join(taken)} déjà présente : les exemples ne l'écrasent pas")
 
@@ -182,6 +190,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     ssiap = t.Program(
         code="SSIAP1", title="Agent de service de sécurité incendie (SSIAP 1)", action_category="AF",
+        track="INCENDIE", pathway="INITIAL",
         is_certifying=True, rncp_code="RS00000", duration_hours=Decimal("70"), price_eur=Decimal("1200"),
         prerequisites=["Aptitude médicale", "Secourisme SST ou PSC1 en cours de validité"],
         objectives=["Prévenir les risques d'incendie dans un établissement recevant du public",
@@ -197,21 +206,36 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     )
     sst = t.Program(
         code="SST", title="Sauveteur secouriste du travail", action_category="AF", is_certifying=False,
+        track="SST", pathway="INITIAL",
         duration_hours=Decimal("14"), price_eur=Decimal("250"),
         prerequisites=["Aucun"], objectives=["Porter secours à une victime sur son lieu de travail"],
         content="Protéger, examiner, alerter, secourir.",
         teaching_methods="Démonstrations et cas pratiques.", evaluation_methods="Évaluation certificative continue.",
         access_delay="Sous 15 jours", public_info_reviewed_on=d(-60), created_by=ACTOR,
     )  # trous : accessibilité absente (I01), aucun taux publié (I02)
-    db.add_all([ssiap, sst])
+    mac_sst = t.Program(
+        code="MAC-SST", title="Maintien et actualisation des compétences SST", action_category="AF",
+        is_certifying=False, track="SST", pathway="MAC", duration_hours=Decimal("7"), price_eur=Decimal("150"),
+        prerequisites=["Certificat SST obtenu ou actualisé depuis moins de 24 mois"],
+        objectives=["Actualiser les gestes de secours au regard des évolutions des procédures",
+                    "Maintenir sa capacité à intervenir face à une situation d'accident du travail"],
+        content="Retour d'expérience ; actualisation des gestes ; cas concrets ; prévention dans l'entreprise.",
+        teaching_methods="Cas concrets sur mannequins, échanges sur les pratiques.",
+        evaluation_methods="Évaluation continue sur cas concrets.",
+        access_delay="Sous 15 jours",
+        accessibility_info="Salles accessibles de plain-pied ; adaptations étudiées avec la référente handicap.",
+        public_info_reviewed_on=d(-20), satisfaction_rate=Decimal("94"), created_by=ACTOR,
+    )
+    db.add_all([ssiap, sst, mac_sst])
 
-    karim = t.Trainer(first_name="Karim", last_name="Benali", specialties=["SSIAP"], created_by=ACTOR)
+    karim = t.Trainer(first_name="Karim", last_name="Benali", specialties=["SSIAP", "SST"], created_by=ACTOR)
     julie = t.Trainer(first_name="Julie", last_name="Martin", specialties=["SST"], is_external=True, created_by=ACTOR)
-    db.add_all([karim, julie])
+    elodie = t.Trainer(first_name="Élodie", last_name="Marchand", specialties=["SST"], created_by=ACTOR)
+    db.add_all([karim, julie, elodie])
     db.flush()
-    db.add(t.TrainerQualification(trainer_id=karim.id, label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
+    db.add(t.TrainerQualification(trainer_id=karim.id, kind="SSIAP3", label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
                                   document_id=_doc(db, "JUSTIFICATIF", "Diplôme SSIAP 3 — K. Benali").id, created_by=ACTOR))
-    db.add(t.TrainerQualification(trainer_id=julie.id, label="Formatrice SST", obtained_on=d(-800), valid_until=d(-10),
+    db.add(t.TrainerQualification(trainer_id=julie.id, kind="FORMATEUR_SST", label="Formatrice SST", obtained_on=d(-800), valid_until=d(-10),
                                   document_id=_doc(db, "JUSTIFICATIF", "Certificat formatrice SST — J. Martin").id,
                                   created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
     upload(db, subject="FORMATEUR", subject_id=karim.id, requirement="CV", content=_pdf("CV K. Benali"),
@@ -220,6 +244,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
            note="Formateur incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
     db.add(t.StaffDevelopmentAction(trainer_id=karim.id, label="Recyclage pédagogique", planned_on=d(-120),
                                     completed_on=d(-100), created_by=ACTOR))
+    _formateurs(db, d, karim, julie, elodie)
 
     learners = [t.Learner(first_name=f, last_name=n, email=f"{f.lower()}.{n.lower()}@exemple.fr", created_by=ACTOR) for f, n in LEARNERS]
     db.add_all(learners)
@@ -249,7 +274,8 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
         db.add(t.Certificate(enrollment_id=e.id, kind="CERTIFICAT", issued_on=d(-35), created_by=ACTOR))
         if i < 10:  # trou I30 : 10 réponses à chaud sur 12
             db.add(t.SatisfactionSurvey(session_id=s1.id, enrollment_id=e.id, audience="APPRENANT_CHAUD",
-                                        sent_on=d(-36), answered_on=d(-36), score=Decimal("4.5"), created_by=ACTOR))
+                                        sent_on=d(-36), answered_on=d(-36), score=Decimal("4.5"),
+                                        comment=HOT_COMMENTS.get(i), created_by=ACTOR))
     # trou I12 : abandon au 2e jour, sans motif
     quit_ = _enroll(db, s1, learners[12], "ABANDON")
     quit_.abandoned_on = d(-39)
@@ -281,8 +307,8 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     # ── Session à venir : SSIAP1-2026-03 (rien n'est encore exigible) ─────────────
     s3 = t.TrainingSession(reference="SSIAP1-2026-03", program_id=ssiap.id, start_date=d(30), end_date=d(34),
-                           location="Centre de Bobigny", trainer_id=karim.id, capacity=14, status="PLANIFIEE",
-                           created_by=ACTOR)
+                           location="Centre de Bobigny", room="Plateau technique", trainer_id=karim.id, capacity=14,
+                           status="PLANIFIEE", created_by=ACTOR)
     db.add(s3)
     db.flush()
     s3_enrollments = [_enroll(db, s3, learner, "INSCRIT") for learner in learners[16:18]]
@@ -308,11 +334,26 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
         if i == 0:
             db.add(t.Positioning(enrollment_id=e.id, method="Questionnaire en ligne", completed_on=d(-1), created_by=ACTOR))
 
+    # ── Deux sessions à venir dans la même salle, le même jour : le conflit visible au planning ─────
+    # Pas encore d'inscrit : aucun jalon de l'échéancier n'est dû.
+    s5 = t.TrainingSession(reference="SST-2026-05", program_id=sst.id, start_date=d(14), end_date=d(15),
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=elodie.id, capacity=10,
+                           status="PLANIFIEE", created_by=ACTOR)
+    s6 = t.TrainingSession(reference="MAC-SST-2026-01", program_id=mac_sst.id, start_date=d(15), end_date=d(15),
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=karim.id, capacity=10,
+                           status="PLANIFIEE", created_by=ACTOR)
+    db.add_all([s5, s6])
+
     _preinscriptions(db, today, ssiap, sst, s3, s3_enrollments[0])
     db.flush()
-    _factures(db, today, s1)
-    return {"sessions": [s1.reference, s2.reference, s3.reference, s4.reference], "programs": [ssiap.code, sst.code],
-            "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES)}
+    company = _factures(db, today, s1)
+    _enquetes(db, d, s1)
+    _ressources(db, d)
+    _personnel(db, d, karim, julie, elodie)
+    cases = _financements(db, today, {"s1": learners[0], "s2": learners[14], "s3": learners[17], "s4": acme[0]},
+                          [s1, s2, s3, s4], company)
+    return {"sessions": [s.reference for s in (s1, s2, s3, s4, s5, s6)], "programs": [ssiap.code, sst.code, mac_sst.code],
+            "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES), "funding_cases": cases}
 
 
 
@@ -354,7 +395,7 @@ def _preinscriptions(db: Session, today: date, ssiap: t.Program, sst: t.Program,
                               formation_name=program.title, program_id=program.id, consented_at=at, created_at=at))
 
 
-def _factures(db: Session, today: date, s1: t.TrainingSession) -> None:
+def _factures(db: Session, today: date, s1: t.TrainingSession) -> t.Company:
     """Factures de la session passée SSIAP1-2026-01 : une payée, une payée partiellement, une en retard avec un avoir
     partiel, un brouillon. Numérotées dans des séries à part (DEMO-FA, DEMO-AV) : la vraie numérotation de
     l'organisme n'est jamais entamée, et `remove_demo` peut les retirer sans y laisser de trou."""
@@ -392,13 +433,169 @@ def _factures(db: Session, today: date, s1: t.TrainingSession) -> None:
                      "demi-journée reportée", actor=ACTOR, actor_id=None, today=d(-20), series="DEMO-AV")
     facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[9:], None)
     db.flush()
+    return company
+
+def _formateurs(db: Session, d, karim: t.Trainer, julie: t.Trainer, elodie: t.Trainer) -> None:  # noqa: ANN001
+    """Titres et actions de développement : un titre à renouveler dans 45 jours (Karim Benali, en plus de son
+    SSIAP 3 valide), une action réalisée et deux prévues. Aucun ne change l'état des contrôles plantés."""
+    for trainer, kind, label, number, obtained, until in (
+        (karim, "FORMATEUR_SST", "Formateur SST", "SST-DEMO-0001", -600, 130),
+        (karim, "HABILITATION_ELECTRIQUE", "Habilitation électrique H0B0", None, -1050, 45),
+        (elodie, "FORMATEUR_SST", "Formatrice SST", "SST-DEMO-0002", -300, 430),
+    ):
+        doc = _doc(db, "JUSTIFICATIF", f"{label} — {trainer.first_name[0]}. {trainer.last_name}")
+        db.add(t.TrainerQualification(trainer_id=trainer.id, kind=kind, label=label, number=number, obtained_on=d(obtained),
+                                      valid_until=d(until), document_id=doc.id, created_by=ACTOR))
+    db.add_all([
+        t.StaffDevelopmentAction(trainer_id=elodie.id, label="Accueil des personnes en situation de handicap",
+                                 planned_on=d(-45), completed_on=d(-40), created_by=ACTOR),
+        t.StaffDevelopmentAction(trainer_id=julie.id, label="Maintien et actualisation des compétences de formatrice SST",
+                                 planned_on=d(25), created_by=ACTOR),
+        t.StaffDevelopmentAction(trainer_id=karim.id, label="Actualisation réglementaire ERP et IGH", planned_on=d(20),
+                                 created_by=ACTOR),
+    ])
+
+
+def _enquetes(db: Session, d, s1: t.TrainingSession) -> None:  # noqa: ANN001
+    """Appréciations des autres parties prenantes de la session passée : entreprise et formateur recueillies,
+    financeur relancé sans réponse. Les questionnaires à chaud (I30) restent ceux de la boucle principale."""
+    db.add_all([
+        t.SatisfactionSurvey(session_id=s1.id, audience="ENTREPRISE", sent_on=d(-34), answered_on=d(-28),
+                             score=Decimal("4.2"), comment="Agents opérationnels dès leur retour ; souhait d'une session "
+                             "intra-entreprise.", created_by=ACTOR),
+        t.SatisfactionSurvey(session_id=s1.id, audience="FORMATEUR", sent_on=d(-36), answered_on=d(-35),
+                             score=Decimal("4.5"), comment="Groupe homogène ; prévoir une demi-journée de plus sur le "
+                             "poste de sécurité.", created_by=ACTOR),
+        t.SatisfactionSurvey(session_id=s1.id, audience="FINANCEUR", sent_on=d(-30), created_by=ACTOR),
+    ])
+
+
+def _ressources(db: Session, d) -> None:  # noqa: ANN001
+    """Lieux, équipements, sous-traitants et partenaires. Codes en DEMO- : jamais en concurrence avec ceux d'un import.
+
+    Les noms de site et de salle sont ceux des sessions (le planning rapproche par le texte). Équipements : une
+    vérification échue, une proche, les autres à jour."""
+    site = t.Premises(code="DEMO-BOBIGNY", name="Centre de Bobigny", kind="SITE", address="10 rue de l'Exemple, 93000 Bobigny",
+                      accessibility="Entrée de plain-pied, place de stationnement réservée, ascenseur vers l'étage.",
+                      status="EN_SERVICE", checked_on=d(-90), created_by=ACTOR)
+    annexe = t.Premises(code="DEMO-MONTREUIL", name="Antenne de Montreuil", kind="SITE",
+                        address="3 allée de la Démonstration, 93100 Montreuil", status="A_VERIFIER",
+                        note="Locaux proposés par un partenaire : visite à organiser avant toute session.", created_by=ACTOR)
+    db.add_all([site, annexe])
+    db.flush()
+    rooms = {}
+    for code, name, kind, parent, floor, capacity, access in (
+        ("DEMO-BOBIGNY-S1", "Salle 1", "SALLE", site, "Rez-de-chaussée", 14, "Accès de plain-pied, table à hauteur réglable."),
+        ("DEMO-BOBIGNY-S2", "Salle 2", "SALLE", site, "1er étage", 10, "Ascenseur ; pas de boucle magnétique (à prévoir au besoin)."),
+        ("DEMO-BOBIGNY-PT", "Plateau technique", "PLATEAU_TECHNIQUE", site, "Rez-de-chaussée", 14,
+         "Accès par l'entrée logistique ; exercices adaptés avec la référente handicap."),
+        ("DEMO-BOBIGNY-STOCK", "Local matériel", "STOCKAGE", site, "Sous-sol", None, None),
+        ("DEMO-MONTREUIL-A", "Salle Atelier", "SALLE", annexe, "Rez-de-chaussée", 12, None),
+    ):
+        rooms[code] = t.Premises(code=code, name=name, kind=kind, parent_id=parent.id, floor=floor, capacity=capacity,
+                                 accessibility=access, status="EN_SERVICE" if parent is site else "A_VERIFIER",
+                                 checked_on=d(-90) if parent is site else None, created_by=ACTOR)
+    db.add_all(rooms.values())
+    db.flush()
+    for code, label, category, qty, room, status, last, nxt, note in (
+        ("DEMO-MANNEQUINS", "Mannequins de secourisme (adulte, enfant, nourrisson)", "SECOURISME", 6, "DEMO-BOBIGNY-STOCK",
+         "EN_SERVICE", -200, 165, None),
+        ("DEMO-DEFIBRILLATEURS", "Défibrillateurs de formation", "SECOURISME", 4, "DEMO-BOBIGNY-STOCK", "EN_SERVICE", -353, 12,
+         "Contrôle des électrodes et des batteries à planifier."),
+        ("DEMO-EXTINCTEURS", "Extincteurs d'exercice (eau pulvérisée et CO2)", "INCENDIE", 8, "DEMO-BOBIGNY-PT", "EN_SERVICE",
+         -380, -15, "Vérification dépassée : à faire avant la prochaine session SSIAP."),
+        ("DEMO-BAC-FEU", "Générateur de flammes au gaz pour exercices", "INCENDIE", 1, "DEMO-BOBIGNY-PT", "EN_SERVICE",
+         -60, 120, None),
+        ("DEMO-SSI", "Tableau de signalisation incendie pédagogique", "INCENDIE", 1, "DEMO-BOBIGNY-PT", "EN_SERVICE", -150, 215, None),
+        ("DEMO-FUMEE", "Générateur de fumée froide", "INCENDIE", 1, "DEMO-BOBIGNY-STOCK", "EN_MAINTENANCE", -400, None,
+         "En réparation chez le fournisseur."),
+        ("DEMO-VIDEOPROJECTEURS", "Vidéoprojecteurs", "INFORMATIQUE", 2, "DEMO-BOBIGNY-S1", "EN_SERVICE", None, None, None),
+    ):
+        db.add(t.Equipment(code=code, label=label, category=category, quantity=qty, premises_id=rooms[room].id, status=status,
+                           last_check_on=d(last) if last is not None else None, next_check_on=d(nxt) if nxt is not None else None,
+                           note=note, created_by=ACTOR))
+    # Sous-traitants : contrat signé et conformité vérifiée pour les deux (aucun trou I27 planté).
+    db.add_all([
+        t.Subcontractor(name="Formations Incendie Exemple", siret="00000000000027", qualiopi_certified=True,
+                        contract_signed_on=d(-200), last_review_on=d(-200), created_by=ACTOR),
+        t.Subcontractor(name="Atelier Secours Démo", siret="00000000000035", qualiopi_certified=False,
+                        contract_signed_on=d(-90), last_review_on=d(-85), created_by=ACTOR),
+        t.PartnerNetwork(kind="HANDICAP", name="Centre ressource formation et handicap (exemple)", last_contact_on=d(-25),
+                         created_by=ACTOR),
+        t.PartnerNetwork(kind="SOCIO_ECONOMIQUE", name="Groupement des employeurs de la sécurité (exemple)",
+                         last_contact_on=d(-35), created_by=ACTOR),
+        t.PartnerNetwork(kind="SOCIO_ECONOMIQUE", name="Club des entreprises de Bobigny (exemple)", last_contact_on=d(-120),
+                         created_by=ACTOR),
+    ])
+
+
+def _personnel(db: Session, d, karim: t.Trainer, julie: t.Trainer, elodie: t.Trainer) -> None:  # noqa: ANN001
+    """Fiches RH : contrats qui couvrent les sessions prévues, une absence (formation de Karim Benali) hors session."""
+    people = (
+        ("Karim", "Benali", "SALARIE", "Formateur incendie (SSIAP)", karim, [("CDI", -1200, None, "TEMPS_PLEIN")]),
+        ("Julie", "Martin", "INDEPENDANT", "Formatrice SST", julie, [("PRESTATION", -400, None, None)]),
+        ("Élodie", "Marchand", "SALARIE", "Formatrice SST", elodie, [("CDD", -60, 120, "TEMPS_PARTIEL")]),
+        ("Nadia", "Roux", "SALARIE", "Responsable pédagogique, référente handicap", None, [("CDI", -900, None, "TEMPS_PLEIN")]),
+        ("Thomas", "Girard", "SALARIE", "Assistant de formation", None,
+         [("CDD", -700, -335, "TEMPS_PLEIN"), ("CDI", -334, None, "TEMPS_PLEIN")]),
+    )
+    for first, last, kind, job, trainer, contracts in people:
+        m = StaffMember(first_name=first, last_name=last, email=f"{first.lower()}.{last.lower()}@exemple.fr", kind=kind,
+                        job_title=job, trainer_id=trainer.id if trainer else None, created_by=ACTOR)
+        m.contracts = [StaffContract(kind=k, start_date=d(start), end_date=d(end) if end is not None else None, work_time=wt,
+                                     created_by=ACTOR) for k, start, end, wt in contracts]
+        if trainer is karim:
+            m.absences = [StaffAbsence(start_date=d(20), end_date=d(21), kind="FORMATION",
+                                       note="Actualisation réglementaire ERP et IGH", created_by=ACTOR)]
+        db.add(m)
+    db.flush()
+
+
+def _financements(db: Session, today: date, learners: dict[str, t.Learner], sessions: list[t.TrainingSession],
+                  company: t.Company) -> int:
+    """Dossiers de financement sur des inscriptions existantes, menés par le service (circuits et conditions réels).
+
+    Un dispositif désactivé pour l'organisme n'est pas créé : la démo ne change aucun réglage. Renvoie le nombre de
+    dossiers ouverts."""
+    from app.application.service.funding import service as funding
+    from app.application.service.funding.schemes import scheme
+
+    d = lambda days: today + timedelta(days=days)  # noqa: E731
+    ids = [s.id for s in sessions]
+    by_key = {key: db.scalar(select(t.Enrollment).where(t.Enrollment.session_id.in_(ids), t.Enrollment.learner_id == learner.id))
+              for key, learner in learners.items()}
+    plans = (
+        # OPCO accordé, réalisation constatée, facture à envoyer (échéance dépassée) : SSIAP1-2026-01.
+        ("s1", "OPCO", {"provider_name": "Opco Exemple", "amount_requested": Decimal("1200")},
+         [("deposer", {}, -47), ("accorder", {"external_ref": "OPCO-DEMO-0001", "amount_granted": "1200"}, -42),
+          ("constater_realisation", {}, -34)]),
+        # Entreprise : convention signée, session en cours (SST-2026-02).
+        ("s2", "ENTREPRISE", {"payer_name": company.name}, [("signer", {"amount_granted": "250"}, -11)]),
+        # CPF accepté, entrée à déclarer au démarrage (SSIAP1-2026-03).
+        ("s3", "CPF", {}, [("accepter", {"external_ref": "CPF-DEMO-0001", "amount_granted": "1200"}, -6)]),
+        # OPCO déposé, accord attendu (SST-2026-04).
+        ("s4", "OPCO", {"provider_name": "Opco Exemple", "amount_requested": Decimal("250")}, [("deposer", {}, -15)]),
+    )
+    opened = 0
+    for key, code, options, steps in plans:
+        if not is_enabled(db, scheme(code).feature):
+            continue
+        e = by_key[key]
+        e.funding = code
+        case = funding.open_case(db, e, None, None)
+        source = funding.add_source(db, case, code, None, **options)
+        for action, inputs, day in steps:
+            funding.apply(db, source, action, inputs, None, today=d(day))
+        opened += 1
+    db.flush()
+    return opened
 
 
 # Données d'exemple, dans l'ordre de suppression : ce qui est rattaché aux sessions, aux apprenants et aux
 # formateurs (inscriptions, émargements, preuves de parcours…) part en cascade. L'organisme reste toujours.
 _DEMO_TABLES = (
-    Preinscription, t.Complaint, t.WatchItem, t.PartnerNetwork, t.TrainingSession, t.Learner, t.StaffDevelopmentAction,
-    t.TrainerQualification, t.Trainer, t.Program,
+    Preinscription, t.Complaint, t.WatchItem, t.PartnerNetwork, t.Subcontractor, t.Equipment, t.Premises, FundingCase,
+    t.TrainingSession, t.Learner, StaffMember, t.StaffDevelopmentAction, t.TrainerQualification, t.Trainer, t.Program,
 )
 
 

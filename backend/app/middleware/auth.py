@@ -62,9 +62,19 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 def create_token(user: User) -> str:
+    """Jeton de connexion : compte, version de ses jetons (`ver`), date d'émission et d'expiration."""
     s = get_settings()
-    payload = {"sub": user.id, "exp": utcnow() + timedelta(minutes=s.jwt_ttl_minutes)}
+    now = utcnow()
+    payload = {"sub": user.id, "ver": user.token_version, "iat": now, "exp": now + timedelta(minutes=s.jwt_ttl_minutes)}
     return jwt.encode(payload, s.jwt_secret, algorithm="HS256")
+
+
+def revoke_tokens(user: User) -> None:
+    """Révoque tous les jetons de connexion émis pour ce compte (effectif au commit, tracé au journal).
+
+    Toute nouvelle valeur suffit : deux révocations simultanées révoquent toutes deux les jetons antérieurs.
+    Le jeton « mcp » n'est pas concerné : il a sa propre liaison à l'empreinte du mot de passe."""
+    user.token_version += 1
 
 
 # Jeton « mcp » : réservé au serveur MCP (/api/v1/mcp), refusé partout ailleurs. Il ne périme pas, mais il est
@@ -93,8 +103,12 @@ def user_from_token(db: Session, token: str, *, allow_mcp: bool = False) -> User
     user = db.get(User, payload.get("sub"))
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Utilisateur inactif")
-    if scope == MCP_SCOPE and payload.get("fp") != _fingerprint(user):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton renouvelé depuis : l'ancien n'est plus valable")
+    if scope == MCP_SCOPE:
+        if payload.get("fp") != _fingerprint(user):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton renouvelé depuis : l'ancien n'est plus valable")
+    elif payload.get("ver") != user.token_version:
+        # Mot de passe changé, compte désactivé ou « déconnexion partout » depuis l'émission du jeton.
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session révoquée : reconnectez-vous")
     set_actor(db, f"{user.full_name} <{user.email}>")
     return user
 

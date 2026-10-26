@@ -23,6 +23,7 @@ from app.middleware.auth import (
     granted_permissions,
     hash_password,
     permissions_of,
+    revoke_tokens,
     verify_password,
 )
 from app.router.rbac import CATALOGUE, SYSTEM_ROLES, check_codes
@@ -102,9 +103,12 @@ class PasswordIn(BaseModel):
     nouveau: str
 
 
-@router.post("/me/password", status_code=204)
-def change_password(body: PasswordIn, user: CurrentUser, db: DB) -> None:
-    """Changer son mot de passe : l'actuel est redemandé, même règle de longueur qu'à la création."""
+@router.post("/me/password", response_model=TokenOut)
+def change_password(body: PasswordIn, user: CurrentUser, db: DB) -> TokenOut:
+    """Changer son mot de passe : l'actuel est redemandé, même règle de longueur qu'à la création.
+
+    Tous les jetons émis avant sont révoqués (autres appareils compris) ; un jeton neuf est rendu pour la session
+    courante, que le client doit substituer à l'ancien."""
     if not verify_password(body.actuel, user.password_hash):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Mot de passe actuel incorrect")
     if len(body.nouveau) < 12:
@@ -114,6 +118,15 @@ def change_password(body: PasswordIn, user: CurrentUser, db: DB) -> None:
     if body.nouveau == body.actuel:
         raise HTTPException(422, "Choisissez un mot de passe différent de l'actuel")
     user.password_hash = hash_password(body.nouveau)
+    revoke_tokens(user)
+    db.commit()
+    return TokenOut(access_token=create_token(user), user=UserOut.model_validate(user))
+
+
+@router.post("/me/deconnexion-partout", status_code=204)
+def logout_everywhere(user: CurrentUser, db: DB) -> None:
+    """Déconnecte toutes les sessions du compte, celle-ci comprise : tous ses jetons émis jusqu'ici sont révoqués."""
+    revoke_tokens(user)
     db.commit()
 
 
@@ -284,6 +297,9 @@ def set_user_active(user_id: str, body: ActiveIn, db: DB, actor: UserManager) ->
     if user is None:
         raise HTTPException(404, "Utilisateur introuvable")
     _guard_target(db, actor, user)
+    if user.is_active and not body.is_active:
+        # Désactiver révoque les jetons : une réactivation ultérieure ne rouvre pas les anciennes sessions.
+        revoke_tokens(user)
     user.is_active = body.is_active
     db.commit()
     return user
