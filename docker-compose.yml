@@ -1,6 +1,6 @@
-# GSMS — un monolithe (API), un worker, une base. Le front a été retiré volontairement : il sera refait
-# (Vue 3 + TDesign, kit Global-IT-SS) ; voir docs/API.md pour les routes à consommer.
-# Sur un serveur, ajouter deploy/docker-compose.prod.yml (HTTPS automatique) : voir deploy/README.md.
+# GSMS — un monolithe (API), un worker, une base, et le moteur IA (ia-*). En local, le back-office (app/) et la
+# landing tournent avec scripts/dev.sh. Sur un serveur, deploy/deploy.sh ajoute deploy/docker-compose.prod.yml et le
+# service « web » (Caddy : landing, back-office, API et moteur IA sur une seule origine) : voir deploy/README.md.
 # Secrets obligatoires (pas de valeur par défaut) : POSTGRES_PASSWORD, JWT_SECRET. Voir .env.example.
 services:
   db:

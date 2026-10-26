@@ -57,6 +57,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: API et worker
         run: docker build -t gsms-backend:ci backend
+      - name: Site, back-office et reverse proxy (service web)
+        run: |
+          docker build -f deploy/web.Dockerfile -t gsms-web:ci .
+          docker run --rm -e SITE_ADDRESS=ci.exemple.fr gsms-web:ci caddy validate --config /etc/caddy/Caddyfile
+          docker run --rm -e SITE_ADDRESS=:80 gsms-web:ci caddy validate --config /etc/caddy/Caddyfile
       - name: Configuration serveur
         run: |
           export DOMAIN=ci.exemple.fr POSTGRES_PASSWORD=x JWT_SECRET=x TRAEFIK_NETWORK=proxy TRAEFIK_ENTRYPOINT=websecure TRAEFIK_CERTRESOLVER=letsencrypt

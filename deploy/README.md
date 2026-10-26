@@ -1,12 +1,8 @@
 # Déployer GSMS Qualiopi sur un serveur
 
-Une commande installe tout sur un VPS : base PostgreSQL, API, worker, et HTTPS automatique.
-Si Traefik tient déjà les ports 80/443 (autres sites sur le serveur), l'application s'y branche par
-étiquettes, sans rien arrêter ; sinon Caddy s'en charge (Let's Encrypt).
-
-> **Front retiré** (26/10/2026, refonte en Vue 3 + TDesign) : en attendant, c'est l'**API** qui est
-> publiée sur le domaine (routes sous `/api/v1`, voir `docs/API.md`). Quand le nouveau front existera, le
-> remettre devant l'API dans `docker-compose.yml`, `deploy/Caddyfile` et les fichiers Traefik.
+Une commande installe tout sur un VPS : base PostgreSQL, API, worker, site public, back-office et HTTPS
+automatique. Si Traefik tient déjà les ports 80/443 (autres sites sur le serveur), l'application s'y branche par
+étiquettes, sans rien arrêter ; sinon le service `web` (Caddy) s'en charge (Let's Encrypt).
 
 Installation la plus simple, depuis la console du VPS (root) :
 
@@ -15,8 +11,52 @@ curl -fsSLO https://raw.githubusercontent.com/samiriggui-code/gsms-qualiopi/clau
 ```
 
 ```
-Internet ──443──> Traefik ou Caddy ──> api (FastAPI) ──> db (PostgreSQL)
-                                       worker ─────────┘
+Internet ──443──> [Traefik] ──> web (Caddy) ─┬─ /        site public (landing/, export statique)
+                                             ├─ /app/    back-office (app/, build Vite)
+                                             ├─ /api/    api (FastAPI) ──> db (PostgreSQL)
+                                             │                worker ───┘
+                                             └─ /ia/     ia-app (moteur IA), préfixe /ia retiré
+```
+
+## Publication : le service `web`
+
+`deploy/web.Dockerfile` construit la landing et le back-office (`VITE_BASE_PATH=/app/`), puis les sert avec Caddy
+(version et images figées par empreinte), configuré par `deploy/Caddyfile`. Une seule origine : pas de CORS, et le
+back-office appelle `/api/v1` et `/ia` en relatif.
+
+- **Sans Traefik** (`docker-compose.caddy.yml`) : `web` prend les ports 80/443, `SITE_ADDRESS` = le domaine, Caddy
+  obtient le certificat. **Avec Traefik** (`docker-compose.traefik*.yml`) : `web` écoute en HTTP sur `:80`
+  (`SITE_ADDRESS=:80`) et Traefik termine le HTTPS.
+- **Jamais publiés** (404) : `/api/v1/mcp` (serveur MCP réservé au moteur IA, sur le réseau interne),
+  `/ia/mcp`, `/ia/api/v1/local-browser/internal`, et le canal d'intégration WeKnora (`/app/embed*`,
+  `embed.html`, `weknora-widget.js`) : GSMS ne propose pas de chat intégrable dans un site tiers.
+- **Liens envoyés par e-mail ou QR code** : `/q/{jeton}`, `/espace/{jeton}` et `/emarger` sont servis par la page du
+  back-office (même CSP) ; `/api/public/documents/{jeton}` est réécrit vers `/api/v1/public/documents/{jeton}`.
+- **Moteur IA** : `/ia/*` vers `ia-app:8080` sans le préfixe ; réponses SSE transmises au fil de l'eau
+  (`flush_interval -1`), WebSocket relayé. Corps limités : 20 Mo vers l'API, 50 Mo vers le moteur IA.
+- **Adresse du client** : Caddy fait confiance aux relais d'adresse privée (Traefik) et transmet l'adresse réelle
+  dans `X-Forwarded-For`, que l'API utilise pour ses limites de débit.
+
+### En-têtes de sécurité
+
+Partout : `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`,
+`Permissions-Policy`, `Cross-Origin-Opener-Policy`, sans en-tête `Server`. Content-Security-Policy par zone :
+
+| Zone | Politique | Pourquoi pas plus strict |
+|---|---|---|
+| `/app/` | `script-src 'self' 'wasm-unsafe-eval'`, aucun script en ligne ni `eval`, `connect-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'` | `style-src 'unsafe-inline'` : TDesign, Vue et mermaid posent des styles à l'exécution ; `'wasm-unsafe-eval'` : décodeurs de pdf.js ; `blob:` (images, cadres, workers) : aperçus de documents |
+| `/api/`, `/ia/` | `default-src 'none'` (l'API garde les styles en ligne de ses documents HTML, sans script) | — |
+| `/` (landing) | `script-src 'self' 'unsafe-inline'` | l'export statique de Next.js écrit ses données de page en scripts en ligne |
+
+Le back-office ne contient aucun script en ligne : `app/index.html` charge `boot.js` (thème) et `config.js`. Un
+aperçu HTML ouvert depuis un Blob hérite de cette politique : ses scripts en ligne ne s’exécutent pas (seuls des fichiers servis par l’application le pourraient).
+
+Essai local de la configuration (sans HTTPS), avec l'API et le moteur IA de `docker compose` :
+
+```bash
+docker build -f deploy/web.Dockerfile -t gsms-web .
+docker run --rm --network host -e SITE_ADDRESS=:4190 -e API_UPSTREAM=127.0.0.1:8000 \
+  -e IA_UPSTREAM=127.0.0.1:4103 gsms-web          # puis http://127.0.0.1:4190/app/ ; Ctrl-C pour arrêter
 ```
 
 ## Prérequis

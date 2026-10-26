@@ -1,7 +1,16 @@
-# Traefik en mode « host » : il joint les conteneurs sur leurs propres réseaux. L'API (front retiré, refonte en
-# cours) reste sur le réseau de l'application (aucun réseau partagé avec les autres applications du serveur) et s'y déclare par étiquettes.
+# Traefik en mode « host » : il joint les conteneurs sur leurs propres réseaux. Le service « web » (Caddy en HTTP
+# simple, deploy/web.Dockerfile) reste sur le réseau de l'application (aucun réseau partagé avec les autres
+# applications du serveur) et s'y déclare par étiquettes ; il publie la landing, le back-office, l'API et le moteur IA.
 services:
-  api:
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: ":80"
     labels:
       traefik.enable: "true"
       traefik.docker.network: ${TRAEFIK_NETWORK}
@@ -9,4 +18,4 @@ services:
       traefik.http.routers.gsms-qualiopi.entrypoints: ${TRAEFIK_ENTRYPOINT}
       traefik.http.routers.gsms-qualiopi.tls: "true"
       traefik.http.routers.gsms-qualiopi.tls.certresolver: ${TRAEFIK_CERTRESOLVER}
-      traefik.http.services.gsms-qualiopi.loadbalancer.server.port: "8000"
+      traefik.http.services.gsms-qualiopi.loadbalancer.server.port: "80"

@@ -137,5 +137,5 @@ if [[ ! -f .gsms-initialise ]]; then
 fi
 
 echo
-echo "API GSMS Qualiopi : https://$DOMAIN/health (le certificat HTTPS peut prendre une minute la première fois)."
-echo "Pas d'interface pour l'instant : le front a été retiré et sera refait (voir docs/API.md)."
+echo "GSMS Qualiopi : https://$DOMAIN/ (site public) et https://$DOMAIN/app/ (back-office)."
+echo "État de l'API : https://$DOMAIN/health (le certificat HTTPS peut prendre une minute la première fois)."

@@ -1,18 +1,20 @@
-# Serveur sans reverse proxy : Caddy prend les ports 80 et 443 et obtient seul le certificat HTTPS de DOMAIN.
+# Serveur sans reverse proxy : le service « web » (Caddy, deploy/web.Dockerfile) prend les ports 80 et 443, obtient
+# seul le certificat HTTPS de DOMAIN et publie la landing (/), le back-office (/app/), l'API (/api/) et le moteur IA (/ia/).
 services:
-  caddy:
-    image: caddy:2-alpine
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
     restart: unless-stopped
     depends_on:
       - api
     environment:
-      DOMAIN: ${DOMAIN}
+      SITE_ADDRESS: ${DOMAIN}
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
 

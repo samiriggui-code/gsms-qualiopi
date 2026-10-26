@@ -9,6 +9,13 @@
 # locaux (valeurs par défaut : les services du docker-compose.yml).
 {
 	admin off
+	# Adresse réelle du client pour les limites de débit de l'API (backend/app/common/limites.py, qui lit la
+	# dernière adresse de X-Forwarded-For) : derrière Traefik (adresse privée), on lit X-Forwarded-For de droite à
+	# gauche en sautant les relais privés ; un client public direct ne peut pas imposer son adresse.
+	servers {
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
+	}
 }
 
 (securite_commune) {
@@ -51,7 +58,9 @@
 		}
 		# Liens de documents déjà envoyés par e-mail : /api/public/documents/{jeton}, sans v1 (docs/API.md §4).
 		uri replace /api/public/documents/ /api/v1/public/documents/ 1
-		reverse_proxy {$API_UPSTREAM:api:8000}
+		reverse_proxy {$API_UPSTREAM:api:8000} {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 
 	# ── Moteur IA (écrans WeKnora du back-office), préfixe /ia retiré ─────────────────────────────────────
@@ -65,6 +74,7 @@
 		uri strip_prefix /ia
 		# flush_interval -1 : réponses SSE (chat) transmises au fil de l'eau ; WebSocket relayé tel quel.
 		reverse_proxy {$IA_UPSTREAM:ia-app:8080} {
+			header_up X-Forwarded-For {client_ip}
 			flush_interval -1
 		}
 	}
