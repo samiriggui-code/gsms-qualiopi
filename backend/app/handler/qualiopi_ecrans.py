@@ -263,11 +263,14 @@ def evaluations(db: DB, user: QualityReader) -> dict:
     period = resolve_period(db)
     indicators = []
     criteria = {i.number: i.criterion_number for i in version.indicators}
+    titles = {i.number: i.title for i in version.indicators}
     for r in indicator_readiness(db, version, period=period):
         counts = by_indicator.get(r["number"], Counter())
         critere = criteria.get(r["number"])
         indicators.append({
-            "numero": r["number"], "critere": critere, "critere_nom": criterion_name(critere) if critere else None,
+            "numero": r["number"], "nom": indicator_name(r["number"], titles.get(r["number"])),
+            "libelle_officiel": titles.get(r["number"]),
+            "critere": critere, "critere_nom": criterion_name(critere) if critere else None,
             "etat": r["status"], "resultats": dict(counts), "controles": sum(counts.values()),
             "ecarts_ouverts": open_findings.get(r["number"], 0),
         })
