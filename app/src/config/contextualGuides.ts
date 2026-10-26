@@ -1,5 +1,5 @@
 import type { SpotlightGuideStep } from '@/types/spotlightGuide'
-import { WEKNORA_GUIDES_ENABLED } from '@/config/gitssFeatures'
+import { WEKNORA_GUIDES_ENABLED } from './gitssFeatures'
 
 export const GLOBAL_USER_GUIDE_KEY = 'weknora:new-user-guide-done:v1'
 export const OPEN_NEW_USER_GUIDE_EVENT = 'weknora:open-new-user-guide'
