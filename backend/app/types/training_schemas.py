@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, field_serializer
 
+from app.common.media import MediaPath
+
 
 class ORM(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -80,6 +82,7 @@ class ProgramIn(BaseModel):
     track: Literal["SURETE", "INCENDIE", "HABILITATION", "SST", "ENTREPRISE", "AUTRES"] | None = None
     pathway: Literal["INITIAL", "MAC", "RAN", "AUTRE"] | None = None
     evaluation_steps: list[EvaluationStep] | None = None
+    image_url: MediaPath = None
 
 
 class ProgramOut(ORM):
@@ -102,6 +105,7 @@ class ProgramOut(ORM):
     public_info_reviewed_on: date | None
     success_rate: Decimal | None
     satisfaction_rate: Decimal | None
+    image_url: str | None = None
 
 
 class SessionIn(BaseModel):
@@ -136,6 +140,7 @@ class PersonIn(BaseModel):
     email: str | None = None
     phone: str | None = None
     company_id: str | None = None
+    photo_url: MediaPath = None
 
 
 class LearnerOut(ORM):
@@ -144,6 +149,7 @@ class LearnerOut(ORM):
     last_name: str
     email: str | None
     company_id: str | None
+    photo_url: str | None = None
 
 
 class TrainerIn(BaseModel):
@@ -152,6 +158,7 @@ class TrainerIn(BaseModel):
     email: str | None = None
     is_external: bool = False
     specialties: list[str] = Field(default_factory=list)
+    photo_url: MediaPath = None
 
 
 class QualificationOut(ORM):
@@ -169,6 +176,7 @@ class TrainerOut(ORM):
     email: str | None
     is_external: bool
     specialties: list[str]
+    photo_url: str | None = None
     qualifications: list[QualificationOut] = []
 
 

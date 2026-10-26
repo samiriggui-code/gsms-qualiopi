@@ -164,7 +164,8 @@ def sheet(db: Session, s: t.TrainingSession, actor: User, now: datetime | None =
                 state = "A_VENIR" if sl.day > policy.today else "MANQUANT"
             else:
                 state = "PRESENT" if sig.present else "ABSENT"
-            cells.append({"enrollment_id": e.id, "stagiaire": f"{e.learner.first_name} {e.learner.last_name}", "etat": state,
+            cells.append({"enrollment_id": e.id, "stagiaire": f"{e.learner.first_name} {e.learner.last_name}",
+                          "stagiaire_photo_url": e.learner.photo_url, "etat": state,
                           "heure": sig.signed_at.isoformat() if sig and sig.signed_at else None,
                           "procede": sig.method if sig else None, "note": sig.note if sig else None})
         win = policy.window(sl)

@@ -56,7 +56,7 @@ def get_fiche(program_id: str, db: DB, user: ProgramReader) -> dict:
         "certification": _cert_dict(fiche.certification_of(db, p.id)),
         "certification_bases": t.CERTIFICATION_BASES, "habilitations": t.HABILITATIONS,
         "delivery_modes": fiche.DELIVERY_LABELS, "roles": fiche.ROLE_LABELS,
-        "trainers": [{"id": pt.id, "trainer_id": tr.id, "name": tr.full_name, "role": pt.role,
+        "trainers": [{"id": pt.id, "trainer_id": tr.id, "name": tr.full_name, "photo_url": tr.photo_url, "role": pt.role,
                       "modules": pt.modules, "qualifications": [
                           {"label": q.label, "kind": q.kind, "valid_until": q.valid_until} for q in tr.qualifications]}
                      for pt, tr in fiche.trainers_of(db, p.id)],

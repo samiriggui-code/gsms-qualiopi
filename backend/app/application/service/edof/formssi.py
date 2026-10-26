@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application.service.edof import service
+from app.application.service.training.images import complete_program_images
 from app.config.config import BACKEND_DIR
 from app.types import edof as m
 from app.types import training as t
@@ -81,6 +82,8 @@ def import_formssi(db: Session, actor: str = "import Form'SSI") -> dict:
         service.formation_dossier(db, p.id, create=True)
         created.append(p.code)
     db.flush()
+    for code in complete_program_images(db, [f["code"] for f in data["formations"]]):
+        report.append(f"Formation {code} : vignette ajoutée")
     return {"organisme": org.name, "formations": created, "report": report, "releve_le": data["releve_le"],
             "dossiers": db.scalar(select(m.Dossier.id).where(m.Dossier.kind == "ETABLISSEMENT")) is not None,
             "date": date.today().isoformat()}

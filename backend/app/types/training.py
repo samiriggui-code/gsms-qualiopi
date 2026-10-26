@@ -10,6 +10,7 @@ from decimal import Decimal
 from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.common.media import MEDIA_PATH_MAX
 from app.database.db import Base, TimestampMixin, new_id
 
 S = {"schema": "formation"}
@@ -66,6 +67,7 @@ class Learner(TimestampMixin, Base):
     email: Mapped[str | None] = mapped_column(String(200))
     phone: Mapped[str | None] = mapped_column(String(40))
     company_id: Mapped[str | None] = mapped_column(ForeignKey("formation.company.id", ondelete="SET NULL"))
+    photo_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # chemin de la médiathèque (media_path)
 
     @property
     def full_name(self) -> str:
@@ -84,6 +86,7 @@ class Trainer(TimestampMixin, Base):
     specialties: Mapped[list[str]] = mapped_column(JSON, default=list)
     # Compte GSMS du formateur : lui donne accès à ses propres sessions (permission sessions.read_own).
     user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
+    photo_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # chemin de la médiathèque (media_path)
 
     qualifications: Mapped[list["TrainerQualification"]] = relationship(back_populates="trainer", cascade="all, delete-orphan")
 
@@ -175,6 +178,7 @@ class Program(TimestampMixin, Base):
     pathway: Mapped[str | None] = mapped_column(String(10))  # INITIAL, MAC, RAN ou AUTRE (PATHWAYS)
     # Épreuves et attestations, dans l'ordre : [{"title", "description", "kind"}] ; evaluation_methods reste le résumé.
     evaluation_steps: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    image_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # vignette, chemin de la médiathèque
 
 
 TRACKS = {"SURETE": "Sûreté", "INCENDIE": "Incendie", "HABILITATION": "Habilitation électrique",
@@ -341,6 +345,14 @@ class TrainingSession(TimestampMixin, Base):
     @property
     def trainer_name(self) -> str | None:
         return self.trainer.full_name if self.trainer else None
+
+    @property
+    def trainer_photo_url(self) -> str | None:
+        return self.trainer.photo_url if self.trainer else None
+
+    @property
+    def program_image_url(self) -> str | None:
+        return self.program.image_url if self.program else None
 
     @property
     def learners_count(self) -> int:

@@ -46,7 +46,8 @@ def learner_enrollments(learner_id: str, db: DB, _: AllSessionsReader) -> list[d
         "abandon_le": e.abandoned_on.isoformat() if e.abandoned_on else None,
         "session": {"id": s.id, "reference": s.reference, "statut": s.status, "debut": s.start_date.isoformat(),
                     "fin": s.end_date.isoformat(), "formation_id": s.program_id, "formation_code": s.program_code,
-                    "formation_titre": s.program_title, "formateur_id": s.trainer_id, "formateur": s.trainer_name},
+                    "formation_titre": s.program_title, "formation_image_url": s.program_image_url,
+                    "formateur_id": s.trainer_id, "formateur": s.trainer_name, "formateur_photo_url": s.trainer_photo_url},
     } for e in rows for s in (e.session,)]
 
 
@@ -57,7 +58,9 @@ class SessionView(SessionOut):
     program_track: str | None = None
     program_track_label: str | None = None
     program_slug: str | None = None
+    program_image_url: str | None = None
     trainer_name: str | None = None
+    trainer_photo_url: str | None = None
     learners_count: int = 0
 
 
@@ -104,7 +107,7 @@ def get_session(session_id: str, db: DB, user: SessionsReader) -> dict:
     return {
         "session": SessionView.model_validate(s).model_dump(mode="json"),
         "inscriptions": [{"id": e.id, "learner_id": e.learner_id, "stagiaire": f"{e.learner.first_name} {e.learner.last_name}",
-                          "statut": e.status, "financement": e.funding} for e in s.enrollments],
+                          "photo_url": e.learner.photo_url, "statut": e.status, "financement": e.funding} for e in s.enrollments],
         "capabilities": TrainingPolicy(db, user).capabilities(s),
     }
 

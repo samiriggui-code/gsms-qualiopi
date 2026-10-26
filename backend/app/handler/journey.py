@@ -95,7 +95,7 @@ def adaptations(db: DB, user: SessionsReader) -> list[dict]:
         if not can_see(db, user, e.session):
             continue
         out.append({"inscription": e.id, "session_id": e.session_id, "session": e.session.reference,
-                    "stagiaire": e.learner.full_name, "statut": na.adaptation_status,
+                    "stagiaire": e.learner.full_name, "stagiaire_photo_url": e.learner.photo_url, "statut": na.adaptation_status,
                     "besoin": na.adaptation_notes if detail else None,
                     "recueilli_le": na.completed_on.isoformat() if na.completed_on else None})
     return out

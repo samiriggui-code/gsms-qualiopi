@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app.common.media import MediaPath
 from app.errors.errors import ConflictError, InvalidStateError, NotFoundError
 from app.event.publish import publish
 from app.middleware.auth import DB, StaffReader, StaffWriter, TrainersWriter, UserManager
@@ -45,7 +46,7 @@ def _check_kind(value: str | None, allowed: tuple[str, ...], what: str) -> None:
 def _view(m: StaffMember, today: date) -> dict:
     current = [c for c in m.contracts if c.covers(today, today)]
     return {
-        "id": m.id, "nom": m.full_name, "email": m.email, "statut": m.kind, "fonction": m.job_title, "actif": m.active,
+        "id": m.id, "nom": m.full_name, "email": m.email, "photo_url": m.photo_url, "statut": m.kind, "fonction": m.job_title, "actif": m.active,
         "compte_id": m.user_id, "formateur_id": m.trainer_id,
         "contrat_en_cours": {"type": current[0].kind, "fin": current[0].end_date.isoformat() if current[0].end_date else None}
         if current else None,
@@ -67,6 +68,7 @@ class StaffIn(BaseModel):
     job_title: str | None = None
     user_id: str | None = None
     trainer_id: str | None = None
+    photo_url: MediaPath = None
 
 
 @router.get("/rh/personnel")
@@ -147,7 +149,7 @@ def expiring_titles(db: DB, _: StaffReader, jours: int = 90) -> list[dict]:
         .order_by(t.TrainerQualification.valid_until)
     )
     today = date.today()
-    return [{"titre_id": q.id, "formateur": tr.full_name, "formateur_id": tr.id, "type": q.kind, "libelle": q.label,
+    return [{"titre_id": q.id, "formateur": tr.full_name, "formateur_id": tr.id, "formateur_photo_url": tr.photo_url, "type": q.kind, "libelle": q.label,
              "fin": q.valid_until.isoformat(), "etat": "EXPIRE" if q.valid_until < today else "A_RENOUVELER"}
             for q, tr in rows]
 

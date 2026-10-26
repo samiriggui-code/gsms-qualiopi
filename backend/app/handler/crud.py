@@ -41,7 +41,9 @@ def to_dict(obj: Any) -> dict:
 
 
 def _partial(schema: type[BaseModel]) -> type[BaseModel]:
-    fields = {name: (f.annotation | None, None) for name, f in schema.model_fields.items()}
+    # Les validateurs portés par Annotated (f.metadata, ex. MediaPath) restent actifs sur la mise à jour partielle.
+    fields = {name: (Annotated[(f.annotation | None, *f.metadata)] if f.metadata else f.annotation | None, None)
+              for name, f in schema.model_fields.items()}
     return create_model(f"{schema.__name__}Patch", **fields)  # type: ignore[call-overload]
 
 

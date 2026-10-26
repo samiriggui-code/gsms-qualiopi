@@ -118,9 +118,17 @@ def serialize_programs(db: Session, rows: list) -> list[dict]:
     return [{**to_dict(r), "sessions": sessions.get(r.id, 0)} for r in rows]
 
 
+def _photos(db: Session, model: type, ids: set) -> dict:
+    """Photo (chemin de la médiathèque) des stagiaires ou formateurs cités par une liste."""
+    ids = {i for i in ids if i}
+    return dict(db.execute(select(model.id, model.photo_url).where(model.id.in_(ids))).all()) if ids else {}
+
+
 def _with_trainer(db: Session, rows: list) -> list[dict]:
     trainers = _names(db, t.Trainer, {r.trainer_id for r in rows})
-    return [{**to_dict(r), "trainer_name": trainers.get(r.trainer_id)} for r in rows]
+    photos = _photos(db, t.Trainer, {r.trainer_id for r in rows})
+    return [{**to_dict(r), "trainer_name": trainers.get(r.trainer_id), "trainer_photo_url": photos.get(r.trainer_id)}
+            for r in rows]
 
 
 def _with_session(db: Session, rows: list) -> list[dict]:
@@ -136,8 +144,11 @@ def serialize_surveys(db: Session, rows: list) -> list[dict]:
     if enrollment_ids:
         pairs = db.execute(select(t.Enrollment.id, t.Enrollment.learner_id).where(t.Enrollment.id.in_(enrollment_ids))).all()
         names = _names(db, t.Learner, {p[1] for p in pairs})
-        learner_by_enrollment = {p[0]: names.get(p[1]) for p in pairs}
-    return [{**b, "learner_name": learner_by_enrollment.get(r.enrollment_id)} for b, r in zip(base, rows, strict=True)]
+        photos = _photos(db, t.Learner, {p[1] for p in pairs})
+        learner_by_enrollment = {p[0]: (names.get(p[1]), photos.get(p[1])) for p in pairs}
+    return [{**b, "learner_name": learner_by_enrollment.get(r.enrollment_id, (None, None))[0],
+             "learner_photo_url": learner_by_enrollment.get(r.enrollment_id, (None, None))[1]}
+            for b, r in zip(base, rows, strict=True)]
 
 
 def _labels(field: str, labels: dict, label: str):

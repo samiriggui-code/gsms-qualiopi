@@ -3,6 +3,12 @@
 # Ne sont jamais repris : les taux de réussite et de satisfaction écrits en dur, les notes et avis affichés,
 # les fournisseurs, factures et prix d'achat de l'inventaire (fictifs), les sessions de démonstration.
 # Chaque écart ou manque est noté dans review_notes ; l'import ne remplace jamais une valeur déjà saisie.
+# Complété le 26/10/2026 par les fiches de la landing (section complements_landing, en fin de fichier). Ne sont jamais
+# repris de la landing : les textes de remplissage (détail « Approfondissement des objectifs du module … », « Conformité
+# avec le référentiel… », tableau de prérequis générique identique sur 31 fiches, axes « Bloc 4 »), les « importances »
+# des prérequis (« Obligatoire », « Critique »… sans texte cité), les taux et overviewMetrics, les prix « sur devis »,
+# les coordonnées fictives du fournisseur et les sessions de démonstration. Objectifs, moyens, accessibilité et délai
+# d'accès restent à saisir par l'organisme.
 
 releve_le: '2026-10-05'
 sources:
@@ -11,6 +17,7 @@ sources:
   school_lieux: GSMS School, données d'amorçage des sites et salles (school-sites-seed.js, formation-venue-rooms-seed.js)
   school_inventaire: GSMS School, inventaire du matériel pédagogique (equipment-school-inventory-seed.js)
   school_lms: GSMS School, cours en ligne générés à l'amorçage (portal-lms-seed.js)
+  landing_fiches: Landing Form'SSI, fiches formation (landing/content/fiches.json), relevé du 26/10/2026
 non_importees:
 - catalog_slug: tfp-aps
   raison: importée séparément, avec sa fiche complète, par import-formssi
@@ -2276,3 +2283,189 @@ equipements:
   location: ATELIER-EPI
   domain: secourisme
   regulatory_ref: null
+# Compléments relevés le 26/10/2026 dans les fiches de la landing (landing/content/fiches.json, source landing_fiches),
+# appliqués à une formation déjà présente (y compris TFP APS) sur les seules rubriques vides (modules, teaching_methods).
+# Rien d'autre n'y est une information réelle : voir l'en-tête du fichier.
+complements_landing:
+- catalog_slug: mac-aps
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 20 % / 80 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: asra-d
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 25 % / 75 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: ovt
+  teaching_methods: 'Répartition annoncée sur la vitrine (landing) : 50 % théorie, 50 % pratique. Méthodes pédagogiques à décrire par l''organisme.'
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition 50 % / 50 % reprise de la landing : à relire. La landing affiche 50 % / 50 % ou 40 % / 60 % pour presque toutes les formations,
+      souvent en écart avec la fiche vitrine : valeur probablement par défaut, à confirmer.'
+- catalog_slug: mac-ovt
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 20 % / 80 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: asc-cynophile
+  teaching_methods: 'Répartition annoncée sur la vitrine (landing) : 50 % théorie, 50 % pratique. Méthodes pédagogiques à décrire par l''organisme.'
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition 50 % / 50 % reprise de la landing : à relire. La landing affiche 50 % / 50 % ou 40 % / 60 % pour presque toutes les formations,
+      souvent en écart avec la fiche vitrine : valeur probablement par défaut, à confirmer.'
+- catalog_slug: h0-b0
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 30 % / 70 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-1-initial
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-1-recyclage
+  modules:
+  - code: UV1
+    title: Actualisation réglementaire
+    details: []
+  - code: UV2
+    title: Moyens de secours
+    details: []
+  - code: UV3
+    title: Mises en situation d'urgence
+    details: []
+  review_notes:
+  - champ: modules
+    message: 'Intitulés des modules repris de la landing (accents rétablis) : à relire. Le détail affiché sous chaque intitulé est un texte de remplissage,
+      non repris : contenu de chaque module à rédiger.'
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-1-ran
+  modules:
+  - code: UV1
+    title: Fondamentaux de la sécurité
+    details: []
+  - code: UV2
+    title: Moyens de secours
+    details: []
+  - code: UV3
+    title: Gestion des alarmes
+    details: []
+  review_notes:
+  - champ: modules
+    message: 'Intitulés des modules repris de la landing (accents rétablis) : à relire. Le détail affiché sous chaque intitulé est un texte de remplissage,
+      non repris : contenu de chaque module à rédiger.'
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-2-initial
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-2-recyclage
+  modules:
+  - code: UV1
+    title: Actualisation managériale
+    details: []
+  - code: UV2
+    title: Gestion des interventions
+    details: []
+  - code: UV3
+    title: Mises en situation de commandement
+    details: []
+  review_notes:
+  - champ: modules
+    message: 'Intitulés des modules repris de la landing (accents rétablis) : à relire. Le détail affiché sous chaque intitulé est un texte de remplissage,
+      non repris : contenu de chaque module à rédiger.'
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-2-ran
+  modules:
+  - code: UV1
+    title: Rôle du chef d'équipe
+    details: []
+  - code: UV2
+    title: Gestion des alarmes et PC
+    details: []
+  - code: UV3
+    title: Tactique d'intervention
+    details: []
+  review_notes:
+  - champ: modules
+    message: 'Intitulés des modules repris de la landing (accents rétablis) : à relire. Le détail affiché sous chaque intitulé est un texte de remplissage,
+      non repris : contenu de chaque module à rédiger.'
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-3-initial
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-3-recyclage
+  modules:
+  - code: UV1
+    title: Évolution réglementaire
+    details: []
+  - code: UV2
+    title: Gestion des risques majeurs
+    details: []
+  - code: UV3
+    title: Analyse de sinistres
+    details: []
+  review_notes:
+  - champ: modules
+    message: 'Intitulés des modules repris de la landing (accents rétablis) : à relire. Le détail affiché sous chaque intitulé est un texte de remplissage,
+      non repris : contenu de chaque module à rédiger.'
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: ssiap-3-ran
+  modules:
+  - code: UV1
+    title: Accessibilité et commissions
+    details: []
+  - code: UV2
+    title: Gestion des contrats de maintenance
+    details: []
+  - code: UV3
+    title: Organisation du service
+    details: []
+  review_notes:
+  - champ: modules
+    message: 'Intitulés des modules repris de la landing (accents rétablis) : à relire. Le détail affiché sous chaque intitulé est un texte de remplissage,
+      non repris : contenu de chaque module à rédiger.'
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 80 % / 20 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: mac-sst
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 30 % / 70 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: stu
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 30 % / 70 % (repris), la landing 40 % / 60 %. À arbitrer par l''organisme.'
+- catalog_slug: sst-entreprise
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 40 % / 60 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: ari
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 40 % / 60 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: manipulation-extincteur
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 30 % / 70 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: esi
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 30 % / 70 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: ssi
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 40 % / 60 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: cssi
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 40 % / 60 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: evacuation-incendie
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 30 % / 70 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: epi
+  review_notes:
+  - champ: teaching_methods
+    message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 40 % / 60 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'

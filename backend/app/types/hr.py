@@ -12,6 +12,7 @@ from datetime import date
 from sqlalchemy import Boolean, Date, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.common.media import MEDIA_PATH_MAX
 from app.database.db import Base, TimestampMixin, new_id
 
 R = {"schema": "rh"}
@@ -34,6 +35,7 @@ class StaffMember(TimestampMixin, Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     user_id: Mapped[str | None] = mapped_column(ForeignKey("iam.user.id", ondelete="SET NULL"), unique=True)
     trainer_id: Mapped[str | None] = mapped_column(ForeignKey("formation.trainer.id", ondelete="SET NULL"), unique=True)
+    photo_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # chemin de la médiathèque (media_path)
 
     contracts: Mapped[list["StaffContract"]] = relationship(back_populates="staff", cascade="all, delete-orphan",
                                                             order_by="StaffContract.start_date")

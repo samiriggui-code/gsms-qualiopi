@@ -44,8 +44,8 @@ def _norm(value: str | None) -> str:
 def _base(s: t.TrainingSession) -> dict:
     return {
         "session": {"id": s.id, "reference": s.reference, "statut": s.status},
-        "programme": {"id": s.program_id, "code": s.program_code, "intitule": s.program_title},
-        "formateur": {"id": s.trainer_id, "nom": s.trainer_name} if s.trainer_id else None,
+        "programme": {"id": s.program_id, "code": s.program_code, "intitule": s.program_title, "image_url": s.program_image_url},
+        "formateur": {"id": s.trainer_id, "nom": s.trainer_name, "photo_url": s.trainer_photo_url} if s.trainer_id else None,
         "lieu": s.location, "salle": s.room,
         "effectif": s.learners_count, "capacite": s.capacity,
     }

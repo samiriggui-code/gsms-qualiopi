@@ -32,10 +32,11 @@ def _state(due: date, today: date, warn_days: int = 7) -> str:
 
 
 def _item(source: str, due: date, today: date, title: str, detail: str, link: str | None,
-          indicators: list[int] | None = None, state: str | None = None) -> dict:
+          indicators: list[int] | None = None, state: str | None = None, person: dict | None = None) -> dict:
+    """`person` : personne citée par l'échéance ({"nom", "photo_url"}), sinon None."""
     return {"source": source, "echeance": due.isoformat(), "semaine": (due - timedelta(days=due.weekday())).isoformat(),
             "etat": state or _state(due, today), "titre": title, "detail": detail, "lien": link,
-            "indicateurs": indicators or []}
+            "indicateurs": indicators or [], "personne": person}
 
 
 def _milestones(db: Session, today: date, horizon: date) -> list[dict]:
@@ -65,7 +66,8 @@ def _titles(db: Session, today: date, horizon: date) -> list[dict]:
                       .where(t.TrainerQualification.valid_until.is_not(None), t.TrainerQualification.valid_until <= horizon))
     return [_item("TITRE", q.valid_until, today, f"{q.label} · {tr.full_name}",
                   "Titre du formateur expiré" if q.valid_until < today else "Titre du formateur à renouveler",
-                  "/rh/qualifications", [21], state="EN_RETARD" if q.valid_until < today else None) for q, tr in rows]
+                  "/rh/qualifications", [21], state="EN_RETARD" if q.valid_until < today else None,
+                  person={"nom": tr.full_name, "photo_url": tr.photo_url}) for q, tr in rows]
 
 
 def _funding(db: Session, today: date, horizon: date) -> list[dict]:
@@ -73,7 +75,8 @@ def _funding(db: Session, today: date, horizon: date) -> list[dict]:
 
     return [_item("FINANCEMENT", date.fromisoformat(d["echeance"]), today, f"{d['libelle']} · {d['stagiaire']}",
                   f"{d['dispositif']} · {d['session']}" + (f" · {d['portail']}" if d.get("portail") else ""),
-                  "/commercial/financeurs")  # état selon la date, comme les autres sources
+                  "/commercial/financeurs",  # état selon la date, comme les autres sources
+                  person={"nom": d["stagiaire"], "photo_url": d.get("stagiaire_photo_url")})
             for d in deadlines(db, today, (horizon - today).days)]
 
 

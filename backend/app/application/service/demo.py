@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.application.service.documents.dossier import find_item
 from app.application.service.documents.service import upload
 from app.application.service.platform.features import is_enabled
+from app.application.service.training.images import complete_program_images
 from app.common.journal import set_actor
 from app.errors.errors import ConflictError
 from app.types import training as t
@@ -147,6 +148,59 @@ def _enroll(db: Session, s: t.TrainingSession, learner: t.Learner, status: str) 
     db.add(e)
     db.flush()
     return e
+
+
+def demo_email(first: str, last: str) -> str:
+    """Adresse fictive d'une personne de la démo (domaine réservé exemple.fr) : la même pour sa fiche RH et formateur."""
+    return f"{first.lower()}.{last.lower()}@exemple.fr"
+
+
+def complete_demo_trainer_emails(db: Session) -> list[str]:
+    """Donne leur adresse fictive aux formateurs de la démo qui n'en ont pas (base installée avant leur ajout).
+
+    Seuls les formateurs créés par la démo sont touchés, et jamais une adresse déjà saisie."""
+    done = []
+    for trainer in db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR, t.Trainer.email.is_(None))):
+        trainer.email = demo_email(trainer.first_name, trainer.last_name)
+        done.append(trainer.email)
+    db.flush()
+    return done
+
+
+# Photos des personnes fictives (app/public/media/avatars/, CDC §3 : démonstration seulement ; une personne réelle
+# garde ses initiales). Attribuées dans un ordre fixe, une photo différente par personne tant qu'il y en a assez.
+AVATARS = tuple(f"media/avatars/300-{i}.png" for i in range(1, 35))
+
+
+def complete_demo_photos(db: Session) -> int:
+    """Donne leur photo aux personnes de la démo qui n'en ont pas : formateurs, stagiaires, personnel.
+
+    L'ordre (formateurs, stagiaires, personnel sans fiche formateur ; puis nom, prénom) rend l'attribution stable
+    d'une installation à l'autre ; une fiche RH reliée à un formateur reprend sa photo. Rien d'autre n'est touché."""
+    def mine(model: type) -> list:
+        return list(db.scalars(select(model).where(model.created_by == ACTOR)
+                               .order_by(model.last_name, model.first_name, model.id)))
+
+    staff = mine(StaffMember)
+    people = [*mine(t.Trainer), *mine(t.Learner), *(m for m in staff if m.trainer_id is None)]
+    done = 0
+    for i, person in enumerate(people):
+        if person.photo_url is None:
+            person.photo_url = AVATARS[i % len(AVATARS)]
+            done += 1
+    for m in staff:
+        trainer = db.get(t.Trainer, m.trainer_id) if m.trainer_id else None
+        if trainer is not None and m.photo_url is None and trainer.photo_url:
+            m.photo_url = trainer.photo_url
+            done += 1
+    db.flush()
+    return done
+
+
+def complete_demo(db: Session) -> dict:
+    """Complète une démo déjà installée (adresses des formateurs, photos, vignettes des formations) sans rien remplacer."""
+    return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db),
+            "vignettes": complete_program_images(db, PROGRAM_CODES)}
 
 
 def seed_demo(db: Session, today: date | None = None) -> dict:
@@ -350,6 +404,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _enquetes(db, d, s1)
     _ressources(db, d)
     _personnel(db, d, karim, elodie)
+    complete_demo(db)
     cases = _financements(db, today, {"s1": learners[0], "s2": learners[14], "s3": learners[17], "s4": acme[0]},
                           [s1, s2, s3, s4], company)
     return {"sessions": [s.reference for s in (s1, s2, s3, s4, s5, s6)], "programs": [ssiap.code, sst.code, mac_sst.code],
@@ -541,7 +596,7 @@ def _personnel(db: Session, d, karim: t.Trainer, elodie: t.Trainer) -> None:  # 
          [("CDD", -700, -335, "TEMPS_PLEIN"), ("CDI", -334, None, "TEMPS_PLEIN")]),
     )
     for first, last, kind, job, trainer, contracts in people:
-        m = StaffMember(first_name=first, last_name=last, email=f"{first.lower()}.{last.lower()}@exemple.fr", kind=kind,
+        m = StaffMember(first_name=first, last_name=last, email=demo_email(first, last), kind=kind,
                         job_title=job, trainer_id=trainer.id if trainer else None, created_by=ACTOR)
         m.contracts = [StaffContract(kind=k, start_date=d(start), end_date=d(end) if end is not None else None, work_time=wt,
                                      created_by=ACTOR) for k, start, end, wt in contracts]

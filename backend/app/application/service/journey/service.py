@@ -315,7 +315,8 @@ def journey_view(db: Session, e: t.Enrollment, user: User | None, today: date | 
     for step in steps:
         step.update(_timing(step, e, today))
     return {
-        "inscription": e.id, "stagiaire": e.learner.full_name, "session": s.reference, "statut": e.status,
+        "inscription": e.id, "stagiaire": e.learner.full_name, "stagiaire_photo_url": e.learner.photo_url,
+        "session": s.reference, "statut": e.status,
         "contact": _contact(db, e),
         "abandon": {"le": _d(e.abandoned_on), "motif": e.abandon_reason} if e.status in ("ABANDON", "ANNULE") else None,
         "etapes": steps,
@@ -331,7 +332,8 @@ def session_journey(db: Session, s: t.TrainingSession, user: User | None, today:
     rows = []
     for e in sorted(s.enrollments, key=lambda x: (x.learner.last_name, x.learner.first_name)):
         v = journey_view(db, e, user, today)
-        rows.append({"inscription": e.id, "stagiaire": v["stagiaire"], "statut": v["statut"],
+        rows.append({"inscription": e.id, "stagiaire": v["stagiaire"], "stagiaire_id": e.learner_id,
+                     "stagiaire_photo_url": e.learner.photo_url, "statut": v["statut"],
                      "etapes": {st["etape"]: st["fait"] for st in v["etapes"]},
                      "etats": {st["etape"]: st["etat"] for st in v["etapes"]},
                      "possible": [a for a, d in v["capabilities"].items() if d["allowed"]]})

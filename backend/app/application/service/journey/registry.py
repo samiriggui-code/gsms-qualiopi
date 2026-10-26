@@ -31,7 +31,7 @@ STATE_ORDER = {"EN_RETARD": 0, "A_ECHEANCE": 1, "A_VENIR": 2, "FAIT": 3, "SANS_O
 
 def _session(s: t.TrainingSession) -> dict:
     return {"id": s.id, "reference": s.reference, "intitule": s.program.title if s.program else None,
-            "debut": s.start_date.isoformat(), "fin": s.end_date.isoformat(), "statut": s.status}
+            "image_url": s.program_image_url, "debut": s.start_date.isoformat(), "fin": s.end_date.isoformat(), "statut": s.status}
 
 
 def _progress(steps: list[dict]) -> dict:
@@ -45,7 +45,8 @@ def _progress(steps: list[dict]) -> dict:
 def _row(e: t.Enrollment, v: dict, view: str) -> dict | None:
     # Identifiant et e-mail du stagiaire : lien vers sa fiche et avatar (déjà visibles avec le même droit).
     base = {"inscription": e.id, "stagiaire": v["stagiaire"], "stagiaire_id": e.learner_id,
-            "stagiaire_email": e.learner.email if e.learner else None, "statut": v["statut"], "session": _session(e.session),
+            "stagiaire_email": e.learner.email if e.learner else None,
+            "stagiaire_photo_url": e.learner.photo_url if e.learner else None, "statut": v["statut"], "session": _session(e.session),
             "entreprise": v["contact"]["entreprise"], "financement": v["contact"]["financement"]}
     if view == "inscriptions":
         return base | {"inscrit_le": v["contact"]["inscrit_le"], "avancement": _progress(v["etapes"]),
@@ -135,7 +136,7 @@ def assessments(db: Session, user: User, today: date | None = None, session_id: 
             res = _exam_result(cert["epreuves"]) if cert else "AUCUN"
             if (etat and ev["etape"]["etat"] != etat) or (resultat and res != resultat):
                 continue
-            row = {k: ev[k] for k in ("inscription", "stagiaire", "stagiaire_id", "stagiaire_email", "statut", "session",
+            row = {k: ev[k] for k in ("inscription", "stagiaire", "stagiaire_id", "stagiaire_email", "stagiaire_photo_url", "statut", "session",
                                       "entreprise", "financement")}
             row["session"] = row["session"] | {"programme_id": s.program_id, "programme_code": s.program_code,
                                                "certifiante": bool(s.program and s.program.is_certifying)}

@@ -185,7 +185,8 @@ def deadlines(db: Session, today: date, horizon_days: int) -> list[dict]:
             out.append({"source_id": src.id, "dispositif": sch.code, "action": name, "libelle": action.label,
                         "portail": action.portal, "echeance": due.isoformat(),
                         "etat": "EN_RETARD" if due < today else "A_ECHEANCE",
-                        "stagiaire": f"{e.learner.first_name} {e.learner.last_name}", "session": e.session.reference})
+                        "stagiaire": f"{e.learner.first_name} {e.learner.last_name}",
+                        "stagiaire_photo_url": e.learner.photo_url, "session": e.session.reference})
     return sorted(out, key=lambda x: x["echeance"])
 
 

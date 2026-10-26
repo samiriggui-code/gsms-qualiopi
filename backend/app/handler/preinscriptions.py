@@ -237,7 +237,8 @@ def _summary(p: Preinscription, programs: dict[str, t.Program]) -> dict:
         "civilite": p.civility, "prenom": p.first_name, "nom": p.last_name, "nom_usage": p.usage_name,
         "email": p.email, "telephone": p.phone,
         "formation": {"slug": p.formation_slug, "nom": p.formation_name or p.formation_slug,
-                      "id": program.id if program else None, "code": program.code if program else None},
+                      "id": program.id if program else None, "code": program.code if program else None,
+                      "image_url": program.image_url if program else None},
         "session_souhaitee": p.session_label, "financement": p.funding_mode, "situation": p.current_situation,
         "origine": p.source_context, "recue_le": _iso(p.created_at), "statut_change_le": _iso(p.status_changed_at),
         "traitee_par": p.handled_by,
@@ -278,11 +279,11 @@ def _detail(db: Session, p: Preinscription, user: User) -> dict:
         "motif_refus": p.refusal_reason,
         "conversion": {
             "le": _iso(p.converted_at),
-            "stagiaire": {"id": learner.id, "nom": learner.full_name} if learner else None,
+            "stagiaire": {"id": learner.id, "nom": learner.full_name, "photo_url": learner.photo_url} if learner else None,
             "session": {"id": session.id, "reference": session.reference} if session else None,
             "inscription_id": p.enrollment_id,
         } if p.status == "CONVERTIE" else None,
-        "stagiaire_existant": {"id": known.id, "nom": known.full_name} if known and p.status != "CONVERTIE" else None,
+        "stagiaire_existant": {"id": known.id, "nom": known.full_name, "photo_url": known.photo_url} if known and p.status != "CONVERTIE" else None,
         "sessions_proposees": sessions,
         "capabilities": policy.capabilities(p),
     }

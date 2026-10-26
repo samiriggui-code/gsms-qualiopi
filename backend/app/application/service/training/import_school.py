@@ -4,14 +4,19 @@ Formations, lieux et équipements. Idempotent et prudent, comme app.application.
 n'est jamais remplacée, tout ce qui est créé garde sa source, et les lieux et équipements arrivent
 « à vérifier sur place » : une donnée d'amorçage ne prouve pas qu'une salle ou un mannequin existe.
 Une formation déjà importée n'est que complétée, sur les rubriques encore vides (COMPLETABLE).
+Les compléments relevés sur la landing (complements_landing) complètent aussi une formation d'une autre origine
+(TFP APS), sur LANDING_FIELDS seulement ; un texte de remplissage (FILLER) n'est jamais repris.
 """
 
 from __future__ import annotations
+
+import re
 
 import yaml
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.application.service.training.images import complete_program_images
 from app.config.config import BACKEND_DIR
 from app.types import training as t
 
@@ -29,6 +34,34 @@ LMS_RESOURCES = (
 # Rubriques ajoutées au fichier après un premier import : remplies seulement si elles sont encore vides.
 COMPLETABLE = {"track": "filière", "pathway": "parcours", "skills": "compétences visées",
                "evaluation_steps": "épreuves d'évaluation"}
+
+
+# Rubriques que la landing peut compléter quand elles sont vides.
+LANDING_FIELDS = {"modules": "modules", "teaching_methods": "méthodes pédagogiques", "prerequisites": "prérequis",
+                  "audience": "public visé"}
+# Textes génériques des fiches de la landing, identiques d'une formation à l'autre : aucune information réelle.
+FILLER = re.compile(
+    r"^Approfondissement des objectifs du module|^Conformité avec le référentiel et les objectifs pédagogiques"
+    r"|conformes? aux exigences du organisme|pièces et niveau demandés au bulletin d'inscription"
+    r"|^Compréhension et expression adaptées aux mises en situation|^Assiduité, posture professionnelle et respect"
+    r"|ou dérogation conforme au référentiel|^Bloc \d+$",
+    re.IGNORECASE,
+)
+
+
+def is_filler(text: str) -> bool:
+    return bool(FILLER.search(text.strip()))
+
+
+def without_filler(key: str, value: object) -> object:
+    """Retire d'une valeur de la landing tout texte de remplissage ; rend None s'il ne reste rien."""
+    if key == "modules":
+        kept = [{**m, "details": [d for d in m.get("details") or [] if not is_filler(d)]}
+                for m in value or [] if not is_filler(m["title"])]
+        return kept or None
+    if isinstance(value, list):
+        return [v for v in value if not is_filler(v)] or None
+    return None if not value or is_filler(value) else value
 
 
 def load() -> dict:
@@ -58,7 +91,7 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
                 completed.append(existing.code)
                 report.append(f"Formation {existing.code} complétée : {', '.join(filled) or 'points à arbitrer'}")
             else:
-                report.append(f"Formation {f['code']} déjà présente : non modifiée")
+                report.append(f"Formation {f['code']} déjà présente : rien à compléter depuis la fiche vitrine")
             continue
         if db.scalar(select(t.Program).where(t.Program.code == f["code"])):
             report.append(f"Code {f['code']} déjà utilisé par une autre formation : import ignoré")
@@ -78,6 +111,12 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
                                      source_ref=f"Cours lms-{f['catalog_slug']} — {ref}", rights="PROPRIETAIRE",
                                      status="A_REDIGER", note=note, created_by=actor))
         created.append(p.code)
+
+    for code in complete_from_landing(db, data, report):
+        if code not in completed and code not in created:
+            completed.append(code)
+    for code in complete_program_images(db, [f["code"] for f in data["formations"]]):
+        report.append(f"Formation {code} : vignette ajoutée")
 
     premises = {r.code: r for r in db.scalars(select(t.Premises))}
     places: list[str] = []
@@ -107,3 +146,31 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
         equipment += 1
     db.flush()
     return {"formations": created, "completees": completed, "lieux": places, "equipements": equipment, "report": report, "releve_le": data["releve_le"]}
+
+
+def complete_from_landing(db: Session, data: dict, report: list[str]) -> list[str]:
+    """Remplit les rubriques vides depuis complements_landing et ajoute les points à relire ; ne remplace rien."""
+    source = data["sources"]["landing_fiches"]
+    touched: list[str] = []
+    for c in data.get("complements_landing") or []:
+        p = db.scalar(select(t.Program).where(t.Program.catalog_slug == c["catalog_slug"]))
+        if p is None:
+            continue
+        filled = []
+        for key in LANDING_FIELDS:
+            value = without_filler(key, c.get(key))
+            if value and not getattr(p, key):
+                setattr(p, key, value)
+                filled.append(key)
+        known = {(n.get("champ"), n.get("message")) for n in p.review_notes or []}
+        # La note « à relire » d'une valeur fournie ne vaut que si la valeur a été reprise ; un écart vaut toujours.
+        added = [{**n, "source": source} for n in c.get("review_notes") or []
+                 if (n["champ"], n["message"]) not in known and (n["champ"] not in c or n["champ"] in filled)]
+        if added:
+            p.review_notes = [*(p.review_notes or []), *added]
+        if filled or added:
+            touched.append(p.code)
+            what = ", ".join(LANDING_FIELDS[k] for k in filled) or "points à arbitrer"
+            report.append(f"Formation {p.code} complétée par la landing : {what}")
+    db.flush()
+    return touched

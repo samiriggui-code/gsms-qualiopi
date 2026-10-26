@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.application.service.demo import PLANTED_GAPS, seed_demo
+from app.application.service.demo import PLANTED_GAPS, complete_demo_trainer_emails, seed_demo
 from app.application.service.qualiopi.engine import refresh_all
 from app.application.service.qualiopi.evaluation.service import indicator_readiness
 from app.application.service.qualiopi.referential.importer import import_referential
@@ -101,6 +101,21 @@ def test_preuve_tracable(demo: Session) -> None:
     assert ev.document_sha256 and len(ev.source_hash) == 64
     assert [h.kind for h in ev.history] == ["DETECTED"]
     assert {link.indicator_number for link in ev.links} == {21}
+
+
+def test_formateurs_de_demo_avec_adresse_fictive(demo: Session) -> None:
+    from app.types import training as t
+
+    emails = demo.scalars(select(t.Trainer.email).where(t.Trainer.created_by == "démo")).all()
+    assert sorted(emails) == ["julie.martin@exemple.fr", "karim.benali@exemple.fr", "élodie.marchand@exemple.fr"]
+    # Base installée avant l'ajout des adresses : complétée, sans toucher une adresse saisie ni un formateur réel.
+    karim, julie = (demo.scalar(select(t.Trainer).where(t.Trainer.last_name == n)) for n in ("Benali", "Martin"))
+    karim.email, julie.email = None, "julie@organisme.fr"
+    demo.add(t.Trainer(first_name="Réel", last_name="Formateur", created_by="admin"))
+    demo.flush()
+    assert complete_demo_trainer_emails(demo) == ["karim.benali@exemple.fr"]
+    assert julie.email == "julie@organisme.fr"
+    assert demo.scalar(select(t.Trainer.email).where(t.Trainer.last_name == "Formateur")) is None
 
 
 def test_demo_refusee_si_deja_installee(demo: Session) -> None:

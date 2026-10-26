@@ -102,6 +102,7 @@ def test_alertes_internes_de_l_echeancier_envoyees_sans_validation(demo: Session
 def test_formateur_sans_adresse_puis_evaluations_manquantes(demo: Session, outbox) -> None:  # noqa: ANN001
     _enable(demo)
     s = find_session(demo, "SST-2026-02")
+    s.trainer.email = None  # la démo donne une adresse fictive à ses formateurs : on la retire pour le cas étudié
     day = s.end_date + timedelta(days=1)
     plan(demo, day)
     demo.commit()

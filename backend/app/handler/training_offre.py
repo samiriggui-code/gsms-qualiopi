@@ -226,7 +226,7 @@ def _catalogue_row(db: Session, p: t.Program, today: date, sessions: list[t.Trai
     nxt = upcoming[0] if upcoming else None
     basis = cert.basis if cert else "A_DETERMINER"
     return {
-        "id": p.id, "code": p.code, "title": p.title, "catalog_slug": p.catalog_slug,
+        "id": p.id, "code": p.code, "title": p.title, "catalog_slug": p.catalog_slug, "image_url": p.image_url,
         "track": p.track or "AUTRES", "track_label": t.TRACKS[p.track or "AUTRES"],
         "pathway": p.pathway, "pathway_label": t.PATHWAYS.get(p.pathway or ""),
         "audience": p.audience, "content": p.content, "access_delay": p.access_delay,
@@ -289,7 +289,7 @@ def catalogue_item(program_id: str, db: DB, _: Reader, mois: Annotated[int, Quer
         "id": p.id, "track_label": t.TRACKS[p.track or "AUTRES"], "pathway_label": t.PATHWAYS.get(p.pathway or ""),
         "sessions": [{"id": s.id, "reference": s.reference, "start_date": s.start_date, "end_date": s.end_date,
                       "status": s.status, "location": s.location, "room": s.room, "trainer_name": s.trainer_name,
-                      "capacity": s.capacity, "learners": s.learners_count} for s in sessions],
+                      "trainer_photo_url": s.trainer_photo_url, "capacity": s.capacity, "learners": s.learners_count} for s in sessions],
         "periode": {"du": start, "au": end, "mois": mois},
         "mesure": m,
         "publie": {"taux_reussite": _num(p.success_rate), "taux_satisfaction": _num(p.satisfaction_rate),
