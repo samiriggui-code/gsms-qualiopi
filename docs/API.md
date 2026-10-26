@@ -30,7 +30,7 @@ de domaine (`*/policy.py`).
 
 ### Permissions, rôles et modules
 
-- Les droits sont des **permissions** (catalogue figé dans `app/router/rbac.py`, 27 codes). Un compte a l'union des
+- Les droits sont des **permissions** (catalogue figé dans `app/router/rbac.py`, 30 codes). Un compte a l'union des
   permissions de ses rôles : **rôles système** (`admin`, `qualite`, `assistant_qualite`, `gestion`, `financement`,
   `formateur`, `rh`, `lecture`, non modifiables) et **rôles personnalisés** (table `iam.role`).
 - Chaque permission appartient à une **fonctionnalité** (module). Un module désactivé retire ses permissions à tout le monde :
@@ -438,7 +438,7 @@ Fichiers : `backend/app/handler/ia.py`, `backend/app/handler/mcp.py` (protocole)
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
-| `POST` | `/api/v1/ia/session` | Connexion WeKnora du compte de service de l'organisme (inscrit au premier appel), renvoyée telle quelle ; au passage, déclare le serveur MCP dans l'espace s'il ne l'est pas (idempotent). Le résultat de cette déclaration est dans `gsms_mcp` (`{ok, fait, a_regler}`) ; son échec n'empêche jamais la session. 503 si le moteur IA n'est pas configuré ou injoignable. | Authentifié |
+| `POST` | `/api/v1/ia/session` | Session WeKnora du **compte navigateur** (contributeur de l'espace de l'organisme), **sans `refresh_token`** : le front rappelle cette route pour renouveler son jeton, ce qui revérifie le compte GSMS (actif, `ia.use`) ; désactiver un compte GSMS coupe donc l'assistant. Le compte de service (propriétaire de l'espace) reste côté serveur. Comptes créés au premier appel tant que l'inscription WeKnora est ouverte. Au passage, déclare le serveur MCP dans l'espace s'il ne l'est pas (idempotent) ; résultat dans `gsms_mcp` (`{ok, fait, a_regler}`), son échec n'empêche jamais la session. 503 si le moteur IA n'est pas configuré, injoignable, ou si un compte manque alors que l'inscription est fermée. | `ia.use` (rôles `admin`, `qualite`, `assistant_qualite`, `gestion`, `lecture` : ceux qui ont déjà `quality.read` et `sessions.read` ; pas `formateur`, `rh`, `financement`, `assistant_ia`) |
 | `POST` | `/api/v1/mcp` | Serveur MCP (JSON-RPC 2.0, transport Streamable HTTP sans état, réponses JSON, sans `Mcp-Session-Id`) : `initialize`, `ping`, `tools/list`, `tools/call`, notifications (202). `server/discover` répond « méthode inconnue » (-32601), le client retombe sur `initialize`. | Jeton « mcp » du compte technique **ou** jeton utilisateur — chaque outil exige la permission de la route qu'il reprend |
 | `GET` | `/api/v1/mcp` | 405 : pas de flux serveur (SSE). | — |
 | `DELETE` | `/api/v1/mcp` | 405 : pas de session à fermer. | — |
@@ -471,6 +471,21 @@ dépose le nouveau, désactiver le compte coupe l'accès aussitôt. Un utilisate
 propre jeton de connexion : il a alors ses propres droits. Une instance GSMS sert un seul organisme, et l'espace WeKnora est
 celui du compte de service de cet organisme. Un en-tête `Origin` inconnu de `CORS_ORIGINS` est refusé (403). Le jeton « mcp » n'est accepté qu'en appel direct sur le réseau interne : une requête passée par un proxy (`X-Forwarded-For` ou `Forwarded`) doit porter un jeton utilisateur, et `deploy/Caddyfile` ne publie pas `/api/v1/mcp` (404). Ainsi un jeton « mcp » détourné (par exemple en changeant l'adresse du service dans l'écran WeKnora) ne sert à rien depuis l'extérieur ; l'adresse est en outre remise à `IA_MCP_URL` à chaque ouverture de session. Aucun outil n'écrit (chaque appel se termine par un `rollback`) ; le serveur ne journalise ni les arguments ni les réponses. Les réponses sont celles des routes HTTP lues avec `quality.read` : pas d'adresse e-mail, de téléphone ni d'adresse postale, mais les noms des stagiaires et formateurs concernés par une pièce manquante y figurent (ils désignent ce qui est à faire).
 
+**Comptes WeKnora.** Deux comptes, pour que le navigateur ne détienne jamais l'administration de l'espace :
+le **compte de service** (`WEKNORA_SERVICE_EMAIL`), propriétaire de l'espace, utilisé seulement par l'API (serveur MCP,
+base de connaissances, membres) ; le **compte navigateur** (`WEKNORA_BROWSER_EMAIL`, par défaut `<service>+navigateur@<domaine>`,
+mot de passe dérivé du mot de passe de service, jamais stocké), membre **contributeur** de l'espace : il lit les bases,
+les services MCP et les modèles, crée ses propres bases et agents, discute, mais ne peut ni régler les modèles, ni déclarer
+de service MCP (403 vérifié contre le moteur), ni gérer les membres. Conséquence : régler les modèles du moteur IA (par
+exemple le modèle d'embedding) demande le compte de service, donc une opération d'administration hors du back-office ;
+point d'architecture ouvert. Le compte navigateur garde aussi un espace personnel (créé par WeKnora à son inscription),
+sans contenu.
+
+**Première installation.** `ia/.env` porte `DISABLE_REGISTRATION=true` (inscription libre fermée, mode `invite_only`) :
+l'API ne peut alors plus créer les deux comptes. Sur une installation neuve, démarrer `ia-app` avec
+`DISABLE_REGISTRATION=false`, lancer `python -m app.cmd.cli ia-preparer` (il crée les deux comptes et ajoute le compte
+navigateur à l'espace), puis remettre `true` et `docker compose up -d ia-app`.
+
 **Préparation de l'espace WeKnora** : `python -m app.cmd.cli ia-preparer [--renouveler-jeton]` (idempotent) déclare le
 serveur MCP « Moteur Qualiopi (GSMS) » (`http-streamable`, `IA_MCP_URL`, défaut `http://api:8000/api/v1/mcp`, adresse vue
 depuis le conteneur `ia-app` ; le moteur doit autoriser l'hôte `api`, `SSRF_WHITELIST_EXTRA: api` dans `docker-compose.yml`)
@@ -478,6 +493,22 @@ et la base de connaissances « Référentiel Qualiopi » : un document par fichi
 (65 textes officiels ; aucun guide de lecture n'est livré dans le dépôt). Un document déjà présent (même titre) est laissé
 tel quel ; un document en échec d'indexation est renvoyé à l'indexation dès que la base a un modèle d'embedding. La commande
 dit ce qui manque (aucun modèle d'embedding, base sans modèle, documents refusés ou en échec) et sort en code 1 dans ce cas.
+
+### Préinscriptions (formulaire du site)
+
+Fichiers : `backend/app/handler/preinscriptions.py`, `backend/app/application/access/preinscriptions.py`,
+`backend/app/application/service/preinscriptions/` — 5 route(s). Table `formation.preinscription` (migration `0021`),
+référence `PRE-000001`, statuts `NOUVELLE`, `EN_COURS`, `CONVERTIE`, `REFUSEE` (motif). Journal des modifications et
+événements outbox `preinscription.received`, `preinscription.status_changed`, `preinscription.converted` (sans effet sur
+les preuves Qualiopi ; la conversion publie aussi `learner.enrolled`).
+
+| Méthode | Chemin | Rôle | Droits requis |
+|---|---|---|---|
+| `POST` | `/api/v1/public/preinscriptions` | Demande envoyée par le formulaire de la landing (`landing/app/preinscription.tsx`, mêmes noms de champs : identité, coordonnées, formation et session souhaitées, financement, situation, 6 déclarations, `sourceContext`). 201 `{message}`. Refus : `{error, detail, message, details?}` (`message` affiché par le formulaire) — 400 illisible, 413 au-delà de 16 Kio, 422 champ invalide (champs inconnus refusés, tailles bornées, déclarations toutes cochées), 429 au-delà de 5 envois valides en 10 min par origine. Même e-mail et même formation encore ouverte depuis moins de 24 h : pas de seconde demande, même réponse 201. Déclarations conservées avec leur horodatage (`consented_at`) ; formation reconnue par `catalog_slug`. | Public — limite de débit en mémoire du processus, aucune donnée personnelle journalisée |
+| `GET` | `/api/v1/preinscriptions` | Liste, plus récentes d'abord : `statut` (répétable), `formation` (slug ou id), `recherche` (référence, nom, e-mail, téléphone, ville), `limite` (100, 500 au plus) ; renvoie `total`, `compteurs` par statut, `statuts`, `demandes`. | `leads.read` |
+| `GET` | `/api/v1/preinscriptions/{id}` | Détail : identité, naissance, adresse, déclarations (`declarations_le`), motif de refus, conversion, `stagiaire_existant` (même e-mail), `sessions_proposees` (sessions inscriptibles de la formation, avec la décision `inscription` de `TrainingPolicy`), `capabilities` (`EN_COURS`, `REFUSEE`, `convertir`). | `leads.read` |
+| `POST` | `/api/v1/preinscriptions/{id}/statut` | `{statut, motif}` : `EN_COURS` (prise en charge, ou réouverture d'un refus) ou `REFUSEE` (motif obligatoire, sinon 422). | `leads.write` — 409 `INVALID_TRANSITION` / `UNKNOWN_STATUS` (`CONVERTIE` passe par la conversion) |
+| `POST` | `/api/v1/preinscriptions/{id}/conversion` | `{session_id?}` : stagiaire repris s'il existe sous le même e-mail, sinon créé (schéma `PersonIn` des apprenants), puis inscription à la session par `training.service.enroll`. Renvoie le détail + `resultat` (`stagiaire_id`, `stagiaire_existant`, `inscription_id`, `session_id`). | `leads.write` — 409 `CONVERSION_IMPOSSIBLE` avec `details` [{code, message}] : `PERMISSION_MISSING` (`sessions.write`), `INVALID_TRANSITION`, refus d'inscription de la session (`ENROLLMENT_CLOSED`, `CAPACITY_REACHED`…), `ALREADY_ENROLLED` |
 
 ### Routes publiques (lien signé)
 
@@ -550,7 +581,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 | # | Entité | Où elle vit | Champs principaux | Routes | Section |
 |---|---|---|---|---|---|
 | 4 | Utilisateurs | tables `iam.user`, `iam.user_role` (`auth.models`) | `email`, `full_name`, `password_hash`, `is_active`, rôles | `GET/POST /api/v1/auth/users`, `PUT …/{user_id}/roles`, `PUT …/{user_id}/active` (`users.manage`) ; `GET/PATCH /api/v1/auth/me`, `POST /api/v1/auth/me/password` (soi-même). Création du premier admin : CLI `create-admin` | Équipe et accès › Comptes |
-| 5 | Rôles | rôles système dans le code (`SYSTEM_ROLES`, 8 rôles) + rôles personnalisés en table `iam.role` | `code`, `label`, `description`, `permissions` (liste de codes) | `GET /api/v1/auth/roles` (authentifié) ; `POST`, `PUT /{code}`, `DELETE /{code}` (`users.manage`, rôles personnalisés seulement, anti-escalade) | Équipe et accès › Rôles |
+| 5 | Rôles | rôles système dans le code (`SYSTEM_ROLES`, 9 rôles, dont `assistant_ia`, compte technique du serveur MCP) + rôles personnalisés en table `iam.role` | `code`, `label`, `description`, `permissions` (liste de codes) | `GET /api/v1/auth/roles` (authentifié) ; `POST`, `PUT /{code}`, `DELETE /{code}` (`users.manage`, rôles personnalisés seulement, anti-escalade) | Équipe et accès › Rôles |
 | 6 | Catalogue des permissions | code `app/router/rbac.py` (`CATALOGUE`, 27 permissions) | `code`, `label`, `feature` | `GET /api/v1/auth/permissions` (lecture seule) | Équipe et accès › Rôles (cases à cocher groupées par module) |
 | 7 | Liaison compte ↔ formateur / personnel | colonnes `formation.trainer.user_id`, `rh.staff_member.user_id` | compte relié (donne la portée `sessions.read_own`) | `PUT /api/v1/formateurs/{trainer_id}/compte` (`users.manage`) ; `POST /api/v1/rh/personnel` (`staff.write`) | Équipe et accès › Comptes |
 
@@ -619,6 +650,9 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
      règle de proxy) : les liens déjà envoyés par e-mail pointent sur ce chemin, **sans `v1`** ;
    - la page **`/emarger`** (lecture de `?code=` du QR de salle et `?jeton=` du lien personnel, puis
      `POST /api/v1/emargement/signer` avec `{code, jeton}`). Ce lien est renvoyé en chemin relatif, sans `PUBLIC_URL`.
+   - le formulaire de préinscription de la landing appelle directement **`POST /api/v1/public/preinscriptions`** (même
+     origine : `/api` est relayé vers l'API par Vite en dev et publié tel quel par le reverse proxy). L'ancien chemin
+     `/api/preinscriptions` n'a jamais existé côté API : aucun relais n'est nécessaire, aucun lien envoyé ne le porte.
 5. **Navigation et droits** : charger `GET /api/v1/bootstrap` au démarrage (permissions, modules actifs, organisme, couleur,
    entrées de navigation filtrées). Les messages 403 de module désactivé renvoient vers « Administration › Paramètres ›
    Modules » : garder cet intitulé ou adapter le message côté API.

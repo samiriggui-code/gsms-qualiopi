@@ -219,6 +219,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { logout as logoutApi } from '@/api/auth'
 import { useI18n } from 'vue-i18n'
@@ -284,11 +285,17 @@ let tenantSubmenuHideTimer: ReturnType<typeof setTimeout> | null = null
 
 // 用户信息直接读 auth store：启动时 main.ts 已用 /auth/me 校准过，
 // 这里不再各自拉一份，避免首屏两次 /auth/me。
-const userInfo = computed(() => ({
-  username: authStore.user?.username || t('common.defaultUser'),
-  email: authStore.user?.email || 'user@example.com',
-  avatar: authStore.user?.avatar || '',
-}))
+// GSMS : le compte affiché est l'utilisateur GSMS connecté (GET /api/v1/bootstrap, comme /auth/me), pas le
+// compte WeKnora que l'API Qualiopi ouvre pour les écrans IA.
+const gsmsAccess = useGsmsAccessStore()
+const userInfo = computed(() => {
+  const gsmsUser = gsmsAccess.bootstrap?.user
+  return {
+    username: gsmsUser?.full_name || authStore.user?.username || t('common.defaultUser'),
+    email: gsmsUser?.email || authStore.user?.email || '',
+    avatar: gsmsUser ? '' : authStore.user?.avatar || '',
+  }
+})
 
 const userName = computed(() => userInfo.value.username)
 const userEmail = computed(() => userInfo.value.email)
@@ -549,6 +556,7 @@ const handleLogout = async () => {
 // 落库逻辑（user / tenant / memberships / capabilities）统一在 auth store 里，
 // 这里不再手写一份字段拷贝。
 const loadUserInfo = async () => {
+  void gsmsAccess.load()
   try {
     await authStore.ensureAuthMe()
   } catch (error) {

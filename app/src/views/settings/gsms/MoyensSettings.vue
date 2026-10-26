@@ -70,7 +70,7 @@ import {
   createMoyen, deleteMoyen, listMoyens, updateMoyen, type MoyenResource, type MoyenRow,
 } from '@/api/gsms/training'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
-import { formatDate } from './format'
+import { fmtDate as formatDate } from '@/components/gsms/format'
 import { MOYENS, type MoyenColumn, type MoyenField } from './moyens'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 

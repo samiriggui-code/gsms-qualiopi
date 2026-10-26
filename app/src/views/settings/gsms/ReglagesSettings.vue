@@ -66,7 +66,7 @@
     <t-dialog v-model:visible="historyVisible" :header="historyOf ? t('gsms.parametres.reglages.historiqueTitre', { label: historyOf.label }) : ''" width="720px"
       :footer="false" attach="body" dialog-class-name="gsms-dialog">
       <GsmsRefusal v-if="historyError" :error="historyError" inline />
-      <div class="table-frame">
+      <div class="history-frame">
         <t-table row-key="at" :data="history" :columns="historyColumns" :loading="historyLoading" size="small"
           :empty="t('gsms.parametres.reglages.historiqueVide')">
           <template #value="{ row }">{{ formatValue(row.value) }}</template>
@@ -87,7 +87,8 @@ import {
 } from '@/api/gsms/platform'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import SchemaField from './SchemaField.vue'
-import { formatDate, formatDateTime, formatValue, todayIso } from './format'
+import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/gsms/format'
+import { formatValue, todayIso } from './format'
 
 const { t, te } = useI18n()
 const domainLabel = (d: string) => (te(`gsms.parametres.reglages.domaines.${d}`) ? t(`gsms.parametres.reglages.domaines.${d}`) : d)
@@ -189,6 +190,12 @@ onMounted(load)
 <style lang="less" scoped>
 @import (reference) './gsms-section.less';
 @import (reference) './gsms-dialog.less';
+@import (reference) '@/components/css/settings-table.less';
+
+// Tableau de l'historique : la boîte de dialogue est rendue hors de .gsms-settings.
+.history-frame {
+  .settings-data-table();
+}
 
 .gsms-settings {
   .gsms-section();

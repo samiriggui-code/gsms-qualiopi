@@ -96,6 +96,9 @@ def test_corps_illisible_ou_trop_gros(client) -> None:  # noqa: ANN001
     assert client.post(URL, json=["liste"]).status_code == 400
     r = _post(client, body(motivation="x" * 20_000))
     assert r.status_code == 413 and "volumineuse" in r.json()["message"]
+    chunked = client.post(URL, content=iter([b"{" + b" " * 9000, b" " * 9000 + b"}"]),
+                          headers={"Content-Type": "application/json"})
+    assert chunked.status_code == 413
 
 
 def test_doublon_recent_non_recree(db: Session, client) -> None:  # noqa: ANN001
@@ -138,11 +141,12 @@ def test_droits_dedies(db: Session, client) -> None:  # noqa: ANN001
     _, financement = make_user(db, "financement")
     assert client.get("/api/v1/preinscriptions").status_code == 401
     assert client.get("/api/v1/preinscriptions", headers=formateur).status_code == 403
-    assert client.get("/api/v1/preinscriptions", headers=lecture).status_code == 200
+    # Données personnelles des candidats : pas dans le rôle « lecture seule ».
+    assert client.get("/api/v1/preinscriptions", headers=lecture).status_code == 403
     assert client.get(f"/api/v1/preinscriptions/{p.id}", headers=financement).status_code == 200
-    r = client.post(f"/api/v1/preinscriptions/{p.id}/statut", json={"statut": "EN_COURS"}, headers=lecture)
+    r = client.post(f"/api/v1/preinscriptions/{p.id}/statut", json={"statut": "EN_COURS"}, headers=financement)
     assert r.status_code == 403
-    caps = client.get(f"/api/v1/preinscriptions/{p.id}", headers=lecture).json()["capabilities"]
+    caps = client.get(f"/api/v1/preinscriptions/{p.id}", headers=financement).json()["capabilities"]
     assert caps["EN_COURS"]["code"] == "PERMISSION_MISSING" and not caps["convertir"]["allowed"]
 
 

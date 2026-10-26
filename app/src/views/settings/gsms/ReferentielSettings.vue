@@ -113,7 +113,7 @@ import {
 } from '@/api/gsms/qualiopi'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsFileNote from './GsmsFileNote.vue'
-import { formatDate } from './format'
+import { fmtDate as formatDate } from '@/components/gsms/format'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 
 const { t } = useI18n()

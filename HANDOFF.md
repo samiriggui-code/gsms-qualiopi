@@ -359,6 +359,40 @@ Serveur MCP en lecture seule `POST /api/v1/mcp` (8 outils : état des indicateur
 IA ; compte technique `assistant_ia` (`quality.read` seulement) ; base « Référentiel Qualiopi » par
 `python -m app.cmd.cli ia-preparer` (65 textes officiels déposés, indexation en attente d'un modèle d'embedding dans le
 moteur IA). Détail : `docs/API.md`, section « Moteur IA et serveur MCP ».
+Durcissement (audit de sécurité) : `POST /ia/session` exige la permission `ia.use` ; le navigateur reçoit un compte
+WeKnora **contributeur** distinct (le compte de service propriétaire reste côté serveur) et **aucun jeton de
+renouvellement** (le front rappelle `/ia/session`, qui revérifie le compte GSMS) ; inscription WeKnora fermée
+(`DISABLE_REGISTRATION=true`, voir « Première installation » dans `docs/API.md`). Point ouvert : régler les modèles du
+moteur IA demande le compte de service, faute d'écran d'administration côté GSMS.
+
+## 5 quindecies. Préinscriptions du site, backend (26/10/2026, chantier C9)
+
+Le formulaire de la landing poste vers `POST /api/v1/public/preinscriptions` (au lieu de `/api/preinscriptions`, absent) ;
+table `formation.preinscription` (migration `0021`), traitement `/api/v1/preinscriptions` (liste, détail, statut, conversion
+en stagiaire inscrit par `training.service.enroll`), permissions `leads.read` / `leads.write` (gestion ; `leads.read` seul pour
+financement, pas pour le rôle « lecture »), 4 demandes d'exemple dans `seed-demo`. Page 4 du back-office : à faire. Détail : `docs/API.md`,
+section « Préinscriptions ».
+
+## 5 sexdecies. Audit CodeRabbit du backend (26/10/2026)
+
+Envoi des relances verrouillé (`skip_locked`, pas de double envoi), titres et
+actions de développement des formateurs réévalués à l'événement (`payload.trainer_ids`, aussi depuis la fiche RH), pièce
+retirée de `config/dossiers` ignorée par le moteur, chaînes CSS des documents A4 échappées (`<`, `>`, `&`), six mois
+calendaires exacts dans la synthèse des devis, échéances des sessions d'exemple supprimées avec elles.
+
+## 5 septdecies. Patrons de page, menu par sections et pages Qualiopi (26/10/2026, chantier C1)
+
+- Composants partagés `app/src/components/gsms/` : `GsmsPageHeader`, `GsmsSectionLanding` (niveau 1), `GsmsListPage`
+  (niveau 2 : tableau ≥ 768 px, cartes sur téléphone, pagination), `GsmsRecordSheet` (niveau 3), `GsmsKpiRow`,
+  `GsmsModuleCard`, `GsmsAlertList`, `GsmsActionGate`, `GsmsRefusal`, `GsmsStatusTag`, `GsmsStepMark`, `GsmsPersonAvatar`,
+  plus `GsmsFilterTabs`, `GsmsRowActions`, `ActionDialog` (saisies `a_saisir`), `GridPoints`, `AttendanceSheetView`,
+  `useApiSource`, `format.ts` (libellés `gsms.etats.*`, refus 403/409 lisibles).
+- Menu par sections (`config/gsmsMenu.ts`) : les 42 pages du CDC y sont prévues ; une entrée n'apparaît que si sa route
+  existe et que `GET /bootstrap` l'ouvre. Sur téléphone (< 768 px) le menu devient un tiroir (barre du haut).
+- Pages : Pilotage (vue d'ensemble = tableau de bord), Qualiopi (vue d'ensemble), indicateurs et fiche, carnet d'audit
+  (version imprimable téléchargée, jamais injectée), preuves et fiche (validation), constats et actions, audits et fiche,
+  réclamations, veille, dossier de l'organisme, journal ; commencées pour C4 : sessions, fiche session (inscriptions,
+  cycle de vie, parcours, émargement, activité), parcours d'une inscription, émargement. Textes `gsms.<domaine>.…`.
 
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 

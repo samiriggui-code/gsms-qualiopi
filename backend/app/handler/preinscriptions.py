@@ -188,9 +188,14 @@ async def submit(request: Request, db: DB) -> JSONResponse:
     declared = request.headers.get("content-length", "")
     if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
         return _refusal(413, "trop_volumineux", "Demande trop volumineuse : raccourcissez les champs libres.")
-    raw = await request.body()
-    if len(raw) > MAX_BODY_BYTES:
-        return _refusal(413, "trop_volumineux", "Demande trop volumineuse : raccourcissez les champs libres.")
+    # Lecture bornée : un envoi sans Content-Length (fragmenté) s'arrête dès que la limite est dépassée.
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_BODY_BYTES:
+            return _refusal(413, "trop_volumineux", "Demande trop volumineuse : raccourcissez les champs libres.")
+        chunks.append(chunk)
+    raw = b"".join(chunks)
     try:
         body = json.loads(raw or b"null")
     except ValueError:

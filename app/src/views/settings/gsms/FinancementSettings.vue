@@ -47,7 +47,8 @@ import { getFundingRule, listFundingSchemes, type FundingScheme } from '@/api/gs
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsFileNote from './GsmsFileNote.vue'
 import { refusalText } from '@/components/gsms/format'
-import { formatDate, formatValue } from './format'
+import { fmtDate as formatDate } from '@/components/gsms/format'
+import { formatValue } from './format'
 
 // Clés déclarées dans backend/config/financement/regles.yaml (docs/API.md §3.6) : aucune route ne les liste.
 const RULE_KEYS = ['cpf.participation_titulaire_eur', 'personnel.delai_retractation_jours', 'personnel.acompte_max_pourcent']

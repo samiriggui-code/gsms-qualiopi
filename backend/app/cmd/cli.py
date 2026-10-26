@@ -117,7 +117,8 @@ def ia_prepare(renew: bool) -> None:
     from app.application.service.ia.session import IAUnavailable, open_session
 
     try:
-        token = open_session()["token"]
+        # Ouvre aussi la session du compte navigateur : il est créé et ajouté à l'espace s'il manque.
+        token = open_session().service_token
     except IAUnavailable as e:
         sys.exit(str(e))
     failed = False

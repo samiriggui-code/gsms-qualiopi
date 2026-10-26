@@ -1,9 +1,11 @@
 /**
  * Shared access-token refresh used by both axios and the chat SSE client.
  *
- * Refresh tokens rotate, so concurrent 401s must queue behind one in-flight
- * /auth/refresh. The SSE handshake runs on raw fetch and cannot use the
- * axios interceptor; both planes call {@link refreshAccessTokenShared}.
+ * GSMS : le navigateur ne détient aucun jeton de renouvellement WeKnora. Un nouveau jeton s'obtient en rappelant
+ * POST /api/v1/ia/session (API Qualiopi), qui revérifie le compte GSMS (actif, permission « ia.use ») : désactiver
+ * un compte GSMS coupe donc aussi l'assistant. Les 401 simultanés attendent un seul renouvellement en cours.
+ * The SSE handshake runs on raw fetch and cannot use the axios interceptor; both planes call
+ * {@link refreshAccessTokenShared}.
  */
 
 const AUTH_STORAGE_KEYS = [
@@ -26,12 +28,12 @@ let failedQueue: Array<{
 
 export type TokenRefreshResult = {
   success: boolean
-  data?: { token: string; refreshToken: string }
+  data?: { token: string }
   message?: string
 }
 
 export type RefreshAccessTokenOptions = {
-  refresh?: (refreshToken: string) => Promise<TokenRefreshResult>
+  refresh?: () => Promise<TokenRefreshResult>
   messages?: {
     pleaseRelogin: string
     tokenRefreshFailed: string
@@ -90,9 +92,10 @@ function processQueue(error: unknown, token: string | null = null) {
   failedQueue = []
 }
 
-async function defaultRefresh(refreshToken: string): Promise<TokenRefreshResult> {
-  const { refreshToken: refreshTokenAPI } = await import('../api/auth/index')
-  return refreshTokenAPI(refreshToken)
+async function defaultRefresh(): Promise<TokenRefreshResult> {
+  const { openIaSession } = await import('../api/gsms/auth')
+  const body = await openIaSession()
+  return body?.token ? { success: true, data: { token: String(body.token) } } : { success: false }
 }
 
 /**
@@ -114,29 +117,18 @@ export async function refreshAccessTokenShared(
   }
 
   isRefreshing = true
-  const storedRefreshToken = localStorage.getItem('weknora_refresh_token')
-
-  if (!storedRefreshToken) {
-    clearAuthStorage()
-    const noRefreshTokenError = new Error(messages.pleaseRelogin)
-    processQueue(noRefreshTokenError, null)
-    isRefreshing = false
-    redirectToLogin()
-    throw noRefreshTokenError
-  }
+  // Reliquat d'une session antérieure : plus aucun jeton de renouvellement n'est conservé.
+  localStorage.removeItem('weknora_refresh_token')
 
   try {
-    const response = await refresh(storedRefreshToken)
+    const response = await refresh()
 
     if (!response.success || !response.data?.token) {
       throw new Error(response.message || messages.tokenRefreshFailed)
     }
 
-    const { token, refreshToken: newRefreshToken } = response.data
+    const { token } = response.data
     localStorage.setItem('weknora_token', token)
-    if (newRefreshToken) {
-      localStorage.setItem('weknora_refresh_token', newRefreshToken)
-    }
     processQueue(null, token)
     return token
   } catch (refreshError) {

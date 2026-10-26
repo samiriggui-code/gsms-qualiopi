@@ -50,10 +50,10 @@ test('isStreamAuthError matches the class and name-only wrappers', () => {
 
 test('concurrent 401s share a single refresh call', async () => {
   const { store } = installBrowser()
-  store.weknora_refresh_token = 'rt-1'
+  store.weknora_refresh_token = 'rt-ancien'
   let calls = 0
-  let release!: (value: { success: true; data: { token: string; refreshToken: string } }) => void
-  const pending = new Promise<{ success: true; data: { token: string; refreshToken: string } }>(
+  let release!: (value: { success: true; data: { token: string } }) => void
+  const pending = new Promise<{ success: true; data: { token: string } }>(
     (resolve) => {
       release = resolve
     },
@@ -68,14 +68,15 @@ test('concurrent 401s share a single refresh call', async () => {
   const second = refreshAccessTokenShared({ refresh })
   assert.equal(calls, 1)
 
-  release({ success: true, data: { token: 'access-2', refreshToken: 'rt-2' } })
+  release({ success: true, data: { token: 'access-2' } })
   assert.deepEqual(await Promise.all([first, second]), ['access-2', 'access-2'])
   assert.equal(store.weknora_token, 'access-2')
-  assert.equal(store.weknora_refresh_token, 'rt-2')
+  // GSMS : aucun jeton de renouvellement WeKnora n'est gardé dans le navigateur.
+  assert.equal(store.weknora_refresh_token, undefined)
   assert.equal(calls, 1)
 })
 
-test('missing refresh token clears credentials, redirects, and throws an Error', async () => {
+test('a refused session renewal clears credentials, redirects, and throws an Error', async () => {
   const { store, location } = installBrowser()
   store.weknora_token = 'expired'
   store.weknora_user = '{}'
@@ -84,7 +85,7 @@ test('missing refresh token clears credentials, redirects, and throws an Error',
   await assert.rejects(
     () => refreshAccessTokenShared({
       refresh: async () => {
-        throw new Error('should not refresh')
+        throw new Error('please-relogin')
       },
       messages: { pleaseRelogin: 'please-relogin', tokenRefreshFailed: 'refresh-failed' },
     }),
@@ -167,7 +168,7 @@ test('a second handshake 401 after a successful refresh does not wipe tokens', a
         const token = await refreshAccessTokenShared({
           refresh: async () => ({
             success: true,
-            data: { token: 'fresh', refreshToken: 'rt-2' },
+            data: { token: 'fresh' },
           }),
         })
         return token
@@ -180,7 +181,6 @@ test('a second handshake 401 after a successful refresh does not wipe tokens', a
     (err: unknown) => err instanceof Error && err.message === 'please-relogin',
   )
   assert.equal(store.weknora_token, 'fresh')
-  assert.equal(store.weknora_refresh_token, 'rt-2')
   assert.equal(location.href, 'http://localhost/chat')
 })
 

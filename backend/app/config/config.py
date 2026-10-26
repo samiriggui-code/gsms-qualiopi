@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     weknora_service_email: str = ""
     weknora_service_password: str = ""
     weknora_service_name: str = "GSMS Qualiopi"
+    # Compte WeKnora remis au navigateur (contributeur de l'espace) ; vide = <service>+navigateur@<domaine>.
+    weknora_browser_email: str = ""
     # Serveur MCP de l'API, tel que le moteur IA le joint (même réseau compose : service « api »).
     ia_mcp_url: str = "http://api:8000/api/v1/mcp"
     # Compte technique GSMS au nom duquel l'assistant IA lit le moteur Qualiopi (rôle « assistant_ia »).

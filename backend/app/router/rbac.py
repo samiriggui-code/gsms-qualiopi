@@ -47,6 +47,7 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("documents.validate", "Valider, renvoyer en préparation et archiver les documents professionnels", "documents"),
     Permission("leads.read", "Consulter les demandes de préinscription reçues du site", "training"),
     Permission("leads.write", "Traiter les demandes de préinscription : prise en charge, refus, conversion", "training"),
+    Permission("ia.use", "Utiliser l'assistant IA : session du moteur IA et ses outils de lecture Qualiopi", "core"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
     Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
     Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
@@ -57,16 +58,16 @@ CODES = frozenset(p.code for p in CATALOGUE)
 SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     "admin": ("Direction : tous les droits", CODES),
     "qualite": ("Responsable qualité : dépose, valide, gère le référentiel, l'équipe et les réglages", frozenset({
-        "sessions.read", "quality.read", "quality.write", "evidence.validate", "referential.manage",
+        "sessions.read", "quality.read", "quality.write", "evidence.validate", "referential.manage", "ia.use",
         "journal.read", "users.manage", "settings.manage", "communications.manage",
         "programs.validate", "edof.read", "edof.write", "edof.validate",
         "documents.read", "documents.write", "documents.validate",
     })),
     "assistant_qualite": ("Assistant qualité : dépose les pièces et coche leur grille, ne valide pas", frozenset({
-        "sessions.read", "quality.read", "quality.write", "journal.read", "edof.read", "edof.write",
+        "sessions.read", "quality.read", "quality.write", "journal.read", "edof.read", "edof.write", "ia.use",
     })),
     "gestion": ("Gestion des formations : sessions, inscriptions, formateurs", frozenset({
-        "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read", "communications.manage", "edof.read",
+        "sessions.read", "sessions.write", "enrollments.write", "learners.assess", "trainers.write", "attendance.write", "funding.read", "quality.read", "journal.read", "communications.manage", "edof.read", "ia.use",
         "documents.read", "documents.write", "leads.read", "leads.write",
     })),
     "financement": ("Financement : dossiers CPF, OPCO, France Travail, entreprises", frozenset({
@@ -81,8 +82,8 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     # Compte technique de l'assistant IA (serveur MCP) : lecture de l'état Qualiopi, rien d'autre.
     "assistant_ia": ("Assistant IA : lecture de l'état Qualiopi par le serveur MCP (compte technique)",
                      frozenset({"quality.read"})),
-    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read", "leads.read",
-                                           "documents.read"})),
+    "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read",
+                                           "documents.read", "ia.use"})),
 }
 
 
