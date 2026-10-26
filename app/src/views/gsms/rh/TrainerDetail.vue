@@ -55,7 +55,7 @@
               <GsmsStatusTag v-if="deadlineOf(q)" :code="deadlineOf(q)!.etat" />
             </div>
             <p class="muted">
-              {{ codeLabel(q.kind) }}<template v-if="q.number"> · {{ t('gsms.rh.fiche.numero', { n: q.number }) }}</template>
+              {{ kindLabel(q.kind) }}<template v-if="q.number"> · {{ t('gsms.rh.fiche.numero', { n: q.number }) }}</template>
               <template v-if="q.obtained_on"> · {{ t('gsms.rh.fiche.obtenuLe', { date: fmtDate(q.obtained_on) }) }}</template>
             </p>
             <p class="deadline" :class="{ 'deadline--late': deadlineOf(q)?.etat === 'EXPIRE' }">
@@ -145,8 +145,9 @@ import { listSessions, type SessionRow } from '@/api/gsms/sessions'
 import { listUsers, type UserOut } from '@/api/gsms/auth'
 import { downloadDocument } from '@/api/gsms/dossiers'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 import { fmtDate, refusalText } from '@/components/gsms/format'
-import { QUALIFICATION_KINDS, codeLabel, codeOptions, trainerFields, trainerPayload } from './forms'
+import { trainerFields, trainerPayload } from './forms'
 
 const TABS = ['titres', 'dossier', 'sessions', 'developpement']
 
@@ -154,6 +155,9 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const access = useGsmsAccessStore()
+// Types de titre acceptés par l'API (GET /listes-de-valeurs) ; c'est elle qui les vérifie.
+const valueLists = useGsmsValueListsStore()
+const kindLabel = (kind: string) => valueLists.label('types_de_titre', kind)
 const id = computed(() => String(route.params.trainerId || ''))
 // Ressources sans `capabilities` : les boutons suivent les permissions des routes (trainers.write, users.manage).
 const canWrite = computed(() => access.can('trainers.write'))
@@ -204,9 +208,9 @@ async function loadTitles() {
   const tid = id.value
   titlesError.value = null
   deadlinesError.value = null
-  const [q, d] = await Promise.allSettled([listQualifications(), listTitleDeadlines()])
+  const [q, d] = await Promise.allSettled([listQualifications(tid), listTitleDeadlines()])
   if (tid !== id.value) return
-  if (q.status === 'fulfilled') titles.value = q.value.filter((x) => x.trainer_id === tid)
+  if (q.status === 'fulfilled') titles.value = q.value
   else { titles.value = null; titlesError.value = q.reason }
   if (d.status === 'fulfilled') deadlines.value = d.value.filter((x) => x.formateur_id === tid)
   else { deadlines.value = []; deadlinesError.value = d.reason }
@@ -217,14 +221,14 @@ async function loadTab(v: string) {
   else if (v === 'sessions') {
     sessionsError.value = null
     try {
-      const res = await listSessions()
-      if (tid === id.value) sessions.value = res.filter((s) => s.trainer_id === tid)
+      const res = await listSessions({ formateur: tid })
+      if (tid === id.value) sessions.value = res
     } catch (e) { if (tid === id.value) sessionsError.value = e }
   } else if (v === 'developpement') {
     devError.value = null
     try {
-      const res = await listStaffDevelopment()
-      if (tid === id.value) dev.value = res.filter((d) => d.trainer_id === tid)
+      const res = await listStaffDevelopment(tid)
+      if (tid === id.value) dev.value = res
     } catch (e) { if (tid === id.value) devError.value = e }
   }
 }
@@ -248,10 +252,10 @@ watch(tab, (v) => {
 })
 watch(canManageUsers, loadUsers, { immediate: true })
 access.load()
+valueLists.load()
 
-// Échéance d'un titre : rapprochée de la réponse de GET /rh/echeances (même formateur, intitulé et date de fin).
-const deadlineOf = (q: TrainerQualification) =>
-  deadlines.value.find((d) => d.libelle === q.label && d.fin === q.valid_until) ?? null
+// Échéance d'un titre : la ligne de GET /rh/echeances qui porte son id.
+const deadlineOf = (q: TrainerQualification) => deadlines.value.find((d) => d.titre_id === q.id) ?? null
 
 const accountText = computed(() => {
   const uid = trainer.value?.user_id
@@ -312,7 +316,7 @@ const titleFields = computed<ActionField[]>(() => {
     { name: 'valid_until', label: t('gsms.rh.fiche.finValidite'), type: 'date', initial: r?.valid_until ?? undefined },
   ]
   return r ? dates : [
-    { name: 'kind', label: t('gsms.rh.fiche.type'), type: 'select', options: codeOptions(QUALIFICATION_KINDS), initial: 'AUTRE' },
+    { name: 'kind', label: t('gsms.rh.fiche.type'), type: 'select', options: valueLists.options('types_de_titre') },
     ...dates.slice(0, 1),
     { name: 'number', label: t('gsms.rh.fiche.numeroChamp') },
     ...dates.slice(1),

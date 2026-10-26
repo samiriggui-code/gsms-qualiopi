@@ -265,6 +265,33 @@ export interface Milestone {
 
 export const listMilestones = (days = 15) => http.get<Milestone[]>('/qualiopi/echeances', { query: { days } })
 
+/** Jalon du circuit de session (backend/config/circuits/standard.yaml). */
+export interface CircuitMilestone {
+  cle: string
+  libelle: string
+  /** Date de référence : début (`start`) ou fin (`end`) de session. */
+  ancre: 'start' | 'end' | string
+  decalage_jours: number
+  alerte_jours: number
+  /** Type de preuve attendu. */
+  preuve: string
+  /** Filtre sur les faits de la preuve (ex. questionnaire à chaud ou à froid). */
+  faits: Record<string, unknown>
+  /** Statuts d'inscription concernés. */
+  inscriptions: string[]
+  responsable: string
+  indicateurs: number[]
+}
+
+export interface Circuit {
+  code: string
+  titre: string
+  jalons: CircuitMilestone[]
+}
+
+/** GET /qualiopi/circuit (`quality.read`) : circuit de session appliqué, en lecture seule. */
+export const getCircuit = () => http.get<Circuit>('/qualiopi/circuit')
+
 // ── Carnet d'audit ─────────────────────────────────────────────────────────────
 
 export interface CarnetFiche {
@@ -338,9 +365,6 @@ export const updateWatchItem = (id: string, body: WatchIn) => http.patch<WatchIt
 export const deleteWatchItem = (id: string) => http.delete<void>(`/watch-items/${enc(id)}`)
 
 // ── Enquêtes de satisfaction (ressource CRUD /surveys, écriture `quality.write`) ──
-
-/** Publics acceptés par l'API (handler/training_resources.py) ; c'est elle qui les vérifie. */
-export const SURVEY_AUDIENCES = ['APPRENANT_CHAUD', 'APPRENANT_FROID', 'ENTREPRISE', 'FORMATEUR', 'FINANCEUR'] as const
 
 export interface Survey {
   id: string

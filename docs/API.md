@@ -82,8 +82,11 @@ date butoir à surveiller (la branche de lecture pourra être retirée 60 jours 
 | Document du stagiaire (convocation, attestation) | `{PUBLIC_URL}/api/public/documents/{jeton}` (`journey/espace.py`, `relances/planner.py`) | `GET /api/v1/public/documents/{jeton}` |
 | Émargement du stagiaire | chemin relatif `/emarger?code=…` / `/emarger?jeton=…` (`attendance/service.py`, `SIGN_PATH`) | `POST /api/v1/emargement/signer` |
 
-`/q/…` et `/espace/…` sont des **pages du front** ; `/api/public/…` était un relais du front Next
-(`frontend/app/api/public/[...path]/route.ts`) vers `/api/v1/public/…`.
+`/q/…`, `/espace/…` et `/emarger` sont des **pages du back-office `app/`** (routes publiques sans compte ni menu,
+`app/src/views/gsms/public/`), servies à la racine du domaine : `deploy/Caddyfile` les réécrit vers `/app/index.html`
+(CSP du back-office), `app/vite.config.ts` fait de même en dev ; le routeur prend alors `/` pour base, l'adresse du lien
+ne change pas. `/api/public/documents/…` (liens déjà envoyés, sans `v1`) est réécrit vers `/api/v1/public/documents/…`
+par Caddy et par le proxy de dev.
 
 ### Limites de débit
 
@@ -99,6 +102,7 @@ de la fenêtre.
 | `/api/v1/public/questionnaires/…`, `/documents/…`, `/espace/…` | 300 requêtes par adresse en 10 min |
 | `POST /api/v1/emargement/signer` | 120 signatures par adresse en 10 min (une salle entière signe souvent depuis le même réseau) |
 | `POST /api/v1/public/preinscriptions` | 5 envois valides par adresse en 10 min |
+| `POST /api/v1/public/contact` | 5 messages valides par adresse en 10 min (`Retry-After`) |
 
 Adresse du client : derrière le reverse proxy (connexion venue d'une adresse privée ou locale), la **dernière** adresse de
 `X-Forwarded-For`, ajoutée par Caddy ou Traefik ; une connexion directe depuis une adresse publique garde la sienne.
@@ -107,7 +111,7 @@ Corps de requête plafonné à 20 Mo par Caddy (`request_body { max_size 20MB }`
 
 ## 2. Inventaire des routes HTTP
 
-**Total : 263 routes** (262 sous `/api/v1` + `GET /health`, décompte du 26/10/2026), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
+**Total : 264 routes** (263 sous `/api/v1` + `GET /health`, décompte du 26/10/2026), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
 `/openapi.json` (absentes en production). Les 65 routes CRUD sont générées par `crud_router()` (`app/handler/crud.py`) pour 13
 ressources déclarées dans `app/handler/training_resources.py` (liste `ROUTERS`).
 
@@ -588,6 +592,18 @@ les preuves Qualiopi ; la conversion publie aussi `learner.enrolled`).
 | `POST` | `/api/v1/preinscriptions/{id}/statut` | `{statut, motif}` : `EN_COURS` (prise en charge, ou réouverture d'un refus) ou `REFUSEE` (motif obligatoire, sinon 422). | `leads.write` — 409 `INVALID_TRANSITION` / `UNKNOWN_STATUS` (`CONVERTIE` passe par la conversion) |
 | `POST` | `/api/v1/preinscriptions/{id}/conversion` | `{session_id?}` : stagiaire repris s'il existe sous le même e-mail, sinon créé (schéma `PersonIn` des apprenants), puis inscription à la session par `training.service.enroll`. Renvoie le détail + `resultat` (`stagiaire_id`, `stagiaire_existant`, `inscription_id`, `session_id`). | `leads.write` — 409 `CONVERSION_IMPOSSIBLE` avec `details` [{code, message}] : `PERMISSION_MISSING` (`sessions.write`), `INVALID_TRANSITION`, refus d'inscription de la session (`ENROLLMENT_CLOSED`, `CAPACITY_REACHED`…), `ALREADY_ENROLLED` |
 
+### Formulaire de contact du site
+
+Fichiers : `backend/app/handler/contact.py`, `backend/app/application/service/relances/contact.py`, modèle
+`config/emails/contact_site.html` — 1 route. Pas de table : le message devient un e-mail interne du journal des
+communications (`communication.message`, règle `contact_site`, statut `PREVU`, parti au prochain passage du worker, même
+module `relances` désactivé) pour chaque compte actif ayant `leads.read` (hors direction si d'autres existent) ; sans
+destinataire, `SANS_ADRESSE`. Visible dans « Communication › Messages et relances ».
+
+| Méthode | Chemin | Rôle | Droits requis |
+|---|---|---|---|
+| `POST` | `/api/v1/public/contact` | Message du formulaire de contact de la landing (`landing/app/widgets.tsx`) : `{name, email, subject, message, _trap}`. 201 `{message}`. Refus `{error, detail, message, details?}` : 400 illisible, 413 au-delà de 16 Kio, 422 champ invalide (champs inconnus refusés ; nom 2-200, objet 5-200, message 10-5 000 caractères, e-mail), 429 au-delà de 5 messages valides en 10 min par origine. Champ caché `_trap` rempli : même 201, rien n'est transmis. Même message renvoyé : un seul e-mail par destinataire. | Public — limite de débit en mémoire du processus, aucune donnée personnelle journalisée |
+
 ### Routes publiques (lien signé)
 
 Fichier : `backend/app/handler/questionnaires.py` — 4 route(s).
@@ -734,6 +750,8 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
      règle de proxy) : les liens déjà envoyés par e-mail pointent sur ce chemin, **sans `v1`** ;
    - la page **`/emarger`** (lecture de `?code=` du QR de salle et `?jeton=` du lien personnel, puis
      `POST /api/v1/emargement/signer` avec `{code, jeton}`). Ce lien est renvoyé en chemin relatif, sans `PUBLIC_URL`.
+   - ces trois pages sont faites (`app/src/views/gsms/public/`, voir §1 « Pages publiques par lien signé ») ;
+   - le formulaire de contact de la landing appelle **`POST /api/v1/public/contact`** (l'ancien `/api/contact` n'existait pas) ;
    - le formulaire de préinscription de la landing appelle directement **`POST /api/v1/public/preinscriptions`** (même
      origine : `/api` est relayé vers l'API par Vite en dev et publié tel quel par le reverse proxy). L'ancien chemin
      `/api/preinscriptions` n'a jamais existé côté API : aucun relais n'est nécessaire, aucun lien envoyé ne le porte.

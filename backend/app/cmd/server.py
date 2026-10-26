@@ -9,6 +9,7 @@ from app.database.db import get_engine
 from app.errors.errors import install_error_handlers
 from app.handler.attendance import router as attendance_router
 from app.handler.auth import router as auth_router
+from app.handler.contact import router as contact_router
 from app.handler.documents import router as documents_router
 from app.handler.editions import router as editions_router
 from app.handler.edof import router as edof_router
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(public_router)
     app.include_router(preinscriptions_router)
     app.include_router(preinscriptions_public_router)
+    app.include_router(contact_router)
     for resource_router in training_resources:
         app.include_router(resource_router)
 

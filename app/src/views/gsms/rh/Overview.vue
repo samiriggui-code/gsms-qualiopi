@@ -14,18 +14,20 @@ import { listStaff, listStaffDevelopment, listTitleDeadlines, listTrainers } fro
 import { listRessources } from '@/api/gsms/ressources'
 import { getCarnet } from '@/api/gsms/qualite'
 import { fmtDate } from '@/components/gsms/format'
-import { codeLabel } from './forms'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 
 // Indicateurs du référentiel suivis par la rubrique RH : compétences des intervenants (21), développement des
 // compétences (22), sous-traitance (27). Leur état vient du carnet calculé par le moteur.
 const RH_INDICATORS = [21, 22, 27]
 
 const { t } = useI18n()
+const valueLists = useGsmsValueListsStore()
+valueLists.load()
 
 const trainers = useApiSource(listTrainers).state
 const deadlines = useApiSource(() => listTitleDeadlines()).state
 const staff = useApiSource(() => listStaff()).state
-const dev = useApiSource(listStaffDevelopment).state
+const dev = useApiSource(() => listStaffDevelopment()).state
 const subs = useApiSource(() => listRessources('subcontractors')).state
 const carnet = useApiSource(getCarnet).state
 
@@ -48,8 +50,8 @@ const kpis = computed<KpiItem[]>(() => [
 
 const alerts = computed(() => ({
   title: t('gsms.rh.aTraiter'), subtitle: t('gsms.rh.aTraiterAide'),
-  items: (deadlines.data ?? []).map<AlertItem>((d, n) => ({
-    id: `d${n}`, title: `${d.libelle} · ${d.formateur}`, subtitle: codeLabel(d.type), kind: t(`gsms.etats.${d.etat}`),
+  items: (deadlines.data ?? []).map<AlertItem>((d) => ({
+    id: d.titre_id, title: `${d.libelle} · ${d.formateur}`, subtitle: valueLists.label('types_de_titre', d.type), kind: t(`gsms.etats.${d.etat}`),
     when: fmtDate(d.fin), tone: d.etat === 'EXPIRE' ? 'danger' : 'warning', to: `/platform/formateurs/${d.formateur_id}`,
   })),
   loading: loadingOf(deadlines), error: deadlines.error, empty: t('gsms.rh.rienATraiter'), moreTo: '/platform/formateurs',

@@ -349,7 +349,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     company = _factures(db, today, s1)
     _enquetes(db, d, s1)
     _ressources(db, d)
-    _personnel(db, d, karim, julie, elodie)
+    _personnel(db, d, karim, elodie)
     cases = _financements(db, today, {"s1": learners[0], "s2": learners[14], "s3": learners[17], "s4": acme[0]},
                           [s1, s2, s3, s4], company)
     return {"sessions": [s.reference for s in (s1, s2, s3, s4, s5, s6)], "programs": [ssiap.code, sst.code, mac_sst.code],
@@ -529,11 +529,12 @@ def _ressources(db: Session, d) -> None:  # noqa: ANN001
     ])
 
 
-def _personnel(db: Session, d, karim: t.Trainer, julie: t.Trainer, elodie: t.Trainer) -> None:  # noqa: ANN001
-    """Fiches RH : contrats qui couvrent les sessions prévues, une absence (formation de Karim Benali) hors session."""
+def _personnel(db: Session, d, karim: t.Trainer, elodie: t.Trainer) -> None:  # noqa: ANN001
+    """Fiches RH : contrats qui couvrent les sessions prévues, une absence (formation de Karim Benali) hors session.
+    Julie Martin, intervenante extérieure ponctuelle, n'a pas de fiche : la confirmation de ses sessions ne dépend pas
+    du module RH."""
     people = (
         ("Karim", "Benali", "SALARIE", "Formateur incendie (SSIAP)", karim, [("CDI", -1200, None, "TEMPS_PLEIN")]),
-        ("Julie", "Martin", "INDEPENDANT", "Formatrice SST", julie, [("PRESTATION", -400, None, None)]),
         ("Élodie", "Marchand", "SALARIE", "Formatrice SST", elodie, [("CDD", -60, 120, "TEMPS_PARTIEL")]),
         ("Nadia", "Roux", "SALARIE", "Responsable pédagogique, référente handicap", None, [("CDI", -900, None, "TEMPS_PLEIN")]),
         ("Thomas", "Girard", "SALARIE", "Assistant de formation", None,

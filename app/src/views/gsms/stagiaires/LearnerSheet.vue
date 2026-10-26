@@ -21,13 +21,13 @@
 
       <!-- Parcours : une inscription par session, états des étapes décidés par l'API -->
       <template v-else-if="current === 'parcours'">
-        <section v-for="j in journeys" :key="j.enrollment.id" class="panel">
+        <section v-for="j in journeys" :key="j.inscription.id" class="panel">
           <div class="panel-bar">
             <div class="enrollment-head">
-              <router-link :to="`/platform/sessions/${j.session.id}`" class="title link">{{ j.session.reference }}</router-link>
-              <span class="muted">{{ j.session.program_title }} · {{ fmtDate(j.session.start_date) }} → {{ fmtDate(j.session.end_date) }}</span>
+              <router-link :to="`/platform/sessions/${j.inscription.session.id}`" class="title link">{{ j.inscription.session.reference }}</router-link>
+              <span class="muted">{{ j.inscription.session.formation_titre }} · {{ fmtDate(j.inscription.session.debut) }} → {{ fmtDate(j.inscription.session.fin) }}</span>
             </div>
-            <GsmsStatusTag :code="j.enrollment.statut" />
+            <GsmsStatusTag :code="j.inscription.statut" />
           </div>
           <GsmsRefusal v-if="j.error" :error="j.error" inline />
           <template v-else-if="j.journey">
@@ -38,7 +38,7 @@
               {{ t('gsms.parcours.financement') }} : {{ j.journey.contact.financement || t('gsms.sessions.financementNonRenseigne') }} ·
               {{ t('gsms.parcours.assiduite') }} : {{ t('gsms.parcours.demiJournees', { n: j.journey.assiduite.suivies, total: j.journey.assiduite.prevues }) }}
             </p>
-            <router-link :to="`/platform/sessions/${j.session.id}/inscriptions/${j.enrollment.id}`" class="link">
+            <router-link :to="`/platform/sessions/${j.inscription.session.id}/inscriptions/${j.inscription.id}`" class="link">
               {{ t('gsms.stagiaires.ouvrirParcours') }}<t-icon name="chevron-right" size="14px" />
             </router-link>
           </template>
@@ -64,8 +64,8 @@
 
       <!-- Financement (module actif) : dossier de chaque inscription -->
       <template v-else>
-        <section v-for="j in journeys" :key="j.enrollment.id" class="panel">
-          <h3 class="title">{{ j.session.reference }}</h3>
+        <section v-for="j in journeys" :key="j.inscription.id" class="panel">
+          <h3 class="title">{{ j.inscription.session.reference }}</h3>
           <t-skeleton v-if="j.funding === undefined" animation="gradient" :row-col="[{ width: '100%' }]" />
           <p v-else-if="j.funding === null" class="muted">{{ t('gsms.stagiaires.aucunFinancement') }}</p>
           <GsmsRefusal v-else-if="'error' in j.funding" :error="j.funding.error" inline />
@@ -99,7 +99,7 @@ import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import GsmsStepMark from '@/components/gsms/GsmsStepMark.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
-import { getLearner, getSession, listSessions, type LearnerRecord, type SessionInscription, type SessionRow } from '@/api/gsms/sessions'
+import { getLearner, listLearnerInscriptions, type LearnerInscription, type LearnerRecord } from '@/api/gsms/sessions'
 import { getLearnerJourney, journeyDocumentPath, type JourneyDocument, type LearnerJourney } from '@/api/gsms/journey'
 import { listFundingCases, type FundingCase } from '@/api/gsms/funding'
 import { downloadFile } from '@/api/gsms/files'
@@ -108,15 +108,13 @@ import { fmtDate, fmtDateTime, stepLabel } from '@/components/gsms/format'
 import { euros } from '@/views/gsms/formations/display'
 
 interface EnrollmentView {
-  session: SessionRow
-  enrollment: SessionInscription
+  inscription: LearnerInscription
   journey: LearnerJourney | null
   error: unknown
   /** undefined : en cours ; null : aucun dossier ; sinon le dossier ou le refus. */
   funding?: { case: FundingCase } | { error: unknown } | null
 }
 
-const BATCH = 6
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -136,30 +134,12 @@ const TABS = computed(() => ['parcours', 'documents', ...(showFunding.value ? ['
 const tab = ref(['parcours', 'documents', 'financement'].includes(String(route.query.onglet)) ? String(route.query.onglet) : 'parcours')
 const current = computed(() => (TABS.value.includes(tab.value) ? tab.value : 'parcours'))
 const documents = computed(() => (journeys.value ?? []).flatMap((j) =>
-  (j.journey?.documents ?? []).map((doc: JourneyDocument) => ({ doc, enrollment: j.enrollment.id, session: j.session.reference }))))
+  (j.journey?.documents ?? []).map((doc: JourneyDocument) => ({ doc, enrollment: j.inscription.id, session: j.inscription.session.reference }))))
 const tabs = computed(() => [
   { value: 'parcours', label: t('gsms.sessions.parcours'), count: journeys.value?.length },
   { value: 'documents', label: t('gsms.stagiaires.documents'), count: journeys.value ? documents.value.length : undefined },
   ...(showFunding.value ? [{ value: 'financement', label: t('gsms.parcours.financement') }] : []),
 ])
-
-/**
- * Inscriptions du stagiaire : aucune route ne les liste par stagiaire ; on les relève dans le détail des sessions
- * visibles (GET /sessions/{id}), des plus récentes aux plus anciennes, jusqu'à en avoir trouvé autant que l'API en
- * compte (`enrollments` de GET /learners/{id}).
- */
-async function findEnrollments(learnerId: string, expected: number): Promise<{ session: SessionRow; enrollment: SessionInscription }[]> {
-  if (!expected) return []
-  const sessions = (await listSessions()).sort((a, b) => b.start_date.localeCompare(a.start_date))
-  const found: { session: SessionRow; enrollment: SessionInscription }[] = []
-  for (let i = 0; i < sessions.length && found.length < expected; i += BATCH) {
-    const details = await Promise.all(sessions.slice(i, i + BATCH).map((s) => getSession(s.id)))
-    for (const d of details) {
-      for (const e of d.inscriptions) if (e.learner_id === learnerId) found.push({ session: d.session, enrollment: e })
-    }
-  }
-  return found
-}
 
 async function load() {
   const lid = id.value
@@ -179,15 +159,16 @@ async function load() {
     loading.value = false
   }
   try {
-    const list = await findEnrollments(lid, learner.value.enrollments)
+    // Inscriptions du stagiaire, session la plus récente d'abord (GET /learners/{id}/inscriptions).
+    const list = await listLearnerInscriptions(lid)
     if (lid !== id.value) return
-    journeys.value = list.map((x) => ({ ...x, journey: null, error: null }))
+    journeys.value = list.map((inscription) => ({ inscription, journey: null, error: null }))
   } catch (e) {
     if (lid === id.value) journeysError.value = e
     return
   }
   await Promise.all((journeys.value ?? []).map(async (j) => {
-    try { j.journey = await getLearnerJourney(j.enrollment.id) } catch (e) { j.error = e }
+    try { j.journey = await getLearnerJourney(j.inscription.id) } catch (e) { j.error = e }
   }))
   if (showFunding.value) loadFunding()
 }
@@ -197,7 +178,7 @@ async function loadFunding() {
   try {
     const cases = await listFundingCases()
     for (const j of list) {
-      const found = cases.find((c) => c.inscription_id === j.enrollment.id)
+      const found = cases.find((c) => c.inscription_id === j.inscription.id)
       j.funding = found ? { case: found } : null
     }
   } catch (e) {

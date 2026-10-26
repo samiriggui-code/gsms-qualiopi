@@ -59,11 +59,13 @@ import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import ActionDialog from '@/components/gsms/ActionDialog.vue'
 import { createRessource, deleteRessource, listRessources, updateRessource, type Premises } from '@/api/gsms/ressources'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 import { fmtDate } from '@/components/gsms/format'
 import { moyenFields, moyenLabel, moyenOptions, moyenPayload, moyenWrite } from './moyenForm'
 
 const { t } = useI18n()
 const access = useGsmsAccessStore()
+const valueLists = useGsmsValueListsStore()
 // Ressource CRUD sans `capabilities` : l'écriture suit la permission de la route (sessions.write).
 const canWrite = computed(() => access.can(moyenWrite('premises')))
 
@@ -85,7 +87,7 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(() => { access.load(); load() })
+onMounted(() => { access.load(); valueLists.load(); load() })
 
 const kindTabs = computed(() => [{ value: 'all', label: t('gsms.commun.tous'), count: items.value?.length },
   ...moyenOptions('premises', 'kind').filter((o) => (items.value ?? []).some((p) => p.kind === o.value))

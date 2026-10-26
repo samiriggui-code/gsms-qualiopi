@@ -26,14 +26,23 @@
 
     <div class="group-title">{{ t('gsms.parametres.financement.regles') }}</div>
     <p class="group-desc">{{ t('gsms.parametres.financement.reglesAide') }}</p>
-    <div class="settings-group">
-      <div v-for="r in rules" :key="r.key" class="setting-row">
+    <GsmsRefusal v-if="rulesError" :error="rulesError" inline />
+    <div v-else class="settings-group">
+      <div v-for="r in rules" :key="r.cle" class="setting-row">
         <div class="setting-info">
-          <label>{{ t(`gsms.parametres.financement.cles.${r.key.replace(".", "_")}`) }}</label>
-          <p class="desc">{{ r.error ? r.error : t('gsms.parametres.financement.depuis', { source: r.source, date: formatDate(r.since) }) }}</p>
+          <label>{{ r.description }}</label>
+          <p class="desc">
+            <code class="code">{{ r.cle }}</code> ·
+            {{ r.en_vigueur
+              ? t('gsms.parametres.financement.depuis', { source: r.en_vigueur.source, date: formatDate(r.en_vigueur.since) })
+              : t('gsms.parametres.financement.aucuneEnVigueur') }}
+          </p>
+          <p v-for="v in later(r)" :key="v.depuis" class="desc">
+            {{ t('gsms.parametres.financement.aVenir', { value: formatValue(v.valeur), date: formatDate(v.depuis), source: v.source }) }}
+          </p>
         </div>
         <div class="setting-control">
-          <span class="value-text">{{ r.error ? '—' : formatValue(r.value) }}</span>
+          <span class="value-text">{{ r.en_vigueur ? formatValue(r.en_vigueur.value) : '—' }}</span>
         </div>
       </div>
     </div>
@@ -43,19 +52,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getFundingRule, listFundingSchemes, type FundingScheme } from '@/api/gsms/funding'
+import { listFundingRules, listFundingSchemes, type FundingRule, type FundingScheme } from '@/api/gsms/funding'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsFileNote from './GsmsFileNote.vue'
-import { refusalText } from '@/components/gsms/format'
 import { fmtDate as formatDate } from '@/components/gsms/format'
 import { formatValue } from './format'
 
-// Clés déclarées dans backend/config/financement/regles.yaml (docs/API.md §3.6) : aucune route ne les liste.
-const RULE_KEYS = ['cpf.participation_titulaire_eur', 'personnel.delai_retractation_jours', 'personnel.acompte_max_pourcent']
 const { t } = useI18n()
 
 const schemes = ref<FundingScheme[]>([])
-const rules = ref<{ key: string; value?: unknown; since?: string; source?: string; error?: string }[]>([])
+// Règles datées lues par GET /financement/regles (backend/config/financement/regles.yaml).
+const rules = ref<FundingRule[]>([])
+const rulesError = ref<unknown>(null)
+/** Valeurs déjà datées qui prendront effet après la valeur en vigueur. */
+const later = (r: FundingRule) => r.valeurs.filter((v) => v.depuis > (r.en_vigueur?.since ?? ''))
 const loading = ref(true)
 const loadError = ref<unknown>(null)
 
@@ -72,8 +82,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-  rules.value = await Promise.all(RULE_KEYS.map((key) =>
-    getFundingRule(key).then((r) => ({ ...r }), (err) => ({ key, error: refusalText(err) }))))
+  try {
+    rules.value = await listFundingRules()
+  } catch (err) {
+    rulesError.value = err
+  }
 })
 </script>
 
@@ -91,6 +104,11 @@ onMounted(async () => {
 
 .cell-sub {
   color: var(--td-text-color-secondary);
+  font-size: var(--app-text-sm);
+}
+
+.code {
+  font-family: var(--app-font-family-mono);
   font-size: var(--app-text-sm);
 }
 

@@ -41,6 +41,9 @@ TEMPLATES: dict[str, Template] = {
                                     "Vous êtes inscrit(e) à cette formation."),
     "synthese_qualite": Template(1, "Synthèse qualité du {{ date }}",
                                  "Vous suivez la préparation Qualiopi de l'organisme."),
+    # Formulaire de contact du site (relances/contact.py) : aucune règle du calendrier ne l'utilise.
+    "contact_site": Template(1, "Message du site : {{ contact.objet }}",
+                             "Vous traitez les demandes reçues par le site de l'organisme."),
 }
 
 _env = Environment(loader=FileSystemLoader(EMAILS_DIR), autoescape=select_autoescape(["html"]),

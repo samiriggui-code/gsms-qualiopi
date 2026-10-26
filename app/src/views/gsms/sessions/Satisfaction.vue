@@ -63,13 +63,17 @@ import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsRowActions from '@/components/gsms/GsmsRowActions.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
-import { createSurvey, deleteSurvey, listSurveys, SURVEY_AUDIENCES, updateSurvey, type Survey, type SurveyIn } from '@/api/gsms/qualite'
+import { createSurvey, deleteSurvey, listSurveys, updateSurvey, type Survey, type SurveyIn } from '@/api/gsms/qualite'
 import { listSessions, type SessionRow } from '@/api/gsms/sessions'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 import { fmtDate } from '@/components/gsms/format'
 
 const { t, locale } = useI18n()
 const access = useGsmsAccessStore()
+// Publics acceptés par l'API (GET /listes-de-valeurs) ; c'est elle qui les vérifie.
+const valueLists = useGsmsValueListsStore()
+const audiences = computed(() => valueLists.options('publics_d_enquete'))
 // Aucune `capabilities` sur les ressources CRUD : l'écriture suit la permission de la route (quality.write), l'API tranche.
 const canWrite = computed(() => access.can('quality.write'))
 
@@ -92,11 +96,11 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(() => { access.load(); load() })
+onMounted(() => { access.load(); valueLists.load(); load() })
 
-const audienceLabel = (a: string) => t(`gsms.satisfaction.publics.${a}`)
+const audienceLabel = (a: string) => valueLists.label('publics_d_enquete', a)
 const audienceTabs = computed(() => [{ value: 'all', label: t('gsms.commun.toutes') },
-  ...SURVEY_AUDIENCES.map((a) => ({ value: a, label: audienceLabel(a) }))])
+  ...audiences.value])
 const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
   return items.value?.filter((s) => (audience.value === 'all' || s.audience === audience.value)
@@ -122,8 +126,8 @@ const form = reactive<{ visible: boolean; id: string | null; initial: Partial<Su
 const formFields = computed<ActionField[]>(() => [
   ...(form.id ? [] : [{ name: 'session_id', label: t('gsms.sessions.session'), type: 'select' as const, initial: '',
     options: sessions.value.map((s) => ({ value: s.id, label: `${s.reference} · ${fmtDate(s.start_date)}` })) }]),
-  { name: 'audience', label: t('gsms.satisfaction.public'), type: 'select', initial: form.initial.audience ?? 'APPRENANT_CHAUD',
-    options: SURVEY_AUDIENCES.map((a) => ({ value: a, label: audienceLabel(a) })) },
+  { name: 'audience', label: t('gsms.satisfaction.public'), type: 'select', initial: form.initial.audience ?? audiences.value[0]?.value,
+    options: audiences.value },
   { name: 'sent_on', label: t('gsms.satisfaction.colEnvoi'), type: 'date', initial: form.initial.sent_on ?? '' },
   { name: 'answered_on', label: t('gsms.satisfaction.colReponse'), type: 'date', initial: form.initial.answered_on ?? '' },
   { name: 'score', label: t('gsms.satisfaction.noteSur5'), type: 'number', initial: form.initial.score ?? undefined },

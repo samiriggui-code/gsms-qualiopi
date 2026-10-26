@@ -332,6 +332,7 @@
 <script setup lang="ts">
 import { login as gsmsLogin, openIaSession } from '@/api/gsms/auth'
 import { tokenStorage } from '@/api/gsms/http'
+import { GSMS_HOME_PATH } from '@/config/gsmsMenu'
 import { ref, reactive, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
@@ -576,7 +577,7 @@ const persistLoginResponse = async (response: any, skipRedirect = false) => {
   await authStore.refreshFromAuthMe()
   await nextTick()
   if (skipRedirect) return
-  router.replace(authStore.hasValidTenant ? '/platform/knowledge-bases' : '/onboarding/workspace')
+  router.replace(authStore.hasValidTenant ? GSMS_HOME_PATH : '/onboarding/workspace')
 }
 
 const getBackendOIDCRedirectURI = () => `${window.location.origin}/api/v1/auth/oidc/callback`
@@ -643,7 +644,7 @@ const acceptAndEnter = async (token: string) => {
   } finally {
     loading.value = false
     await nextTick()
-    router.replace('/platform/knowledge-bases')
+    router.replace(GSMS_HOME_PATH)
   }
 }
 
@@ -788,7 +789,7 @@ onMounted(async () => {
   }
 
   if (authStore.isLoggedIn) {
-    router.replace('/platform/knowledge-bases')
+    router.replace(GSMS_HOME_PATH)
     return
   }
 

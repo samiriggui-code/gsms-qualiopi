@@ -49,7 +49,8 @@ export interface LearnerRow {
   [extra: string]: unknown
 }
 
-export const listSessions = (query: { statut?: string; du?: string; au?: string } = {}) =>
+/** Sessions dans la portée du compte ; `formateur` (id) limite la liste aux sessions d'un formateur. */
+export const listSessions = (query: { statut?: string; du?: string; au?: string; formateur?: string } = {}) =>
   http.get<SessionRow[]>('/sessions', { query })
 export const getSession = (id: string) => http.get<SessionDetail>(`/sessions/${encodeURIComponent(id)}`)
 export const getSessionActivity = (id: string) =>
@@ -82,7 +83,32 @@ export interface LearnerRecord {
   created_at: string | null
 }
 
-/** GET /learners (`sessions.read`). */
-export const listLearnerRecords = () => http.get<LearnerRecord[]>('/learners')
+/** GET /learners (`sessions.read`) ; `entreprise` (id) limite la liste aux stagiaires d'une entreprise. */
+export const listLearnerRecords = (entreprise?: string) => http.get<LearnerRecord[]>('/learners', { query: { entreprise } })
 /** GET /learners/{id} (`sessions.read`). */
 export const getLearner = (id: string) => http.get<LearnerRecord>(`/learners/${encodeURIComponent(id)}`)
+
+/** Inscription d'un stagiaire avec le résumé de sa session (GET /learners/{id}/inscriptions). */
+export interface LearnerInscription {
+  id: string
+  statut: string
+  financement: string | null
+  entreprise_id: string | null
+  abandon_le: string | null
+  session: {
+    id: string
+    reference: string
+    statut: string
+    debut: string
+    fin: string
+    formation_id: string | null
+    formation_code: string | null
+    formation_titre: string | null
+    formateur_id: string | null
+    formateur: string | null
+  }
+}
+
+/** Inscriptions d'un stagiaire, session la plus récente d'abord (`sessions.read`) ; 404 si stagiaire inconnu. */
+export const listLearnerInscriptions = (id: string) =>
+  http.get<LearnerInscription[]>(`/learners/${encodeURIComponent(id)}/inscriptions`)

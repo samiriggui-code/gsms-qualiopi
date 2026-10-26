@@ -78,9 +78,9 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const [list, types] = await Promise.all([listEditions(), getEditionTypes()])
-    // Seul le devis est construit côté API ; la liste n'en montre pas d'autre.
-    quotes.value = list.filter((e) => e.type === 'DEVIS')
+    const [list, types] = await Promise.all([listEditions({ type: 'DEVIS' }), getEditionTypes()])
+    // Seuls les devis sont demandés à l'API (type=DEVIS).
+    quotes.value = list
     statuses.value = Array.isArray(types.statuts) ? Object.fromEntries(types.statuts.map((s) => [s, s])) : types.statuts
   } catch (e) {
     error.value = e

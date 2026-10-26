@@ -65,7 +65,9 @@ export interface QualificationIn {
   valid_until?: string | null
 }
 
-export const listQualifications = () => http.get<TrainerQualification[]>('/trainer-qualifications')
+/** Titres et qualifications ; `formateur` (id) limite la liste à un formateur. */
+export const listQualifications = (formateur?: string) =>
+  http.get<TrainerQualification[]>('/trainer-qualifications', { query: { formateur } })
 /** POST /formateurs/{id}/titres (`trainers.write`) : type, numéro et dates du titre. */
 export const addQualification = (trainerId: string, body: QualificationIn) =>
   http.post<{ id: string; type: string; fin: string | null }>(`/formateurs/${enc(trainerId)}/titres`, body)
@@ -76,6 +78,8 @@ export const deleteQualification = (id: string) => http.delete<void>(`/trainer-q
 
 /** Titre expiré ou expirant sous `jours` jours ; `etat` (EXPIRE ou A_RENOUVELER) est décidé par l'API. */
 export interface TitleDeadline {
+  /** Id du titre (GET /trainer-qualifications). */
+  titre_id: string
   formateur: string
   formateur_id: string
   type: string
@@ -106,7 +110,9 @@ export interface StaffDevelopmentIn {
   completed_on?: string | null
 }
 
-export const listStaffDevelopment = () => http.get<StaffDevelopment[]>('/staff-development')
+/** Actions de développement des compétences ; `formateur` (id) limite la liste à un formateur. */
+export const listStaffDevelopment = (formateur?: string) =>
+  http.get<StaffDevelopment[]>('/staff-development', { query: { formateur } })
 export const createStaffDevelopment = (body: StaffDevelopmentIn) => http.post<StaffDevelopment>('/staff-development', body)
 export const updateStaffDevelopment = (id: string, body: StaffDevelopmentIn) =>
   http.patch<StaffDevelopment>(`/staff-development/${enc(id)}`, body)

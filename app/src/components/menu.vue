@@ -4,7 +4,7 @@
         :aria-hidden="shell.isMobile && !shell.navOpen ? 'true' : undefined" :inert="shell.isMobile && !shell.navOpen ? true : undefined">
         <!-- 展开时：Logo + 搜索/折叠按钮同行 -->
         <div class="logo_row" v-if="!isCollapsed">
-            <div class="logo_box" @click="router.push('/platform/knowledge-bases')" style="cursor: pointer;">
+            <div class="logo_box" @click="router.push(GSMS_HOME_PATH)" style="cursor: pointer;">
                 <img class="logo logo--light" src="@/assets/img/gsms-logo.svg" alt="GSMS">
                 <img class="logo logo--dark" src="@/assets/img/gsms-logo-dark.svg" alt="GSMS">
                 <sup v-if="isLiteEdition" class="lite-badge">Lite</sup>
@@ -270,7 +270,7 @@
 import { storeToRefs } from 'pinia';
 import { useGsmsAccessStore } from '@/stores/gsmsAccess';
 import { useGsmsShellStore } from '@/stores/gsmsShell';
-import { GSMS_MENU, IA_SECTION, type GsmsAccessRule } from '@/config/gsmsMenu';
+import { GSMS_HOME_PATH, GSMS_MENU, IA_SECTION, isAccessOpen, type GsmsAccessRule } from '@/config/gsmsMenu';
 import { onMounted, onUnmounted, watch, computed, ref, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getSessionsList, batchDelSessions, deleteAllSessions, getSession } from "@/api/chat/index";
@@ -403,12 +403,7 @@ const toggleGsmsGroup = (key: string) => {
     try { localStorage.setItem(GSMS_COLLAPSE_KEY, JSON.stringify(gsmsCollapsed.value)); } catch { /* préférence locale seulement */ }
 };
 // Une entrée s'affiche si sa page existe (route enregistrée) et si GET /bootstrap l'ouvre ; rien avant sa réponse.
-const allowed = (rule?: GsmsAccessRule) => {
-    if (!rule) return true;
-    if (rule.feature && !gsmsAccess.hasFeature(rule.feature)) return false;
-    if (!rule.nav && !rule.perm) return true;
-    return (rule.nav ? gsmsAccess.hasNav(...rule.nav) : false) || (rule.perm ?? []).some((p) => gsmsAccess.can(p));
-};
+const allowed = (rule?: GsmsAccessRule) => isAccessOpen(rule, gsmsAccess);
 const gsmsSections = computed(() => {
     if (!gsmsAccess.bootstrap) return [];
     return GSMS_MENU

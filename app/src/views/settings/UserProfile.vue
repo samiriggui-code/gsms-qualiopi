@@ -20,149 +20,121 @@
       </t-alert>
     </div>
 
-    <!-- Content -->
+    <!-- Contenu : compte de l'API qualiopi (celui de la connexion), pas le compte technique du moteur IA -->
     <div v-else class="settings-group">
-      <!-- 用户 ID -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('tenant.api.userIdLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.userIdDescription') }}</p>
+          <label>{{ $t('userProfile.nameLabel') }}</label>
+          <p class="desc">{{ $t('userProfile.nameDescription') }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ userInfo?.id || '-' }}</span>
+          <span class="info-value">{{ me?.full_name || '-' }}</span>
         </div>
       </div>
 
-      <!-- 用户名 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('tenant.api.usernameLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.usernameDescription') }}</p>
+          <label>{{ $t('userProfile.emailLabel') }}</label>
+          <p class="desc">{{ $t('userProfile.emailDescription') }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ userInfo?.username || '-' }}</span>
+          <span class="info-value">{{ me?.email || '-' }}</span>
         </div>
       </div>
 
-      <!-- 邮箱 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t('tenant.api.emailLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.emailDescription') }}</p>
-        </div>
-        <div class="setting-control">
-          <span class="info-value">{{ userInfo?.email || '-' }}</span>
-        </div>
-      </div>
-
-      <!-- 注册时间 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t('tenant.api.createdAtLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.createdAtDescription') }}</p>
-        </div>
-        <div class="setting-control">
-          <span class="info-value">{{ formatDate(userInfo?.created_at) }}</span>
-        </div>
-      </div>
-
-      <!-- 修改密码：与其它 setting-row 同款只读行 + 编辑入口，表单进原地 popup -->
+      <!-- Mot de passe : ligne en lecture + bouton d'édition, formulaire dans une fenêtre surgissante -->
       <div class="setting-row">
         <div class="setting-info">
           <label>{{ $t('userProfile.changePassword.label') }}</label>
-          <p class="desc">
-            {{ oidcOnlyLogin
-              ? $t('userProfile.changePassword.oidcOnlyDescription')
-              : $t('userProfile.changePassword.description') }}
-          </p>
+          <p class="desc">{{ $t('userProfile.changePassword.description') }}</p>
         </div>
         <div class="setting-control">
-          <template v-if="oidcOnlyLogin">
-            <span class="info-value info-value--muted">—</span>
-          </template>
-          <template v-else>
-            <span class="info-value password-mask" aria-hidden="true">••••••••</span>
-            <t-popup
-              v-model="passwordPopupVisible"
-              trigger="click"
-              placement="bottom-end"
-              destroy-on-close
-              overlay-class-name="wk-popover wk-popover--form user-profile-password-popup-overlay"
+          <span class="info-value password-mask" aria-hidden="true">••••••••</span>
+          <t-popup
+            v-model="passwordPopupVisible"
+            trigger="click"
+            placement="bottom-end"
+            destroy-on-close
+            overlay-class-name="wk-popover wk-popover--form user-profile-password-popup-overlay"
+          >
+            <t-button
+              theme="default"
+              variant="text"
+              shape="square"
+              size="small"
+              class="edit-btn"
+              :title="$t('userProfile.changePassword.label')"
+              :aria-label="$t('userProfile.changePassword.label')"
             >
-              <t-button
-                theme="default"
-                variant="text"
-                shape="square"
-                size="small"
-                class="edit-btn"
-                :title="$t('userProfile.changePassword.label')"
-                :aria-label="$t('userProfile.changePassword.label')"
-              >
-                <template #icon>
-                  <t-icon name="edit" />
-                </template>
-              </t-button>
-              <template #content>
-                <div class="password-popup-inner" @click.stop>
-                  <div class="password-popup-title">{{ $t('userProfile.changePassword.label') }}</div>
-                  <p class="password-popup-hint">{{ $t('userProfile.changePassword.description') }}</p>
-                  <t-form
-                    ref="passwordFormRef"
-                    :data="passwordForm"
-                    :rules="passwordRules"
-                    label-align="top"
-                    class="password-popup-form"
-                    @submit.prevent
-                  >
-                    <t-form-item :label="$t('userProfile.changePassword.currentLabel')" name="oldPassword">
-                      <t-input
-                        v-model="passwordForm.oldPassword"
-                        type="password"
-                        autocomplete="current-password"
-                        :disabled="passwordSubmitting"
-                        :placeholder="$t('userProfile.changePassword.currentPlaceholder')"
-                      />
-                    </t-form-item>
-                    <t-form-item :label="$t('userProfile.changePassword.newLabel')" name="newPassword">
-                      <t-input
-                        v-model="passwordForm.newPassword"
-                        type="password"
-                        autocomplete="new-password"
-                        :disabled="passwordSubmitting"
-                        :placeholder="$t('userProfile.changePassword.newPlaceholder')"
-                      />
-                    </t-form-item>
-                    <t-form-item :label="$t('userProfile.changePassword.confirmLabel')" name="confirmPassword">
-                      <t-input
-                        v-model="passwordForm.confirmPassword"
-                        type="password"
-                        autocomplete="new-password"
-                        :disabled="passwordSubmitting"
-                        :placeholder="$t('userProfile.changePassword.confirmPlaceholder')"
-                        @enter="submitPasswordChange"
-                      />
-                    </t-form-item>
-                  </t-form>
-                  <div class="password-popup-footer">
-                    <t-button
-                      variant="outline"
-                      :disabled="passwordSubmitting"
-                      @click="closePasswordPopup"
-                    >
-                      {{ $t('common.cancel') }}
-                    </t-button>
-                    <t-button
-                      theme="primary"
-                      :loading="passwordSubmitting"
-                      @click="submitPasswordChange"
-                    >
-                      {{ $t('userProfile.changePassword.submit') }}
-                    </t-button>
-                  </div>
-                </div>
+              <template #icon>
+                <t-icon name="edit" />
               </template>
-            </t-popup>
-          </template>
+            </t-button>
+            <template #content>
+              <div class="password-popup-inner" @click.stop>
+                <div class="password-popup-title">{{ $t('userProfile.changePassword.label') }}</div>
+                <p class="password-popup-hint">{{ $t('userProfile.changePassword.description') }}</p>
+                <t-form
+                  ref="passwordFormRef"
+                  :data="passwordForm"
+                  :rules="passwordRules"
+                  label-align="top"
+                  class="password-popup-form"
+                  @submit.prevent
+                >
+                  <t-form-item :label="$t('userProfile.changePassword.currentLabel')" name="oldPassword">
+                    <t-input
+                      v-model="passwordForm.oldPassword"
+                      type="password"
+                      autocomplete="current-password"
+                      :disabled="passwordSubmitting"
+                      :placeholder="$t('userProfile.changePassword.currentPlaceholder')"
+                    />
+                  </t-form-item>
+                  <t-form-item :label="$t('userProfile.changePassword.newLabel')" name="newPassword">
+                    <t-input
+                      v-model="passwordForm.newPassword"
+                      type="password"
+                      autocomplete="new-password"
+                      :disabled="passwordSubmitting"
+                      :placeholder="$t('userProfile.changePassword.newPlaceholder')"
+                    />
+                  </t-form-item>
+                  <t-form-item :label="$t('userProfile.changePassword.confirmLabel')" name="confirmPassword">
+                    <t-input
+                      v-model="passwordForm.confirmPassword"
+                      type="password"
+                      autocomplete="new-password"
+                      :disabled="passwordSubmitting"
+                      :placeholder="$t('userProfile.changePassword.confirmPlaceholder')"
+                      @enter="submitPasswordChange"
+                    />
+                  </t-form-item>
+                </t-form>
+                <div class="password-popup-footer">
+                  <t-button variant="outline" :disabled="passwordSubmitting" @click="closePasswordPopup">
+                    {{ $t('common.cancel') }}
+                  </t-button>
+                  <t-button theme="primary" :loading="passwordSubmitting" @click="submitPasswordChange">
+                    {{ $t('userProfile.changePassword.submit') }}
+                  </t-button>
+                </div>
+              </div>
+            </template>
+          </t-popup>
+        </div>
+      </div>
+
+      <!-- Déconnexion de toutes les sessions (POST /auth/me/deconnexion-partout) -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <label>{{ $t('userProfile.logoutEverywhere.label') }}</label>
+          <p class="desc">{{ $t('userProfile.logoutEverywhere.description') }}</p>
+        </div>
+        <div class="setting-control">
+          <t-button theme="danger" variant="outline" :loading="loggingOutEverywhere" @click="confirmLogoutEverywhere">
+            {{ $t('userProfile.logoutEverywhere.action') }}
+          </t-button>
         </div>
       </div>
     </div>
@@ -170,27 +142,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { MessagePlugin } from 'tdesign-vue-next'
+import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
 import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next'
-import {
-  getCurrentUser,
-  getAuthConfig,
-  changePassword,
-  logout as logoutApi,
-  type UserInfo,
-} from '@/api/auth'
-import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
-import { newPasswordRules } from '@/utils/passwordPolicy'
+import { changePassword, getMe, logoutEverywhere, type Me } from '@/api/gsms/auth'
+import { tokenStorage } from '@/api/gsms/http'
+import { useAuthStore } from '@/stores/auth'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const userInfo = ref<UserInfo | null>(null)
-const complexPasswordEnabled = ref(false)
+const me = ref<Me | null>(null)
 const loading = ref(true)
 const error = ref('')
 
@@ -202,40 +167,19 @@ const passwordForm = reactive({
   newPassword: '',
   confirmPassword: '',
 })
+const loggingOutEverywhere = ref(false)
 
-const loadPasswordPolicy = async () => {
-  try {
-    const resp = await getAuthConfig()
-    complexPasswordEnabled.value = !!resp.complex_password_enabled
-  } catch {
-    complexPasswordEnabled.value = false
-  }
-}
+watch(passwordPopupVisible, () => resetPasswordForm())
 
-const oidcOnlyLogin = computed(
-  () => userInfo.value?.preferences?.oidc_only_login === true,
-)
-
-watch(passwordPopupVisible, (open) => {
-  if (!open) {
-    resetPasswordForm()
-    return
-  }
-  resetPasswordForm()
-  void loadPasswordPolicy()
-})
-
+// Seuls le remplissage et la confirmation sont contrôlés ici ; les règles du mot de passe (longueur…) sont
+// celles de l'API, dont le refus s'affiche tel quel.
 const passwordRules = computed<Record<string, FormRule[]>>(() => ({
   oldPassword: [
     { required: true, message: t('userProfile.changePassword.currentRequired'), type: 'error' },
   ],
-  newPassword: newPasswordRules(t, complexPasswordEnabled.value, [
-    {
-      validator: (val: string) => val !== passwordForm.oldPassword,
-      message: t('userProfile.changePassword.sameAsCurrent'),
-      type: 'error',
-    },
-  ]),
+  newPassword: [
+    { required: true, message: t('userProfile.changePassword.newRequired'), type: 'error' },
+  ],
   confirmPassword: [
     { required: true, message: t('auth.confirmPasswordRequired'), type: 'error' },
     {
@@ -248,36 +192,14 @@ const passwordRules = computed<Record<string, FormRule[]>>(() => ({
 }))
 
 const loadInfo = async () => {
+  loading.value = true
+  error.value = ''
   try {
-    loading.value = true
-    error.value = ''
-    const resp = await getCurrentUser()
-    if ((resp as any).success && resp.data) {
-      userInfo.value = resp.data.user
-    } else {
-      error.value = resp.message || t('tenant.messages.fetchFailed')
-    }
-  } catch (err: any) {
-    error.value = err?.message || t('tenant.messages.networkError')
+    me.value = await getMe()
+  } catch (err) {
+    error.value = (err as Error)?.message || t('tenant.messages.fetchFailed')
   } finally {
     loading.value = false
-  }
-}
-
-const formatDate = (dateStr: string | undefined) => {
-  if (!dateStr) return t('tenant.unknown')
-  try {
-    const d = new Date(dateStr)
-    const fmt = new Intl.DateTimeFormat(locale.value || 'fr-FR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    return fmt.format(d)
-  } catch {
-    return t('tenant.formatError')
   }
 }
 
@@ -291,7 +213,6 @@ const resetPasswordForm = () => {
 const closePasswordPopup = () => {
   if (passwordSubmitting.value) return
   passwordPopupVisible.value = false
-  resetPasswordForm()
 }
 
 const submitPasswordChange = async () => {
@@ -301,33 +222,40 @@ const submitPasswordChange = async () => {
 
   passwordSubmitting.value = true
   try {
-    const resp = await changePassword({
-      old_password: passwordForm.oldPassword,
-      new_password: passwordForm.newPassword,
-    })
-    if (!resp.success) {
-      MessagePlugin.error(resp.message || t('userProfile.changePassword.failed'))
-      return
-    }
-
+    // L'API révoque les autres sessions et rend un jeton neuf : on le garde, la session courante continue.
+    const session = await changePassword(passwordForm.oldPassword, passwordForm.newPassword)
+    tokenStorage.set(session.access_token)
     passwordPopupVisible.value = false
     MessagePlugin.success(t('userProfile.changePassword.success'))
-    resetPasswordForm()
-
-    // Backend revokes all sessions on success; mirror that locally and
-    // force a fresh login with the new credential.
-    try {
-      await logoutApi()
-    } catch {
-      /* ignore — local cleanup still proceeds */
-    }
-    authStore.logout()
-    router.push('/login')
-  } catch (err: any) {
-    MessagePlugin.error(err?.message || t('userProfile.changePassword.failed'))
+  } catch (err) {
+    MessagePlugin.error((err as Error)?.message || t('userProfile.changePassword.failed'))
   } finally {
     passwordSubmitting.value = false
   }
+}
+
+const confirmLogoutEverywhere = () => {
+  const dialog = DialogPlugin.confirm({
+    header: t('userProfile.logoutEverywhere.label'),
+    body: t('userProfile.logoutEverywhere.confirm'),
+    confirmBtn: { content: t('userProfile.logoutEverywhere.action'), theme: 'danger' },
+    cancelBtn: t('common.cancel'),
+    onConfirm: async () => {
+      dialog.hide()
+      loggingOutEverywhere.value = true
+      try {
+        await logoutEverywhere()
+      } catch (err) {
+        MessagePlugin.error((err as Error)?.message || t('userProfile.logoutEverywhere.failed'))
+        return
+      } finally {
+        loggingOutEverywhere.value = false
+      }
+      authStore.logout()
+      MessagePlugin.success(t('userProfile.logoutEverywhere.success'))
+      router.push('/login')
+    },
+  })
 }
 
 onMounted(loadInfo)
@@ -380,10 +308,6 @@ onMounted(loadInfo)
     color: var(--td-text-color-primary);
     text-align: right;
     word-break: break-word;
-  }
-
-  .info-value--muted {
-    color: var(--td-text-color-placeholder);
   }
 
   .edit-btn {

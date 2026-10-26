@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
+from app.types import training as t
 from tests.conftest import TODAY, find_session, make_user
 
 
@@ -68,10 +69,16 @@ def test_absence_et_contrat_verifies_a_la_confirmation(client, demo: Session) ->
     caps = client.get(f"/api/v1/sessions/{s.id}/capabilities", headers=hg).json()
     assert caps["confirm"]["code"] == "TRAINER_UNAVAILABLE" and caps["confirm"]["details"][0]["nature"] == "CONGE"
 
-    # Un autre membre, contrat terminé avant la session.
+    # Un autre membre, contrat terminé avant la session (formateur sans fiche RH : ceux de la démo en ont une).
     s3 = find_session(demo, "SSIAP1-2026-03")
+    other = t.Trainer(first_name="Marc", last_name="Test")
+    demo.add(other)
+    demo.flush()
+    s3.trainer_id = other.id
+    demo.commit()
     r = client.post("/api/v1/rh/personnel", headers=hr, json={
-        "first_name": "Karim", "last_name": "Benali", "kind": "INDEPENDANT", "trainer_id": s3.trainer_id})
+        "first_name": "Marc", "last_name": "Test", "kind": "INDEPENDANT", "trainer_id": other.id})
+    assert r.status_code == 201, r.text
     karim = r.json()["id"]
     client.post(f"/api/v1/rh/personnel/{karim}/contrats", headers=hr, json={
         "kind": "PRESTATION", "start_date": (TODAY - timedelta(days=90)).isoformat(),

@@ -183,7 +183,7 @@ def test_exemples_des_pages_ressources_rh_financement_puis_retrait(db: Session) 
     subs = {s.name: s.qualiopi_certified for s in db.scalars(select(t.Subcontractor).where(t.Subcontractor.created_by == "démo"))}
     assert sorted(subs.values()) == [False, True]
     assert {p.kind for p in db.scalars(select(t.PartnerNetwork))} == {"HANDICAP", "SOCIO_ECONOMIQUE"}
-    assert db.scalar(select(func.count()).select_from(StaffMember).where(StaffMember.created_by == "démo")) == 5
+    assert db.scalar(select(func.count()).select_from(StaffMember).where(StaffMember.created_by == "démo")) == 4
     assert db.scalar(select(func.count()).select_from(StaffAbsence)) == 1
     soon = db.scalars(select(t.TrainerQualification.label).where(
         t.TrainerQualification.valid_until.between(TODAY, TODAY + timedelta(days=90)))).all()
@@ -198,7 +198,7 @@ def test_exemples_des_pages_ressources_rh_financement_puis_retrait(db: Session) 
     removed = remove_demo(db)
     refresh_all(db, trigger="test", today=TODAY)
     db.commit()
-    assert removed["funding_case"] == 4 and removed["staff_member"] == 5 and removed["premises"] == 7
+    assert removed["funding_case"] == 4 and removed["staff_member"] == 4 and removed["premises"] == 7
     for model in (t.Equipment, FundingCase, FundingSource, StaffAbsence, t.PartnerNetwork, t.SatisfactionSurvey,
                   t.TrainerQualification, t.StaffDevelopmentAction):
         assert db.scalar(select(func.count()).select_from(model)) == 0, model

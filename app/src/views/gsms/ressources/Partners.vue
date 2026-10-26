@@ -10,7 +10,7 @@
     <template #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
 
     <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>
-    <template #cell-kind="{ row }">{{ moyenValue(row.kind) }} <span class="chip">{{ indicatorOf(row.kind) }}</span></template>
+    <template #cell-kind="{ row }">{{ moyenValue('partners', 'kind', row.kind) }} <span class="chip">{{ indicatorOf(row.kind) }}</span></template>
     <template #cell-last_contact_on="{ row }">{{ fmtDate(row.last_contact_on) }}</template>
     <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.partenaires.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
 
@@ -21,7 +21,7 @@
           <span class="chip">{{ indicatorOf(item.kind) }}</span>
         </div>
         <div class="card-meta">
-          <span>{{ moyenValue(item.kind) }}</span>
+          <span>{{ moyenValue('partners', 'kind', item.kind) }}</span>
           <span>{{ moyenLabel('last_contact_on') }} {{ fmtDate(item.last_contact_on) }}</span>
         </div>
         <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.partenaires.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
@@ -44,6 +44,7 @@ import GsmsRowActions from '@/components/gsms/GsmsRowActions.vue'
 import ActionDialog from '@/components/gsms/ActionDialog.vue'
 import { createRessource, deleteRessource, listRessources, updateRessource, type Partner } from '@/api/gsms/ressources'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 import { fmtDate } from '@/components/gsms/format'
 import { moyenFields, moyenLabel, moyenOptions, moyenPayload, moyenValue, moyenWrite } from './moyenForm'
 
@@ -52,6 +53,7 @@ const INDICATOR: Record<string, string> = { HANDICAP: 'I26', SOCIO_ECONOMIQUE: '
 
 const { t } = useI18n()
 const access = useGsmsAccessStore()
+const valueLists = useGsmsValueListsStore()
 // Ressource CRUD sans `capabilities` : l'écriture suit la permission de la route (quality.write).
 const canWrite = computed(() => access.can(moyenWrite('partners')))
 const indicatorOf = (kind: string) => INDICATOR[kind] ?? ''
@@ -74,7 +76,7 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(() => { access.load(); load() })
+onMounted(() => { access.load(); valueLists.load(); load() })
 
 const kindTabs = computed(() => [{ value: 'all', label: t('gsms.commun.tous'), count: items.value?.length },
   ...moyenOptions('partners', 'kind').map((o) => ({ ...o, count: (items.value ?? []).filter((p) => p.kind === o.value).length }))])

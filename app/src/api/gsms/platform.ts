@@ -98,3 +98,19 @@ export type OrganismePatch = Partial<Omit<Organisme, 'existe' | 'id' | 'categori
 
 export const getOrganisme = () => http.get<Organisme>('/organisme')
 export const updateOrganisme = (patch: OrganismePatch) => http.patch<Organisme>('/organisme', patch)
+
+/** Codes des listes de GET /listes-de-valeurs (constantes de app/types/training.py). */
+export type ValueListCode =
+  | 'types_de_lieu' | 'statuts_de_lieu' | 'categories_d_equipement' | 'types_de_partenaire' | 'domaines_de_veille'
+  | 'types_de_reclamation' | 'parties_prenantes' | 'publics_d_enquete' | 'types_de_titre'
+
+export interface ValueList {
+  code: ValueListCode
+  libelle: string
+  /** Constante de l'API d'où vient la liste. */
+  source: string
+  valeurs: { code: string; libelle: string }[]
+}
+
+/** Listes code → libellé que l'API accepte en saisie (authentifié). */
+export const listValueLists = () => http.get<ValueList[]>('/listes-de-valeurs')

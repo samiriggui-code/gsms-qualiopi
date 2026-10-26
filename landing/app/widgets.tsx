@@ -208,7 +208,8 @@ export function ContactForm({ lang }: { lang: Lang }) {
     if (Object.keys(next).length > 0) return;
     setSubmitting(true);
     try {
-      const res = await fetch("/api/contact", {
+      // Route publique de l'API (backend/app/handler/contact.py), même origine : /api est publié tel quel.
+      const res = await fetch("/api/v1/public/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: value("name"), email: value("email"), subject: value("subject"), message: value("message"), _trap: "" }),

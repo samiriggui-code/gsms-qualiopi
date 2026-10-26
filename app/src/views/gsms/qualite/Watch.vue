@@ -48,13 +48,14 @@ import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.v
 import GsmsRowActions from '@/components/gsms/GsmsRowActions.vue'
 import { createWatchItem, deleteWatchItem, listWatchItems, updateWatchItem, type WatchIn, type WatchItem } from '@/api/gsms/qualite'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 import { fmtDate } from '@/components/gsms/format'
-
-// Domaines acceptés par l'API (I23 légale, I24 métiers, I25 pédagogique) ; c'est elle qui les vérifie.
-const DOMAINS = ['LEGALE', 'METIERS', 'PEDAGOGIQUE']
 
 const { t } = useI18n()
 const access = useGsmsAccessStore()
+// Domaines acceptés par l'API (GET /listes-de-valeurs) ; c'est elle qui les vérifie.
+const valueLists = useGsmsValueListsStore()
+const domains = computed(() => valueLists.options('domaines_de_veille'))
 // Pas de `capabilities` sur les ressources CRUD : l'écriture suit la permission de la route (quality.write).
 const canWrite = computed(() => access.can('quality.write'))
 
@@ -64,7 +65,7 @@ const error = ref<unknown>(null)
 const actionError = ref<unknown>(null)
 const domain = ref('all')
 const follow = ref('all')
-const domainLabel = (d: string) => t(`gsms.qualite.veille.domaines.${d}`)
+const domainLabel = (d: string) => valueLists.label('domaines_de_veille', d)
 
 async function load() {
   loading.value = true
@@ -78,10 +79,10 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(() => { access.load(); load() })
+onMounted(() => { access.load(); valueLists.load(); load() })
 
 const domainTabs = computed(() => [{ value: 'all', label: t('gsms.commun.tous'), count: items.value?.length },
-  ...DOMAINS.map((d) => ({ value: d, label: domainLabel(d), count: (items.value ?? []).filter((w) => w.domain === d).length }))])
+  ...domains.value.map((d) => ({ ...d, count: (items.value ?? []).filter((w) => w.domain === d.value).length }))])
 const followTabs = computed(() => [
   { value: 'all', label: t('gsms.commun.toutes') },
   { value: 'todo', label: t('gsms.qualite.veille.nonExploitees'), count: (items.value ?? []).filter((w) => !w.exploited_on).length },
@@ -101,8 +102,8 @@ const columns = computed<ListColumn[]>(() => [
 
 const form = reactive<{ visible: boolean; id: string | null; initial: Partial<WatchItem> }>({ visible: false, id: null, initial: {} })
 const formFields = computed<ActionField[]>(() => [
-  { name: 'domain', label: t('gsms.qualite.veille.domaine'), type: 'radio', initial: form.initial.domain ?? 'LEGALE',
-    options: DOMAINS.map((d) => ({ value: d, label: domainLabel(d) })) },
+  { name: 'domain', label: t('gsms.qualite.veille.domaine'), type: 'radio', initial: form.initial.domain ?? domains.value[0]?.value,
+    options: domains.value },
   { name: 'title', label: t('gsms.qualite.veille.intitule'), initial: form.initial.title ?? '' },
   { name: 'source', label: t('gsms.qualite.veille.source'), initial: form.initial.source ?? '' },
   { name: 'noted_on', label: t('gsms.qualite.veille.colNotee'), type: 'date', initial: form.initial.noted_on ?? '' },

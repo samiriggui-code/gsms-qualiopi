@@ -25,7 +25,7 @@ const access = useGsmsAccessStore()
 
 const catalogue = useApiSource(getCatalogue).state
 const summary = useApiSource(getJourneySummary).state
-const learners = useApiSource(listLearnerRecords).state
+const learners = useApiSource(() => listLearnerRecords()).state
 const sessions = useApiSource(() => listSessions()).state
 // Module EDOF : chargé seulement s'il est actif et lisible pour ce compte (GET /bootstrap) ; l'API reste juge.
 const showEdof = computed(() => access.hasFeature('edof') && access.can('edof.read'))
@@ -43,7 +43,7 @@ const leads = useApiSource(async () => {
 }).state
 const quotes = useApiSource(async () => {
   await access.load()
-  return showQuotes.value ? (await listEditions()).filter((e) => e.type === 'DEVIS') : null
+  return showQuotes.value ? listEditions({ type: 'DEVIS' }) : null
 }).state
 const companies = useApiSource(listCompanies).state
 

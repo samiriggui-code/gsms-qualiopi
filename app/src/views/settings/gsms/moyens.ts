@@ -1,9 +1,10 @@
 /**
  * Description des ressources « Moyens et partenaires » (CRUD /premises, /equipment, /subcontractors, /partners,
- * /watch-items). Les listes de codes reprennent celles que l'API accepte (app/types/training.py et
- * app/handler/training_resources.py) : aucune route ne les expose, l'API reste juge et refuse un code inconnu.
- * Libellés : clés i18n gsms.parametres.moyens.(ressources|champs|valeurs).…
+ * /watch-items). Les codes d'un champ à choix et leurs libellés viennent de GET /listes-de-valeurs (store
+ * gsmsValueLists) : l'API reste juge et refuse un code inconnu.
+ * Libellés des ressources et des champs : clés i18n gsms.parametres.moyens.(ressources|champs).…
  */
+import type { ValueListCode } from '@/api/gsms/platform'
 import type { MoyenResource } from '@/api/gsms/training'
 
 export type MoyenFieldType = 'text' | 'textarea' | 'int' | 'date' | 'bool' | 'select' | 'premises'
@@ -14,8 +15,8 @@ export interface MoyenField {
   type: MoyenFieldType
   /** Champ exigé par le schéma de l'API (sinon 422). */
   required?: boolean
-  /** Codes acceptés ; libellés gsms.parametres.moyens.valeurs.<code>. */
-  options?: string[]
+  /** Liste de GET /listes-de-valeurs qui donne les codes acceptés et leurs libellés (champ `select`). */
+  list?: ValueListCode
 }
 
 export interface MoyenColumn {
@@ -38,12 +39,6 @@ export interface MoyenDef {
   title: (row: Record<string, unknown>) => string
 }
 
-const PREMISES_KINDS = ['SITE', 'SALLE', 'PLATEAU_TECHNIQUE', 'STOCKAGE', 'AUTRE']
-const PLACE_STATUSES = ['A_VERIFIER', 'EN_SERVICE', 'EN_MAINTENANCE', 'HORS_SERVICE']
-const EQUIPMENT_CATEGORIES = ['SECOURISME', 'INCENDIE', 'SECURITE_PRIVEE', 'EPI', 'INFORMATIQUE', 'MOBILIER', 'AUTRE']
-const PARTNER_KINDS = ['HANDICAP', 'SOCIO_ECONOMIQUE']
-const WATCH_DOMAINS = ['LEGALE', 'METIERS', 'PEDAGOGIQUE']
-
 export const MOYENS: MoyenDef[] = [
   {
     resource: 'premises', i18nKey: 'premises', write: 'sessions.write',
@@ -57,13 +52,13 @@ export const MOYENS: MoyenDef[] = [
     fields: [
       { key: 'code', type: 'text' },
       { key: 'name', type: 'text' },
-      { key: 'kind', type: 'select', options: PREMISES_KINDS },
+      { key: 'kind', type: 'select', list: 'types_de_lieu' },
       { key: 'parent_id', type: 'premises' },
       { key: 'address', type: 'text' },
       { key: 'floor', type: 'text' },
       { key: 'capacity', type: 'int' },
       { key: 'accessibility', type: 'textarea' },
-      { key: 'status', type: 'select', options: PLACE_STATUSES },
+      { key: 'status', type: 'select', list: 'statuts_de_lieu' },
       { key: 'checked_on', type: 'date' },
       { key: 'note', type: 'textarea' },
     ],
@@ -80,11 +75,11 @@ export const MOYENS: MoyenDef[] = [
     fields: [
       { key: 'code', type: 'text' },
       { key: 'label', type: 'text' },
-      { key: 'category', type: 'select', options: EQUIPMENT_CATEGORIES },
+      { key: 'category', type: 'select', list: 'categories_d_equipement' },
       { key: 'quantity', type: 'int' },
       { key: 'premises_id', type: 'premises' },
       { key: 'regulatory_ref', type: 'text' },
-      { key: 'status', type: 'select', options: PLACE_STATUSES },
+      { key: 'status', type: 'select', list: 'statuts_de_lieu' },
       { key: 'last_check_on', type: 'date' },
       { key: 'next_check_on', type: 'date' },
       { key: 'note', type: 'textarea' },
@@ -117,7 +112,7 @@ export const MOYENS: MoyenDef[] = [
     ],
     fields: [
       { key: 'name', type: 'text', required: true },
-      { key: 'kind', type: 'select', options: PARTNER_KINDS, required: true },
+      { key: 'kind', type: 'select', list: 'types_de_partenaire', required: true },
       { key: 'last_contact_on', type: 'date' },
     ],
   },
@@ -132,7 +127,7 @@ export const MOYENS: MoyenDef[] = [
     ],
     fields: [
       { key: 'title', type: 'text' },
-      { key: 'domain', type: 'select', options: WATCH_DOMAINS },
+      { key: 'domain', type: 'select', list: 'domaines_de_veille' },
       { key: 'source', type: 'text' },
       { key: 'noted_on', type: 'date' },
       { key: 'exploitation', type: 'textarea' },

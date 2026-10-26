@@ -73,6 +73,7 @@ import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import { fmtDate as formatDate } from '@/components/gsms/format'
 import { MOYENS, type MoyenColumn, type MoyenField } from './moyens'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 
 const { t } = useI18n()
 const access = useGsmsAccessStore()
@@ -80,8 +81,8 @@ const current = ref<MoyenResource>('premises')
 const def = computed(() => MOYENS.find((d) => d.resource === current.value)!)
 const canWrite = computed(() => access.can(def.value.write))
 const singular = computed(() => t(`gsms.parametres.moyens.ressources.${def.value.i18nKey}.singulier`))
-const valueLabel = (code: unknown) => (code == null || code === '' ? '—' : t(`gsms.parametres.moyens.valeurs.${String(code)}`))
-const optionsOf = (f: MoyenField) => (f.options ?? []).map((value) => ({ value, label: valueLabel(value) }))
+const valueLists = useGsmsValueListsStore()
+const optionsOf = (f: MoyenField) => (f.list ? valueLists.options(f.list) : [])
 
 const rows = ref<MoyenRow[]>([])
 const premises = ref<MoyenRow[]>([])
@@ -102,7 +103,7 @@ function cell(row: MoyenRow, c: MoyenColumn): string {
   const field = def.value.fields.find((f) => f.key === c.key)
   if (field?.type === 'date') return formatDate(v as string)
   if (field?.type === 'bool') return v === true ? t('gsms.parametres.commun.oui') : v === false ? t('gsms.parametres.commun.non') : '—'
-  if (field?.type === 'select') return valueLabel(v)
+  if (field?.type === 'select' && field.list) return valueLists.label(field.list, v)
   return v === null || v === undefined || v === '' ? '—' : String(v)
 }
 
@@ -186,7 +187,7 @@ function remove(row: MoyenRow) {
   })
 }
 
-onMounted(load)
+onMounted(() => { valueLists.load(); load() })
 </script>
 
 <style lang="less" scoped>

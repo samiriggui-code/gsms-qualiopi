@@ -50,14 +50,15 @@ import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.v
 import GsmsRowActions from '@/components/gsms/GsmsRowActions.vue'
 import { createComplaint, deleteComplaint, listComplaints, updateComplaint, type Complaint, type ComplaintIn } from '@/api/gsms/qualite'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 import { fmtDate } from '@/components/gsms/format'
-
-// Valeurs acceptées par l'API (handler/training_resources.py) ; c'est elle qui les vérifie.
-const KINDS = ['RECLAMATION', 'DIFFICULTE', 'ALEA']
-const STAKEHOLDERS = ['APPRENANT', 'ENTREPRISE', 'FINANCEUR', 'FORMATEUR', 'AUTRE']
 
 const { t } = useI18n()
 const access = useGsmsAccessStore()
+// Valeurs acceptées par l'API (GET /listes-de-valeurs) ; c'est elle qui les vérifie.
+const valueLists = useGsmsValueListsStore()
+const kinds = computed(() => valueLists.options('types_de_reclamation'))
+const stakeholders = computed(() => valueLists.options('parties_prenantes'))
 // Aucune `capabilities` sur les ressources CRUD : l'écriture suit la permission de la route (quality.write), l'API tranche.
 const canWrite = computed(() => access.can('quality.write'))
 
@@ -68,8 +69,8 @@ const actionError = ref<unknown>(null)
 const kind = ref('all')
 const follow = ref('all')
 
-const kindLabel = (k: string) => t(`gsms.qualite.reclamations.types.${k}`)
-const stakeholderLabel = (k: string) => t(`gsms.qualite.reclamations.parties.${k}`)
+const kindLabel = (k: string) => valueLists.label('types_de_reclamation', k)
+const stakeholderLabel = (k: string) => valueLists.label('parties_prenantes', k)
 const followText = (c: Complaint) => [
   c.acknowledged_on ? t('gsms.qualite.reclamations.accuseLe', { date: fmtDate(c.acknowledged_on) }) : '',
   c.answered_on ? t('gsms.qualite.reclamations.reponduLe', { date: fmtDate(c.answered_on) }) : '',
@@ -88,10 +89,10 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(() => { access.load(); load() })
+onMounted(() => { access.load(); valueLists.load(); load() })
 
 const kindTabs = computed(() => [{ value: 'all', label: t('gsms.commun.toutes'), count: items.value?.length },
-  ...KINDS.map((k) => ({ value: k, label: kindLabel(k), count: (items.value ?? []).filter((c) => c.kind === k).length }))])
+  ...kinds.value.map((k) => ({ ...k, count: (items.value ?? []).filter((c) => c.kind === k.value).length }))])
 const followTabs = computed(() => [
   { value: 'all', label: t('gsms.commun.toutes') },
   { value: 'open', label: t('gsms.qualite.reclamations.enCours'), count: (items.value ?? []).filter((c) => !c.resolved_on).length },
@@ -112,10 +113,10 @@ const columns = computed<ListColumn[]>(() => [
 
 const form = reactive<{ visible: boolean; id: string | null; initial: Partial<Complaint> }>({ visible: false, id: null, initial: {} })
 const formFields = computed<ActionField[]>(() => [
-  { name: 'kind', label: t('gsms.qualite.reclamations.type'), type: 'radio', initial: form.initial.kind ?? 'RECLAMATION',
-    options: KINDS.map((k) => ({ value: k, label: kindLabel(k) })) },
-  { name: 'stakeholder', label: t('gsms.qualite.reclamations.partie'), type: 'select', initial: form.initial.stakeholder ?? 'APPRENANT',
-    options: STAKEHOLDERS.map((k) => ({ value: k, label: stakeholderLabel(k) })) },
+  { name: 'kind', label: t('gsms.qualite.reclamations.type'), type: 'radio', initial: form.initial.kind ?? kinds.value[0]?.value,
+    options: kinds.value },
+  { name: 'stakeholder', label: t('gsms.qualite.reclamations.partie'), type: 'select', initial: form.initial.stakeholder ?? stakeholders.value[0]?.value,
+    options: stakeholders.value },
   { name: 'received_on', label: t('gsms.qualite.reclamations.colRecue'), type: 'date', initial: form.initial.received_on ?? '' },
   { name: 'description', label: t('gsms.qualite.reclamations.description'), type: 'textarea', initial: form.initial.description ?? '' },
   { name: 'acknowledged_on', label: t('gsms.qualite.reclamations.accuse'), type: 'date', initial: form.initial.acknowledged_on ?? '' },

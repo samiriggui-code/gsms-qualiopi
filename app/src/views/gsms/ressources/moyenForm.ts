@@ -1,12 +1,14 @@
 /**
  * Formulaire d'une ressource « Moyens et partenaires » pour les pages Lieux, Équipements, Sous-traitants et
- * Partenaires : mêmes champs, mêmes codes et mêmes libellés que le panneau Paramètres (views/settings/gsms/moyens.ts),
- * mis au format d'ActionDialog. Aucune règle ici : l'API valide et refuse (422, 409) avec un message affiché.
+ * Partenaires : mêmes champs que le panneau Paramètres (views/settings/gsms/moyens.ts), codes et libellés des choix
+ * venus de GET /listes-de-valeurs, mis au format d'ActionDialog. Aucune règle ici : l'API valide et refuse (422, 409)
+ * avec un message affiché. Les pages appellent `useGsmsValueListsStore().load()` à leur ouverture.
  */
 import i18n from '@/i18n'
 import type { ActionField } from '@/components/gsms/ActionDialog.vue'
 import type { RessourceKind } from '@/api/gsms/ressources'
 import { MOYENS } from '@/views/settings/gsms/moyens'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 
 const t = (key: string) => i18n.global.t(key)
 const YES = 'oui'
@@ -14,12 +16,19 @@ const NO = 'non'
 
 const defOf = (kind: RessourceKind) => MOYENS.find((d) => d.resource === kind)!
 
-/** Libellé d'un code accepté par l'API (gsms.parametres.moyens.valeurs.<code>). */
-export const moyenValue = (code: unknown) => (code == null || code === '' ? '—' : t(`gsms.parametres.moyens.valeurs.${String(code)}`))
+const listOf = (kind: RessourceKind, key: string) => defOf(kind).fields.find((f) => f.key === key)?.list
+
+/** Libellé, donné par l'API, du code d'un champ à choix. */
+export const moyenValue = (kind: RessourceKind, key: string, code: unknown) => {
+  const list = listOf(kind, key)
+  return list ? useGsmsValueListsStore().label(list, code) : code == null || code === '' ? '—' : String(code)
+}
 export const moyenLabel = (key: string) => t(`gsms.parametres.moyens.champs.${key}`)
-/** Codes acceptés par l'API pour un champ (repris du panneau Paramètres). */
-export const moyenOptions = (kind: RessourceKind, key: string) =>
-  (defOf(kind).fields.find((f) => f.key === key)?.options ?? []).map((value) => ({ value, label: moyenValue(value) }))
+/** Codes acceptés par l'API pour un champ, avec leurs libellés (GET /listes-de-valeurs). */
+export const moyenOptions = (kind: RessourceKind, key: string) => {
+  const list = listOf(kind, key)
+  return list ? useGsmsValueListsStore().options(list) : []
+}
 /** Droit d'écriture exigé par la route. */
 export const moyenWrite = (kind: RessourceKind) => defOf(kind).write
 

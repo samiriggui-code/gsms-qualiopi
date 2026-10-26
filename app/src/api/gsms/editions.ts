@@ -95,8 +95,12 @@ export const EDITION_ACTIONS = ['soumettre', 'renvoyer', 'valider', 'envoyer', '
 
 const path = (id: string) => `/editions/${encodeURIComponent(id)}`
 
-/** GET /editions (`documents.read`), plus récemment modifiés d'abord. */
-export const listEditions = () => http.get<EditionRow[]>('/editions')
+/**
+ * GET /editions (`documents.read`), plus récemment modifiés d'abord ; filtres `entreprise` (id du client) et `type`
+ * (code de GET /editions/types, 422 si inconnu).
+ */
+export const listEditions = (filters: { entreprise?: string; type?: string } = {}) =>
+  http.get<EditionRow[]>('/editions', { query: filters })
 /** GET /editions/{id} (`documents.read`) : contrôles et capacités. */
 export const getEdition = (id: string) => http.get<EditionDetail>(path(id))
 /** GET /editions/clients (`documents.read`). */

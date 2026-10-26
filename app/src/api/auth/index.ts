@@ -444,50 +444,6 @@ export async function logout(): Promise<{ success: boolean; message?: string }> 
   }
 }
 
-export interface ChangePasswordRequest {
-  old_password: string
-  new_password: string
-}
-
-/** Map change-password API failures to localized UI strings. */
-export function resolveChangePasswordError(error: any): string {
-  const details =
-    typeof error?.error?.details === 'string'
-      ? error.error.details
-      : typeof error?.details === 'string'
-        ? error.details
-        : ''
-  switch (details) {
-    case 'invalid_old_password':
-      return t('userProfile.changePassword.failed')
-    case 'password_policy':
-      return t('userProfile.changePassword.policyFailed')
-    case 'same_password':
-      return t('userProfile.changePassword.sameAsCurrent')
-    default:
-      return error?.message || t('userProfile.changePassword.failed')
-  }
-}
-
-/**
- * Self-service password rotation. On success the backend revokes every
- * outstanding session for the caller, so the client should clear local
- * auth state and send the user back to /login.
- */
-export async function changePassword(
-  data: ChangePasswordRequest,
-): Promise<{ success: boolean; message?: string }> {
-  try {
-    const response = await post('/api/v1/auth/change-password', data)
-    return response as unknown as { success: boolean; message?: string }
-  } catch (error: any) {
-    return {
-      success: false,
-      message: resolveChangePasswordError(error),
-    }
-  }
-}
-
 /**
  * 验证Token有效性
  */

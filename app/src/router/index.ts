@@ -10,6 +10,7 @@ import i18n from '@/i18n'
 import { normalizeSettingsSection } from '@/config/settingsRoute'
 import { isToolboxSection, toolboxLocation } from '@/config/toolbox'
 import { gsmsRoutes } from './gsmsRoutes'
+import { GSMS_HOME_PATH } from '@/config/gsmsMenu'
 
 /** Lite /桌面 WebView 硬刷新时可能只打开 `/`，用 session 记住上次页面以便恢复 */
 const LITE_LAST_PATH_KEY = 'weknora_lite_last_path'
@@ -27,6 +28,7 @@ function isLiteSpaDefaultEntry(to: RouteLocationNormalized) {
   return (
     to.path === '/' ||
     to.path === '/platform' ||
+    to.path === GSMS_HOME_PATH ||
     to.path === '/platform/knowledge-bases' ||
     to.name === 'knowledgeBaseList'
   )
@@ -42,12 +44,43 @@ function hasPendingOIDCCallback() {
   return hash.includes('oidc_result=') || hash.includes('oidc_error=')
 }
 
+// Pages publiques par lien signé (questionnaire, espace du stagiaire, émargement) : leurs adresses, envoyées
+// par e-mail ou imprimées en QR code, sont à la RACINE du domaine (/q/…, /espace/…, /emarger), hors de /app/.
+// Le serveur y sert la même application (deploy/Caddyfile, vite.config.ts) ; le routeur prend alors « / » pour
+// base, afin que l'adresse reste celle du lien. Ces pages ne mènent nulle part dans le back-office.
+export const PUBLIC_LINK_PATH = /^\/(?:q\/[^/]+|espace\/[^/]+|emarger)\/?$/
+
+function historyBase(): string {
+  if (typeof window !== 'undefined' && PUBLIC_LINK_PATH.test(window.location.pathname)) return '/'
+  return import.meta.env.BASE_URL
+}
+
+const publicLink = { requiresAuth: false, requiresInit: false }
+
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(historyBase()),
   routes: [
     {
+      path: "/q/:jeton",
+      name: "publicQuestionnaire",
+      component: () => import("../views/gsms/public/Questionnaire.vue"),
+      meta: publicLink,
+    },
+    {
+      path: "/espace/:jeton",
+      name: "publicEspace",
+      component: () => import("../views/gsms/public/Espace.vue"),
+      meta: publicLink,
+    },
+    {
+      path: "/emarger",
+      name: "publicEmarger",
+      component: () => import("../views/gsms/public/Emarger.vue"),
+      meta: publicLink,
+    },
+    {
       path: "/",
-      redirect: "/platform/knowledge-bases",
+      redirect: GSMS_HOME_PATH,
     },
     {
       path: "/login",
@@ -95,7 +128,7 @@ const router = createRouter({
     {
       path: "/platform",
       name: "Platform",
-      redirect: "/platform/knowledge-bases",
+      redirect: GSMS_HOME_PATH,
       component: () => import("../views/platform/index.vue"),
       meta: { requiresInit: true, requiresAuth: true },
       children: [
@@ -329,7 +362,7 @@ router.beforeEach(async (to, from, next) => {
       }
     }
     if (authStore.hasValidTenant) {
-      next('/platform/knowledge-bases')
+      next(GSMS_HOME_PATH)
     } else {
       next()
     }
@@ -340,7 +373,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth === false || to.meta.requiresInit === false) {
     // 如果已登录用户访问登录页面，重定向到知识库列表页面
     if (to.path === '/login' && authStore.isLoggedIn) {
-      next(authStore.hasValidTenant ? '/platform/knowledge-bases' : '/onboarding/workspace')
+      next(authStore.hasValidTenant ? GSMS_HOME_PATH : '/onboarding/workspace')
       return
     }
     next()
@@ -392,7 +425,7 @@ router.beforeEach(async (to, from, next) => {
   const requiredCapability = to.meta.requiredCapability as DeploymentCapabilityKey | undefined
   if (requiredCapability && !deploymentCapabilities.isSupported(requiredCapability)) {
     MessagePlugin.warning(i18n.global.t('settings.capabilityUnavailable'))
-    next('/platform/knowledge-bases')
+    next(GSMS_HOME_PATH)
     return
   }
 
@@ -402,7 +435,7 @@ router.beforeEach(async (to, from, next) => {
   // the bounce. This is UI-only; the server enforces the real check.
   if (to.meta.requiresSystemAdmin === true) {
     if (!authStore.isSystemAdmin) {
-      next('/platform/knowledge-bases')
+      next(GSMS_HOME_PATH)
       return
     }
   }

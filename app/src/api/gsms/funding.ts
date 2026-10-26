@@ -24,9 +24,17 @@ export interface FundingRuleValue {
   source: string
 }
 
-/** GET /financement/regles/{key}?le= (`funding.read`) : aucune route ne liste les clés disponibles. */
-export const getFundingRule = (key: string, le?: string) =>
-  http.get<FundingRuleValue>(`/financement/regles/${encodeURIComponent(key)}`, { query: { le } })
+/** Règle datée du financement (backend/config/financement/regles.yaml) et toutes ses valeurs. */
+export interface FundingRule {
+  cle: string
+  description: string
+  valeurs: { depuis: string; valeur: unknown; source: string }[]
+  /** Valeur applicable à la date `le` (défaut : aujourd'hui) ; null si aucune. */
+  en_vigueur: FundingRuleValue | null
+}
+
+/** GET /financement/regles?le= (`funding.read`) : toutes les règles datées. */
+export const listFundingRules = (le?: string) => http.get<FundingRule[]>('/financement/regles', { query: { le } })
 
 /** Source de financement d'un dossier (dispositif, état, montants, capacités du circuit). */
 export interface FundingSource {

@@ -48,6 +48,27 @@ function embedHtmlDevFallback(): Plugin {
     },
   }
 }
+/**
+ * Pages publiques par lien signé, à la racine du domaine (/q/…, /espace/…, /emarger) : servies par cette
+ * application (routes publiques du routeur), comme en production (deploy/Caddyfile). Sans cette règle, le
+ * proxy de dev les enverrait à la landing. Même motif que PUBLIC_LINK_PATH (src/router/index.ts).
+ */
+function publicLinksDevFallback(base: string): Plugin {
+  const publicLink = /^\/(?:q\/[^/]+|espace\/[^/]+|emarger)\/?$/
+  return {
+    name: 'public-links-dev-fallback',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const raw = req.url ?? ''
+        const qIdx = raw.indexOf('?')
+        const path = qIdx >= 0 ? raw.slice(0, qIdx) : raw
+        if (publicLink.test(path)) req.url = `${base}index.html${qIdx >= 0 ? raw.slice(qIdx) : ''}`
+        next()
+      })
+    },
+  }
+}
+
 // API métier qualiopi (FastAPI), sous /api.
 const DEV_PROXY_TARGET =
   process.env.VITE_DEV_PROXY_TARGET ||
@@ -149,6 +170,7 @@ export default defineConfig({
     vue(),
     vueJsx(),
     embedHtmlDevFallback(),
+    publicLinksDevFallback(APP_BASE),
     pdfJsWasmAssets(),
   ],
   resolve: {
@@ -211,6 +233,13 @@ export default defineConfig({
         // Streamable HTTP may keep an SSE response open for long-running tools.
         timeout: 3_600_000,
         proxyTimeout: 3_600_000,
+      },
+      // Liens de documents déjà envoyés par e-mail : /api/public/documents/{jeton}, sans v1 (comme deploy/Caddyfile).
+      '/api/public/documents/': {
+        target: DEV_PROXY_TARGET,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path: string) => path.replace(/^\/api\/public\/documents\//, '/api/v1/public/documents/'),
       },
       '/api': {
         target: DEV_PROXY_TARGET,

@@ -1,4 +1,5 @@
 import type { SpotlightGuideStep } from '@/types/spotlightGuide'
+import { WEKNORA_GUIDES_ENABLED } from '@/config/gitssFeatures'
 
 export const GLOBAL_USER_GUIDE_KEY = 'weknora:new-user-guide-done:v1'
 export const OPEN_NEW_USER_GUIDE_EVENT = 'weknora:open-new-user-guide'
@@ -135,6 +136,8 @@ export const CONTEXTUAL_GUIDE_TOURS: Record<ContextualGuideTourId, ContextualGui
 }
 
 export function isContextualGuideDone(tourId: ContextualGuideTourId): boolean {
+  // Guides désactivés (config/gitssFeatures.ts) : chaque visite est tenue pour faite et ne s'ouvre jamais.
+  if (!WEKNORA_GUIDES_ENABLED) return true
   return localStorage.getItem(CONTEXTUAL_GUIDE_TOURS[tourId].storageKey) === '1'
 }
 

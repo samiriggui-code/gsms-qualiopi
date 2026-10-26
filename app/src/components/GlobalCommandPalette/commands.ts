@@ -1,6 +1,7 @@
 import type { Router } from 'vue-router'
 import type { Composer } from 'vue-i18n'
 import { openNewUserGuide } from '@/config/contextualGuides'
+import { WEKNORA_GUIDES_ENABLED } from '@/config/gitssFeatures'
 import { useAssistantStore } from '@/stores/assistant'
 
 /**
@@ -98,16 +99,19 @@ export function buildCommands(ctx: CommandContext): CmdkCommand[] {
         router.push('/platform/settings')
       },
     },
-    {
-      id: 'open-product-tour',
-      label: t('commandPalette.quick.productTour'),
-      icon: 'help-circle',
-      keywords: ['guide', 'tour', 'onboarding', 'help', '引导', '新手', '教程'],
-      run: () => {
-        close()
-        openNewUserGuide()
-      },
-    },
+    // Visite guidée de WeKnora : seulement si ses guides sont activés (config/gitssFeatures.ts).
+    ...(WEKNORA_GUIDES_ENABLED
+      ? [{
+          id: 'open-product-tour',
+          label: t('commandPalette.quick.productTour'),
+          icon: 'help-circle',
+          keywords: ['guide', 'tour', 'onboarding', 'help', '引导', '新手', '教程'],
+          run: () => {
+            close()
+            openNewUserGuide()
+          },
+        }]
+      : []),
   ]
 }
 

@@ -145,13 +145,13 @@ async function load() {
   if (showQuotes.value) loadQuotes(asked)
 }
 
-// Aucune route ne filtre par entreprise : on relève les stagiaires et les devis qui portent son identifiant.
+// Stagiaires et devis de l'entreprise : filtrés par l'API (GET /learners?entreprise=, GET /editions?entreprise=&type=DEVIS).
 async function loadLearners(asked: string) {
   learners.value = null
   learnersError.value = null
   try {
-    const all = await listLearnerRecords()
-    if (asked === id.value) learners.value = all.filter((l) => l.company_id === asked).sort((a, b) => a.full_name.localeCompare(b.full_name))
+    const list = await listLearnerRecords(asked)
+    if (asked === id.value) learners.value = list.sort((a, b) => a.full_name.localeCompare(b.full_name))
   } catch (e) {
     if (asked === id.value) learnersError.value = e
   }
@@ -160,8 +160,8 @@ async function loadQuotes(asked: string) {
   quotes.value = null
   quotesError.value = null
   try {
-    const all = await listEditions()
-    if (asked === id.value) quotes.value = all.filter((q) => q.type === 'DEVIS' && q.client?.id === asked)
+    const list = await listEditions({ entreprise: asked, type: 'DEVIS' })
+    if (asked === id.value) quotes.value = list
   } catch (e) {
     if (asked === id.value) quotesError.value = e
   }

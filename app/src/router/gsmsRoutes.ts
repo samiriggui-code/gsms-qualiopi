@@ -2,11 +2,35 @@
  * Pages métier GSMS, enfants de /platform (même coque que les écrans WeKnora), routes du CDC §5.
  * `meta.gsms` désigne l'entrée du menu à mettre en évidence (config/gsmsMenu.ts) ; l'API vérifie l'accès à chaque appel.
  */
+import { defineComponent } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
+import { GSMS_HOME_PATH, firstOpenGsmsRoute } from '@/config/gsmsMenu'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 
 const meta = (gsms: string) => ({ requiresInit: true, requiresAuth: true, gsms })
 
+/** Accueil des écrans du moteur IA, quand aucune section métier n'est ouverte au compte. */
+const IA_HOME_PATH = '/platform/knowledge-bases'
+
+// La garde redirige toujours : ce composant n'est jamais affiché.
+const HomeRedirect = defineComponent({ name: 'GsmsHomeRedirect', render: () => null })
+
 export const gsmsRoutes: RouteRecordRaw[] = [
+  // Accueil : tableau de bord (Pilotage), sinon la première section que GET /bootstrap ouvre au compte.
+  {
+    path: 'accueil', // GSMS_HOME_PATH
+    name: 'gsmsAccueil',
+    component: HomeRedirect,
+    meta: { requiresInit: true, requiresAuth: true },
+    beforeEnter: async () => {
+      const access = useGsmsAccessStore()
+      await access.load()
+      if (!access.bootstrap) return IA_HOME_PATH
+      const names = new Set(gsmsRoutes.map((r) => r.name))
+      const target = firstOpenGsmsRoute(access, (name) => names.has(name))
+      return target ? { name: target, replace: true } : IA_HOME_PATH
+    },
+  },
   // A. Pilotage (vue d'ensemble = tableau de bord, page 1)
   { path: 'pilotage', name: 'gsmsPilotage', component: () => import('../views/gsms/pilotage/Overview.vue'), meta: meta('pilotage') },
   // Planning (page 2), bilans et rapports, aide au BPF (page 3)

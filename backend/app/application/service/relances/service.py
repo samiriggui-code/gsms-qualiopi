@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.application.service.platform.decisions import deny, enforce
 from app.application.service.platform.settings import ConfigurationService
 from app.application.service.relances.conditions import CONDITIONS, LABELS, Ctx
+from app.application.service.relances.contact import RULE_KEY as CONTACT_RULE_KEY
 from app.application.service.relances.rules import rule as find_rule
 from app.application.service.relances.sender import MESSAGE_REASONS, config_problem, explain, get_sender
 from app.database.db import utcnow
@@ -30,6 +31,8 @@ def get_message(db: Session, message_id: str) -> Message:
 
 def still_relevant(db: Session, msg: Message, today: date) -> str | None:
     """None si le message doit toujours partir ; sinon le motif pour lequel il est devenu sans objet."""
+    if msg.rule_key == CONTACT_RULE_KEY:
+        return None  # message du formulaire de contact du site : aucune condition à relire
     r = find_rule(msg.rule_key)
     if r is None:
         return "Règle supprimée du calendrier"

@@ -2,8 +2,8 @@
  * Sections Qualiopi du panneau Paramètres (docs/API.md §3). Chaque section n'apparaît que si le compte a le droit
  * de lire ce qu'elle affiche et que le module est actif (GET /api/v1/bootstrap, store gsmsAccess) ; l'API reste seule juge.
  *
- * Sections proposées par docs/API.md sans route de lecture, donc absentes : Échéancier (circuit de session),
- * Questionnaires, Documents et modèles (gabarits), Déploiement (seul `available` des modules est visible, dans Modules).
+ * Sections proposées par docs/API.md sans route de lecture, donc absentes : Questionnaires, Documents et modèles
+ * (gabarits), Déploiement (seul `available` des modules est visible, dans Modules).
  */
 import type { Component } from 'vue'
 import { defineAsyncComponent } from 'vue'
@@ -39,6 +39,9 @@ export const GSMS_SECTIONS: GsmsSection[] = [
   { key: 'gsms-preuves', labelKey: 'gsms.parametres.sections.preuves', icon: 'folder-open',
     visible: (a) => a.hasFeature('qualiopi') && a.can('quality.read'),
     component: lazy(() => import('./PreuvesSettings.vue')) },
+  { key: 'gsms-echeancier', labelKey: 'gsms.parametres.sections.echeancier', icon: 'time',
+    visible: (a) => a.hasFeature('qualiopi') && a.can('quality.read'),
+    component: lazy(() => import('./EcheancierSettings.vue')) },
   { key: 'gsms-communications', labelKey: 'gsms.parametres.sections.communications', icon: 'mail',
     visible: (a) => a.hasFeature('relances') && a.can('communications.manage'),
     component: lazy(() => import('./CommunicationsSettings.vue')) },

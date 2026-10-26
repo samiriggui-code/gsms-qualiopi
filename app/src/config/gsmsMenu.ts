@@ -31,6 +31,9 @@ export interface GsmsMenuSection {
   entries: GsmsMenuEntry[]
 }
 
+/** Accueil du back-office (après connexion, logo du menu, adresses « / » et « /platform ») : route gsmsAccueil. */
+export const GSMS_HOME_PATH = '/platform/accueil'
+
 /** Section occupée par les écrans WeKnora (assistant, bases de connaissances, agents…). */
 export const IA_SECTION = 'ia'
 
@@ -113,3 +116,33 @@ export const GSMS_MENU: GsmsMenuSection[] = [
     ],
   },
 ]
+
+/** Décisions de GET /bootstrap utiles au menu (fournies par le store gsmsAccess). */
+export interface GsmsAccessDecisions {
+  hasNav: (...keys: string[]) => boolean
+  hasFeature: (code: string) => boolean
+  can: (permission: string) => boolean
+}
+
+/** Une règle d'accès est ouverte si son module est actif et si une de ses clés de navigation ou permissions l'est. */
+export function isAccessOpen(rule: GsmsAccessRule | undefined, access: GsmsAccessDecisions): boolean {
+  if (!rule) return true
+  if (rule.feature && !access.hasFeature(rule.feature)) return false
+  if (!rule.nav && !rule.perm) return true
+  return (rule.nav ? access.hasNav(...rule.nav) : false) || (rule.perm ?? []).some((p) => access.can(p))
+}
+
+/**
+ * Page d'accueil du back-office : la première section métier que le compte peut ouvrir, dans l'ordre du menu
+ * (Pilotage d'abord), par sa vue d'ensemble sinon par sa première entrée. `undefined` si aucune.
+ */
+export function firstOpenGsmsRoute(access: GsmsAccessDecisions, hasRoute: (name: string) => boolean): string | undefined {
+  for (const section of GSMS_MENU) {
+    if (section.key === IA_SECTION) continue
+    const { overview } = section
+    if (overview && hasRoute(overview.route) && isAccessOpen(overview.access, access)) return overview.route
+    const entry = section.entries.find((e) => hasRoute(e.route) && isAccessOpen(e.access, access))
+    if (entry) return entry.route
+  }
+  return undefined
+}

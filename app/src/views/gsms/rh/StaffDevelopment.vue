@@ -6,6 +6,8 @@
     </template>
     <template #toolbar>
       <GsmsFilterTabs v-model="filter" :options="filterTabs" :label="t('gsms.commun.filtrerEtat')" />
+      <t-select v-if="trainerOptions.length" v-model="trainer" size="small" clearable filterable :options="trainerOptions"
+        class="trainer-select" :placeholder="t('gsms.rh.developpement.tousFormateurs')" :aria-label="t('gsms.rh.formateurs.formateur')" />
     </template>
     <template #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
 
@@ -52,8 +54,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import GsmsListPage, { type ListColumn } from '@/components/gsms/GsmsListPage.vue'
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
@@ -69,6 +72,8 @@ import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { fmtDate } from '@/components/gsms/format'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const access = useGsmsAccessStore()
 // Ressource CRUD sans `capabilities` : l'écriture suit la permission de la route (trainers.write).
 const canWrite = computed(() => access.can('trainers.write'))
@@ -78,20 +83,43 @@ const loading = ref(false)
 const error = ref<unknown>(null)
 const actionError = ref<unknown>(null)
 const filter = ref('all')
+// Formateur choisi (?formateur=<id>) : la liste est filtrée par l'API (GET /staff-development?formateur=).
+const trainer = ref<string | undefined>(typeof route.query.formateur === 'string' ? route.query.formateur : undefined)
+
+// Formateurs proposés au filtre et au formulaire ; leur refus s'affiche dans le formulaire.
+const trainers = ref<Trainer[]>([])
+const trainersError = ref<unknown>(null)
+const trainerOptions = computed(() => trainers.value.map((f) => ({ value: f.id, label: f.full_name })))
+async function loadTrainers() {
+  trainersError.value = null
+  try {
+    trainers.value = await listTrainers()
+  } catch (e) {
+    trainers.value = []
+    trainersError.value = e
+  }
+}
 
 async function load() {
+  const asked = trainer.value
   loading.value = true
   error.value = null
   try {
-    items.value = await listStaffDevelopment()
+    const res = await listStaffDevelopment(asked)
+    if (asked === trainer.value) items.value = res
   } catch (e) {
+    if (asked !== trainer.value) return
     error.value = e
     items.value = null
   } finally {
-    loading.value = false
+    if (asked === trainer.value) loading.value = false
   }
 }
-onMounted(() => { access.load(); load() })
+onMounted(() => { access.load(); loadTrainers(); load() })
+watch(trainer, (v) => {
+  router.replace({ query: { ...route.query, formateur: v || undefined } })
+  load()
+})
 
 const filterTabs = computed(() => [
   { value: 'all', label: t('gsms.commun.toutes'), count: items.value?.length },
@@ -108,25 +136,16 @@ const columns = computed<ListColumn[]>(() => [
   ...(canWrite.value ? [{ colKey: 'actions', title: '', width: 150 }] : []),
 ])
 
-// Formateurs proposés : lus à l'ouverture du formulaire (leur refus s'affiche dans le formulaire).
-const trainers = ref<Trainer[]>([])
-const trainersError = ref<unknown>(null)
 const form = reactive<{ visible: boolean; row: StaffDevelopment | null }>({ visible: false, row: null })
 const formFields = computed<ActionField[]>(() => [
   { name: 'label', label: `${t('gsms.rh.developpement.action')} *`, initial: form.row?.label },
   { name: 'trainer_id', label: t('gsms.rh.formateurs.formateur'), type: 'select', initial: form.row?.trainer_id ?? undefined,
-    options: trainers.value.map((f) => ({ value: f.id, label: f.full_name })) },
+    options: trainerOptions.value },
   { name: 'planned_on', label: t('gsms.rh.developpement.prevue'), type: 'date', initial: form.row?.planned_on ?? undefined },
   { name: 'completed_on', label: t('gsms.rh.developpement.realisation'), type: 'date', initial: form.row?.completed_on ?? undefined },
 ])
 async function openForm(row: StaffDevelopment | null) {
-  trainersError.value = null
-  try {
-    trainers.value = await listTrainers()
-  } catch (e) {
-    trainers.value = []
-    trainersError.value = e
-  }
+  if (!trainers.value.length) await loadTrainers()
   Object.assign(form, { visible: true, row })
 }
 const save = (v: Record<string, unknown>) =>
@@ -153,6 +172,7 @@ async function remove(d: StaffDevelopment) {
 .card--static { cursor: default; }
 .card-actions { margin-top: 8px; }
 .cell-title { display: block; font-weight: 500; }
+.trainer-select { width: 220px; max-width: 100%; }
 .cell-sub { color: var(--td-text-color-secondary); font-size: var(--app-text-sm); }
 .person { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; &:hover { color: var(--td-brand-color); } }
 </style>

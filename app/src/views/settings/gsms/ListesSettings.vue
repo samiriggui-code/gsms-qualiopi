@@ -29,10 +29,12 @@ import { getEditionTypes } from '@/api/gsms/editions'
 import { getOrganisme } from '@/api/gsms/platform'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 
 type Row = { code: string; libelle: string; note?: string }
 const { t } = useI18n()
 const access = useGsmsAccessStore()
+const valueLists = useGsmsValueListsStore()
 const lists = ref<{ title: string; source: string; rows: Row[] }[]>([])
 const loading = ref(true)
 const loadError = ref<unknown>(null)
@@ -47,8 +49,17 @@ const toRows = (v: Record<string, string> | string[]): Row[] =>
 
 onMounted(async () => {
   try {
-    const org = await getOrganisme()
-    const out: { title: string; source: string; rows: Row[] }[] = [{ title: t('gsms.parametres.listes.categories'), source: t('gsms.parametres.listes.source', { route: 'GET /organisme' }), rows: org.categories_possibles }]
+    const [org] = await Promise.all([getOrganisme(), valueLists.load()])
+    if (valueLists.error) throw valueLists.error
+    const out: { title: string; source: string; rows: Row[] }[] = [
+      { title: t('gsms.parametres.listes.categories'), source: t('gsms.parametres.listes.source', { route: 'GET /organisme' }), rows: org.categories_possibles },
+      // Listes acceptées en saisie (lieux, équipements, partenaires, veille, réclamations, enquêtes, titres).
+      ...(valueLists.lists ?? []).map((l) => ({
+        title: l.libelle,
+        source: t('gsms.parametres.listes.sourceConstante', { route: 'GET /listes-de-valeurs', constante: l.source }),
+        rows: l.valeurs,
+      })),
+    ]
     if (access.hasFeature('documents') && access.can('documents.read')) {
       const ed = await getEditionTypes()
       const source = t('gsms.parametres.listes.source', { route: 'GET /editions/types' })

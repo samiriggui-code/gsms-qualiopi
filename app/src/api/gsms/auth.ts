@@ -27,8 +27,14 @@ export const login = (email: string, password: string) =>
 
 export const getMe = () => http.get<Me>('/auth/me')
 export const updateMe = (full_name: string) => http.patch<UserOut>('/auth/me', { full_name })
+/**
+ * Change son mot de passe : l'API révoque tous les jetons du compte et rend un jeton neuf pour la session
+ * courante, que l'appelant doit enregistrer (tokenStorage) pour continuer sans se reconnecter.
+ */
 export const changePassword = (actuel: string, nouveau: string) =>
-  http.post<void>('/auth/me/password', { actuel, nouveau })
+  http.post<LoginOut>('/auth/me/password', { actuel, nouveau })
+/** Révoque toutes ses sessions, celle-ci comprise (204) : l'appelant doit ensuite se déconnecter localement. */
+export const logoutEverywhere = () => http.post<void>('/auth/me/deconnexion-partout')
 
 export interface Permission {
   code: string

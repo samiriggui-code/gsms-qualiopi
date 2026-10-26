@@ -27,3 +27,10 @@ export const DISABLED_PARSER_ENGINES = new Set(['weknoracloud'])
 export const HIDDEN_SETTINGS_SECTIONS = new Set([
   'sandbox', 'members', 'envvars', 'integration-im', 'integration-cli',
 ])
+
+/**
+ * Guides d'accueil de WeKnora (dialogue « Bienvenue », visites guidées des bases de connaissances, des agents,
+ * des modèles…). Ils recouvrent l'écran au premier passage et ne présentent que des fonctions du moteur IA :
+ * désactivés dans le back-office GSMS, qui n'a pas (encore) de guide propre à ses écrans. Le code est gardé.
+ */
+export const WEKNORA_GUIDES_ENABLED = false

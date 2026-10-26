@@ -1,7 +1,7 @@
 /**
- * Formulaires et listes de codes des pages RH. Les codes reprennent ceux que l'API accepte (app/types/training.py
- * QUALIFICATION_KINDS, app/types/hr.py) : aucune route ne les expose, l'API reste juge et refuse un code inconnu (422).
- * Libellés : gsms.rh.codes.<CODE>.
+ * Formulaires et listes de codes des pages RH. Les codes du personnel reprennent ceux que l'API accepte
+ * (app/types/hr.py) : aucune route ne les expose, l'API reste juge et refuse un code inconnu (422).
+ * Libellés : gsms.rh.codes.<CODE>. Les types de titre des formateurs viennent de GET /listes-de-valeurs.
  */
 import i18n from '@/i18n'
 import type { ActionField } from '@/components/gsms/ActionDialog.vue'
@@ -9,7 +9,6 @@ import type { Trainer, TrainerIn } from '@/api/gsms/rh'
 
 const t = (key: string) => i18n.global.t(key)
 
-export const QUALIFICATION_KINDS = ['CARTE_PRO_FORMATEUR_CNAPS', 'SSIAP3', 'FORMATEUR_SST', 'HABILITATION_ELECTRIQUE', 'DIPLOME', 'AUTRE']
 export const STAFF_KINDS = ['SALARIE', 'INDEPENDANT', 'SOUS_TRAITANT', 'INTERIMAIRE', 'STAGIAIRE']
 export const CONTRACT_KINDS = ['CDI', 'CDD', 'INTERIM', 'STAGE', 'APPRENTISSAGE', 'PRESTATION', 'SOUS_TRAITANCE']
 export const WORK_TIMES = ['TEMPS_PLEIN', 'TEMPS_PARTIEL']
