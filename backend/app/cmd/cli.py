@@ -127,6 +127,7 @@ def import_gsms_school() -> None:
 
 
 def ia_prepare(renew: bool) -> None:
+    from app.application.service.ia.assistants import ensure_assistants
     from app.application.service.ia.espace import ensure_mcp_service, ensure_referential_kb
     from app.application.service.ia.session import IAUnavailable, open_session
 
@@ -139,7 +140,8 @@ def ia_prepare(renew: bool) -> None:
     with session_factory()() as db:
         set_actor(db, "cli")
         for title, step in (("Serveur MCP", lambda: ensure_mcp_service(db, token, renew=renew)),
-                            ("Base de connaissances", lambda: ensure_referential_kb(token))):
+                            ("Base de connaissances", lambda: ensure_referential_kb(token)),
+                            ("Assistants", lambda: ensure_assistants(token))):
             print(f"{title} :")
             try:
                 report = step()
