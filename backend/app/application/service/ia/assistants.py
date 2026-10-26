@@ -68,25 +68,26 @@ _COMMON = {"temperature": 0.2, "multi_turn_enabled": True, "history_turns": 5, "
 _REASONING_TOOLS = ["thinking", "todo_write", "search_knowledge", "read_document", "list_documents"]
 
 
-def definitions(kb_id: str, mcp_id: str) -> list[dict]:
+def definitions(kb_id: str, mcp_id: str, model_id: str) -> list[dict]:
     """Les trois assistants, prêts à envoyer au moteur (`POST /api/v1/agents`)."""
+    common = {**_COMMON, "model_id": model_id}  # sans modèle, le moteur refuse de répondre
     return [
         {"name": "Référentiel Qualiopi",
          "description": "Ce que demande chaque indicateur, d'après les textes officiels (v9 et v10).",
-         "config": {**_COMMON, "agent_mode": "quick-answer", "system_prompt": REFERENTIAL_PROMPT,
+         "config": {**common, "agent_mode": "quick-answer", "system_prompt": REFERENTIAL_PROMPT,
                     "context_template_id": "default_context",
                     "kb_selection_mode": "selected", "knowledge_bases": [kb_id], "mcp_selection_mode": "none",
                     # Rien trouvé dans les textes : une réponse fixe plutôt qu'une réponse inventée.
                     "fallback_strategy": "fixed", "fallback_response": FALLBACK}},
         {"name": "Préparation d'audit",
          "description": "Où en est l'organisme avant l'audit : état calculé par le moteur et textes du référentiel.",
-         "config": {**_COMMON, "agent_mode": "smart-reasoning", "agent_type": "custom", "system_prompt": AUDIT_PROMPT,
+         "config": {**common, "agent_mode": "smart-reasoning", "agent_type": "custom", "system_prompt": AUDIT_PROMPT,
                     "max_iterations": 20, "allowed_tools": _REASONING_TOOLS,
                     "kb_selection_mode": "selected", "knowledge_bases": [kb_id],
                     "mcp_selection_mode": "selected", "mcp_services": [mcp_id]}},
         {"name": "Résultats et satisfaction",
          "description": "Lecture des exports de satisfaction et de résultats ; chiffres officiels lus dans le moteur.",
-         "config": {**_COMMON, "agent_mode": "smart-reasoning", "agent_type": "custom", "system_prompt": RESULTS_PROMPT,
+         "config": {**common, "agent_mode": "smart-reasoning", "agent_type": "custom", "system_prompt": RESULTS_PROMPT,
                     "max_iterations": 20, "allowed_tools": [*_REASONING_TOOLS, "data_schema", "data_analysis"],
                     "supported_file_types": ["csv", "xlsx"],
                     "kb_selection_mode": "selected", "knowledge_bases": [kb_id],
@@ -98,6 +99,14 @@ def _rows(data: object) -> list[dict]:
     if isinstance(data, dict):  # liste paginée
         data = data.get("items") or data.get("agents") or []
     return [row for row in data or [] if isinstance(row, dict)]
+
+
+def _chat_model(token: str) -> str | None:
+    """Modèle de discussion des assistants : celui par défaut du moteur, sinon le premier déclaré."""
+    models = [m for m in _rows(_data(*call("GET", "/api/v1/models", token=token), "Liste des modèles"))
+              if m.get("type") == "KnowledgeQA" and m.get("id")]
+    chosen = next((m for m in models if m.get("is_default")), models[0] if models else None)
+    return chosen["id"] if chosen else None
 
 
 def ensure_assistants(token: str) -> Report:
@@ -113,8 +122,14 @@ def ensure_assistants(token: str) -> Report:
         report.problems.append(f"Assistants non créés : il manque {' et '.join(missing)} (relancer ia-preparer)")
         return report
 
+    model_id = _chat_model(token)
+    if model_id is None:
+        report.problems.append("Assistants non créés : aucun modèle de discussion n'est configuré dans le moteur IA "
+                               "(ia/config/builtin_models.yaml et ia/.env), puis relancer ia-preparer")
+        return report
+
     agents = {a.get("name"): a for a in _rows(_data(*call("GET", "/api/v1/agents", token=token), "Liste des agents"))}
-    for agent in definitions(kb["id"], mcp["id"]):
+    for agent in definitions(kb["id"], mcp["id"], model_id):
         existing = agents.get(agent["name"])
         if existing is None:
             status, body = call("POST", "/api/v1/agents", agent, token=token)

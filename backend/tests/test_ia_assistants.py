@@ -13,9 +13,12 @@ from app.application.service.ia.espace import KB_NAME, MCP_NAME
 class FakeAgents:
     """Espace simulé : un serveur MCP, une base, et la liste des agents."""
 
-    def __init__(self, mcp: bool = True, kb: bool = True, refuse: str | None = None) -> None:
+    def __init__(self, mcp: bool = True, kb: bool = True, refuse: str | None = None, chat: bool = True) -> None:
         self.services = [{"id": "svc1", "name": MCP_NAME}] if mcp else []
         self.bases = [{"id": "kb1", "name": KB_NAME}] if kb else []
+        self.models = [{"id": "emb", "type": "Embedding", "is_default": True}]
+        if chat:
+            self.models += [{"id": "llm-a", "type": "KnowledgeQA"}, {"id": "llm-b", "type": "KnowledgeQA", "is_default": True}]
         self.agents: list[dict] = []
         self.refuse = refuse
         self.calls: list[tuple[str, str]] = []
@@ -28,6 +31,8 @@ class FakeAgents:
             return 200, {"success": True, "data": self.services}
         if path == "/api/v1/knowledge-bases":
             return 200, {"success": True, "data": self.bases}
+        if path == "/api/v1/models":
+            return 200, {"success": True, "data": self.models}
         if path == "/api/v1/agents" and method == "GET":
             return 200, {"success": True, "data": self.agents}
         if path == "/api/v1/agents" and method == "POST":
@@ -67,6 +72,7 @@ def test_assistants_en_lecture_seule_relies_a_la_base_et_au_serveur_mcp(engine: 
     assistants.ensure_assistants("jeton-weknora")
     by_name = {a["name"]: a["config"] for a in engine.agents}
     assert all(c["access_level"] == "read_only" for c in by_name.values())
+    assert all(c["model_id"] == "llm-b" for c in by_name.values())  # le modèle de discussion par défaut
     assert all(c["knowledge_bases"] == ["kb1"] for c in by_name.values())
     assert all(not c["web_search_enabled"] for c in by_name.values())
 
@@ -106,3 +112,11 @@ def test_un_refus_du_moteur_est_dit_sans_bloquer_les_autres(monkeypatch) -> None
     report = assistants.ensure_assistants("jeton-weknora")
     assert len(fake.agents) == 2
     assert report.problems == ["Assistant « Résultats et satisfaction » non créé : unknown tool (HTTP 400)"]
+
+
+def test_sans_modele_de_discussion_aucun_assistant_muet_n_est_cree(monkeypatch) -> None:  # noqa: ANN001
+    fake = FakeAgents(chat=False)
+    monkeypatch.setattr(assistants, "call", fake)
+    report = assistants.ensure_assistants("jeton-weknora")
+    assert not report.ok and "modèle de discussion" in report.problems[0]
+    assert not any(method in ("POST", "PUT") for method, _ in fake.calls)
