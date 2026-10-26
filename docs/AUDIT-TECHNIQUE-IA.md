@@ -69,7 +69,7 @@ politiques). La base `weknora` ne contient que des textes officiels (65 document
   `metadata.version` : de quoi citer une source vérifiable.
 - **Agents** : 4 agents d'origine + 3 agents GSMS (`assistants.py`), tous `read_only`, recherche web coupée,
   aucune compétence (skills) ; le serveur MCP GSMS est le seul outil externe.
-- **Authentification** : comptes WeKnora, inscription fermée (`DISABLE_REGISTRATION=true`), rôles d'espace.
+- **Authentification** : comptes WeKnora, inscription libre fermée (`registration_mode: invite_register`, comptes créés par invitation de l'espace), rôles d'espace.
 
 ## 5. Vérifié (26/10/2026)
 
@@ -90,16 +90,44 @@ politiques). La base `weknora` ne contient que des textes officiels (65 document
   le circuit, pas la qualité des réponses.
 - **Production** : aucun fournisseur choisi. Le fichier Mistral (`builtin_models.mistral.yaml.example`) n'a jamais été
   essayé.
-- **Base « Documents de l'organisme »** : n'existe pas. L'analyse de documents propres (preuves, programmes) n'est donc
-  pas possible aujourd'hui ; le test pilote de la mission (documents contradictoires, périmés, piégés) demande cette
-  base et un parcours de dépôt vers WeKnora, qui n'existent pas encore.
+- **Absence de preuve** : la recherche hybride rend toujours ses meilleurs passages, avec des scores normalisés (1,0 pour
+  le premier) même quand rien n'est pertinent (pilote, indicateur 26 : la procédure « violences » sort en tête). Le
+  contrat ne peut donc pas conclure « aucune preuve » à partir des scores ; il faudra un jugement (modèle ou humain).
+- **Contradictions** : les deux documents contradictoires du pilote sont bien retrouvés côte à côte, mais rien ne
+  signale la contradiction (déclaré dans `controles_non_executes`).
+
+## 6 bis. Test pilote de bout en bout (indicateur 31, 27/10/2026)
+
+Script rejouable (hors dépôt, sur la pile de dev), passant par les routes réelles : dépôt
+`POST /dossiers/{sujet}/{id}/pieces/{pièce}`, synchronisation vers le moteur IA, indexation, `POST /ia/analyses`.
+Documents fictifs marqués « PILOTE » : procédure réclamations v1 puis v2, règlement intérieur contradictoire (30 jours
+contre 10), compte rendu incomplet, procédure piégée (consignes adressées à l'IA), CV de formateur (pièce interdite).
+**24 vérifications sur 24 réussies** :
+
+| Scénario | Résultat |
+|---|---|
+| Ancienne version | passe `REMPLACE` au dépôt de la v2, jamais versée ni citée |
+| Pièce interdite (CV de formateur, nom et téléphone) | exclue par la liste blanche, jamais dans l'index |
+| Preuve pertinente | v2 retrouvée avec le texte officiel de l'indicateur 31 (score 0,99) |
+| Documents contradictoires | les deux retrouvés ; contradiction non signalée automatiquement |
+| Document incomplet | indexé et retrouvé ; son caractère incomplet n'est pas jugé |
+| Document piégé | rendu comme donnée (extrait), aucun effet : le contrat ne génère rien et ne décide rien |
+| Preuve manquante (indicateur 26) | la recherche rend quand même des passages (voir §6) |
+| Moteur Qualiopi | réponse identique à `GET /qualiopi/indicateurs/31` |
+| Traces | enregistrées sans question ni texte |
+
+Trouvé pendant le pilote et corrigé : le moteur IA indexe aussi des **résumés rédigés par le modèle** (`# Summary`) qui
+remontaient comme des passages ; ils sont désormais écartés des citations (`resumes_generes_ecartes`, 5 sur la question
+du délai). Latence de l'analyse : 1,1 à 2,3 s. Indexation de 6 documents : quelques minutes sur processeur. Les deux
+pièces de la démo (`ORGANIGRAMME`, `CATALOGUE_RESSOURCES`) sont de faux PDF de 43 et 51 octets : échec d'indexation
+attendu, signalé par la synchronisation.
 
 ## 7. Risques
 
 | # | Risque | Gravité | État |
 |---|---|---|---|
 | R1 | Un rôle personnalisé avec `ia.use` sans `quality.read` lisait l'état Qualiopi par l'assistant (compte technique) : contournement des droits GSMS | Élevée | **Corrigé** (refus 403, test) |
-| R2 | Un seul compte WeKnora « navigateur » pour tous les utilisateurs GSMS : chacun voit les conversations des autres dans le moteur IA | Élevée (confidentialité interne) | Ouvert : demande un compte WeKnora par utilisateur GSMS (ou un filtrage par utilisateur dans le fork) |
+| R2 | Un seul compte WeKnora « navigateur » pour tous les utilisateurs GSMS : chacun voyait les conversations des autres dans le moteur IA | Élevée (confidentialité interne) | **Corrigé** : un compte WeKnora par compte GSMS, créé par invitation révoquée aussitôt (inscription libre toujours fermée) ; isolement vérifié contre le moteur |
 | R3 | Le code du moteur IA n'était pas versionné (`global-it-ss-template` hors git) | Élevée | **Corrigé** (`ia/moteur`, commit `53f8a52`) |
 | R4 | Ollama de dev s'arrête au redémarrage (politique « no ») : recherche et chat en panne sans message clair | Moyenne (dev) | Ouvert : conteneur hors de ce dépôt (`gitss-ollama`) |
 | R5 | Sandbox Docker activée en dev (socket Docker = root sur la machine) | Moyenne (dev) | Accepté en dev, coupé en production (`ia/.env.example`) |
@@ -133,13 +161,22 @@ fermée ; sandbox coupée en production.
 4. **Traces** : table `qualite.ia_analyse` (migration `0028`, création seule) : corrélation, utilisateur, indicateur,
    version, état du moteur, documents autorisés et consultés, passages, rejets, modèle d'embedding, durée, erreur,
    validation. Ni la question (empreinte SHA-256 seulement) ni le texte des documents.
+5. **Un compte WeKnora par personne** (`service/ia/session.py`) : R2 corrigé, voir §7 et `docs/API.md`.
+6. **Base « Documents de l'organisme »** (`service/ia/documents.py`) : liste blanche (pièces de l'organisme et programmes,
+   émis ou signés, version en cours, PDF/DOCX/HTML ; jamais de pièce de session, de formateur ni de facturation),
+   synchronisation idempotente (ajout, retrait des versions remplacées et pièces retirées, fichier relu avec son
+   empreinte) par `ia-preparer` et par le worker toutes les 15 minutes (`--ia-documents-minutes`). Le contrat d'analyse
+   cherche aussi dans cette base, sur les seuls documents **encore** éligibles dans GSMS au moment de la question.
+   L'assistant « Préparation d'audit » la lit, avec une consigne contre l'injection d'instructions.
+7. **Reproductibilité** : `GET /qualiopi/echeances` (et l'outil MCP `lister_echeances`) avait un ordre instable entre
+   jalons de même date (test MCP intermittent) ; ordre complet fixé.
 
 ## 10. Configuration (sans secrets)
 
 - API (`.env`) : `WEKNORA_URL`, `WEKNORA_SERVICE_EMAIL`, `WEKNORA_SERVICE_PASSWORD`, `WEKNORA_SERVICE_NAME`,
-  `WEKNORA_BROWSER_EMAIL` (facultatif), `IA_MCP_URL`, `IA_COMPTE_TECHNIQUE_EMAIL`.
+  `IA_MCP_URL`, `IA_COMPTE_TECHNIQUE_EMAIL`.
 - Moteur IA (`ia/.env`, modèle `ia/.env.example`) : base, Redis, `JWT_SECRET`, `SYSTEM_AES_KEY`,
-  `SYSTEM_SIGNING_KEY`, `DISABLE_REGISTRATION=true`, `WEKNORA_SANDBOX_DOCKER_ENABLED=false`,
+  `SYSTEM_SIGNING_KEY`, `DISABLE_REGISTRATION=false` (avec `auth.registration_mode: invite_register` dans `ia/config/config.yaml`), `WEKNORA_SANDBOX_DOCKER_ENABLED=false`,
   `BUILTIN_MODELS_CONFIG` (fichier de modèles), clés des fournisseurs.
 - Compose : `SSRF_WHITELIST_EXTRA=api` (le moteur IA doit joindre le MCP de l'API).
 
@@ -154,11 +191,10 @@ fermée ; sandbox coupée en production.
 ## 12. Plan, par priorité
 
 1. **P0** : choisir le fournisseur de production (local ou UE) et mesurer la génération sur le même jeu de questions.
-2. **P0** : R2, un compte WeKnora par utilisateur GSMS (ou isolement des conversations dans le fork).
-3. **P1** : base « Documents de l'organisme » alimentée par GSMS au dépôt d'un document (métadonnées : document, version,
-   type), suppression synchronisée ; c'est le préalable au test pilote documentaire.
-4. **P1** : observations du modèle dans le contrat (version 2) : réponse JSON validée par schéma, chaque citation
-   rattachée à un passage réellement retrouvé (sinon rejetée), statut « proposition IA » jusqu'à validation humaine.
-5. **P1** : routage local / distant explicite (politique par type de tâche et classe de données), seulement quand un
+2. **P1** : observations du modèle dans le contrat (version 2) : réponse JSON validée par schéma, chaque citation
+   rattachée à un passage réellement retrouvé (sinon rejetée), statut « proposition IA » jusqu'à validation humaine ;
+   c'est là que se jugeront contradictions, incomplétude et absence de preuve (§6 bis).
+3. **P1** : routage local / distant explicite (politique par type de tâche et classe de données), seulement quand un
    modèle distant existe.
-6. **P2** : écran « Analyse » dans la fiche indicateur (moteur, références, IA identifiée comme telle, validation).
+4. **P2** : écran « Analyse » dans la fiche indicateur (moteur, références, IA identifiée comme telle, validation).
+5. **P2** : `seed-demo` dépose de vrais PDF lisibles (les pièces de démo actuelles ne s'indexent pas).

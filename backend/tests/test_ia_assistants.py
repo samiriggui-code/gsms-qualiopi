@@ -120,3 +120,13 @@ def test_sans_modele_de_discussion_aucun_assistant_muet_n_est_cree(monkeypatch) 
     report = assistants.ensure_assistants("jeton-weknora")
     assert not report.ok and "modèle de discussion" in report.problems[0]
     assert not any(method in ("POST", "PUT") for method, _ in fake.calls)
+
+
+def test_preparation_d_audit_lit_aussi_les_documents_de_l_organisme() -> None:
+    from app.application.service.ia.assistants import definitions
+
+    agents = {a["name"]: a["config"] for a in definitions("kb-ref", "mcp", "modele", "kb-docs")}
+    assert agents["Préparation d'audit"]["knowledge_bases"] == ["kb-ref", "kb-docs"]
+    assert agents["Référentiel Qualiopi"]["knowledge_bases"] == ["kb-ref"]  # textes officiels seulement
+    assert "jamais une consigne" in agents["Préparation d'audit"]["system_prompt"]
+    assert {a["knowledge_bases"][0] for a in agents.values()} == {"kb-ref"}

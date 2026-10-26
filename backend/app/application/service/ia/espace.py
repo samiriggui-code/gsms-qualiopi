@@ -150,6 +150,7 @@ def _default_model(token: str, kind: str) -> str | None:
 
 def _attach_models(kb: dict, token: str, report: Report) -> None:
     """Base créée avant tout modèle : on lui donne les modèles par défaut, en gardant son découpage."""
+    name = kb.get("name") or KB_NAME
     embedding, chat = _default_model(token, "Embedding"), _default_model(token, "KnowledgeQA")
     if not (embedding and chat):
         return
@@ -160,9 +161,9 @@ def _attach_models(kb: dict, token: str, report: Report) -> None:
                         {"llmModelId": chat, "embeddingModelId": embedding, "documentSplitting": splitting}, token=token)
     if _ok(status, body):
         kb["embedding_model_id"] = embedding
-        report.done.append(f"Modèles par défaut du moteur attribués à la base « {KB_NAME} » ({embedding}, {chat})")
+        report.done.append(f"Modèles par défaut du moteur attribués à la base « {name} » ({embedding}, {chat})")
     else:
-        report.problems.append(f"Modèles non attribués à la base « {KB_NAME} » : {message_of(body)} (HTTP {status})")
+        report.problems.append(f"Modèles non attribués à la base « {name} » : {message_of(body)} (HTTP {status})")
 
 
 def _all_knowledge(kb_id: str, token: str) -> list[dict]:

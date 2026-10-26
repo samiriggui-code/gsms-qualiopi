@@ -25,7 +25,8 @@ JournalReader = Annotated[User, Depends(require("journal.read"))]
 
 @router.post("/session")
 def ia_session(user: IAUser, db: DB) -> dict:
-    """Réponse de connexion WeKnora du compte navigateur (jeton, utilisateur, espace), sans jeton de renouvellement.
+    """Réponse de connexion du compte WeKnora propre à ce compte GSMS (jeton, utilisateur, espace), sans jeton de
+    renouvellement.
 
     Le front rappelle cette route pour prolonger la session : le compte GSMS est ainsi revérifié (actif, `ia.use`).
     Au passage, le serveur MCP du moteur Qualiopi est déclaré dans l'espace s'il ne l'est pas (idempotent).
@@ -41,7 +42,7 @@ def ia_session(user: IAUser, db: DB) -> dict:
             "L'assistant IA lit le moteur Qualiopi avec les droits " + ", ".join(missing) + " : votre compte ne les a "
             "pas, l'assistant vous montrerait des données qui vous sont fermées. À demander à un administrateur."))
     try:
-        session = open_session()
+        session = open_session(user.id, user.full_name)
     except IAUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     body = dict(session.browser)

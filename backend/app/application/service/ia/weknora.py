@@ -5,6 +5,7 @@ Toutes les requêtes vers le moteur passent par `call` : les tests le remplacent
 
 import http.client
 import json
+import secrets
 import urllib.error
 import urllib.request
 
@@ -39,6 +40,29 @@ def call(method: str, path: str, payload: dict | None = None, token: str | None 
     except urllib.error.HTTPError as e:
         return e.code, _decode(e.read())
     except (OSError, http.client.HTTPException) as e:  # URLError, délai, connexion coupée, lecture incomplète
+        raise IAUnavailable(f"Moteur IA injoignable : {e}") from e
+
+
+def upload(path: str, fields: dict[str, str], file_name: str, content: bytes, mime: str, token: str,
+           timeout: float = 120) -> tuple[int, dict]:
+    """Envoi d'un fichier (multipart/form-data) au moteur IA ; mêmes retours et erreurs que `call`."""
+    boundary = "gsms-" + secrets.token_hex(16)
+    parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
+             for name, value in fields.items()]
+    quoted = file_name.replace('"', "'").replace("\r", " ").replace("\n", " ")
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{quoted}"\r\n'
+                 f"Content-Type: {mime}\r\n\r\n".encode() + content + b"\r\n")
+    data = b"".join(parts) + f"--{boundary}--\r\n".encode()
+    url = get_settings().weknora_url.rstrip("/") + path
+    req = urllib.request.Request(url, data=data, method="POST", headers={
+        "Content-Type": f"multipart/form-data; boundary={boundary}", "Accept-Language": "fr-FR",
+        "Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (URL fixée par la configuration)
+            return resp.status, _decode(resp.read())
+    except urllib.error.HTTPError as e:
+        return e.code, _decode(e.read())
+    except (OSError, http.client.HTTPException) as e:
         raise IAUnavailable(f"Moteur IA injoignable : {e}") from e
 
 

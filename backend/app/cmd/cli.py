@@ -128,12 +128,13 @@ def import_gsms_school() -> None:
 
 def ia_prepare(renew: bool) -> None:
     from app.application.service.ia.assistants import ensure_assistants
+    from app.application.service.ia.documents import sync_org_documents
     from app.application.service.ia.espace import ensure_mcp_service, ensure_referential_kb
-    from app.application.service.ia.session import IAUnavailable, open_session
+    from app.application.service.ia.session import IAUnavailable, open_service_session
 
     try:
-        # Ouvre aussi la session du compte navigateur : il est créé et ajouté à l'espace s'il manque.
-        token = open_session().service_token
+        # Les comptes WeKnora des utilisateurs sont créés à leur première session IA, pas ici.
+        token = open_service_session()["token"]
     except IAUnavailable as e:
         sys.exit(str(e))
     failed = False
@@ -141,6 +142,7 @@ def ia_prepare(renew: bool) -> None:
         set_actor(db, "cli")
         for title, step in (("Serveur MCP", lambda: ensure_mcp_service(db, token, renew=renew)),
                             ("Base de connaissances", lambda: ensure_referential_kb(token)),
+                            ("Documents de l'organisme", lambda: sync_org_documents(db, token)),
                             ("Assistants", lambda: ensure_assistants(token))):
             print(f"{title} :")
             try:

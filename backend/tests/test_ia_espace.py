@@ -100,7 +100,7 @@ def test_serveur_mcp_declare_a_l_ouverture_de_session_une_seule_fois(client, db:
 
     r = client.post("/api/v1/ia/session", headers=headers)
     assert r.status_code == 200
-    assert r.json()["token"] == "jeton-navigateur-espace"
+    assert r.json()["token"].endswith("-espace")
     assert r.json()["gsms_mcp"]["ok"] is True
     [service] = workspace.services
     assert service["name"] == espace.MCP_NAME
@@ -153,7 +153,7 @@ def test_session_ouverte_meme_si_la_declaration_echoue(client, db: Session, monk
 
     monkeypatch.setattr(espace, "call", down)
     r = client.post("/api/v1/ia/session", headers=headers)
-    assert r.status_code == 200 and r.json()["token"] == "jeton-navigateur-espace"
+    assert r.status_code == 200 and r.json()["token"].endswith("-espace")
     assert r.json()["gsms_mcp"]["ok"] is False
 
 

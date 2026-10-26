@@ -563,20 +563,23 @@ dépose le nouveau, désactiver le compte coupe l'accès aussitôt. Un utilisate
 propre jeton de connexion : il a alors ses propres droits. Une instance GSMS sert un seul organisme, et l'espace WeKnora est
 celui du compte de service de cet organisme. Un en-tête `Origin` inconnu de `CORS_ORIGINS` est refusé (403). Le jeton « mcp » n'est accepté qu'en appel direct sur le réseau interne : une requête passée par un proxy (`X-Forwarded-For` ou `Forwarded`) doit porter un jeton utilisateur, et `deploy/Caddyfile` ne publie pas `/api/v1/mcp` (404). Ainsi un jeton « mcp » détourné (par exemple en changeant l'adresse du service dans l'écran WeKnora) ne sert à rien depuis l'extérieur ; l'adresse est en outre remise à `IA_MCP_URL` à chaque ouverture de session. Aucun outil n'écrit (chaque appel se termine par un `rollback`) ; le serveur ne journalise ni les arguments ni les réponses. Les réponses sont celles des routes HTTP lues avec `quality.read` : pas d'adresse e-mail, de téléphone ni d'adresse postale, mais les noms des stagiaires et formateurs concernés par une pièce manquante y figurent (ils désignent ce qui est à faire).
 
-**Comptes WeKnora.** Deux comptes, pour que le navigateur ne détienne jamais l'administration de l'espace :
+**Comptes WeKnora.** Pour que le navigateur ne détienne jamais l'administration de l'espace :
 le **compte de service** (`WEKNORA_SERVICE_EMAIL`), propriétaire de l'espace, utilisé seulement par l'API (serveur MCP,
-base de connaissances, membres) ; le **compte navigateur** (`WEKNORA_BROWSER_EMAIL`, par défaut `<service>+navigateur@<domaine>`,
-mot de passe dérivé du mot de passe de service, jamais stocké), membre **contributeur** de l'espace : il lit les bases,
-les services MCP et les modèles, crée ses propres bases et agents, discute, mais ne peut ni régler les modèles, ni déclarer
-de service MCP (403 vérifié contre le moteur), ni gérer les membres. Conséquence : régler les modèles du moteur IA (par
-exemple le modèle d'embedding) demande le compte de service, donc une opération d'administration hors du back-office ;
-point d'architecture ouvert. Le compte navigateur garde aussi un espace personnel (créé par WeKnora à son inscription),
-sans contenu.
+bases de connaissances, membres, invitations) ; et **un compte WeKnora par compte GSMS** (`<service>+u-<empreinte>@<domaine>`,
+empreinte dérivée de l'identifiant GSMS, mot de passe dérivé du mot de passe de service, jamais stocké), membre
+**contributeur** de l'espace : il lit les bases, les services MCP et les modèles, crée ses propres bases et agents, discute,
+mais ne peut ni régler les modèles, ni déclarer de service MCP (403 vérifié contre le moteur), ni gérer les membres.
+WeKnora range les conversations par compte : chacun ne voit que les siennes (vérifié contre le moteur : liste et lecture par
+identifiant, 404). Le compte est créé à la première session IA de la personne, par une **invitation** « contributeur » que le
+compte de service émet puis **révoque aussitôt**, même en cas d'échec (un lien d'invitation WeKnora accepte sinon plusieurs
+inscriptions jusqu'à son expiration). Régler les modèles du moteur IA demande toujours le compte de service : point ouvert.
+L'ancien compte partagé `<service>+navigateur@…` n'est plus utilisé ; ses conversations restent dans le moteur.
 
-**Première installation.** `ia/.env` porte `DISABLE_REGISTRATION=true` (inscription libre fermée, mode `invite_only`) :
-l'API ne peut alors plus créer les deux comptes. Sur une installation neuve, démarrer `ia-app` avec
-`DISABLE_REGISTRATION=false`, lancer `python -m app.cmd.cli ia-preparer` (il crée les deux comptes et ajoute le compte
-navigateur à l'espace), puis remettre `true` et `docker compose up -d ia-app`.
+**Inscription.** `ia/config/config.yaml` règle `auth.registration_mode: invite_register` : inscription libre fermée, comptes
+créés seulement par invitation. `DISABLE_REGISTRATION` doit rester à `false` dans `ia/.env` (à `true`, il force `invite_only`,
+qui bloque les invitations, et l'API répond 503). **Première installation** : le compte de service doit pouvoir s'inscrire
+une fois. Mettre `registration_mode: self_serve`, `docker compose up -d ia-app`, lancer `python -m app.cmd.cli ia-preparer`,
+puis remettre `invite_register` et relancer `ia-app`.
 
 **Préparation de l'espace WeKnora** : `python -m app.cmd.cli ia-preparer [--renouveler-jeton]` (idempotent) déclare le
 serveur MCP « Moteur Qualiopi (GSMS) » (`http-streamable`, `IA_MCP_URL`, défaut `http://api:8000/api/v1/mcp`, adresse vue

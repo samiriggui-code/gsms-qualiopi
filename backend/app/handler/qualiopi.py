@@ -198,7 +198,8 @@ def upcoming(db: DB, _: QualityReader, days: int = Query(15, ge=0, le=365), owne
         .join(t.TrainingSession, t.TrainingSession.id == MilestoneStatus.session_id)
         .where(or_(MilestoneStatus.status.in_(("EN_RETARD", "A_ECHEANCE")),
                    (MilestoneStatus.status == "A_VENIR") & (MilestoneStatus.due_on <= horizon)))
-        .order_by(MilestoneStatus.due_on)
+        # Ordre complet : deux lectures identiques rendent les jalons dans le même ordre (MCP, tests, exports).
+        .order_by(MilestoneStatus.due_on, t.TrainingSession.reference, MilestoneStatus.key, MilestoneStatus.id)
     )
     if owner:
         q = q.where(MilestoneStatus.owner == owner)

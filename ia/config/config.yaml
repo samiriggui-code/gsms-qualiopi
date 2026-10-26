@@ -1,3 +1,9 @@
+# Comptes : inscription libre fermée ; un compte ne se crée qu'avec une invitation de l'espace. GSMS crée ainsi un
+# compte par utilisateur (invitation émise par le compte de service et révoquée aussitôt, service/ia/session.py).
+# Ne pas remettre DISABLE_REGISTRATION=true dans ia/.env : il force « invite_only », qui bloque ces invitations.
+auth:
+  registration_mode: invite_register
+
 # Server configuration
 server:
   port: 8080
