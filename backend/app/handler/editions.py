@@ -110,6 +110,12 @@ def list_projects(db: DB, _: Reader) -> list[dict]:
     return [_summary(p, companies, today) for p in rows]
 
 
+def _month_start(today: date, back: int) -> date:
+    """1er du mois, `back` mois calendaires avant celui de `today` (des pas de 31 jours sautaient février)."""
+    year, month = divmod(today.year * 12 + today.month - 1 - back, 12)
+    return date(year, month + 1, 1)
+
+
 @router.get("/synthese")
 def overview(db: DB, _: Reader) -> dict:
     """Chiffres de l'accueil du module : tout est compté sur les documents enregistrés."""
@@ -118,7 +124,7 @@ def overview(db: DB, _: Reader) -> dict:
     companies = _companies(db, rows)
     by_status = Counter(p.status for p in rows)
     by_kind = Counter(p.kind for p in rows)
-    months = [(today.replace(day=1) - timedelta(days=31 * i)).replace(day=1) for i in range(5, -1, -1)]
+    months = [_month_start(today, back) for back in range(5, -1, -1)]
     validated = Counter(s.done_at.date().strftime("%Y-%m") for s in db.scalars(select(Step).where(Step.action == "valider")))
     alerts = []
     for p in rows:

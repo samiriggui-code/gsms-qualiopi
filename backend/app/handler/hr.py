@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.errors.errors import ConflictError, InvalidStateError, NotFoundError
+from app.event.publish import publish
 from app.middleware.auth import DB, StaffReader, StaffWriter, TrainersWriter, UserManager
 from app.types import training as t
 from app.types.auth import User
@@ -170,6 +171,8 @@ def add_qualification(trainer_id: str, body: QualificationIn, db: DB, _: Trainer
         raise NotFoundError("Formateur introuvable")
     q = t.TrainerQualification(trainer_id=trainer.id, **body.model_dump())
     db.add(q)
+    db.flush()
+    publish(db, "trainer.qualification_updated", "trainer_qualification", q.id, payload={"trainer_ids": [trainer.id]})
     db.commit()
     return {"id": q.id, "type": q.kind, "fin": q.valid_until.isoformat() if q.valid_until else None}
 

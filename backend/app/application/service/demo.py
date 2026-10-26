@@ -23,7 +23,9 @@ from app.application.service.documents.service import upload
 from app.common.journal import set_actor
 from app.errors.errors import ConflictError
 from app.types import training as t
+from app.types.invoicing import Invoice, Payment
 from app.types.preinscriptions import COMPLIANCE, Preinscription
+from app.types.qualiopi_audit import Sequence
 
 ACTOR = "démo"
 
@@ -308,6 +310,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     _preinscriptions(db, today, ssiap, sst, s3, s3_enrollments[0])
     db.flush()
+    _factures(db, today, s1)
     return {"sessions": [s1.reference, s2.reference, s3.reference, s4.reference], "programs": [ssiap.code, sst.code],
             "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES)}
 
@@ -351,6 +354,46 @@ def _preinscriptions(db: Session, today: date, ssiap: t.Program, sst: t.Program,
                               formation_name=program.title, program_id=program.id, consented_at=at, created_at=at))
 
 
+def _factures(db: Session, today: date, s1: t.TrainingSession) -> None:
+    """Factures de la session passée SSIAP1-2026-01 : une payée, une payée partiellement, une en retard avec un avoir
+    partiel, un brouillon. Numérotées dans des séries à part (DEMO-FA, DEMO-AV) : la vraie numérotation de
+    l'organisme n'est jamais entamée, et `remove_demo` peut les retirer sans y laisser de trou."""
+    from app.application.service.invoicing import service as invoicing
+
+    company = t.Company(name="Sécurité Démo Services", code="DEMOSECU", siret="00000000000019",
+                        address="5 avenue de la Démonstration", postal_code="93000", city="Bobigny",
+                        contact_name="Mme Exemple", created_by=ACTOR)
+    db.add(company)
+    db.flush()
+    active = sorted((e for e in db.scalars(select(t.Enrollment).where(t.Enrollment.session_id == s1.id))
+                     if e.status != "ANNULE"), key=lambda e: e.learner.last_name)
+    d = lambda days: today + timedelta(days=days)  # noqa: E731
+
+    def facture(client: dict, enrollments: list[t.Enrollment], issued: int | None) -> Invoice:
+        inv = invoicing.create(db, **client, session_id=s1.id, enrollment_ids=[e.id for e in enrollments],
+                               actor=ACTOR, actor_id=None, today=d(issued or 0))
+        if issued is not None:
+            invoicing.issue(db, inv, ACTOR, None, d(issued), series="DEMO-FA")
+        return inv
+
+    paid = facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[:4], -35)
+    invoicing.record_payment(db, paid, amount_cents=paid.total_ttc_cents, received_on=d(-10), mode="VIREMENT",
+                             reference="VIR DEMOSECU", note=None, actor=ACTOR, actor_id=None)
+    partial = facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[4:8], -34)
+    invoicing.record_payment(db, partial, amount_cents=partial.total_ttc_cents // 2, received_on=d(-5), mode="CHEQUE",
+                             reference="Chèque n° 0000001", note="Premier versement", actor=ACTOR, actor_id=None)
+    learner = active[8].learner
+    late = facture({"client_kind": "STAGIAIRE", "learner_id": learner.id}, active[8:9], None)
+    invoicing.update(db, late, {"client_address": "1 rue de l'Exemple", "client_postal_code": "93000",
+                                "client_city": "Bobigny"}, None)
+    invoicing.issue(db, late, ACTOR, None, d(-33), series="DEMO-FA")
+    line = late.lines[0]
+    invoicing.credit(db, late, amounts={line.id: line.amount_ht_cents // 10}, reason="Geste commercial : une "
+                     "demi-journée reportée", actor=ACTOR, actor_id=None, today=d(-20), series="DEMO-AV")
+    facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[9:], None)
+    db.flush()
+
+
 # Données d'exemple, dans l'ordre de suppression : ce qui est rattaché aux sessions, aux apprenants et aux
 # formateurs (inscriptions, émargements, preuves de parcours…) part en cascade. L'organisme reste toujours.
 _DEMO_TABLES = (
@@ -370,6 +413,7 @@ def remove_demo(db: Session) -> dict[str, int]:
     from app.types.qualiopi_capa import CapaAction
     from app.types.qualiopi_evaluation import ControlResult, ControlResultHistory, Finding
     from app.types.qualiopi_evidence import Evidence
+    from app.types.qualiopi_schedule import MilestoneStatus
 
     set_actor(db, "cli")
     removed: dict[str, int] = {}
@@ -381,12 +425,21 @@ def remove_demo(db: Session) -> dict[str, int]:
     targets = [*db.scalars(select(t.TrainingSession.id).where(t.TrainingSession.created_by == ACTOR)),
                *db.scalars(select(t.Program.id).where(t.Program.created_by == ACTOR))]
     if targets:
+        # Échéancier : pas de clé étrangère vers la session, sans quoi la synthèse hebdo garderait leurs retards.
+        count("milestone_status", db.execute(delete(MilestoneStatus).where(MilestoneStatus.session_id.in_(targets))).rowcount)
         findings = select(Finding.id).where(Finding.target_id.in_(targets) | Finding.session_id.in_(targets))
         count("capa_action", db.execute(delete(CapaAction).where(CapaAction.finding_id.in_(findings))).rowcount)
         count("finding", db.execute(delete(Finding).where(Finding.id.in_(findings))).rowcount)
         for model in (ControlResult, ControlResultHistory):
             count(model.__tablename__, db.execute(delete(model).where(model.target_id.in_(targets))).rowcount)
         count("control_result", db.execute(delete(ControlResult).where(ControlResult.session_id.in_(targets))).rowcount)
+    # Factures d'exemple (séries DEMO-) : encaissements, avoirs, factures, puis l'entreprise cliente et les compteurs.
+    demo_invoices = select(Invoice.id).where(Invoice.created_by == ACTOR)
+    count("encaissement", db.execute(delete(Payment).where(Payment.invoice_id.in_(demo_invoices))).rowcount)
+    for kind in ("AVOIR", "FACTURE"):
+        count("facture", db.execute(delete(Invoice).where(Invoice.created_by == ACTOR, Invoice.kind == kind)).rowcount)
+    count("company", db.execute(delete(t.Company).where(t.Company.created_by == ACTOR)).rowcount)
+    db.execute(delete(Sequence).where(Sequence.name.like("DEMO-%")))
     for model in _DEMO_TABLES:
         count(model.__tablename__, db.execute(delete(model).where(model.created_by == ACTOR)).rowcount)
     # Pièces d'exemple, sauf celles qu'un dossier EDOF a reprises depuis (elles restent).

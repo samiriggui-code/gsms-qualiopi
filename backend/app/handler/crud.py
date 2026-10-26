@@ -87,8 +87,11 @@ def crud_router(
                 raise ConflictError("Cette valeur existe déjà") from None
             raise ConflictError(f"{label} : opération impossible, élément utilisé ailleurs") from None
 
-    def emit(db: Session, name: str | None, obj: Any, user: User) -> None:
+    def emit(db: Session, name: str | None, obj: Any, user: User, previous_trainer_id: str | None = None) -> None:
         if name:
+            # Ligne rattachée à un formateur (titre, développement des compétences) : le moteur réévalue ses
+            # preuves, et celles de l'ancien formateur si elle change de main.
+            trainer_ids = sorted({x for x in (previous_trainer_id, getattr(obj, "trainer_id", None)) if x})
             publish(
                 db,
                 name,
@@ -97,6 +100,7 @@ def crud_router(
                 session_id=getattr(obj, "session_id", None),
                 program_id=getattr(obj, "program_id", None),
                 actor_id=user.id,
+                payload={"trainer_ids": trainer_ids} if trainer_ids else None,
             )
 
     @router.get("")
@@ -131,9 +135,10 @@ def crud_router(
         data = body.model_dump(exclude_unset=True)
         if validate:
             validate(db, {**to_dict(obj), **data})
+        previous_trainer_id = getattr(obj, "trainer_id", None)
         for key, value in data.items():
             setattr(obj, key, value)
-        emit(db, updated_event, obj, user)
+        emit(db, updated_event, obj, user, previous_trainer_id)
         commit(db)
         db.refresh(obj)
         return dump(db, [obj])[0]

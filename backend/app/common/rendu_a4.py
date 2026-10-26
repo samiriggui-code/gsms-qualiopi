@@ -25,9 +25,17 @@ def date_fr(iso: str | None) -> str:
     return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
 
 
+_CSS_STRING = str.maketrans({"\\": "\\\\", '"': '\\"', "\n": " ", "\r": " ",
+                              # Échappements hexadécimaux CSS : « </style> » ne peut plus fermer le bloc style.
+                              "<": "\\3c ", ">": "\\3e ", "&": "\\26 "})
+
+
 def css_string(text: str) -> Markup:
-    """Texte sûr dans une chaîne CSS (content: "…"), non réencodé par l'échappement HTML."""
-    return Markup(text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " "))
+    """Texte sûr dans une chaîne CSS (content: "…") d'un bloc <style>, non réencodé par l'échappement HTML.
+
+    Les valeurs viennent de l'organisme (nom, NDA, SIRET) et des références saisies : rien ne doit pouvoir sortir
+    de la chaîne (guillemet) ni du bloc style (<, >, &)."""
+    return Markup(text.translate(_CSS_STRING))
 
 
 def logo_css() -> Markup:

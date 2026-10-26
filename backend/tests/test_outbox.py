@@ -148,3 +148,20 @@ def test_piece_retiree_de_la_configuration_ne_bloque_pas_la_reconciliation(demo:
     assert result["events"] == 1 and result["org"] is True
     assert demo.scalar(select(Evidence).where(Evidence.source_id == doc.id)) is None
     assert refresh_all(demo, trigger="test", today=TODAY)["results"] > 0
+
+
+@pytest.mark.parametrize("form", ["trainer_ids", "trainer_id", "ancien_evenement_sans_formateur"])
+def test_perimetre_du_formateur_quelle_que_soit_la_forme_de_l_evenement(demo: Session, form: str) -> None:
+    """`trainer_ids` (émetteurs actuels), `trainer_id` au singulier, ou rien (ancien événement en attente : le
+    formateur se lit sur la ligne) : le formateur et ses sessions entrent dans le périmètre."""
+    from app.application.service.qualiopi.engine import scope_of
+
+    s = find_session(demo, "SST-2026-04")
+    q = t.TrainerQualification(trainer_id=s.trainer_id, label="Recyclage SST")
+    demo.add(q)
+    demo.flush()
+    payload = {"trainer_ids": {"trainer_ids": [s.trainer_id]}, "trainer_id": {"trainer_id": s.trainer_id}}.get(form)
+    ev = publish(demo, "trainer.qualification_updated", "trainer_qualification", q.id, payload=payload)
+    demo.flush()
+    scope = scope_of(demo, [ev])
+    assert scope.trainer_ids == {s.trainer_id} and s.id in scope.session_ids and scope.organization is False

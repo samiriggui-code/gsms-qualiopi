@@ -72,9 +72,13 @@ def _send(db: Session, msg: Message, today: date) -> None:
 
 
 def dispatch(db: Session, today: date | None = None) -> dict:
-    """Envoie les messages prévus dont la date est arrivée (le worker l'appelle à chaque passage)."""
+    """Envoie les messages prévus dont la date est arrivée (le worker l'appelle à chaque passage).
+
+    Le worker et « planifier maintenant » peuvent tourner en même temps : chaque message est verrouillé jusqu'à la
+    fin de la transaction, et un message déjà pris par l'autre envoi est sauté (un e-mail parti ne se reprend pas)."""
     today = today or date.today()
-    rows = list(db.scalars(select(Message).where(Message.status == "PREVU", Message.due_on <= today).order_by(Message.due_on)))
+    rows = list(db.scalars(select(Message).where(Message.status == "PREVU", Message.due_on <= today)
+                           .order_by(Message.due_on).with_for_update(skip_locked=True)))
     for msg in rows:
         _send(db, msg, today)
     db.flush()

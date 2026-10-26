@@ -394,6 +394,13 @@ calendaires exacts dans la synthèse des devis, échéances des sessions d'exemp
   réclamations, veille, dossier de l'organisme, journal ; commencées pour C4 : sessions, fiche session (inscriptions,
   cycle de vie, parcours, émargement, activité), parcours d'une inscription, émargement. Textes `gsms.<domaine>.…`.
 
+## 5 octodecies. Planning, évaluations des acquis, aide au BPF, backend (26/10/2026, chantier C11 et page 14)
+
+Sans migration : `GET /planning` (créneaux, 93 jours au plus, portée formateur, conflits formateur / salle signalés sans
+blocage), `GET /evaluations-acquis` (composé des registres du parcours), `GET /bilans` (inventaire des rapports) et
+`GET /bilans/bpf?exercice=` (**aide** au BPF, cadres marqués calculé / indicatif / partiel / non calculable ; sources
+`docs/bilans/SOURCES.md`). Tests `tests/test_pilotage.py`. Pages 2, 3 et 14 du back-office : à faire.
+
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
 L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau

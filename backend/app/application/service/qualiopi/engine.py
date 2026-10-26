@@ -29,7 +29,6 @@ ORG_EVENTS = {
     "watch.updated",
     "subcontractor.updated",
     "partner.updated",
-    "staff_development.updated",
     "capa.closed",
     "document.issued",
     "document.signed",
@@ -40,9 +39,10 @@ PLATFORM_EVENTS = {"settings.changed", "feature.changed", "funding.source_change
 
 
 def _no_evidence_change(name: str) -> bool:
-    """Réglages, fonctionnalités, démarches EDOF, documents commerciaux et demandes de préinscription ne changent
-    aucune preuve Qualiopi (la conversion, elle, publie `learner.enrolled`)."""
-    return name in PLATFORM_EVENTS or name.startswith(("edof.", "edition.", "preinscription."))
+    """Réglages, fonctionnalités, démarches EDOF, documents commerciaux, facturation et demandes de préinscription
+    ne changent aucune preuve Qualiopi (la conversion, elle, publie `learner.enrolled`)."""
+    return name in PLATFORM_EVENTS or name.startswith(
+        ("edof.", "edition.", "preinscription.", "invoice.", "credit_note.", "payment."))
 
 
 def refresh_all(db: Session, trigger: str = "manuel", today: date | None = None) -> dict:
@@ -64,6 +64,25 @@ def _mark_all_processed(db: Session) -> None:
         ev.processed_at = utcnow()
 
 
+# Lignes rattachées à un formateur : un ancien événement sans formateur dans sa charge se résout par la ligne.
+TRAINER_ROWS = {"trainer_qualification": t.TrainerQualification, "staff_development_action": t.StaffDevelopmentAction}
+
+
+def _trainers_of(db: Session, ev: OutboxEvent) -> set[str]:
+    """Formateur(s) concerné(s) : la fiche elle-même, ou ceux que l'événement porte (`trainer_ids`, l'ancien et le
+    nouveau formateur si la ligne change de main ; `trainer_id` au singulier accepté aussi). Jamais l'id d'une
+    autre entité."""
+    payload = ev.payload or {}
+    found = {x for x in (*(payload.get("trainer_ids") or ()), payload.get("trainer_id")) if x}
+    if ev.entity_type == "trainer":
+        found.add(ev.entity_id)
+    elif not found and ev.entity_type in TRAINER_ROWS:
+        row = db.get(TRAINER_ROWS[ev.entity_type], ev.entity_id)
+        if row is not None and row.trainer_id:
+            found.add(row.trainer_id)
+    return found
+
+
 def scope_of(db: Session, events: list[OutboxEvent]) -> Scope:
     """Périmètre touché par un lot d'événements."""
     session_ids: set[str] = set()
@@ -78,9 +97,9 @@ def scope_of(db: Session, events: list[OutboxEvent]) -> Scope:
         # Un événement de session porte son program_id pour contexte : ce n'est pas un changement de formation.
         if ev.program_id and not ev.session_id:
             program_ids.add(ev.program_id)
-        if ev.entity_type == "trainer" or ev.name.startswith("trainer."):
-            trainer_ids.add(ev.payload.get("trainer_id") or ev.entity_id)
-        if ev.name in ORG_EVENTS or not (ev.session_id or ev.program_id or ev.entity_type == "trainer"):
+        trainers = _trainers_of(db, ev)
+        trainer_ids |= trainers
+        if ev.name in ORG_EVENTS or not (ev.session_id or ev.program_id or trainers):
             organization = True
     # Une formation ou un formateur modifié touche aussi ses sessions (I21 lit le formateur de la session).
     if program_ids:

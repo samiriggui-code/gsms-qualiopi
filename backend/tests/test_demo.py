@@ -15,6 +15,7 @@ from app.application.service.qualiopi.referential.importer import import_referen
 from app.errors.errors import ConflictError
 from app.types.qualiopi_evaluation import ControlResult, Finding
 from app.types.qualiopi_evidence import Evidence
+from app.types.qualiopi_schedule import MilestoneStatus
 from tests.conftest import TODAY, make_user
 from tests.conftest import find_session as _session
 from tests.conftest import target_names as _names
@@ -136,6 +137,8 @@ def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
     assert db.scalars(select(t.Organization.name)).all() == ["Organisme réel"]
     assert db.scalar(select(func.count()).select_from(Evidence)) == before
     assert not db.scalar(select(func.count()).select_from(Finding).where(Finding.session_id.is_not(None)))
+    assert removed["milestone_status"] > 0
+    assert not db.scalar(select(func.count()).select_from(MilestoneStatus)), "pas d'échéance orpheline (synthèse hebdo)"
     # Réinstallables ensuite
     seed_demo(db, today=TODAY)
 

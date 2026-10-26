@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.application.access.attendance import expected_on
+from app.errors.errors import NotFoundError
 from app.types import training as t
 from app.types.qualiopi_capa import CapaAction
 
@@ -425,7 +426,9 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
         )
     for d in db.scalars(select(t.Document).where(t.Document.status != "REMPLACE")):
         if d.requirement:
-            yield _dossier_piece(d)
+            spec = _dossier_piece(d)
+            if spec is not None:
+                yield spec
             continue
         if not d.indicator_hints or d.entity_type == "INSCRIPTION":
             continue  # document d'un stagiaire : porté par sa preuve (convocation, attestation)
@@ -445,13 +448,19 @@ def detect_organization(db: Session) -> Iterator[EvidenceSpec]:
         )
 
 
-def _dossier_piece(d: t.Document) -> EvidenceSpec:
-    """Pièce d'un dossier (config/dossiers) : preuve du type et des indicateurs du modèle."""
+def _dossier_piece(d: t.Document) -> EvidenceSpec | None:
+    """Pièce d'un dossier (config/dossiers) : preuve du type et des indicateurs du modèle.
+
+    None si la pièce a été retirée de la configuration : sans modèle, plus de type ni d'indicateurs à prouver
+    (comme `_grid_of`, qui n'applique plus de grille) ; la preuve existante est retirée, le reste du lot passe."""
     from datetime import timedelta
 
     from app.application.service.documents.dossier import find_item
 
-    item = find_item(d.entity_type, d.requirement)
+    try:
+        item = find_item(d.entity_type, d.requirement)
+    except NotFoundError:
+        return None
     deposited = d.created_at.date() if d.created_at else None
     valid_until = deposited + timedelta(days=item.validity_days) if (deposited and item.validity_days) else None
     # Le moteur ne lit pas le PDF : il lit la grille cochée au dépôt.
