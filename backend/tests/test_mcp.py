@@ -194,14 +194,17 @@ def test_fiche_formation_par_identifiant_code_ou_slug(client, demo: Session) -> 
     assert tool(client, h, "fiche_formation")[0]
 
 
-def test_lister_sessions_exige_le_droit_de_la_route(client, demo: Session) -> None:  # noqa: ANN001
-    # Le compte technique n'a que quality.read : la route des sessions lui est fermée, l'outil aussi.
+def test_lister_sessions_selon_le_droit(client, demo: Session) -> None:  # noqa: ANN001
+    # Le compte technique n'a que quality.read : les sessions de la période, comme l'échantillon d'audit.
     h = bearer(mcp_token(demo))
     demo.commit()
-    is_error, text = tool(client, h, "lister_sessions")
-    assert is_error and "sessions.read ou sessions.read_own" in text
+    is_error, out = tool(client, h, "lister_sessions")
+    sample = client.get("/api/v1/qualiopi/audits/echantillon", headers=make_user(demo, "qualite")[1]).json()
+    assert not is_error and out["sessions"] == sample["sessions"][:50] and out["periode"] == sample["periode"]
+    _, done = tool(client, h, "lister_sessions", statut="TERMINEE")
+    assert done["sessions"] == [s for s in sample["sessions"] if s["statut"] == "TERMINEE"][:50]
 
-    _, user = make_user(demo, "qualite")
+    _, user = make_user(demo, "qualite", email="qualite-sessions@test.local")
     _, out = tool(client, user, "lister_sessions", limite=2)
     full = client.get("/api/v1/sessions", headers=user).json()
     assert out["total"] == len(full) and out["sessions"] == full[:2]

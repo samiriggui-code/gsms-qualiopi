@@ -52,18 +52,10 @@ nominatives. Les noms des stagiaires restent derrière le serveur MCP, qui filtr
 
 ### 3.3 Outils MCP (ce que l'assistant peut demander au moteur) (P1)
 
-Existants (lecture) : `etat_indicateurs`, `fiche_indicateur`, `lister_preuves`, `fiche_preuve`, `lister_ecarts`,
-`lister_echeances`, `lister_actions_correctives`, `synthese_session`.
-
-Manques en **lecture**, chacun reprenant une route existante (aucun calcul nouveau) :
-
-| Outil proposé | Route reprise | Utilité |
-|---|---|---|
-| `fiche_formation` | `GET /qualiopi/formations/{id}` | « Où en est la formation X pour Qualiopi ? » |
-| `lister_sessions` | liste des sessions | Retrouver une session par nom ou date |
-| `lister_reclamations` | réclamations | Indicateur 31 |
-| `veille` | veille | Indicateurs 23 à 25 |
-| `audits` | audits et fiche | Préparer le prochain audit |
+Existants (lecture, 13 outils) : `etat_indicateurs`, `fiche_indicateur`, `lister_preuves`, `fiche_preuve`,
+`lister_ecarts`, `lister_echeances`, `lister_actions_correctives`, `synthese_session`, et depuis le 26/10/2026
+`fiche_formation`, `lister_sessions`, `lister_audits`, `lister_veille`, `lister_reclamations` (commit `c9f8736`).
+Chacun reprend une route existante ; aucun calcul nouveau.
 
 Écriture : **pas d'écriture directe**. Si l'on veut que l'assistant agisse, il doit seulement déposer des
 **propositions** que quelqu'un valide dans GSMS :
@@ -155,10 +147,11 @@ de commande, fournisseurs chinois, analyse WeKnora Cloud, guides d'accueil.
 
 ## 5. Ordre conseillé
 
-1. **P0** : choisir et régler les modèles, et créer la route d'administration `ia.admin` qui les règle.
+1. **P0** : choisir le fournisseur et déclarer les modèles dans `ia/config/builtin_models.yaml` (clés dans `ia/.env`,
+   relu à chaque démarrage du moteur) : pas besoin de route d'administration.
 2. Indexer le référentiel et vérifier une question simple de bout en bout (texte + outil MCP).
-3. Créer l'agent « Assistant Qualiopi » préréglé dans `ia-preparer`.
-4. Ajouter le contexte de page GSMS et les 5 outils MCP de lecture manquants.
+3. ~~Assistants préréglés dans `ia-preparer`~~ : fait (trois assistants, `assistants.py`, commits `3852784` à `3b7ab11`).
+4. Ajouter le contexte de page GSMS (les 5 outils MCP de lecture sont faits).
 5. Alimenter la base « Documents de l'organisme » depuis GSMS.
 6. Ensuite seulement : propositions (écriture validée) et analyse de documents.
 

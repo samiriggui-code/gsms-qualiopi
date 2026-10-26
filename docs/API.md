@@ -529,8 +529,9 @@ Fichiers : `backend/app/handler/ia.py`, `backend/app/handler/mcp.py` (protocole)
 sans rien recalculer, et exige la même permission qu'elle (quand la route en accepte plusieurs, l'une suffit, comme
 `require_any`). Les listes sont limitées par `limite` (50 par défaut, 200 au plus) et renvoient `total` et `affiches` ; une
 session ou une preuve se désigne par son identifiant ou sa référence, une formation par son identifiant, son code ou son slug
-de catalogue. Le compte technique (`quality.read` seul) n'a donc pas `lister_sessions`, dont la route exige `sessions.read`
-ou `sessions.read_own`.
+de catalogue. Avec `quality.read` seul (compte technique), `lister_sessions` renvoie les sessions de la période de
+certification telles que `GET /api/v1/qualiopi/audits/echantillon` les montre déjà à ce droit (référence, formation, dates,
+statut) ; avec `sessions.read` ou `sessions.read_own`, celles de `GET /api/v1/sessions`, dans la portée du compte.
 
 | Outil | Arguments | Route reprise | Permission |
 |---|---|---|---|
@@ -543,7 +544,7 @@ ou `sessions.read_own`.
 | `lister_actions_correctives` | `statut`, `en_retard`, `limite` | `GET /api/v1/qualiopi/actions` | `quality.read` |
 | `synthese_session` | `session` | `GET /api/v1/sessions/{id}/dossier` | `quality.read` |
 | `fiche_formation` | `formation` (identifiant, code ou slug) | `GET /api/v1/qualiopi/formations/{id}` | `quality.read` |
-| `lister_sessions` | `statut`, `du`, `au`, `limite` | `GET /api/v1/sessions` | `sessions.read` ou `sessions.read_own` |
+| `lister_sessions` | `statut`, `du`, `au`, `limite` | `GET /api/v1/sessions` (ou `GET /api/v1/qualiopi/audits/echantillon` en lecture qualité seule) | `sessions.read`, `sessions.read_own` ou `quality.read` |
 | `lister_audits` | `limite` | `GET /api/v1/qualiopi/audits` | `quality.read` |
 | `lister_veille` | `limite` (la route n'a pas de filtre de domaine) | `GET /api/v1/watch-items` | `sessions.read` ou `quality.read` |
 | `lister_reclamations` | `limite` | `GET /api/v1/complaints` | `sessions.read` ou `quality.read` |

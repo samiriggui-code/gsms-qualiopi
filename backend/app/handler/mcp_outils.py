@@ -29,6 +29,7 @@ from app.handler import qualiopi_ecrans as screens
 from app.handler import training as training_routes
 from app.handler.training_resources import QUALITY_READ
 from app.handler.training_resources import ROUTERS as CRUD_ROUTERS
+from app.middleware.auth import permissions_of
 from app.types import training as t
 from app.types.auth import User
 from app.types.qualiopi_capa import CAPA_STATUSES
@@ -237,7 +238,16 @@ def _sessions(db: Session, user: User, args: dict) -> object:
     status = _str(args, "statut")
     if status is not None and status not in t.SESSION_STATUSES:
         raise InvalidStateError(f"Statut inconnu : {status} (attendus : {', '.join(t.SESSION_STATUSES)})")
-    rows = training_routes.list_sessions(db, user, statut=status, du=_date(args, "du"), au=_date(args, "au"))
+    du, au = _date(args, "du"), _date(args, "au")
+    if not permissions_of(db, user) & {"sessions.read", "sessions.read_own"}:
+        # Lecture qualité seule (compte de l'assistant) : les sessions de la période de certification, telles que
+        # GET /qualiopi/audits/echantillon les montre déjà à ce droit ; les filtres ne font que trier ces lignes.
+        sample = screens.proposed_sample(db, user)
+        rows = [s for s in sample["sessions"] if (status is None or s["statut"] == status)
+                and (du is None or s["au"] >= du.isoformat()) and (au is None or s["du"] <= au.isoformat())]
+        return _capped(rows, _limit(args), "sessions", periode=sample["periode"],
+                       portee="Sessions de la période de certification (vue qualité)")
+    rows = training_routes.list_sessions(db, user, statut=status, du=du, au=au)
     views = [training_routes.SessionView.model_validate(s).model_dump(mode="json") for s in rows]
     return _capped(views, _limit(args), "sessions")
 
@@ -323,12 +333,13 @@ TOOLS: tuple[Tool, ...] = (
          "quality.read", _program, ("formation",)),
     Tool("lister_sessions",
          "Sessions de formation, de la plus récente à la plus ancienne, avec leur formation, leur formateur, leur "
-         "statut et le nombre d'inscrits.",
+         "statut et le nombre d'inscrits. Avec la seule lecture qualité : les sessions de la période de certification "
+         "(référence, formation, dates, statut), comme l'échantillon d'audit.",
          {"statut": {"type": "string", "enum": list(t.SESSION_STATUSES)},
           "du": {"type": "string", "format": "date", "description": "Sessions finissant à partir de cette date"},
           "au": {"type": "string", "format": "date", "description": "Sessions commençant au plus tard à cette date"},
           "limite": _LIMIT},
-         ("sessions.read", "sessions.read_own"), _sessions),
+         ("sessions.read", "sessions.read_own", "quality.read"), _sessions),
     Tool("lister_audits",
          "Audits internes et audits blancs de l'organisme, du plus récent au plus ancien : période, échantillon de "
          "sessions, avancement et jugements de l'organisme sur ses propres preuves. Ils ne remplacent pas l'audit du "
