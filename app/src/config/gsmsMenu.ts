@@ -59,6 +59,7 @@ export const GSMS_MENU: GsmsMenuSection[] = [
       { key: 'evaluations', route: 'gsmsEvaluations', icon: 'task', access: SESSIONS },
       { key: 'satisfaction', route: 'gsmsSatisfaction', icon: 'star', access: { perm: ['sessions.read', 'quality.read'] } },
       { key: 'stagiaires', route: 'gsmsStagiaires', icon: 'usergroup', access: { perm: ['sessions.read'] } },
+      { key: 'parcours', route: 'gsmsParcours', icon: 'view-list', access: SESSIONS },
       { key: 'lieux', route: 'gsmsLieux', icon: 'location', access: { perm: ['sessions.read', 'quality.read'] } },
       { key: 'equipements', route: 'gsmsEquipements', icon: 'tools', access: { perm: ['sessions.read', 'quality.read'] } },
     ],

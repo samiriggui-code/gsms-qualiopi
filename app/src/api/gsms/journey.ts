@@ -3,7 +3,7 @@
  * Référence : docs/API.md (routes, droits).
  */
 import { http } from './http'
-import type { Capabilities } from './common'
+import type { Capabilities, Capability } from './common'
 
 export interface SessionJourneyRow {
   inscription: string
@@ -34,6 +34,17 @@ export interface JourneyStep {
   [extra: string]: unknown
 }
 
+/** Document émis par le moteur (convocation, attestation). */
+export interface JourneyDocument {
+  id: string
+  type: string
+  titre: string
+  version: number
+  statut: string
+  emis_le: string | null
+  par: string | null
+}
+
 export interface LearnerJourney {
   inscription: string
   stagiaire: string
@@ -43,7 +54,7 @@ export interface LearnerJourney {
   abandon: unknown
   etapes: JourneyStep[]
   assiduite: { prevues: number; suivies: number; heures_prevues: number | null; heures_suivies: number | null }
-  documents: { id: string; [extra: string]: unknown }[]
+  documents: JourneyDocument[]
   questionnaires: Record<string, unknown>[]
   capabilities: Capabilities
 }
@@ -55,3 +66,63 @@ export const getLearnerJourney = (enrollmentId: string) => http.get<LearnerJourn
 /** Exécute une étape ; le corps porte les saisies demandées par `a_saisir`. */
 export const journeyAction = (enrollmentId: string, action: string, body: Record<string, unknown>) =>
   http.post<Record<string, unknown>>(`/inscriptions/${enc(enrollmentId)}/parcours/${enc(action)}`, body)
+
+/** Chiffres de la vue d'ensemble du parcours (GET /parcours/synthese) : états par étape, inscriptions, examens. */
+export interface JourneySummary {
+  etapes: Record<string, Record<string, number>>
+  inscriptions: Record<string, number>
+  examens: { presentes: number; reussis: number }
+  en_retard: { stagiaire: string; session: string; session_id: string; etape: string; echeance: string | null }[]
+}
+
+/** Registres disponibles (`VIEWS` de l'API) : une étape, ou les inscriptions, abandons, présentations à la certification. */
+export const JOURNEY_REGISTERS = [
+  'inscriptions', 'analyse_besoin', 'positionnement', 'convention', 'convocation', 'emargement', 'evaluations',
+  'attestation', 'satisfaction_chaud', 'satisfaction_froid', 'abandons', 'certification',
+] as const
+
+export interface RegisterSession {
+  id: string
+  reference: string
+  intitule: string | null
+  debut: string
+  fin: string
+  statut: string
+}
+
+export interface RegisterProgress {
+  faits: number
+  applicables: number
+  prochaine: { etape: string; etat: string; echeance: string | null } | null
+}
+
+export interface RegisterRow {
+  inscription: string
+  stagiaire: string
+  statut: string
+  session: RegisterSession
+  entreprise: string | null
+  financement: string | null
+  /** Registre d'une étape : son état et l'action qui la fait avancer (décision de l'API). */
+  etape?: { etat: string; echeance: string | null; le: string | null; detail: string | null }
+  action?: (Capability & { cle: string }) | null
+  /** Inscriptions et abandons. */
+  inscrit_le?: string | null
+  avancement?: RegisterProgress
+  abandon?: { le: string | null; motif: string | null }
+  /** Certification : épreuves d'examen. */
+  epreuves?: { intitule: string; le: string; note: number | null; reussi: boolean | null }[]
+}
+
+export interface JourneyRegister {
+  vue: string
+  compteurs: Record<string, number>
+  lignes: RegisterRow[]
+}
+
+export const getJourneySummary = () => http.get<JourneySummary>('/parcours/synthese')
+/** GET /parcours/registres/{vue} : sessions visibles seulement, ce qui presse d'abord. */
+export const getJourneyRegister = (vue: string) => http.get<JourneyRegister>(`/parcours/registres/${enc(vue)}`)
+/** Chemin d'un document émis par le moteur pour une inscription (à télécharger avec downloadFile). */
+export const journeyDocumentPath = (enrollmentId: string, documentId: string) =>
+  `/inscriptions/${enc(enrollmentId)}/documents/${enc(documentId)}`

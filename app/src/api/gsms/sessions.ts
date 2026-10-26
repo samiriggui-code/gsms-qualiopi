@@ -67,3 +67,22 @@ export const listLearners = () => http.get<LearnerRow[]>('/stagiaires')
 
 /** DELETE /sessions/{id} : session planifiée sans inscription (TrainingPolicy, refus 409). */
 export const deleteSession = (id: string) => http.delete<void>(`/sessions/${encodeURIComponent(id)}`)
+
+/** Fiche apprenant de la ressource CRUD /learners (`sessions.read`) : identité, entreprise, nombre d'inscriptions. */
+export interface LearnerRecord {
+  id: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email: string | null
+  phone: string | null
+  company_id: string | null
+  company_name: string | null
+  enrollments: number
+  created_at: string | null
+}
+
+/** GET /learners (`sessions.read`). */
+export const listLearnerRecords = () => http.get<LearnerRecord[]>('/learners')
+/** GET /learners/{id} (`sessions.read`). */
+export const getLearner = (id: string) => http.get<LearnerRecord>(`/learners/${encodeURIComponent(id)}`)

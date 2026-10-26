@@ -44,6 +44,8 @@ const THEMES: Record<string, TagTheme> = {
   A_ECHEANCE: 'warning', A_RISQUE: 'warning', NC_MINEURE: 'warning', A_COMPLETER: 'warning', DEMANDEE: 'warning',
   OUVERT: 'warning', OUVERTE: 'warning', A_VERIFIER: 'warning', DETECTEE: 'warning', NON_EVALUABLE: 'warning',
   EN_COURS: 'primary', CONFIRMEE: 'primary', CONFIRME: 'primary', EN_TRAITEMENT: 'primary', DOCUMENTEE: 'primary',
+  // Titres des formateurs (GET /rh/echeances), lieux et équipements (statuts des moyens)
+  EXPIRE: 'danger', A_RENOUVELER: 'warning', EN_SERVICE: 'success', EN_MAINTENANCE: 'warning', HORS_SERVICE: 'danger',
 }
 
 export function stateTheme(code: string | null | undefined): TagTheme {
