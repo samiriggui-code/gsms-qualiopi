@@ -24,7 +24,7 @@
         {{ row.completed_on ? t('gsms.rh.developpement.realiseeLe', { date: fmtDate(row.completed_on) }) : t('gsms.rh.developpement.nonRealisee') }}
       </t-tag>
     </template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.rh.developpement.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.rh.developpement.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -42,7 +42,7 @@
           <span>{{ t('gsms.rh.developpement.prevueLe', { date: fmtDate(item.planned_on) }) }}</span>
           <span v-if="item.completed_on">{{ t('gsms.rh.developpement.realiseeLe', { date: fmtDate(item.completed_on) }) }}</span>
         </div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.rh.developpement.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.rh.developpement.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
   </GsmsListPage>
@@ -156,13 +156,9 @@ async function saved() {
 }
 
 async function remove(d: StaffDevelopment) {
+  await deleteStaffDevelopment(d.id)
   actionError.value = null
-  try {
-    await deleteStaffDevelopment(d.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

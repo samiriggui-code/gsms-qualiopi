@@ -1,10 +1,11 @@
 <template>
   <GsmsRecordSheet :title="learner?.full_name || t('gsms.stagiaires.fiche')" icon="user" back="/platform/stagiaires"
+    :avatar-name="learner?.full_name" :avatar-email="learner?.email"
     :back-label="t('gsms.stagiaires.titre')" :subtitle="learner ? t('gsms.stagiaires.nInscriptions', { n: learner.enrollments }, learner.enrollments) : ''"
     :ready="!!learner" :loading="loading" :error="error" :tabs="tabs" :tab="current" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="learner" #side>
       <section class="side-section">
-        <h3 class="side-head"><GsmsPersonAvatar :name="learner.full_name" :size="40" />{{ t('gsms.parcours.contact') }}</h3>
+        <h3 class="side-head"><GsmsPersonAvatar :name="learner.full_name" :email="learner.email" :size="40" />{{ t('gsms.parcours.contact') }}</h3>
         <dl>
           <div><dt>{{ t('gsms.parcours.email') }}</dt><dd>{{ learner.email || '—' }}</dd></div>
           <div><dt>{{ t('gsms.parcours.telephone') }}</dt><dd>{{ learner.phone || '—' }}</dd></div>

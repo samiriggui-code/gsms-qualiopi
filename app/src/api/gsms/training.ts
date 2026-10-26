@@ -67,6 +67,27 @@ export interface Catalogue {
 /** GET /formation/catalogue (`sessions.read` ou `quality.read`). */
 export const getCatalogue = () => http.get<Catalogue>('/formation/catalogue')
 
+/** Totaux mesurés par l'API sur la période (I2, I3) ; un taux vaut `null` quand rien n'a été mesuré. */
+export interface ResultsTotals {
+  sessions: number
+  stagiaires: number
+  examines: number
+  repondants: number
+  taux_reussite: number | null
+  taux_abandon: number | null
+  taux_satisfaction: number | null
+}
+
+export interface Results {
+  periode: { du: string; au: string; mois: number }
+  methode: Record<string, string>
+  totaux: ResultsTotals
+  formations_mesurees: number
+}
+
+/** GET /formation/resultats (`sessions.read` ou `quality.read`) : résultats mesurés sur `mois` mois. */
+export const getResults = (mois = 12) => http.get<Results>('/formation/resultats', { query: { mois } })
+
 export interface ProgramModule {
   code?: string | null
   title?: string | null

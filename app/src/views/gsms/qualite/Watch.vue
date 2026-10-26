@@ -16,7 +16,7 @@
       <span v-if="row.exploited_on">{{ t('gsms.qualite.veille.exploiteeLe', { date: fmtDate(row.exploited_on) }) }}<template v-if="row.exploitation"> · {{ row.exploitation }}</template></span>
       <span v-else class="muted">{{ t('gsms.qualite.veille.nonExploitee') }}</span>
     </template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.qualite.veille.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.qualite.veille.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -28,7 +28,7 @@
         </div>
         <div class="card-content"><p class="card-description">{{ item.exploitation || item.source || '—' }}</p></div>
         <div class="card-meta"><span>{{ domainLabel(item.domain) }}</span><span>{{ t('gsms.qualite.veille.noteeLe', { date: fmtDate(item.noted_on) }) }}</span></div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.qualite.veille.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.qualite.veille.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
   </GsmsListPage>
@@ -121,13 +121,9 @@ async function saved() {
 
 
 async function remove(w: WatchItem) {
+  await deleteWatchItem(w.id)
   actionError.value = null
-  try {
-    await deleteWatchItem(w.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

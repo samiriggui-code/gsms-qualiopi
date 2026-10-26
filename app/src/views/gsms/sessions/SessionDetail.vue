@@ -1,6 +1,6 @@
 <template>
   <GsmsRecordSheet :title="detail?.session.reference || t('gsms.sessions.session')" icon="calendar-1" back="/platform/sessions"
-    :back-label="t('gsms.sessions.titre')" :subtitle="detail?.session.program_title || ''"
+    :back-label="t('gsms.sessions.titre')" :subtitle="detail?.session.program_title || ''" :meta="meta"
     :ready="!!detail" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="detail" #status><GsmsStatusTag :code="detail.session.status" /></template>
     <template v-if="detail" #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
@@ -88,6 +88,7 @@
   </GsmsRecordSheet>
 
   <ActionDialog v-model:visible="cancelVisible" :title="t('gsms.sessions.transitions.cancel')" :confirm-label="t('gsms.sessions.transitions.cancel')" danger
+    :consequence="t('gsms.sessions.annulationConsequence')" :confirm-text="detail?.session.reference || ''"
     :fields="['motif']" :run="(v) => sessionTransition(id, 'cancel', v.motif)" @done="load" />
   <ActionDialog v-model:visible="enrollVisible" :title="t('gsms.sessions.inscrire')" :confirm-label="t('gsms.sessions.inscrire')"
     :fields="[{ name: 'learner_id', label: t('gsms.sessions.stagiaire'), type: 'select', options: learnerOptions }]"
@@ -100,7 +101,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import GsmsRecordSheet from '@/components/gsms/GsmsRecordSheet.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
@@ -116,6 +118,16 @@ import {
 import { getSessionJourney, type SessionJourney } from '@/api/gsms/journey'
 import { fmtDate, fmtDateTime, stepLabel } from '@/components/gsms/format'
 
+// Puces de l'en-tête : dates, lieu, formateur (valeurs de l'API, telles quelles).
+const meta = computed(() => {
+  const s = detail.value?.session
+  if (!s) return []
+  return [
+    { icon: 'calendar', label: `${fmtDate(s.start_date)} → ${fmtDate(s.end_date)}`, title: t('gsms.sessions.colDates') },
+    ...(s.location ? [{ icon: 'location', label: s.location, title: t('gsms.sessions.colLieu') }] : []),
+    ...(s.trainer_name ? [{ icon: 'user-talk', label: s.trainer_name, title: t('gsms.sessions.colFormateur') }] : []),
+  ]
+})
 const TRANSITIONS = ['confirm', 'start', 'finish', 'close', 'cancel'] as const
 
 const { t } = useI18n()
@@ -191,6 +203,15 @@ async function transition(action: string) {
     cancelVisible.value = true
     return
   }
+  if (action === 'close') {
+    // Clôture : la session est ensuite verrouillée (états verrouillés de l'API) ; confirmation critique.
+    const done = await confirmCritical({
+      title: t('gsms.sessions.transitions.close'), consequence: t('gsms.sessions.clotureConsequence'),
+      confirmLabel: t('gsms.sessions.transitions.close'), run: () => sessionTransition(id.value, 'close').then(() => true),
+    })
+    if (done) { actionError.value = null; MessagePlugin.success(t('gsms.commun.misAJour')); await load() }
+    return
+  }
   busy.value = action
   actionError.value = null
   try {
@@ -204,24 +225,12 @@ async function transition(action: string) {
   }
 }
 
-function remove() {
-  const dlg = DialogPlugin.confirm({
-    header: t('gsms.sessions.supprimer'), body: t('gsms.commun.suppressionDefinitive'), theme: 'danger',
-    confirmBtn: { content: t('gsms.commun.supprimer'), theme: 'danger' }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      busy.value = 'delete'
-      try {
-        await deleteSession(id.value)
-        router.push('/platform/sessions')
-      } catch (e) {
-        actionError.value = e
-      } finally {
-        busy.value = ''
-      }
-    },
-    onClose: () => dlg.destroy(),
+async function remove() {
+  const done = await confirmCritical({
+    title: t('gsms.sessions.supprimer'), consequence: t('gsms.commun.suppressionDefinitive'), confirmLabel: t('gsms.commun.supprimer'),
+    confirmText: detail.value?.session.reference || undefined, run: () => deleteSession(id.value).then(() => true),
   })
+  if (done) router.push('/platform/sessions')
 }
 
 async function openEnroll() {

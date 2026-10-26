@@ -1,5 +1,6 @@
 <template>
   <GsmsRecordSheet :title="trainer?.full_name || t('gsms.rh.fiche.formateur')" icon="user-talk" back="/platform/formateurs"
+    :avatar-name="trainer?.full_name" :avatar-email="trainer?.email"
     :back-label="t('gsms.rh.formateurs.titre')" :subtitle="trainer?.specialties.join(' · ') || ''"
     :ready="!!trainer" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="trainer" #status>
@@ -63,7 +64,7 @@
             </p>
             <div class="row-actions">
               <t-button v-if="q.document_id" size="small" variant="text" theme="primary" @click="downloadProof(q)">{{ t('gsms.rh.fiche.justificatif') }}</t-button>
-              <GsmsRowActions v-if="canWrite" :delete-title="t('gsms.rh.fiche.supprimerTitre')" @edit="openTitle(q)" @delete="removeTitle(q)" />
+              <GsmsRowActions v-if="canWrite" :delete-title="t('gsms.rh.fiche.supprimerTitre')" @edit="openTitle(q)" :remove="() => removeTitle(q)" />
             </div>
           </li>
         </ul>
@@ -128,7 +129,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import GsmsRecordSheet from '@/components/gsms/GsmsRecordSheet.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
@@ -288,22 +290,12 @@ async function saved() {
   await load()
 }
 
-function remove() {
-  const dlg = DialogPlugin.confirm({
-    header: t('gsms.rh.fiche.supprimer'), body: t('gsms.commun.suppressionDefinitive'), theme: 'danger',
-    confirmBtn: { content: t('gsms.commun.supprimer'), theme: 'danger' }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      actionError.value = null
-      try {
-        await deleteTrainer(id.value)
-        router.push('/platform/formateurs')
-      } catch (e) {
-        actionError.value = e
-      }
-    },
-    onClose: () => dlg.destroy(),
+async function remove() {
+  const done = await confirmCritical({
+    title: t('gsms.rh.fiche.supprimer'), consequence: t('gsms.commun.suppressionDefinitive'), confirmLabel: t('gsms.commun.supprimer'),
+    confirmText: trainer.value?.full_name || undefined, run: () => deleteTrainer(id.value).then(() => true),
   })
+  if (done) router.push('/platform/formateurs')
 }
 
 // Titres : ajout par POST /formateurs/{id}/titres (type, numéro) ; modification limitée par l'API à l'intitulé et aux dates.
@@ -334,13 +326,9 @@ async function titleSaved() {
   await Promise.all([loadTitles(), load()])
 }
 async function removeTitle(q: TrainerQualification) {
+  await deleteQualification(q.id)
   actionError.value = null
-  try {
-    await deleteQualification(q.id)
-    await Promise.all([loadTitles(), load()])
-  } catch (e) {
-    actionError.value = e
-  }
+  void Promise.all([loadTitles(), load()])
 }
 async function downloadProof(q: TrainerQualification) {
   if (!q.document_id) return

@@ -5,6 +5,28 @@
       <t-select v-model="weeks" :options="weekOptions" size="small" class="horizon" :aria-label="t('gsms.pilotage.horizon')" />
     </template>
 
+    <template #charts>
+      <template v-if="!error">
+        <GsmsChartCard :title="t('gsms.graphiques.pilotage.etats')" :subtitle="t('gsms.graphiques.pilotage.etatsSous')" icon="chart-ring"
+          :loading="loading && !roadmap">
+          <GsmsDonut :data="stateChart" :total="items.length" :total-label="t('gsms.graphiques.total')" />
+        </GsmsChartCard>
+        <GsmsChartCard :title="t('gsms.graphiques.pilotage.semaines')" :subtitle="t('gsms.graphiques.pilotage.semainesSous')" icon="chart-line"
+          :loading="loading && !roadmap">
+          <GsmsTrendChart :caption="t('gsms.graphiques.pilotage.semaines')" :categories="weekChart.categories" :series="weekChart.series" />
+        </GsmsChartCard>
+      </template>
+      <GsmsChartCard v-if="access.hasNav('qualite')" :title="t('gsms.graphiques.indicateurs')" :subtitle="t('gsms.graphiques.indicateursSous')"
+        icon="secured" :loading="!evaluations && !evaluationsError" :error="evaluationsError" more-to="/platform/qualite/indicateurs">
+        <GsmsDonut :data="indicatorChart" :total="evaluations?.indicateurs.length" :total-label="t('gsms.qualite.kpi.indicateurs')" />
+      </GsmsChartCard>
+      <GsmsChartCard v-if="access.hasNav('sessions', 'mes_sessions')" :title="t('gsms.graphiques.pilotage.sessions')"
+        :subtitle="t('gsms.graphiques.pilotage.sessionsSous')" icon="chart-bar" :loading="!sessions && !sessionsError" :error="sessionsError"
+        more-to="/platform/sessions">
+        <GsmsBarChart :caption="t('gsms.graphiques.pilotage.sessions')" :data="sessionChart" horizontal />
+      </GsmsChartCard>
+    </template>
+
     <section id="feuille-de-route" class="roadmap">
       <div class="roadmap-head">
         <h3>{{ t('gsms.pilotage.feuilleDeRoute') }}</h3>
@@ -52,6 +74,11 @@ import EmptyState from '@/components/EmptyState.vue'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
+import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
+import GsmsDonut from '@/components/gsms/GsmsDonut.vue'
+import GsmsTrendChart from '@/components/gsms/GsmsTrendChart.vue'
+import GsmsBarChart from '@/components/gsms/GsmsBarChart.vue'
+import { countBy, fromCounts } from '@/components/gsms/chartTheme'
 import type { AlertItem, KpiItem, ModuleItem } from '@/components/gsms/types'
 import { getRoadmap, type Roadmap } from '@/api/gsms/pilotage'
 import { getEvaluations, type Evaluations } from '@/api/gsms/qualite'
@@ -146,6 +173,31 @@ const modules = computed<ModuleItem[]>(() => {
   }
   return out
 })
+
+// Graphiques : lignes de la feuille de route regroupées par l'état et la semaine que l'API leur a donnés.
+const roadmapLink = (etat: string) => `/platform/pilotage?etat=${etat}#feuille-de-route`
+const stateChart = computed(() => fromCounts(countBy(items.value, (i) => i.etat), ['EN_RETARD', 'A_ECHEANCE', 'A_VENIR'], stateLabel, roadmapLink, { A_VENIR: 'brand' }))
+const weekChart = computed(() => {
+  const byWeek = countBy(items.value, (i) => i.semaine)
+  const known = Object.keys(byWeek).sort()
+  // Axe du temps continu : les semaines sans échéance entre la première et la dernière apparaissent à zéro.
+  const weeksSorted: string[] = []
+  if (known.length) {
+    const last = new Date(`${known[known.length - 1]}T00:00:00Z`)
+    for (let d = new Date(`${known[0]}T00:00:00Z`); d <= last && weeksSorted.length < 60; d.setUTCDate(d.getUTCDate() + 7)) {
+      weeksSorted.push(d.toISOString().slice(0, 10))
+    }
+  }
+  return {
+    categories: weeksSorted.map((w) => fmtDate(w).slice(0, 5)),
+    series: [{ key: 'echeances', label: t('gsms.graphiques.pilotage.semaines'), values: weeksSorted.map((w) => byWeek[w] ?? 0) }],
+  }
+})
+const indicatorChart = computed(() => fromCounts(countBy(evaluations.value?.indicateurs ?? [], (i) => i.etat),
+  ['DEMONTRABLE', 'A_RISQUE', 'PREUVES_INSUFFISANTES', 'NON_EVALUE', 'NON_APPLICABLE'], stateLabel,
+  (etat) => `/platform/qualite/indicateurs?etat=${etat}`, { NON_EVALUE: 'info' }))
+const sessionChart = computed(() => fromCounts(countBy(sessions.value ?? [], (s) => s.status),
+  ['PLANIFIEE', 'CONFIRMEE', 'EN_COURS', 'TERMINEE', 'CLOTUREE', 'ANNULEE'], stateLabel, undefined, 'brand'))
 
 const ORDER = ['EN_RETARD', 'A_ECHEANCE', 'A_VENIR']
 const stateTabs = computed(() => {

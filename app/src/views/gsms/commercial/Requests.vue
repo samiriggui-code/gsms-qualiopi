@@ -13,7 +13,7 @@
     <template #cell-reference="{ row }"><span class="chip">{{ row.reference }}</span></template>
     <template #cell-candidat="{ row }">
       <router-link :to="`/platform/demandes/${row.id}`" class="person" @click.stop>
-        <GsmsPersonAvatar :name="fullName(row)" /><span class="person-name">{{ fullName(row) }}</span>
+        <GsmsPersonAvatar :name="fullName(row)" :email="row.email" /><span class="person-name">{{ fullName(row) }}</span>
       </router-link>
     </template>
     <template #cell-formation="{ row }">{{ row.formation.nom || '—' }}</template>
@@ -23,7 +23,7 @@
     <template #card="{ item }">
       <router-link :to="`/platform/demandes/${item.id}`" class="card">
         <div class="card-header">
-          <div class="card-header-left person"><GsmsPersonAvatar :name="fullName(item)" :size="32" /><span class="card-title">{{ fullName(item) }}</span></div>
+          <div class="card-header-left person"><GsmsPersonAvatar :name="fullName(item)" :email="item.email" :size="40" /><span class="card-title">{{ fullName(item) }}</span></div>
           <GsmsStatusTag :code="item.statut" :label="item.statut_libelle" />
         </div>
         <div class="card-bottom">

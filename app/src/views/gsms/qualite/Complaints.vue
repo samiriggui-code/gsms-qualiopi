@@ -14,7 +14,7 @@
     <template #cell-kind="{ row }">{{ kindLabel(row.kind) }}</template>
     <template #cell-stakeholder="{ row }">{{ stakeholderLabel(row.stakeholder) }}</template>
     <template #cell-suivi="{ row }"><span class="follow">{{ followText(row) }}</span></template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.qualite.reclamations.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.qualite.reclamations.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -30,7 +30,7 @@
           <span v-if="item.session_reference">{{ item.session_reference }}</span>
           <span>{{ followText(item) }}</span>
         </div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.qualite.reclamations.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.qualite.reclamations.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
   </GsmsListPage>
@@ -135,13 +135,9 @@ async function saved() {
 
 
 async function remove(c: Complaint) {
+  await deleteComplaint(c.id)
   actionError.value = null
-  try {
-    await deleteComplaint(c.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

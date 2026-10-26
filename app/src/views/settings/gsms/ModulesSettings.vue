@@ -35,7 +35,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import { useI18n } from 'vue-i18n'
 import { listFeatures, setFeature, type Feature } from '@/api/gsms/platform'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
@@ -79,23 +80,19 @@ async function apply(f: Feature, enabled: boolean) {
   }
 }
 
-function toggle(f: Feature, enabled: boolean) {
+async function toggle(f: Feature, enabled: boolean) {
   if (enabled) {
     void apply(f, true)
     return
   }
-  const dialog = DialogPlugin.confirm({
-    header: t('gsms.parametres.modules.confirmerTitre', { label: f.label }),
-    body: t('gsms.parametres.modules.confirmerTexte'),
-    confirmBtn: t('gsms.parametres.modules.desactiver'),
-    cancelBtn: t('gsms.parametres.commun.annuler'),
-    theme: 'warning',
-    onConfirm: () => {
-      dialog.destroy()
-      void apply(f, false)
-    },
-    onClose: () => dialog.destroy(),
+  saveError.value = null
+  const done = await confirmCritical({
+    title: t('gsms.parametres.modules.confirmerTitre', { label: f.label }), consequence: t('gsms.parametres.modules.confirmerTexte'),
+    confirmLabel: t('gsms.parametres.modules.desactiver'), run: () => setFeature(f.code, false).then(() => true),
   })
+  if (!done) return
+  MessagePlugin.success(t('gsms.parametres.modules.desactive', { label: f.label }))
+  await Promise.all([load(false), access.load(true)])
 }
 
 onMounted(() => load())

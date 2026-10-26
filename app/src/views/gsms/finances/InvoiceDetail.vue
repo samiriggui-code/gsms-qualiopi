@@ -1,7 +1,7 @@
 <template>
   <GsmsRecordSheet :title="inv ? (inv.numero || t('gsms.finances.factures.brouillonDe', { type: inv.type_libelle })) : t('gsms.finances.facture')"
     icon="file" back="/platform/factures" :back-label="t('gsms.finances.factures.titre')"
-    :subtitle="inv ? `${inv.client.nom} · ${inv.titre}` : ''" :ready="!!inv" :loading="loading" :error="error"
+    :subtitle="inv ? `${inv.client.nom} · ${inv.titre}` : ''" :meta="meta" :ready="!!inv" :loading="loading" :error="error"
     :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="inv" #status>
       <GsmsStatusTag :code="inv.statut" :label="inv.statut_libelle" /><GsmsStatusTag v-if="inv.en_retard" code="EN_RETARD" />
@@ -173,8 +173,10 @@
     <ActionDialog v-model:visible="payVisible" :title="inv.capabilities.encaisser.libelle || ''" :fields="payFields"
       :intro="t('gsms.finances.paiements.aide', { reste: centimes(inv.reste_du_centimes) })" :run="pay" @done="done" />
     <ActionDialog v-model:visible="creditVisible" :title="inv.capabilities.avoir.libelle || ''" :fields="creditFields"
-      :intro="t('gsms.finances.factures.avoirAide')" :confirm-label="t('gsms.finances.factures.emettreAvoir')" :run="credit" @done="credited" />
+      :intro="t('gsms.finances.factures.avoirAide')" :confirm-label="t('gsms.finances.factures.emettreAvoir')" :run="credit" @done="credited"
+      danger :consequence="t('gsms.finances.factures.avoirConsequence')" :confirm-text="inv.numero || ''" />
     <ActionDialog :visible="!!cancelTarget" :title="t('gsms.finances.paiements.annuler')" :fields="['motif']" danger
+      :consequence="t('gsms.finances.paiements.annulerConsequence')"
       :intro="t('gsms.finances.paiements.annulerAide')" :confirm-label="t('gsms.finances.paiements.annuler')"
       :run="(v) => cancelPayment(cancelTarget, v.motif ?? '')" @update:visible="(v) => { if (!v) cancelTarget = '' }" @done="done" />
   </template>
@@ -188,7 +190,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import GsmsRecordSheet from '@/components/gsms/GsmsRecordSheet.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
@@ -222,6 +225,17 @@ const payVisible = ref(false)
 const creditVisible = ref(false)
 const cancelTarget = ref('')
 
+// Puces de l'en-tête : montants et dates renvoyés par l'API (aucun calcul ici).
+const meta = computed(() => {
+  const i = inv.value
+  if (!i) return []
+  return [
+    { icon: 'money', label: centimes(i.total_ttc_centimes), title: t('gsms.finances.factures.totalTtc') },
+    ...(i.type === 'FACTURE' && i.reste_du_centimes ? [{ icon: 'wallet', label: `${t('gsms.finances.factures.resteDu')} ${centimes(i.reste_du_centimes)}` }] : []),
+    ...(i.emise_le ? [{ icon: 'calendar', label: fmtDate(i.emise_le), title: t('gsms.finances.factures.emiseLe') }] : []),
+    ...(i.echeance ? [{ icon: 'time', label: fmtDate(i.echeance), title: t('gsms.finances.factures.echeance') }] : []),
+  ]
+})
 // Refus qui veulent dire « pas dans cet état » (pièce émise, brouillon…) : le bouton n'a pas lieu d'être montré.
 // Les autres refus (droit manquant, vérifications bloquantes) restent visibles avec leur motif.
 const STATE_REFUSALS = new Set(['NOT_DRAFT', 'NOT_ISSUED', 'NOT_AN_INVOICE', 'INVALID_STATE', 'NOTHING_TO_CREDIT'])
@@ -294,45 +308,25 @@ async function preview() {
   }
 }
 
-function issue() {
-  const dlg = DialogPlugin.confirm({
-    header: inv.value?.capabilities.emettre.libelle, body: t('gsms.finances.factures.emettreConfirmer'),
-    confirmBtn: { content: t('gsms.finances.factures.emettre') }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      busy.value = 'emettre'
-      try {
-        inv.value = await issueInvoice(id.value)
-        actionError.value = null
-        MessagePlugin.success(t('gsms.finances.factures.emise', { numero: inv.value.numero }))
-      } catch (e) {
-        actionError.value = e
-      } finally {
-        busy.value = ''
-      }
-    },
-    onClose: () => dlg.destroy(),
+async function issue() {
+  const i = inv.value
+  if (!i) return
+  const res = await confirmCritical<InvoiceDetail>({
+    title: i.capabilities.emettre.libelle || t('gsms.finances.factures.emettre'), consequence: t('gsms.finances.factures.emettreConfirmer'),
+    confirmLabel: t('gsms.finances.factures.emettre'), confirmText: i.client.nom || undefined, run: () => issueInvoice(id.value),
   })
+  if (!res) return
+  inv.value = res
+  actionError.value = null
+  MessagePlugin.success(t('gsms.finances.factures.emise', { numero: res.numero }))
 }
 
-function remove() {
-  const dlg = DialogPlugin.confirm({
-    header: inv.value?.capabilities.supprimer.libelle, body: t('gsms.finances.factures.supprimerAide'), theme: 'danger',
-    confirmBtn: { content: t('gsms.commun.supprimer'), theme: 'danger' }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      busy.value = 'supprimer'
-      try {
-        await deleteInvoice(id.value)
-        router.push('/platform/factures')
-      } catch (e) {
-        actionError.value = e
-      } finally {
-        busy.value = ''
-      }
-    },
-    onClose: () => dlg.destroy(),
+async function remove() {
+  const done = await confirmCritical({
+    title: inv.value?.capabilities.supprimer.libelle || t('gsms.commun.supprimer'), consequence: t('gsms.finances.factures.supprimerAide'),
+    confirmLabel: t('gsms.commun.supprimer'), run: () => deleteInvoice(id.value).then(() => true),
   })
+  if (done) router.push('/platform/factures')
 }
 
 // Modification du brouillon : champs de PATCH /factures/{id}.
@@ -397,20 +391,13 @@ function saveLine(v: Record<string, any>) {
   return putInvoiceLines(id.value, lines)
 }
 
-function removeLine(i: number) {
-  const dlg = DialogPlugin.confirm({
-    header: t('gsms.finances.factures.supprimerLigne'), body: inv.value?.lignes[i]?.libelle, theme: 'danger',
-    confirmBtn: { content: t('gsms.commun.supprimer'), theme: 'danger' }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      try {
-        await done(await putInvoiceLines(id.value, (inv.value?.lignes ?? []).filter((_, n) => n !== i).map(asInput)))
-      } catch (e) {
-        actionError.value = e
-      }
-    },
-    onClose: () => dlg.destroy(),
+async function removeLine(i: number) {
+  const res = await confirmCritical<InvoiceDetail>({
+    title: t('gsms.finances.factures.supprimerLigne'), intro: inv.value?.lignes[i]?.libelle,
+    consequence: t('gsms.finances.factures.supprimerLigneAide'), confirmLabel: t('gsms.commun.supprimer'),
+    run: () => putInvoiceLines(id.value, (inv.value?.lignes ?? []).filter((_, n) => n !== i).map(asInput)),
   })
+  if (res) await done(res)
 }
 
 const payFields = computed<ActionField[]>(() => [

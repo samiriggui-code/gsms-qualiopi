@@ -12,9 +12,17 @@
 
 .gsms-grid() { .resource-card-grid(); }
 
+// Relief doux commun aux cartes, panneaux et tableaux des pages GSMS (rayon large, ombre légère).
+.gsms-elevated() {
+  border-radius: var(--app-radius-lg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--td-text-color-primary) 5%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--td-text-color-primary) 14%, transparent);
+}
+
 .gsms-card() {
   .resource-card();
   .resource-card-quiet();
+  .gsms-elevated();
   min-height: 0;
   .card-header { padding-right: 0; flex-wrap: wrap; }
   .card-meta {
@@ -34,12 +42,14 @@
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--app-radius-md);
   background: var(--td-bg-color-container);
-  padding: 14px 16px;
+  padding: 16px 18px;
   min-width: 0;
+  .gsms-elevated();
 }
 
 .gsms-panel-title() {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
+  font-family: var(--app-font-family-display);
   color: var(--td-text-color-primary);
   font-size: var(--app-text-md);
   font-weight: 600;
@@ -150,7 +160,7 @@
 
 .gsms-table() {
   border: 1px solid var(--td-component-stroke);
-  border-radius: var(--app-radius-md);
+  .gsms-elevated();
   overflow: hidden;
   background: var(--td-bg-color-container);
   :deep(thead th) { font-weight: 600; font-size: var(--app-text-sm); color: var(--td-text-color-secondary); }

@@ -143,7 +143,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import { useI18n } from 'vue-i18n'
 import {
   createRole, createUser, deleteRole, listPermissions, listRoles, listUsers, setUserActive, setUserRoles,
@@ -307,26 +308,16 @@ async function saveRole() {
     saving.value = false
   }
 }
-function removeRole(role: Role) {
-  const dialog = DialogPlugin.confirm({
-    header: t('gsms.parametres.equipe.supprimerRoleTitre', { label: role.label }),
-    body: t('gsms.parametres.equipe.supprimerRoleTexte'),
-    confirmBtn: t('gsms.parametres.commun.supprimer'),
-    cancelBtn: t('gsms.parametres.commun.annuler'),
-    theme: 'danger',
-    onConfirm: async () => {
-      dialog.destroy()
-      actionError.value = null
-      try {
-        await deleteRole(role.code)
-        roles.value = roles.value.filter((r) => r.code !== role.code)
-        MessagePlugin.success(t('gsms.parametres.equipe.roleSupprime'))
-      } catch (err) {
-        actionError.value = err
-      }
-    },
-    onClose: () => dialog.destroy(),
+async function removeRole(role: Role) {
+  actionError.value = null
+  const done = await confirmCritical({
+    title: t('gsms.parametres.equipe.supprimerRoleTitre', { label: role.label }), intro: t('gsms.parametres.equipe.supprimerRoleTexte'),
+    consequence: t('gsms.commun.suppressionDefinitive'),
+    confirmLabel: t('gsms.parametres.commun.supprimer'), confirmText: role.code, run: () => deleteRole(role.code).then(() => true),
   })
+  if (!done) return
+  roles.value = roles.value.filter((r) => r.code !== role.code)
+  MessagePlugin.success(t('gsms.parametres.equipe.roleSupprime'))
 }
 
 onMounted(load)

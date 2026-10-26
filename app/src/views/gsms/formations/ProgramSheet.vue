@@ -1,5 +1,6 @@
 <template>
   <GsmsRecordSheet :title="sheet?.program.title || t('gsms.formations.fiche')" icon="book" back="/platform/formations"
+    :image="formationThumbnail(sheet?.program.code)"
     :back-label="t('gsms.formations.titre')" :subtitle="sheet?.program.code || ''"
     :ready="!!sheet" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="sheet" #status><GsmsStatusTag :code="sheet.version_state.state" /></template>
@@ -159,7 +160,7 @@
   </GsmsRecordSheet>
 
   <ActionDialog v-model:visible="validateVisible" :title="t('gsms.formations.validerVersion')" :confirm-label="t('gsms.formations.valider')"
-    :intro="t('gsms.formations.validerAide')" :fields="[{ name: 'note', label: t('gsms.formations.noteVersion'), type: 'textarea' }]"
+    danger :consequence="t('gsms.formations.validerAide')" :fields="[{ name: 'note', label: t('gsms.formations.noteVersion'), type: 'textarea' }]"
     :run="(v) => validateProgramVersion(id, v.note)" @done="done" />
   <ActionDialog v-if="sheet" v-model:visible="certVisible" :title="t('gsms.formations.certificationVisee')" :intro="t('gsms.formations.certAide')"
     :fields="certFields" :run="(v) => putProgramCertification(id, v)" @done="done" />
@@ -179,6 +180,7 @@ import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
 import FormationThumb from './FormationThumb.vue'
+import { formationThumbnail } from './thumbnail'
 import {
   attestProgramVerification, getProgramPedagogy, getProgramSheet, programmePath, putProgramCertification, updateProgram,
   validateProgramVersion, type ProgramPedagogy, type ProgramSheet,

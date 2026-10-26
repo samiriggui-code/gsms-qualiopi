@@ -115,7 +115,7 @@
 
       <div class="language-switch">
         <button @click="toggleLanguageMenu" class="header-link" :title="currentLangOption?.label">
-          <span class="lang-flag-icon">{{ currentLangOption?.flag }}</span>
+          <img class="lang-flag-icon" :src="currentLangOption?.flag" alt="" />
           <span class="link-text">{{ currentLangOption?.shortLabel }}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round">
@@ -127,7 +127,7 @@
         <div v-if="showLanguageMenu" class="language-dropdown">
           <div v-for="lang in languageOptions" :key="lang.value" @click="selectLanguage(lang.value)"
             class="language-option" :class="{ active: currentLanguage === lang.value }">
-            <span class="lang-flag">{{ lang.flag }}</span>
+            <img class="lang-flag" :src="lang.flag" alt="" />
             <span class="lang-label">{{ lang.label }}</span>
             <span v-if="currentLanguage === lang.value" class="check-icon">✓</span>
           </div>
@@ -330,6 +330,7 @@
 </template>
 
 <script setup lang="ts">
+import { languageFlag } from '@/components/gsms/media'
 import { login as gsmsLogin, openIaSession } from '@/api/gsms/auth'
 import { tokenStorage } from '@/api/gsms/http'
 import { GSMS_HOME_PATH } from '@/config/gsmsMenu'
@@ -419,8 +420,8 @@ const inviteLookupLoading = ref(false)
 
 // Language options
 const languageOptions = [
-  { value: 'fr-FR', label: 'Français', shortLabel: 'FR', flag: '🇫🇷' },
-  { value: 'en-US', label: 'English', shortLabel: 'EN', flag: '🇬🇧' }
+  { value: 'fr-FR', label: 'Français', shortLabel: 'FR', flag: languageFlag('fr-FR') },
+  { value: 'en-US', label: 'English', shortLabel: 'EN', flag: languageFlag('en-US') }
 ]
 
 const currentLanguage = computed(() => locale.value)
@@ -1236,8 +1237,9 @@ onMounted(async () => {
     color: var(--td-text-color-anti);
 
     .lang-flag-icon {
-      font-size: var(--app-text-xl);
-      line-height: 1;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
       flex-shrink: 0;
     }
 
@@ -1277,7 +1279,9 @@ onMounted(async () => {
   color: var(--td-text-color-primary);
 
   .lang-flag {
-    font-size: var(--app-text-xl);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
     flex-shrink: 0;
   }
 

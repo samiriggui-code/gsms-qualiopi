@@ -6,13 +6,14 @@
       </router-link>
       <div class="title-row">
         <h2>
-          <span class="title-icon"><t-icon :name="icon" size="20px" /></span>
+          <slot name="icon"><span class="title-icon"><t-icon :name="icon" size="20px" /></span></slot>
           <span class="title-text">{{ title }}</span>
           <slot name="title-extra" />
         </h2>
         <div v-if="$slots.actions" class="header-actions"><slot name="actions" /></div>
       </div>
       <p v-if="subtitle" class="header-subtitle">{{ subtitle }}</p>
+      <div v-if="$slots.meta" class="header-meta"><slot name="meta" /></div>
     </div>
   </div>
 </template>
@@ -42,7 +43,7 @@ const { t } = useI18n()
     min-width: 0;
     margin: 0;
     color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
+    font-family: var(--app-font-family-display);
     font-size: var(--app-text-4xl);
     font-weight: 600;
     line-height: 32px;
@@ -61,6 +62,7 @@ const { t } = useI18n()
 }
 .title-text { min-width: 0; overflow-wrap: anywhere; }
 .header-subtitle { margin: 0; font-family: var(--app-font-family); line-height: 20px; }
+.header-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .back {
   display: inline-flex;

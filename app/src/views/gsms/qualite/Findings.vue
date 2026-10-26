@@ -1,7 +1,7 @@
 <template>
   <GsmsListPage :title="t('gsms.qualite.constats.titre')" icon="flag" :subtitle="t('gsms.qualite.constats.sousTitre')"
     :items="rows" :loading="current.loading" :error="current.error" :columns="columns" row-key="id"
-    :empty-title="emptyTitle" :empty-icon="tab === 'actions' ? 'task' : 'check-circle'" @retry="reload">
+    :empty-title="emptyTitle" @retry="reload">
     <template #toolbar>
       <GsmsFilterTabs v-model="tab" :options="tabs" :label="t('gsms.commun.vue')" tabs />
       <t-input v-model="query" class="search" :placeholder="t('gsms.commun.rechercher')" :aria-label="t('gsms.commun.rechercher')" clearable>
@@ -176,8 +176,9 @@ function openCapaDialog(f: Finding) {
 const stepDialog = reactive<{ visible: boolean; id: string; action: string; title: string; fields: ActionField[] }>({ visible: false, id: '', action: '', title: '', fields: [] })
 async function capaRun(c: CapaRow, action: string) {
   const cap = c.capabilities[action]
-  if (cap?.a_saisir?.length) {
-    Object.assign(stepDialog, { visible: true, id: c.id, action, title: cap.libelle ?? action, fields: cap.a_saisir.map((n) => ({ name: n, type: 'textarea' as const })) })
+  // Annuler une action corrective : toujours la confirmation critique, même sans saisie demandée.
+  if (cap?.a_saisir?.length || action === 'annuler') {
+    Object.assign(stepDialog, { visible: true, id: c.id, action, title: cap.libelle ?? action, fields: (cap?.a_saisir ?? []).map((n) => ({ name: n, type: 'textarea' as const })) })
     return
   }
   busy.value = `${c.id}:${action}`

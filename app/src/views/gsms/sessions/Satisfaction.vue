@@ -26,7 +26,7 @@
     <template #cell-answered_on="{ row }">{{ row.answered_on ? fmtDate(row.answered_on) : t('gsms.satisfaction.sansReponse') }}</template>
     <template #cell-score="{ row }"><span class="score">{{ scoreText(row.score) }}</span></template>
     <template #cell-comment="{ row }"><span class="comment">{{ row.comment || '—' }}</span></template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.satisfaction.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.satisfaction.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -41,7 +41,7 @@
           <span>{{ t('gsms.satisfaction.envoyeeLe', { date: fmtDate(item.sent_on) }) }}</span>
           <span>{{ item.answered_on ? t('gsms.satisfaction.reponduLe', { date: fmtDate(item.answered_on) }) : t('gsms.satisfaction.sansReponse') }}</span>
         </div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.satisfaction.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.satisfaction.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
   </GsmsListPage>
@@ -147,13 +147,9 @@ async function saved() {
 }
 
 async function remove(s: Survey) {
+  await deleteSurvey(s.id)
   actionError.value = null
-  try {
-    await deleteSurvey(s.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

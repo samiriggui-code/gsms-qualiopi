@@ -62,7 +62,7 @@
   <ActionDialog v-model:visible="judgeVisible" :title="t('gsms.qualite.audits.jugerIndicateur', { n: judged })" :fields="judgeFields"
     :run="(v) => judgeIndicator(id, judged, v.jugement, v.commentaire)" @done="refresh" />
   <ActionDialog v-model:visible="closeVisible" :title="t('gsms.qualite.audits.clore')" :confirm-label="t('gsms.qualite.audits.clore')"
-    :intro="t('gsms.qualite.audits.cloreAide')" :fields="['conclusion']" :run="(v) => closeAudit(id, v.conclusion ?? '')" @done="refresh" />
+    danger :consequence="t('gsms.qualite.audits.cloreAide')" :fields="['conclusion']" :run="(v) => closeAudit(id, v.conclusion ?? '')" @done="refresh" />
 </template>
 
 <script setup lang="ts">

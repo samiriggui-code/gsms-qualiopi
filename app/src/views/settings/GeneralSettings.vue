@@ -19,8 +19,9 @@
             @change="handleLanguageChange"
             style="width: 280px;"
           >
-            <t-option value="fr-FR" :label="$t('language.frFR')">{{ $t('language.frFR') }}</t-option>
-            <t-option value="en-US" :label="$t('language.enUS')">{{ $t('language.enUS') }}</t-option>
+            <template #prefixIcon><img :src="languageFlag(localLanguage || 'fr-FR')" alt="" class="lang-flag" /></template>
+            <t-option value="fr-FR" :label="$t('language.frFR')"><span class="lang-opt"><img :src="languageFlag('fr-FR')" alt="" class="lang-flag" />{{ $t('language.frFR') }}</span></t-option>
+            <t-option value="en-US" :label="$t('language.enUS')"><span class="lang-opt"><img :src="languageFlag('en-US')" alt="" class="lang-flag" />{{ $t('language.enUS') }}</span></t-option>
           </t-select>
         </div>
       </div>
@@ -123,6 +124,7 @@
 </template>
 
 <script setup lang="ts">
+import { languageFlag } from '@/components/gsms/media'
 import { ref, onMounted, computed, watch } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { useI18n } from 'vue-i18n'
@@ -239,6 +241,8 @@ const handleFontSizeChange = (val: FontSizeKey) => {
 </script>
 
 <style lang="less" scoped>
+.lang-opt { display: inline-flex; align-items: center; gap: 8px; }
+.lang-flag { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
 @import (reference) '@/components/css/settings-section.less';
 
 .general-settings {

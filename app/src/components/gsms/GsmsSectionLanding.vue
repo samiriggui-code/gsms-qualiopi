@@ -8,6 +8,8 @@
         <GsmsRefusal v-if="error" :error="error" inline />
         <!-- Refus : pas de chiffres, jamais des compteurs à zéro à la place du refus -->
         <GsmsKpiRow v-if="!error" :items="kpis" :loading="kpiLoading" />
+        <!-- Graphiques de la rubrique (GsmsChartCard) : chiffres de l'API seulement, chaque carte montre son refus. -->
+        <div v-if="$slots.charts" class="charts"><slot name="charts" /></div>
         <div class="duo" :class="{ 'duo--single': !engine }">
           <GsmsAlertList :title="alerts.title" :subtitle="alerts.subtitle" :items="alerts.items" :loading="alerts.loading"
             :error="alerts.error" :empty="alerts.empty" :more-to="alerts.moreTo" />
@@ -40,6 +42,7 @@
           </div>
         </template>
         <slot />
+        <GsmsHelpFooter :context="String($route.meta?.gsms ?? '')" />
       </div>
     </div>
   </div>
@@ -47,7 +50,7 @@
 
 <script setup lang="ts">
 /**
- * Patron de niveau 1 (vue d'ensemble d'une rubrique) : chiffres clés, points à traiter, état du moteur Qualiopi
+ * Patron de niveau 1 (vue d'ensemble d'une rubrique) : chiffres clés, graphiques, points à traiter, état du moteur Qualiopi
  * pour les indicateurs de la rubrique, une carte par module. Ne calcule rien : la page fournit tout, tiré de l'API.
  */
 import { useI18n } from 'vue-i18n'
@@ -57,6 +60,7 @@ import GsmsKpiRow from './GsmsKpiRow.vue'
 import GsmsAlertList from './GsmsAlertList.vue'
 import GsmsModuleCard from './GsmsModuleCard.vue'
 import GsmsStatusTag from './GsmsStatusTag.vue'
+import GsmsHelpFooter from './GsmsHelpFooter.vue'
 import type { AlertItem, EngineRow, KpiItem, ModuleItem } from './types'
 
 withDefaults(defineProps<{
@@ -79,6 +83,7 @@ const { t } = useI18n()
 .gsms-page-content { .resource-list-content(); }
 .gsms-page-main { .resource-list-main(); }
 .landing { display: flex; flex-direction: column; gap: 16px; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: stretch; }
 .duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start;
   &.duo--single { grid-template-columns: minmax(0, 1fr); }
   @media (max-width: 960px) { grid-template-columns: minmax(0, 1fr); } }

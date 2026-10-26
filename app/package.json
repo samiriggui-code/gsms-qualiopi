@@ -25,6 +25,7 @@
     "@vue-office/pptx": "1.0.1",
     "@xterm/addon-fit": "0.10.0",
     "@xterm/xterm": "5.5.0",
+    "apexcharts": "4.7.0",
     "axios": "1.20.0",
     "docx-preview": "0.3.7",
     "dompurify": "3.4.17",
@@ -46,6 +47,7 @@
     "vue-i18n": "11.4.2",
     "vue-router": "4.5.1",
     "vue-virtual-scroller": "2.0.1",
+    "vue3-apexcharts": "1.8.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
   "devDependencies": {

@@ -98,4 +98,6 @@ export const gsmsRoutes: RouteRecordRaw[] = [
   { path: 'documents', name: 'gsmsDocuments', component: () => import('../views/gsms/communication/Documents.vue'), meta: meta('documents') },
   // K. Administration (page 39)
   { path: 'journal', name: 'gsmsJournal', component: () => import('../views/gsms/journal/Journal.vue'), meta: meta('journal') },
+  // Adresse inconnue sous /platform : page introuvable (le routeur la classe après toutes les routes connues).
+  { path: ':pathMatch(.*)*', name: 'gsmsIntrouvable', component: () => import('../views/gsms/NotFound.vue'), meta: { requiresInit: true, requiresAuth: true } },
 ]

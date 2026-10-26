@@ -37,7 +37,7 @@
         <ul v-else class="rows">
           <li v-for="l in learners" :key="l.id">
             <router-link :to="`/platform/stagiaires/${l.id}`" class="row">
-              <GsmsPersonAvatar :name="l.full_name" />
+              <GsmsPersonAvatar :name="l.full_name" :email="l.email" />
               <span class="row-main">{{ l.full_name }}</span>
               <span class="muted">{{ l.email || '—' }}</span>
               <span class="chip">{{ t('gsms.stagiaires.nInscriptions', { n: l.enrollments }, l.enrollments) }}</span>
@@ -79,7 +79,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import GsmsRecordSheet from '@/components/gsms/GsmsRecordSheet.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
@@ -176,24 +177,15 @@ async function saved(res: unknown) {
   MessagePlugin.success(t('gsms.commun.enregistre'))
 }
 
-function confirmRemove() {
-  const dlg = DialogPlugin.confirm({
-    header: t('gsms.commercial.entreprises.supprimer'), body: t('gsms.commun.suppressionDefinitive'), theme: 'danger',
-    confirmBtn: { content: t('gsms.commun.supprimer'), theme: 'danger' }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: () => { dlg.destroy(); remove() },
-    onClose: () => dlg.destroy(),
+async function confirmRemove() {
+  const done = await confirmCritical({
+    title: t('gsms.commercial.entreprises.supprimer'), consequence: t('gsms.commun.suppressionDefinitive'),
+    confirmLabel: t('gsms.commun.supprimer'), confirmText: company.value?.name || undefined,
+    run: () => deleteCompany(id.value).then(() => true),
   })
-}
-
-async function remove() {
-  actionError.value = null
-  try {
-    await deleteCompany(id.value)
-    MessagePlugin.success(t('gsms.commercial.entreprises.supprimee'))
-    router.push('/platform/entreprises')
-  } catch (e) {
-    actionError.value = e
-  }
+  if (!done) return
+  MessagePlugin.success(t('gsms.commercial.entreprises.supprimee'))
+  router.push('/platform/entreprises')
 }
 
 async function newQuote() {

@@ -20,7 +20,7 @@
     </template>
     <template #cell-city="{ row }">{{ [row.postal_code, row.city].filter(Boolean).join(' ') || '—' }}</template>
     <template #cell-contact="{ row }">{{ [row.contact_name, row.contact_email].filter(Boolean).join(' · ') || '—' }}</template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.commercial.entreprises.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.commercial.entreprises.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <router-link :to="`/platform/entreprises/${item.id}`" class="card">
@@ -114,13 +114,9 @@ async function saved() {
 }
 
 async function remove(c: Company) {
+  await deleteCompany(c.id)
   actionError.value = null
-  try {
-    await deleteCompany(c.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

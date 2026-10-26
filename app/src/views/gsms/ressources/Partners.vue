@@ -12,7 +12,7 @@
     <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>
     <template #cell-kind="{ row }">{{ moyenValue('partners', 'kind', row.kind) }} <span class="chip">{{ indicatorOf(row.kind) }}</span></template>
     <template #cell-last_contact_on="{ row }">{{ fmtDate(row.last_contact_on) }}</template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.partenaires.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.partenaires.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -24,7 +24,7 @@
           <span>{{ moyenValue('partners', 'kind', item.kind) }}</span>
           <span>{{ moyenLabel('last_contact_on') }} {{ fmtDate(item.last_contact_on) }}</span>
         </div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.partenaires.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.partenaires.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
   </GsmsListPage>
@@ -104,13 +104,9 @@ async function saved() {
 }
 
 async function remove(p: Partner) {
+  await deleteRessource('partners', p.id)
   actionError.value = null
-  try {
-    await deleteRessource('partners', p.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

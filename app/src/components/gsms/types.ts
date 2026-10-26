@@ -11,6 +11,11 @@ export interface KpiItem {
   /** Lien vers la liste filtrée. */
   to?: string
   tone?: Tone
+  /**
+   * Jauge sous le chiffre quand l'API donne une part et son tout (ex. indicateurs démontrables sur le total) :
+   * les deux nombres viennent de l'API, la jauge ne fait que les dessiner.
+   */
+  meter?: { value: number; max: number }
 }
 
 export interface AlertItem {

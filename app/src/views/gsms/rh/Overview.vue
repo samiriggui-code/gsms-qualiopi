@@ -1,19 +1,39 @@
 <template>
   <GsmsSectionLanding :title="t('gsms.rh.titre')" icon="user-talk" :description="t('gsms.rh.sousTitre')"
     :error="trainers.error" :kpis="kpis" :kpi-loading="loadingOf(trainers)"
-    :alerts="alerts" :engine="engine" :modules="modules" />
+    :alerts="alerts" :engine="engine" :modules="modules">
+    <template #charts>
+      <GsmsChartCard v-if="!trainers.error" :title="t('gsms.graphiques.rh.formateurs')" :subtitle="t('gsms.graphiques.rh.formateursSous')"
+        icon="user-talk" :loading="loadingOf(trainers)" more-to="/platform/formateurs">
+        <GsmsDonut :data="trainerChart" :total="trainers.data?.length" :total-label="t('gsms.rh.kpi.formateurs')" />
+      </GsmsChartCard>
+      <GsmsChartCard :title="t('gsms.graphiques.rh.titres')" :subtitle="t('gsms.graphiques.rh.titresSous')" icon="certificate"
+        :loading="loadingOf(deadlines)" :error="deadlines.error" :empty="!deadlines.data?.length" :empty-text="t('gsms.rh.rienATraiter')"
+        more-to="/platform/formateurs">
+        <GsmsBarChart :caption="t('gsms.graphiques.rh.titres')" :data="titleChart" horizontal />
+      </GsmsChartCard>
+      <GsmsChartCard :title="t('gsms.graphiques.rh.developpement')" :subtitle="t('gsms.graphiques.rh.developpementSous')" icon="chart-ring"
+        :loading="loadingOf(dev)" :error="dev.error" more-to="/platform/developpement">
+        <GsmsDonut :data="devChart" :total="dev.data?.length" :total-label="t('gsms.qualite.kpi.total')" />
+      </GsmsChartCard>
+    </template>
+  </GsmsSectionLanding>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
+import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
+import GsmsDonut from '@/components/gsms/GsmsDonut.vue'
+import GsmsBarChart from '@/components/gsms/GsmsBarChart.vue'
+import { countBy, fromCounts, type ChartDatum } from '@/components/gsms/chartTheme'
 import { useApiSource } from '@/components/gsms/useApiSource'
 import type { AlertItem, KpiItem, ModuleItem } from '@/components/gsms/types'
 import { listStaff, listStaffDevelopment, listTitleDeadlines, listTrainers } from '@/api/gsms/rh'
 import { listRessources } from '@/api/gsms/ressources'
 import { getCarnet } from '@/api/gsms/qualite'
-import { fmtDate } from '@/components/gsms/format'
+import { fmtDate, stateLabel } from '@/components/gsms/format'
 import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
 
 // Indicateurs du référentiel suivis par la rubrique RH : compétences des intervenants (21), développement des
@@ -84,4 +104,23 @@ const modules = computed<ModuleItem[]>(() => [
     figures: [{ label: t('gsms.qualite.kpi.total'), value: subs.data?.length ?? 0 },
       { label: t('gsms.rh.kpi.declaresQualiopi'), value: (subs.data ?? []).filter((s) => s.qualiopi_certified).length }] },
 ])
+
+// Graphiques : lignes de l'API regroupées par le champ qu'elle renseigne (formateur externe, état du titre, date
+// de réalisation) ; rien n'est décidé ici.
+const trainerChart = computed<ChartDatum[]>(() => {
+  const rows = trainers.data ?? []
+  return [
+    { key: 'internes', label: t('gsms.graphiques.rh.internes'), value: rows.filter((f) => !f.is_external).length, tone: 'brand', to: '/platform/formateurs' },
+    { key: 'externes', label: t('gsms.graphiques.rh.externes'), value: rows.filter((f) => f.is_external).length, tone: 'info', to: '/platform/formateurs' },
+  ]
+})
+const titleChart = computed(() => fromCounts(countBy(deadlines.data ?? [], (d) => d.etat), ['EXPIRE', 'A_RENOUVELER'], stateLabel,
+  () => '/platform/formateurs'))
+const devChart = computed<ChartDatum[]>(() => {
+  const rows = dev.data ?? []
+  return [
+    { key: 'realisees', label: t('gsms.graphiques.rh.realisees'), value: rows.filter((d) => d.completed_on).length, tone: 'success', to: '/platform/developpement' },
+    { key: 'aRealiser', label: t('gsms.rh.developpement.nonRealisees'), value: devTodo.value, tone: 'warning', to: '/platform/developpement' },
+  ]
+})
 </script>

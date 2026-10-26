@@ -17,7 +17,7 @@
     </template>
     <template #cell-contract_signed_on="{ row }">{{ fmtDate(row.contract_signed_on) }}</template>
     <template #cell-last_review_on="{ row }">{{ fmtDate(row.last_review_on) }}</template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.sousTraitants.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.sousTraitants.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -30,7 +30,7 @@
           <span>{{ moyenLabel('contract_signed_on') }} {{ fmtDate(item.contract_signed_on) }}</span>
           <span>{{ moyenLabel('last_review_on') }} {{ fmtDate(item.last_review_on) }}</span>
         </div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.sousTraitants.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.sousTraitants.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
     <template #after><p v-if="items?.length" class="muted note">{{ t('gsms.ressources.sousTraitants.declaratif') }}</p></template>
@@ -111,13 +111,9 @@ async function saved() {
 }
 
 async function remove(s: Subcontractor) {
+  await deleteRessource('subcontractors', s.id)
   actionError.value = null
-  try {
-    await deleteRessource('subcontractors', s.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

@@ -47,6 +47,7 @@
   </GsmsListPage>
 
   <ActionDialog :visible="!!target" :title="t('gsms.finances.paiements.annuler')" :fields="['motif']" danger
+    :consequence="t('gsms.finances.paiements.annulerConsequence')"
     :intro="t('gsms.finances.paiements.annulerAide')" :confirm-label="t('gsms.finances.paiements.annuler')"
     :run="(v) => cancelPayment(target, v.motif ?? '')" @update:visible="(v) => { if (!v) target = '' }" @done="cancelled" />
 </template>

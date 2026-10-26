@@ -125,6 +125,17 @@
         </div>
       </div>
 
+      <!-- Sons des opérations critiques : réglage de ce compte, mémorisé dans ce navigateur -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <label id="sons-label">{{ $t('gsms.critique.sonsLabel') }}</label>
+          <p class="desc">{{ reducedMotion ? $t('gsms.critique.sonsReduits') : $t('gsms.critique.sonsAide') }}</p>
+        </div>
+        <div class="setting-control">
+          <t-switch :value="soundsEnabled" :disabled="reducedMotion" aria-labelledby="sons-label" @change="(v: unknown) => setSoundsEnabled(!!v)" />
+        </div>
+      </div>
+
       <!-- Déconnexion de toutes les sessions (POST /auth/me/deconnexion-partout) -->
       <div class="setting-row">
         <div class="setting-info">
@@ -132,7 +143,7 @@
           <p class="desc">{{ $t('userProfile.logoutEverywhere.description') }}</p>
         </div>
         <div class="setting-control">
-          <t-button theme="danger" variant="outline" :loading="loggingOutEverywhere" @click="confirmLogoutEverywhere">
+          <t-button theme="danger" variant="outline" @click="confirmLogoutEverywhere">
             {{ $t('userProfile.logoutEverywhere.action') }}
           </t-button>
         </div>
@@ -144,7 +155,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
+import { prefersReducedMotion, reloadSoundPreference, setSoundsEnabled, soundsEnabled } from '@/components/gsms/feedbackSound'
 import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next'
 import { useI18n } from 'vue-i18n'
 import { changePassword, getMe, logoutEverywhere, type Me } from '@/api/gsms/auth'
@@ -167,7 +180,6 @@ const passwordForm = reactive({
   newPassword: '',
   confirmPassword: '',
 })
-const loggingOutEverywhere = ref(false)
 
 watch(passwordPopupVisible, () => resetPasswordForm())
 
@@ -234,31 +246,19 @@ const submitPasswordChange = async () => {
   }
 }
 
-const confirmLogoutEverywhere = () => {
-  const dialog = DialogPlugin.confirm({
-    header: t('userProfile.logoutEverywhere.label'),
-    body: t('userProfile.logoutEverywhere.confirm'),
-    confirmBtn: { content: t('userProfile.logoutEverywhere.action'), theme: 'danger' },
-    cancelBtn: t('common.cancel'),
-    onConfirm: async () => {
-      dialog.hide()
-      loggingOutEverywhere.value = true
-      try {
-        await logoutEverywhere()
-      } catch (err) {
-        MessagePlugin.error((err as Error)?.message || t('userProfile.logoutEverywhere.failed'))
-        return
-      } finally {
-        loggingOutEverywhere.value = false
-      }
-      authStore.logout()
-      MessagePlugin.success(t('userProfile.logoutEverywhere.success'))
-      router.push('/login')
-    },
+const confirmLogoutEverywhere = async () => {
+  const done = await confirmCritical({
+    title: t('userProfile.logoutEverywhere.label'), consequence: t('userProfile.logoutEverywhere.confirm'),
+    confirmLabel: t('userProfile.logoutEverywhere.action'), run: () => logoutEverywhere().then(() => true),
   })
+  if (!done) return
+  authStore.logout()
+  MessagePlugin.success(t('userProfile.logoutEverywhere.success'))
+  router.push('/login')
 }
 
-onMounted(loadInfo)
+const reducedMotion = prefersReducedMotion()
+onMounted(() => { reloadSoundPreference(); void loadInfo() })
 </script>
 
 <style lang="less" scoped>

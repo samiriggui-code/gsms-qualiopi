@@ -1,7 +1,22 @@
 <template>
   <GsmsSectionLanding :title="t('gsms.finances.titre')" icon="wallet" :description="t('gsms.finances.sousTitre')"
     :error="bothRefused ? invoices.error : null" :kpis="kpis" :kpi-loading="loadingOf(invoices) && loadingOf(cases)"
-    :alerts="alerts" :engine="null" :modules="modules" />
+    :alerts="alerts" :engine="null" :modules="modules">
+    <template #charts>
+      <GsmsChartCard v-if="!invoices.error" :title="t('gsms.graphiques.finances.montants')" :subtitle="t('gsms.graphiques.finances.montantsSous')"
+        icon="money" :loading="loadingOf(invoices)" more-to="/platform/factures">
+        <GsmsBarChart :caption="t('gsms.graphiques.finances.montants')" :data="amountChart" :format="euros" horizontal />
+      </GsmsChartCard>
+      <GsmsChartCard v-if="!invoices.error" :title="t('gsms.graphiques.finances.factures')" :subtitle="t('gsms.graphiques.finances.facturesSous')"
+        icon="chart-ring" :loading="loadingOf(invoices)" more-to="/platform/factures">
+        <GsmsDonut :data="invoiceChart" />
+      </GsmsChartCard>
+      <GsmsChartCard :title="t('gsms.graphiques.finances.dossiers')" :subtitle="t('gsms.graphiques.finances.dossiersSous')" icon="folder"
+        :loading="loadingOf(cases)" :error="cases.error" more-to="/platform/financement">
+        <GsmsDonut :data="caseChart" :total="cases.data?.length" :total-label="t('gsms.finances.kpi.dossiers')" />
+      </GsmsChartCard>
+    </template>
+  </GsmsSectionLanding>
 </template>
 
 <script setup lang="ts">
@@ -13,6 +28,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
+import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
+import GsmsDonut from '@/components/gsms/GsmsDonut.vue'
+import GsmsBarChart from '@/components/gsms/GsmsBarChart.vue'
+import { countBy, fromCounts, type ChartDatum } from '@/components/gsms/chartTheme'
 import { useApiSource } from '@/components/gsms/useApiSource'
 import type { AlertItem, KpiItem, ModuleItem, Tone } from '@/components/gsms/types'
 import { getInvoiceOverview, listPayments } from '@/api/gsms/invoicing'
@@ -93,4 +112,21 @@ const modules = computed<ModuleItem[]>(() => [
     figures: [{ label: t('gsms.finances.kpi.encaisseMois'), value: invoices.data ? centimes(invoices.data.encaisse_ce_mois_centimes) : '—' },
       { label: t('gsms.finances.kpi.encaissements'), value: payments.data?.length ?? 0 }] },
 ])
+
+// Graphiques : montants et compteurs de GET /factures/synthese, dossiers regroupés par l'état que l'API leur donne.
+// L'évolution mensuelle des encaissements n'est pas tracée : l'API ne renvoie pas encore de série par mois.
+const euros = (n: number) => centimes(n)
+const amountChart = computed<ChartDatum[]>(() => {
+  const d = invoices.data
+  if (!d) return []
+  return [
+    { key: 'encaisse', label: t('gsms.finances.kpi.encaisseMois'), value: d.encaisse_ce_mois_centimes, tone: 'success', to: '/platform/paiements' },
+    { key: 'aEncaisser', label: t('gsms.finances.kpi.aEncaisser'), value: d.a_encaisser_centimes, tone: 'brand', to: '/platform/factures?type=FACTURE' },
+    { key: 'enRetard', label: t('gsms.finances.kpi.enRetard'), value: d.en_retard_centimes, tone: 'danger', to: '/platform/factures?retard=1' },
+  ]
+})
+const invoiceChart = computed(() => fromCounts(invoices.data?.statuts ?? {}, ['BROUILLON', 'EMISE', 'PAYEE_PARTIELLEMENT', 'PAYEE', 'ANNULEE'],
+  stateLabel, (code) => `/platform/factures?statut=${code}`, { BROUILLON: 'neutral', ANNULEE: 'danger' }))
+const caseChart = computed(() => fromCounts(countBy(cases.data ?? [], (c) => c.statut), ['FUNDED', 'PARTIALLY_FUNDED', 'PENDING', 'UNFUNDED'],
+  stateLabel, () => '/platform/financement'))
 </script>

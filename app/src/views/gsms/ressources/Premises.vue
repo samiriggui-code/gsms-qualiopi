@@ -21,7 +21,7 @@
       <GsmsStatusTag :code="row.status" :label="row.status_label" />
       <span v-if="row.checked_on" class="cell-sub">{{ t('gsms.ressources.lieux.verifieLe', { date: fmtDate(row.checked_on) }) }}</span>
     </template>
-    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.lieux.supprimer')" @edit="openForm(row)" @delete="remove(row)" /></template>
+    <template #cell-actions="{ row }"><GsmsRowActions v-if="canWrite" :delete-title="t('gsms.ressources.lieux.supprimer')" @edit="openForm(row)" :remove="() => remove(row)" /></template>
 
     <template #card="{ item }">
       <div class="card card--static">
@@ -38,7 +38,7 @@
           <span v-if="item.capacity != null"><t-icon name="user" />{{ t('gsms.ressources.lieux.nPlaces', { n: item.capacity }) }}</span>
           <span v-if="item.equipment"><t-icon name="tools" />{{ t('gsms.ressources.lieux.nEquipements', { n: item.equipment }) }}</span>
         </div>
-        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.lieux.supprimer')" @edit="openForm(item)" @delete="remove(item)" />
+        <GsmsRowActions v-if="canWrite" class="card-actions" :delete-title="t('gsms.ressources.lieux.supprimer')" @edit="openForm(item)" :remove="() => remove(item)" />
       </div>
     </template>
   </GsmsListPage>
@@ -119,13 +119,9 @@ async function saved() {
 }
 
 async function remove(p: Premises) {
+  await deleteRessource('premises', p.id)
   actionError.value = null
-  try {
-    await deleteRessource('premises', p.id)
-    await load()
-  } catch (e) {
-    actionError.value = e
-  }
+  void load()
 }
 </script>
 

@@ -1,6 +1,7 @@
 <template>
-  <div class="gsms-refusal" :class="{ 'gsms-refusal--inline': inline }" role="alert">
-    <div class="gsms-refusal__icon"><t-icon :name="icon" /></div>
+  <div class="gsms-refusal" :class="{ 'gsms-refusal--inline': inline, 'gsms-refusal--illustrated': !!illus }" role="alert">
+    <GsmsIllustration v-if="illus" :n="illus" :height="150" class="gsms-refusal__illus" />
+    <div v-else class="gsms-refusal__icon"><t-icon :name="icon" /></div>
     <div class="gsms-refusal__body">
       <div class="gsms-refusal__title">{{ refusal.title }}</div>
       <div class="gsms-refusal__message">{{ refusal.message }}</div>
@@ -16,9 +17,18 @@
 /** Refus de l'API affiché tel quel (detail + details) : jamais remplacé par une liste vide ou des compteurs à zéro. */
 import { computed } from 'vue'
 import { toRefusal } from './format'
+import GsmsIllustration from './GsmsIllustration.vue'
 
 const props = withDefaults(defineProps<{ error: unknown; inline?: boolean }>(), { inline: false })
 const refusal = computed(() => toRefusal(props.error))
+// Page entière introuvable (404) ou en erreur (API muette, erreur serveur) : illustrations de l'ancienne application.
+const illus = computed(() => {
+  if (props.inline) return 0
+  const s = refusal.value.status
+  if (s === 404) return 19
+  if (s === 0 || s === -1 || s >= 500) return 20
+  return 0
+})
 const icon = computed(() => {
   const s = refusal.value.status
   if (s === 403) return 'lock-on'
@@ -48,6 +58,14 @@ const icon = computed(() => {
   }
 }
 
+.gsms-refusal--illustrated {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  .gsms-refusal__details { text-align: left; }
+  .gsms-refusal__actions { justify-content: center; }
+}
+.gsms-refusal__illus { align-self: center; }
 .gsms-refusal__icon {
   display: flex;
   align-items: center;

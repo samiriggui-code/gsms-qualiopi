@@ -1,6 +1,12 @@
 <template>
   <GsmsSectionLanding :title="t('gsms.communication.titre')" icon="mail" :description="t('gsms.communication.sousTitre')"
     :kpis="kpis" :kpi-loading="loadingOf(pending) || loadingOf(evidence)" :alerts="alerts" :engine="engine" :modules="modules">
+    <template v-if="!pending.error" #charts>
+      <GsmsChartCard :title="t('gsms.graphiques.communication.messages')" :subtitle="t('gsms.graphiques.communication.messagesSous')"
+        icon="chart-bar" :loading="loadingOf(pending)" more-to="/platform/messages">
+        <GsmsBarChart :caption="t('gsms.graphiques.communication.messages')" :data="messageChart" horizontal />
+      </GsmsChartCard>
+    </template>
     <p class="notice"><t-icon name="info-circle" size="14px" />{{ t('gsms.communication.messages.parDefaut') }}</p>
   </GsmsSectionLanding>
 </template>
@@ -9,6 +15,9 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
+import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
+import GsmsBarChart from '@/components/gsms/GsmsBarChart.vue'
+import { fromCounts } from '@/components/gsms/chartTheme'
 import { useApiSource } from '@/components/gsms/useApiSource'
 import type { AlertItem, KpiItem, ModuleItem } from '@/components/gsms/types'
 import { listMessages, listRelanceRules } from '@/api/gsms/relances'
@@ -89,6 +98,9 @@ const modules = computed<ModuleItem[]>(() => [
     figures: [{ label: t('gsms.communication.kpi.documents'), value: documents.value.length },
       { label: t('gsms.communication.kpi.types'), value: new Set(documents.value.map((d) => d.type)).size }] },
 ])
+// Graphique : compteurs par statut renvoyés avec la liste des messages (GET /communications).
+const messageChart = computed(() => fromCounts(pending.data?.compteurs ?? {}, ['A_VALIDER', 'PREVU', 'ENVOYE', 'ECHEC', 'SANS_ADRESSE', 'ANNULE'],
+  statusLabel, msgLink, { SANS_ADRESSE: 'neutral', ANNULE: 'neutral' }))
 </script>
 
 <style scoped lang="less">

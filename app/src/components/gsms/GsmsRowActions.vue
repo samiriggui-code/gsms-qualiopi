@@ -6,20 +6,21 @@
 </template>
 
 <script setup lang="ts">
-/** Modifier / supprimer une ligne d'une ressource CRUD ; la suppression est confirmée, l'API peut la refuser (409). */
+/**
+ * Modifier / supprimer une ligne d'une ressource CRUD. La suppression passe par la confirmation critique : l'appel
+ * (`remove`) est fait depuis le dialogue, un refus de l'API (409) s'y affiche et le dialogue reste ouvert.
+ */
 import { useI18n } from 'vue-i18n'
-import { DialogPlugin } from 'tdesign-vue-next'
+import { confirmCritical } from './critical'
 
-const props = defineProps<{ deleteTitle: string }>()
-const emit = defineEmits<{ edit: []; delete: [] }>()
+const props = defineProps<{ deleteTitle: string; remove: () => Promise<unknown> }>()
+const emit = defineEmits<{ edit: [] }>()
 const { t } = useI18n()
 
 function confirmDelete() {
-  const dlg = DialogPlugin.confirm({
-    header: props.deleteTitle, body: t('gsms.commun.suppressionDefinitive'), theme: 'danger',
-    confirmBtn: { content: t('gsms.commun.supprimer'), theme: 'danger' }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: () => { dlg.destroy(); emit('delete') },
-    onClose: () => dlg.destroy(),
+  void confirmCritical({
+    title: props.deleteTitle, consequence: t('gsms.commun.suppressionDefinitive'),
+    confirmLabel: t('gsms.commun.supprimer'), run: props.remove,
   })
 }
 </script>

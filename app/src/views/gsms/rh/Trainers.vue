@@ -14,7 +14,7 @@
 
     <template #cell-full_name="{ row }">
       <router-link :to="`/platform/formateurs/${row.id}`" class="person" @click.stop>
-        <GsmsPersonAvatar :name="row.full_name" />
+        <GsmsPersonAvatar :name="row.full_name" :email="row.email" />
         <span class="person-text"><span class="cell-title">{{ row.full_name }}</span><span v-if="row.email" class="cell-sub">{{ row.email }}</span></span>
       </router-link>
     </template>
@@ -29,7 +29,7 @@
       <router-link :to="`/platform/formateurs/${item.id}`" class="card">
         <div class="card-header">
           <div class="card-header-left person">
-            <GsmsPersonAvatar :name="item.full_name" :size="32" />
+            <GsmsPersonAvatar :name="item.full_name" :email="item.email" :size="40" />
             <span class="card-title" :title="item.full_name">{{ item.full_name }}</span>
           </div>
           <t-tag variant="light" size="small">{{ item.is_external ? t('gsms.rh.formateurs.externe') : t('gsms.rh.formateurs.interne') }}</t-tag>

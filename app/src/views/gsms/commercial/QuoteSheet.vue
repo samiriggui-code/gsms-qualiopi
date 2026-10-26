@@ -127,8 +127,8 @@
     </template>
   </GsmsRecordSheet>
 
-  <ActionDialog v-model:visible="action.visible" :title="action.title" :confirm-label="action.title" :danger="action.name === 'abandonner'"
-    :intro="action.intro" :fields="action.fields" :run="runAction" @done="done" />
+  <ActionDialog v-model:visible="action.visible" :title="action.title" :confirm-label="action.title" :danger="CRITICAL.has(action.name)"
+    :intro="CRITICAL.has(action.name) ? '' : action.intro" :consequence="CRITICAL.has(action.name) ? action.intro : ''" :fields="action.fields" :run="runAction" @done="done" />
   <ActionDialog v-if="quote" v-model:visible="editVisible" :title="t('gsms.commercial.devis.modifierEntete')" :fields="editFields"
     :run="(v) => updateEdition(id, v)" @done="done" />
   <QuoteLinesDialog v-if="quote" v-model:visible="linesVisible" :quote-id="id" :lines="quote.lignes" :units="units" @saved="saved" />
@@ -156,6 +156,8 @@ import { euros } from '@/views/gsms/formations/display'
 const TABS = ['contenu', 'verifications', 'historique', 'versions']
 // Refus qui ne sont pas à montrer : action sans objet dans cet état, ou droit que le compte n'a pas.
 const HIDDEN = new Set(['INVALID_TRANSITION', 'PERMISSION_MISSING'])
+// Actions lourdes de conséquences : confirmation critique (version figée, archivage, abandon).
+const CRITICAL = new Set(['valider', 'archiver', 'abandonner'])
 
 const { t, locale } = useI18n()
 const route = useRoute()

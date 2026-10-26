@@ -1,16 +1,41 @@
 <template>
   <GsmsSectionLanding :title="t('gsms.ecole.titre')" icon="education" :description="t('gsms.ecole.sousTitre')"
     :error="catalogue.error" :kpis="kpis" :kpi-loading="loadingOf(catalogue) || loadingOf(summary) || loadingOf(learners)"
-    :alerts="alerts" :modules="modules" />
+    :alerts="alerts" :modules="modules">
+    <template #charts>
+      <GsmsChartCard :title="t('gsms.graphiques.ecole.etapes')" :subtitle="t('gsms.graphiques.ecole.etapesSous')" icon="chart-bar"
+        :loading="loadingOf(summary)" :error="summary.error" more-to="/platform/parcours/inscriptions" class="chart-wide">
+        <GsmsBarChart :caption="t('gsms.graphiques.ecole.etapes')" :categories="stepChart.categories" :series="stepChart.series"
+          :links="stepChart.links" horizontal />
+      </GsmsChartCard>
+      <GsmsChartCard :title="t('gsms.graphiques.ecole.inscriptions')" :subtitle="t('gsms.graphiques.ecole.inscriptionsSous')" icon="chart-ring"
+        :loading="loadingOf(summary)" :error="summary.error" more-to="/platform/parcours/inscriptions">
+        <GsmsDonut :data="enrollmentChart" />
+      </GsmsChartCard>
+      <GsmsChartCard :title="t('gsms.graphiques.ecole.resultats')"
+        :subtitle="t('gsms.graphiques.ecole.resultatsSous', { n: results.data?.periode.mois ?? 12 })" icon="chart-bar"
+        :loading="loadingOf(results)" :error="results.error" :empty="!resultsChart.length">
+        <GsmsBarChart :caption="t('gsms.graphiques.ecole.resultats')" :data="resultsChart" :max="100" :format="pct" horizontal />
+      </GsmsChartCard>
+      <GsmsChartCard :title="t('gsms.graphiques.ecole.filieres')" :subtitle="t('gsms.graphiques.ecole.filieresSous')" icon="book"
+        :loading="loadingOf(catalogue)" :error="catalogue.error" more-to="/platform/formations">
+        <GsmsBarChart :caption="t('gsms.graphiques.ecole.filieres')" :data="trackChart" horizontal />
+      </GsmsChartCard>
+    </template>
+  </GsmsSectionLanding>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GsmsSectionLanding from '@/components/gsms/GsmsSectionLanding.vue'
+import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
+import GsmsDonut from '@/components/gsms/GsmsDonut.vue'
+import GsmsBarChart from '@/components/gsms/GsmsBarChart.vue'
+import { fromCounts, type ChartDatum, type ChartSeries, type ChartTone } from '@/components/gsms/chartTheme'
 import { useApiSource, type ApiSource } from '@/components/gsms/useApiSource'
 import type { AlertItem, KpiItem, ModuleItem } from '@/components/gsms/types'
-import { getCatalogue } from '@/api/gsms/training'
+import { getCatalogue, getResults } from '@/api/gsms/training'
 import { getJourneySummary } from '@/api/gsms/journey'
 import { listLearnerRecords, listSessions } from '@/api/gsms/sessions'
 import { getEdofEstablishment } from '@/api/gsms/edof'
@@ -47,6 +72,7 @@ const quotes = useApiSource(async () => {
 }).state
 const companies = useApiSource(listCompanies).state
 
+const results = useApiSource(() => getResults()).state
 const loadingOf = (s: ApiSource<unknown>) => s.loading || (!s.data && !s.error)
 /** Une valeur d'une source refusée s'affiche « — », jamais 0. */
 const value = (s: ApiSource<unknown>, n: number | undefined) => (s.error ? '—' : n ?? 0)
@@ -117,4 +143,36 @@ const modules = computed<ModuleItem[]>(() => [
     figures: [{ label: t('gsms.ecole.kpi.etapesEnRetard'), value: summary.data?.en_retard.length ?? 0 },
       { label: t('gsms.ecole.kpi.examensReussis'), value: summary.data ? `${summary.data.examens.reussis} / ${summary.data.examens.presentes}` : '—' }] },
 ])
+
+// Graphiques : compteurs et taux tels que l'API les renvoie (GET /parcours/synthese, /formation/resultats, catalogue).
+const STEP_STATES: [string, ChartTone][] = [['FAIT', 'success'], ['A_ECHEANCE', 'warning'], ['EN_RETARD', 'danger'], ['A_VENIR', 'info'], ['SANS_OBJET', 'neutral']]
+const stepChart = computed(() => {
+  const steps = Object.keys(summary.data?.etapes ?? {})
+  return {
+    categories: steps.map(stepLabel),
+    links: steps.map((s) => `/platform/parcours/${s}`),
+    series: STEP_STATES.map<ChartSeries>(([etat, tone]) => ({
+      key: etat, label: stateLabel(etat), tone, values: steps.map((s) => summary.data?.etapes[s]?.[etat] ?? 0),
+    })),
+  }
+})
+const enrollmentChart = computed(() => fromCounts(summary.data?.inscriptions ?? {}, ['INSCRIT', 'CONFIRME', 'TERMINE', 'ABANDON', 'ANNULE'],
+  stateLabel, () => '/platform/parcours/inscriptions', { INSCRIT: 'info', ANNULE: 'neutral' }))
+const pct = (n: number) => `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(n)} %`
+const resultsChart = computed<ChartDatum[]>(() => {
+  const totals = results.data?.totaux
+  if (!totals) return []
+  const rates: [string, number | null][] = [
+    ['reussite', totals.taux_reussite], ['satisfaction', totals.taux_satisfaction], ['abandon', totals.taux_abandon],
+  ]
+  // Un taux non mesuré (null) n'est pas dessiné : jamais un zéro à sa place.
+  return rates.filter((r): r is [string, number] => r[1] !== null)
+    .map(([key, value]) => ({ key, label: t(`gsms.graphiques.ecole.${key}`), value, tone: 'brand' as const }))
+})
+const trackChart = computed<ChartDatum[]>(() => (catalogue.data?.filieres ?? [])
+  .map((f) => ({ key: f.value, label: f.label, value: f.count, tone: 'brand' as const, to: '/platform/formations' })))
 </script>
+
+<style scoped lang="less">
+.chart-wide { grid-column: 1 / -1; }
+</style>

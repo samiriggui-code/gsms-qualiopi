@@ -1,5 +1,6 @@
 <template>
   <GsmsRecordSheet :title="request ? fullName : t('gsms.commercial.demandes.fiche')" icon="user-add" back="/platform/demandes"
+    :avatar-name="request ? fullName : null" :avatar-email="request?.email"
     :back-label="t('gsms.commercial.demandes.titre')" :subtitle="request ? `${request.reference} · ${request.formation.nom || '—'}` : ''"
     :ready="!!request" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="request" #status><GsmsStatusTag :code="request.statut" :label="request.statut_libelle" /></template>
@@ -33,7 +34,7 @@
 
     <template v-if="request" #side>
       <section class="side-section">
-        <h3 class="side-head"><GsmsPersonAvatar :name="fullName" :size="40" />{{ t('gsms.commercial.demandes.candidat') }}</h3>
+        <h3 class="side-head"><GsmsPersonAvatar :name="fullName" :email="request?.email" :size="40" />{{ t('gsms.commercial.demandes.candidat') }}</h3>
         <dl>
           <div><dt>{{ t('gsms.commercial.demandes.civilite') }}</dt><dd>{{ request.civilite_libelle || '—' }}</dd></div>
           <div v-if="request.nom_usage"><dt>{{ t('gsms.commercial.demandes.nomNaissance') }}</dt><dd>{{ request.nom }}</dd></div>
@@ -47,7 +48,7 @@
         <dl>
           <div><dt>{{ t('gsms.commercial.demandes.neLe') }}</dt><dd>{{ fmtDate(request.naissance.date) }}</dd></div>
           <div><dt>{{ t('gsms.commercial.demandes.lieuNaissance') }}</dt><dd>{{ birthPlace || '—' }}</dd></div>
-          <div><dt>{{ t('gsms.commercial.demandes.nationalite') }}</dt><dd>{{ request.nationalite || '—' }}</dd></div>
+          <div><dt>{{ t('gsms.commercial.demandes.nationalite') }}</dt><dd class="with-flag"><img v-if="nationalityFlag(request.nationalite)" :src="nationalityFlag(request.nationalite)!" alt="" class="flag" />{{ request.nationalite || '—' }}</dd></div>
         </dl>
       </section>
       <section class="side-section">
@@ -112,7 +113,7 @@
   </GsmsRecordSheet>
 
   <ActionDialog v-model:visible="refuseVisible" :title="t('gsms.commercial.demandes.refuser')" :confirm-label="t('gsms.commercial.demandes.refuser')" danger
-    :intro="t('gsms.commercial.demandes.refuserAide')" :fields="request?.capabilities.REFUSEE.a_saisir ?? ['motif']"
+    :consequence="t('gsms.commercial.demandes.refuserAide')" :fields="request?.capabilities.REFUSEE.a_saisir ?? ['motif']"
     :run="(v) => setPreinscriptionStatus(id, 'REFUSEE', v.motif)" @done="refresh" />
 
   <t-dialog v-model:visible="convertVisible" :header="t('gsms.commercial.demandes.convertir')" width="min(560px, calc(100vw - 32px))" attach="body" destroy-on-close
@@ -149,6 +150,7 @@ import { convertPreinscription, getPreinscription, setPreinscriptionStatus, type
 import type { Capability } from '@/api/gsms/common'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { fmtDate, fmtDateTime } from '@/components/gsms/format'
+import { nationalityFlag } from '@/components/gsms/media'
 
 type Action = keyof PreinscriptionDetail['capabilities']
 const ACTIONS: Action[] = ['EN_COURS', 'REFUSEE', 'convertir']
@@ -264,6 +266,8 @@ async function refresh() {
 </script>
 
 <style scoped lang="less">
+.with-flag { display: flex; align-items: center; gap: 6px; }
+.flag { width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; }
 @import (reference) '@/components/gsms/gsms-list.less';
 .side-section { .gsms-side-section(); }
 .side-head { display: flex; align-items: center; gap: 10px; }

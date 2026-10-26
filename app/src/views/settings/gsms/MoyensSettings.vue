@@ -64,7 +64,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import { useI18n } from 'vue-i18n'
 import {
   createMoyen, deleteMoyen, listMoyens, updateMoyen, type MoyenResource, type MoyenRow,
@@ -165,26 +166,16 @@ async function save() {
   }
 }
 
-function remove(row: MoyenRow) {
-  const dialog = DialogPlugin.confirm({
-    header: t('gsms.parametres.moyens.supprimerTitre', { name: def.value.title(row) || singular.value }),
-    body: t('gsms.parametres.moyens.supprimerTexte'),
-    confirmBtn: t('gsms.parametres.commun.supprimer'),
-    cancelBtn: t('gsms.parametres.commun.annuler'),
-    theme: 'danger',
-    onConfirm: async () => {
-      dialog.destroy()
-      actionError.value = null
-      try {
-        await deleteMoyen(current.value, row.id)
-        MessagePlugin.success(t('gsms.parametres.commun.supprime'))
-        await load()
-      } catch (err) {
-        actionError.value = err
-      }
-    },
-    onClose: () => dialog.destroy(),
+async function remove(row: MoyenRow) {
+  actionError.value = null
+  const done = await confirmCritical({
+    title: t('gsms.parametres.moyens.supprimerTitre', { name: def.value.title(row) || singular.value }),
+    consequence: t('gsms.parametres.moyens.supprimerTexte'), confirmLabel: t('gsms.parametres.commun.supprimer'),
+    run: () => deleteMoyen(current.value, row.id).then(() => true),
   })
+  if (!done) return
+  MessagePlugin.success(t('gsms.parametres.commun.supprime'))
+  await load()
 }
 
 onMounted(() => { valueLists.load(); load() })

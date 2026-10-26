@@ -103,14 +103,15 @@
 
   <ActionDialog v-model:visible="cancelVisible" :title="cancelTitle" :intro="t('gsms.communication.messages.annulerAide')"
     :fields="[{ name: 'motif', label: t('gsms.communication.messages.motifLabel'), type: 'textarea' }]"
-    :confirm-label="cancelTitle" danger :run="(v) => cancelMessage(target!.id, String(v.motif ?? ''))" @done="done" />
+    :confirm-label="cancelTitle" danger :consequence="t('gsms.communication.messages.annulerAide')" :run="(v) => cancelMessage(target!.id, String(v.motif ?? ''))" @done="done" />
 </template>
 
 <script setup lang="ts">
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Button as TButton, DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { Button as TButton, MessagePlugin } from 'tdesign-vue-next'
+import { confirmCritical } from '@/components/gsms/critical'
 import GsmsListPage, { type ListColumn } from '@/components/gsms/GsmsListPage.vue'
 import GsmsFilterTabs from '@/components/gsms/GsmsFilterTabs.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
@@ -261,23 +262,12 @@ function act(action: Action, row: MessageRow) {
     return
   }
   const isValidation = action === 'valider'
-  const dlg = DialogPlugin.confirm({
-    header: t(isValidation ? 'gsms.communication.messages.validerTitre' : 'gsms.communication.messages.renvoyerTitre', { ref: row.reference }),
-    body: t(isValidation ? 'gsms.communication.messages.validerAide' : 'gsms.communication.messages.renvoyerAide'),
-    confirmBtn: { content: t(`gsms.communication.messages.${action}`) }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      busy.value = `${action}:${row.id}`
-      try {
-        done(await (isValidation ? validateMessage(row.id) : retryMessage(row.id)))
-      } catch (e) {
-        actionError.value = e
-      } finally {
-        busy.value = ''
-      }
-    },
-    onClose: () => dlg.destroy(),
-  })
+  void confirmCritical({
+    title: t(isValidation ? 'gsms.communication.messages.validerTitre' : 'gsms.communication.messages.renvoyerTitre', { ref: row.reference }),
+    consequence: t(isValidation ? 'gsms.communication.messages.validerAide' : 'gsms.communication.messages.renvoyerAide'),
+    confirmLabel: t(`gsms.communication.messages.${action}`),
+    run: () => (isValidation ? validateMessage(row.id) : retryMessage(row.id)),
+  }).then((updated) => { if (updated) done(updated) })
 }
 
 /** Le message renvoyé par l'API remplace la ligne affichée ; la liste est relue pour les compteurs. */
@@ -288,27 +278,16 @@ function done(updated: unknown) {
   load()
 }
 
-function confirmPlanner() {
-  const dlg = DialogPlugin.confirm({
-    header: t('gsms.communication.messages.planifierTitre'), body: t('gsms.communication.messages.planifierAide'),
-    confirmBtn: { content: t('gsms.communication.messages.planifier') }, cancelBtn: t('gsms.commun.annuler'),
-    onConfirm: async () => {
-      dlg.destroy()
-      busy.value = 'planifier'
-      actionError.value = null
-      try {
-        const r = await runPlanner()
-        MessagePlugin.success(r.inactif ? t('gsms.communication.messages.planifierInactif')
-          : t('gsms.communication.messages.planifierFait', { crees: r.crees ?? 0, envoyes: r.envoyes ?? 0, annules: r.annules ?? 0, echecs: r.echecs ?? 0 }))
-        load()
-      } catch (e) {
-        actionError.value = e
-      } finally {
-        busy.value = ''
-      }
-    },
-    onClose: () => dlg.destroy(),
+async function confirmPlanner() {
+  actionError.value = null
+  const r = await confirmCritical<Awaited<ReturnType<typeof runPlanner>>>({
+    title: t('gsms.communication.messages.planifierTitre'), consequence: t('gsms.communication.messages.planifierAide'),
+    confirmLabel: t('gsms.communication.messages.planifier'), run: () => runPlanner(),
   })
+  if (!r) return
+  MessagePlugin.success(r.inactif ? t('gsms.communication.messages.planifierInactif')
+    : t('gsms.communication.messages.planifierFait', { crees: r.crees ?? 0, envoyes: r.envoyes ?? 0, annules: r.annules ?? 0, echecs: r.echecs ?? 0 }))
+  load()
 }
 
 /** Boutons d'un message (ligne du tableau, carte ou tiroir). */
