@@ -9,8 +9,19 @@ const meta = (gsms: string) => ({ requiresInit: true, requiresAuth: true, gsms }
 export const gsmsRoutes: RouteRecordRaw[] = [
   // A. Pilotage (vue d'ensemble = tableau de bord, page 1)
   { path: 'pilotage', name: 'gsmsPilotage', component: () => import('../views/gsms/pilotage/Overview.vue'), meta: meta('pilotage') },
+  // Planning (page 2), bilans et rapports, aide au BPF (page 3)
+  { path: 'planning', name: 'gsmsPlanning', component: () => import('../views/gsms/pilotage/Planning.vue'), meta: meta('planning') },
+  { path: 'rapports', name: 'gsmsRapports', component: () => import('../views/gsms/pilotage/Reports.vue'), meta: meta('rapports') },
+  { path: 'rapports/bpf', name: 'gsmsBpf', component: () => import('../views/gsms/pilotage/Bpf.vue'), meta: meta('rapports') },
   // École (vue d'ensemble) ; C. Offre de formation (pages 8 à 10)
   { path: 'ecole', name: 'gsmsEcole', component: () => import('../views/gsms/ecole/Overview.vue'), meta: meta('ecole') },
+  // B. Commercial (pages 4 à 7) : demandes du site, devis, entreprises clientes
+  { path: 'demandes', name: 'gsmsDemandes', component: () => import('../views/gsms/commercial/Requests.vue'), meta: meta('demandes') },
+  { path: 'demandes/:requestId', name: 'gsmsDemande', component: () => import('../views/gsms/commercial/RequestSheet.vue'), meta: meta('demandes') },
+  { path: 'devis', name: 'gsmsDevis', component: () => import('../views/gsms/commercial/Quotes.vue'), meta: meta('devis') },
+  { path: 'devis/:quoteId', name: 'gsmsDevisFiche', component: () => import('../views/gsms/commercial/QuoteSheet.vue'), meta: meta('devis') },
+  { path: 'entreprises', name: 'gsmsEntreprises', component: () => import('../views/gsms/commercial/Companies.vue'), meta: meta('entreprises') },
+  { path: 'entreprises/:companyId', name: 'gsmsEntreprise', component: () => import('../views/gsms/commercial/CompanySheet.vue'), meta: meta('entreprises') },
   { path: 'formations', name: 'gsmsFormations', component: () => import('../views/gsms/formations/Catalogue.vue'), meta: meta('formations') },
   { path: 'formations/:programId', name: 'gsmsFormation', component: () => import('../views/gsms/formations/ProgramSheet.vue'), meta: meta('formations') },
   { path: 'edof', name: 'gsmsEdof', component: () => import('../views/gsms/edof/Edof.vue'), meta: meta('edof') },
@@ -20,10 +31,20 @@ export const gsmsRoutes: RouteRecordRaw[] = [
   { path: 'sessions/:sessionId', name: 'gsmsSession', component: () => import('../views/gsms/sessions/SessionDetail.vue'), meta: meta('sessions') },
   { path: 'sessions/:sessionId/inscriptions/:enrollmentId', name: 'gsmsInscription', component: () => import('../views/gsms/sessions/LearnerJourney.vue'), meta: meta('sessions') },
   { path: 'emargement/:sessionId?', name: 'gsmsEmargement', component: () => import('../views/gsms/sessions/Attendance.vue'), meta: meta('emargement') },
+  // Évaluations des acquis et résultats (page 14), satisfaction (page 15)
+  { path: 'evaluations', name: 'gsmsEvaluations', component: () => import('../views/gsms/sessions/Assessments.vue'), meta: meta('evaluations') },
+  { path: 'satisfaction', name: 'gsmsSatisfaction', component: () => import('../views/gsms/sessions/Satisfaction.vue'), meta: meta('satisfaction') },
   // E. Apprenants (pages 16, 17, 17 bis)
   { path: 'stagiaires', name: 'gsmsStagiaires', component: () => import('../views/gsms/stagiaires/Learners.vue'), meta: meta('stagiaires') },
   { path: 'stagiaires/:learnerId', name: 'gsmsStagiaire', component: () => import('../views/gsms/stagiaires/LearnerSheet.vue'), meta: meta('stagiaires') },
   { path: 'parcours/:vue?', name: 'gsmsParcours', component: () => import('../views/gsms/stagiaires/Registers.vue'), meta: meta('parcours') },
+  // F. Finances : vue d'ensemble, financement (page 18), factures et avoirs (19), encaissements (20)
+  { path: 'finances', name: 'gsmsFinances', component: () => import('../views/gsms/finances/Overview.vue'), meta: meta('finances') },
+  { path: 'financement', name: 'gsmsFinancement', component: () => import('../views/gsms/finances/FundingCases.vue'), meta: meta('financement') },
+  { path: 'financement/:enrollmentId', name: 'gsmsDossierFinancement', component: () => import('../views/gsms/finances/FundingCase.vue'), meta: meta('financement') },
+  { path: 'factures', name: 'gsmsFactures', component: () => import('../views/gsms/finances/Invoices.vue'), meta: meta('factures') },
+  { path: 'factures/:invoiceId', name: 'gsmsFacture', component: () => import('../views/gsms/finances/InvoiceDetail.vue'), meta: meta('factures') },
+  { path: 'paiements', name: 'gsmsPaiements', component: () => import('../views/gsms/finances/Payments.vue'), meta: meta('paiements') },
   // H. Qualité Qualiopi (vue d'ensemble, pages 29 à 36 bis)
   { path: 'qualite', name: 'gsmsQualiopi', component: () => import('../views/gsms/qualite/Overview.vue'), meta: meta('qualite') },
   { path: 'qualite/indicateurs', name: 'gsmsIndicateurs', component: () => import('../views/gsms/qualite/Indicators.vue'), meta: meta('indicateurs') },

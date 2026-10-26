@@ -49,7 +49,7 @@ export const GSMS_MENU: GsmsMenuSection[] = [
   {
     key: 'ecole', icon: 'education', overview: { key: 'ecole', route: 'gsmsEcole', access: SESSIONS },
     entries: [
-      { key: 'demandes', route: 'gsmsDemandes', icon: 'user-add', access: { perm: ['sessions.write'] } },
+      { key: 'demandes', route: 'gsmsDemandes', icon: 'user-add', access: { perm: ['leads.read'] } },
       { key: 'devis', route: 'gsmsDevis', icon: 'file-paste', access: { perm: ['documents.read'] } },
       { key: 'entreprises', route: 'gsmsEntreprises', icon: 'city', access: { perm: ['sessions.read'] } },
       { key: 'formations', route: 'gsmsFormations', icon: 'book', access: { perm: ['sessions.read'] } },
@@ -65,11 +65,11 @@ export const GSMS_MENU: GsmsMenuSection[] = [
     ],
   },
   {
-    key: 'finances', icon: 'wallet', overview: { key: 'finances', route: 'gsmsFinances', access: { nav: ['financement'] } },
+    key: 'finances', icon: 'wallet', overview: { key: 'finances', route: 'gsmsFinances', access: { nav: ['financement'], perm: ['invoices.read'] } },
     entries: [
       { key: 'financement', route: 'gsmsFinancement', icon: 'wallet', access: { nav: ['financement'] } },
-      { key: 'factures', route: 'gsmsFactures', icon: 'file', access: { perm: ['documents.read'] } },
-      { key: 'paiements', route: 'gsmsPaiements', icon: 'money', access: { perm: ['documents.read'] } },
+      { key: 'factures', route: 'gsmsFactures', icon: 'file', access: { perm: ['invoices.read'] } },
+      { key: 'paiements', route: 'gsmsPaiements', icon: 'money', access: { perm: ['invoices.read'] } },
     ],
   },
   {

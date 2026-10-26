@@ -399,7 +399,11 @@ calendaires exacts dans la synthèse des devis, échéances des sessions d'exemp
 Sans migration : `GET /planning` (créneaux, 93 jours au plus, portée formateur, conflits formateur / salle signalés sans
 blocage), `GET /evaluations-acquis` (composé des registres du parcours), `GET /bilans` (inventaire des rapports) et
 `GET /bilans/bpf?exercice=` (**aide** au BPF, cadres marqués calculé / indicatif / partiel / non calculable ; sources
-`docs/bilans/SOURCES.md`). Tests `tests/test_pilotage.py`. Pages 2, 3 et 14 du back-office : à faire.
+`docs/bilans/SOURCES.md`). Tests `tests/test_pilotage.py`. Back-office (pages 2, 3, 14, 15) :
+`planning` (semaine en grille CSS, liste ; jour par jour sur téléphone ; conflits de l'API, sans bibliothèque de calendrier),
+`rapports` (inventaire `GET /bilans`, carnet téléchargé en fichier) et `rapports/bpf` (cadres et avertissement de l'API),
+`evaluations` (`GET /evaluations-acquis`, actions gouvernées) et `satisfaction` (`/surveys`). Manque côté API : filtres et
+`capabilities` sur `/surveys`. Reste : un écran pour `GET /formation/resultats`.
 
 ## 5 novodecies. Facturation, backend (26/10/2026, chantier C10)
 

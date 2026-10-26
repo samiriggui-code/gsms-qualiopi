@@ -46,6 +46,15 @@ const THEMES: Record<string, TagTheme> = {
   EN_COURS: 'primary', CONFIRMEE: 'primary', CONFIRME: 'primary', EN_TRAITEMENT: 'primary', DOCUMENTEE: 'primary',
   // Titres des formateurs (GET /rh/echeances), lieux et équipements (statuts des moyens)
   EXPIRE: 'danger', A_RENOUVELER: 'warning', EN_SERVICE: 'success', EN_MAINTENANCE: 'warning', HORS_SERVICE: 'danger',
+  // Factures et dossiers de financement (états renvoyés par l'API)
+  EMISE: 'primary', PAYEE: 'success', PAYE: 'success', PAYEE_PARTIELLEMENT: 'warning', ACCORDEE: 'primary', ACCEPTEE: 'primary',
+  FACTUREE: 'primary', OK: 'success', INCOMPLETE: 'warning', FUNDED: 'success', PARTIALLY_FUNDED: 'warning', UNFUNDED: 'danger', PENDING: 'warning',
+  // Conflits du planning (GET /planning), cadres de l'aide au BPF (GET /bilans/bpf), résultats d'examen
+  CERTAIN: 'danger', CALCULE: 'success', INDICATIF: 'warning', PARTIEL: 'warning', NON_CALCULABLE: 'default',
+  REUSSI: 'success', NON_REUSSI: 'danger', EN_ATTENTE: 'warning',
+  // Demandes de préinscription et devis (libellés fournis par l'API)
+  NOUVELLE: 'warning', CONVERTIE: 'success', REFUSEE: 'danger',
+  EN_RELECTURE: 'warning', VALIDE: 'success', ENVOYE: 'primary', ABANDONNE: 'danger',
 }
 
 export function stateTheme(code: string | null | undefined): TagTheme {
@@ -57,6 +66,9 @@ function detailLine(d: unknown): string {
   if (d === null || d === undefined) return ''
   if (typeof d === 'string') return d
   if (typeof d === 'object') {
+    // Détail motivé de l'API ({code, message, …}) : son message suffit, il est déjà rédigé pour l'utilisateur.
+    const message = (d as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) return message
     return Object.entries(d as Record<string, unknown>)
       .filter(([, v]) => v !== null && v !== undefined && v !== '')
       .map(([k, v]) => `${k.replace(/_/g, ' ')} : ${Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v)}`)

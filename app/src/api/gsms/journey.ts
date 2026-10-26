@@ -126,3 +126,43 @@ export const getJourneyRegister = (vue: string) => http.get<JourneyRegister>(`/p
 /** Chemin d'un document émis par le moteur pour une inscription (à télécharger avec downloadFile). */
 export const journeyDocumentPath = (enrollmentId: string, documentId: string) =>
   `/inscriptions/${enc(enrollmentId)}/documents/${enc(documentId)}`
+
+// ── Évaluations des acquis et résultats (GET /evaluations-acquis) ─────────────
+
+/** Valeurs de filtre acceptées par l'API (`registry.STATE_ORDER` et `registry.RESULTS`) ; c'est elle qui les vérifie. */
+export const ASSESSMENT_STATES = ['EN_RETARD', 'A_ECHEANCE', 'A_VENIR', 'FAIT', 'SANS_OBJET'] as const
+export const ASSESSMENT_RESULTS = ['REUSSI', 'NON_REUSSI', 'EN_ATTENTE', 'AUCUN'] as const
+
+type StepState = { etat: string; echeance: string | null; le: string | null; detail: string | null }
+type StepAction = (Capability & { cle: string }) | null
+
+export interface AssessmentRow {
+  inscription: string
+  stagiaire: string
+  statut: string
+  session: RegisterSession & { programme_id: string; programme_code: string | null; certifiante: boolean }
+  entreprise: string | null
+  financement: string | null
+  evaluations: StepState & {
+    action: StepAction
+    liste: { id: string; nature: string; intitule: string; le: string; note: number | null; reussi: boolean | null }[]
+  }
+  attestation: StepState & { action: StepAction }
+  certification: { resultat: string; epreuves: { intitule: string; le: string; note: number | null; reussi: boolean | null }[] }
+}
+
+export interface Assessments {
+  /** Nombre d'inscriptions par état, calculé par l'API sur les lignes renvoyées. */
+  compteurs: { evaluations: Record<string, number>; attestation: Record<string, number>; certification: Record<string, number> }
+  lignes: AssessmentRow[]
+}
+
+export interface AssessmentQuery {
+  session_id?: string
+  programme?: string
+  etat?: string
+  resultat?: string
+}
+
+/** GET /evaluations-acquis : sessions visibles seulement ; filtre inconnu : 422. */
+export const getAssessments = (query: AssessmentQuery = {}) => http.get<Assessments>('/evaluations-acquis', { query: { ...query } })

@@ -14,8 +14,11 @@ import { getCatalogue } from '@/api/gsms/training'
 import { getJourneySummary } from '@/api/gsms/journey'
 import { listLearnerRecords, listSessions } from '@/api/gsms/sessions'
 import { getEdofEstablishment } from '@/api/gsms/edof'
+import { listPreinscriptions } from '@/api/gsms/preinscriptions'
+import { listEditions } from '@/api/gsms/editions'
+import { listCompanies } from '@/api/gsms/entreprises'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
-import { fmtDate, stepLabel } from '@/components/gsms/format'
+import { fmtDate, stateLabel, stepLabel } from '@/components/gsms/format'
 
 const { t } = useI18n()
 const access = useGsmsAccessStore()
@@ -30,6 +33,19 @@ const edof = useApiSource(async () => {
   await access.load()
   return showEdof.value ? getEdofEstablishment() : null
 }).state
+
+// Commercial : chaque module n'est chargé (et montré) que si le compte a le droit de lecture (GET /bootstrap).
+const showLeads = computed(() => access.can('leads.read'))
+const showQuotes = computed(() => access.can('documents.read'))
+const leads = useApiSource(async () => {
+  await access.load()
+  return showLeads.value ? listPreinscriptions() : null
+}).state
+const quotes = useApiSource(async () => {
+  await access.load()
+  return showQuotes.value ? (await listEditions()).filter((e) => e.type === 'DEVIS') : null
+}).state
+const companies = useApiSource(listCompanies).state
 
 const loadingOf = (s: ApiSource<unknown>) => s.loading || (!s.data && !s.error)
 /** Une valeur d'une source refusée s'affiche « — », jamais 0. */
@@ -65,7 +81,21 @@ const alerts = computed(() => {
   }
 })
 
+const leadFigure = (code: string) => ({ label: leads.data?.statuts[code] ?? stateLabel(code), value: leads.data?.compteurs[code] ?? 0 })
+const quoteCount = (code: string) => (quotes.data ?? []).filter((q) => q.statut === code).length
+
 const modules = computed<ModuleItem[]>(() => [
+  ...(showLeads.value ? [{ key: 'demandes', title: t('gsms.menu.entrees.demandes'), icon: 'user-add', to: '/platform/demandes',
+    description: t('gsms.ecole.modules.demandes'), loading: loadingOf(leads), error: leads.error,
+    figures: [leadFigure('NOUVELLE'), leadFigure('EN_COURS')] }] : []),
+  ...(showQuotes.value ? [{ key: 'devis', title: t('gsms.menu.entrees.devis'), icon: 'file-paste', to: '/platform/devis',
+    description: t('gsms.ecole.modules.devis'), loading: loadingOf(quotes), error: quotes.error,
+    figures: [{ label: t('gsms.qualite.kpi.total'), value: quotes.data?.length ?? 0 },
+      { label: stateLabel('EN_RELECTURE'), value: quoteCount('EN_RELECTURE') }] }] : []),
+  { key: 'entreprises', title: t('gsms.menu.entrees.entreprises'), icon: 'city', to: '/platform/entreprises',
+    description: t('gsms.ecole.modules.entreprises'), loading: loadingOf(companies), error: companies.error,
+    figures: [{ label: t('gsms.qualite.kpi.total'), value: companies.data?.length ?? 0 },
+      { label: t('gsms.commercial.entreprises.avecStagiaires'), value: (companies.data ?? []).filter((c) => c.learners).length }] },
   { key: 'formations', title: t('gsms.menu.entrees.formations'), icon: 'book', to: '/platform/formations',
     description: t('gsms.ecole.modules.formations'), loading: loadingOf(catalogue), error: catalogue.error,
     figures: [{ label: t('gsms.ecole.kpi.formations'), value: catalogue.data?.totaux.formations ?? 0 },

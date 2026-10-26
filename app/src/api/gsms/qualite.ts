@@ -336,3 +336,29 @@ export const listWatchItems = () => http.get<WatchItem[]>('/watch-items')
 export const createWatchItem = (body: WatchIn) => http.post<WatchItem>('/watch-items', body)
 export const updateWatchItem = (id: string, body: WatchIn) => http.patch<WatchItem>(`/watch-items/${enc(id)}`, body)
 export const deleteWatchItem = (id: string) => http.delete<void>(`/watch-items/${enc(id)}`)
+
+// ── Enquêtes de satisfaction (ressource CRUD /surveys, écriture `quality.write`) ──
+
+/** Publics acceptés par l'API (handler/training_resources.py) ; c'est elle qui les vérifie. */
+export const SURVEY_AUDIENCES = ['APPRENANT_CHAUD', 'APPRENANT_FROID', 'ENTREPRISE', 'FORMATEUR', 'FINANCEUR'] as const
+
+export interface Survey {
+  id: string
+  session_id: string
+  session_reference: string | null
+  enrollment_id: string | null
+  learner_name: string | null
+  audience: string
+  sent_on: string | null
+  answered_on: string | null
+  /** Note sur 5. */
+  score: number | null
+  comment: string | null
+}
+
+export type SurveyIn = Partial<Omit<Survey, 'id' | 'session_reference' | 'learner_name'>>
+
+export const listSurveys = () => http.get<Survey[]>('/surveys')
+export const createSurvey = (body: SurveyIn) => http.post<Survey>('/surveys', body)
+export const updateSurvey = (id: string, body: SurveyIn) => http.patch<Survey>(`/surveys/${enc(id)}`, body)
+export const deleteSurvey = (id: string) => http.delete<void>(`/surveys/${enc(id)}`)
