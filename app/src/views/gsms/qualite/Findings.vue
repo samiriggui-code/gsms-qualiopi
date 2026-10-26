@@ -24,7 +24,7 @@
     <template #card="{ item }">
       <div class="card card--static">
         <div class="card-header">
-          <div class="card-header-left"><span v-if="item.indicateur" class="chip">I{{ item.indicateur }}</span><span class="card-title" :title="item.titre">{{ item.titre }}</span></div>
+          <div class="card-header-left"><span v-if="item.indicateur" class="chip">ind. {{ item.indicateur }}</span><span class="card-title" :title="item.titre">{{ item.titre }}</span></div>
           <t-tag v-if="item.capa?.en_retard" theme="danger" variant="light" size="small">{{ t('gsms.etats.EN_RETARD') }}</t-tag>
           <GsmsStatusTag :code="item.statut" :label="item.statutLibelle" />
         </div>

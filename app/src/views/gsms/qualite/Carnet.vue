@@ -26,7 +26,7 @@
     </template>
 
     <template #cell-nom="{ row }">
-      <span class="cell-title">I{{ row.numero }} · {{ row.nom || row.titre }}</span>
+      <span class="cell-title">ind. {{ row.numero }} · {{ row.nom || row.titre }}</span>
       <span class="cell-sub">{{ row.critere.nom }}</span>
     </template>
     <template #cell-etat="{ row }"><GsmsStatusTag :code="row.etat" /></template>
@@ -36,7 +36,7 @@
     <template #card="{ item }">
       <router-link :to="`/platform/qualite/indicateurs/${item.numero}`" class="card">
         <div class="card-header">
-          <div class="card-header-left"><span class="chip">I{{ item.numero }}</span><span class="card-title" :title="item.titre">{{ item.nom || item.titre }}</span></div>
+          <div class="card-header-left"><span class="chip">ind. {{ item.numero }}</span><span class="card-title" :title="item.titre">{{ item.nom || item.titre }}</span></div>
           <GsmsStatusTag :code="item.etat" />
         </div>
         <div class="card-content"><p class="card-description">{{ item.enonce }}</p></div>

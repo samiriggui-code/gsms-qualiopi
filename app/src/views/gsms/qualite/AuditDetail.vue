@@ -37,7 +37,7 @@
         <div class="grid">
           <div v-for="i in c.items" :key="i.numero" class="card card--static">
             <div class="card-header">
-              <div class="card-header-left"><span class="chip">I{{ i.numero }}</span><span class="card-title" :title="i.titre">{{ i.titre }}</span></div>
+              <div class="card-header-left"><span class="chip">ind. {{ i.numero }}</span><span class="card-title" :title="i.titre">{{ i.titre }}</span></div>
             </div>
             <div class="card-meta">
               <span>{{ t('gsms.qualite.audits.moteur') }} <GsmsStatusTag :code="i.etat_moteur" /></span>

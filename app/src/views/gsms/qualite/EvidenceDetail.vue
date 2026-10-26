@@ -39,7 +39,7 @@
       <section v-else-if="tab === 'indicateurs'" class="panel">
         <ul class="plain">
           <li v-for="l in ev.liens" :key="l.indicateur">
-            <router-link :to="`/platform/qualite/indicateurs/${l.indicateur}`" class="chip">I{{ l.indicateur }}</router-link> {{ l.titre || '' }}
+            <router-link :to="`/platform/qualite/indicateurs/${l.indicateur}`" class="chip">ind. {{ l.indicateur }}</router-link> {{ l.titre || '' }}
             <span class="muted"> · {{ l.raison || l.origine }}</span>
           </li>
         </ul>

@@ -18,7 +18,7 @@
 
     <template #cell-statut="{ row }"><GsmsStatusTag :code="row.statut" :label="row.statut_libelle" /></template>
     <template #cell-produite_le="{ row }">{{ fmtDate(row.produite_le) }}</template>
-    <template #cell-indicateurs="{ row }"><span class="chips"><span v-for="n in row.indicateurs" :key="n" class="chip">I{{ n }}</span></span></template>
+    <template #cell-indicateurs="{ row }"><span class="chips"><span v-for="n in row.indicateurs" :key="n" class="chip">ind. {{ n }}</span></span></template>
 
     <template #card="{ item }">
       <router-link :to="`/platform/qualite/preuves/${item.id}`" class="card">
@@ -35,7 +35,7 @@
             <span>{{ item.reference }}</span>
             <span v-if="item.produite_le"><t-icon name="time" size="14px" />{{ fmtDate(item.produite_le) }}</span>
           </div>
-          <div class="chips"><span v-for="n in item.indicateurs" :key="n" class="chip">I{{ n }}</span></div>
+          <div class="chips"><span v-for="n in item.indicateurs" :key="n" class="chip">ind. {{ n }}</span></div>
         </div>
       </router-link>
     </template>

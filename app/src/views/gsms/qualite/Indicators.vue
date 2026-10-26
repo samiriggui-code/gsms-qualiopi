@@ -63,7 +63,7 @@
     <template #card="{ item }">
       <router-link :to="`/platform/qualite/indicateurs/${item.numero}`" class="card">
         <div class="card-header">
-          <div class="card-header-left"><span class="chip">I{{ item.numero }}</span><span class="card-title" :title="item.titre">{{ item.titre }}</span></div>
+          <div class="card-header-left"><span class="chip">ind. {{ item.numero }}</span><span class="card-title" :title="item.titre">{{ item.titre }}</span></div>
           <GsmsStatusTag :code="item.etat" />
         </div>
         <div class="card-content"><p class="card-description">{{ item.detail }}</p></div>

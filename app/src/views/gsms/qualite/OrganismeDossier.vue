@@ -32,7 +32,7 @@
         </div>
         <div class="card-meta">
           <span>{{ item.required ? t('gsms.qualite.dossier.obligatoire') : t('gsms.qualite.dossier.facultative') }}</span>
-          <span v-for="n in item.indicators" :key="n" class="chip">I{{ n }}</span>
+          <span v-for="n in item.indicators" :key="n" class="chip">ind. {{ n }}</span>
         </div>
         <PieceActions :item="item" class="card-actions" />
       </div>

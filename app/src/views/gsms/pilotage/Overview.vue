@@ -80,7 +80,7 @@
                             <t-icon name="time" size="13px" aria-hidden="true" />{{ relative(entry.item.echeance) }}
                             <span class="task-date">· {{ fmtDate(entry.item.echeance) }}</span>
                           </span>
-                          <span class="chips"><span v-for="n in entry.item.indicateurs" :key="n" class="chip">I{{ n }}</span></span>
+                          <span class="chips"><span v-for="n in entry.item.indicateurs" :key="n" class="chip">ind. {{ n }}</span></span>
                         </span>
                       </component>
                     </li>

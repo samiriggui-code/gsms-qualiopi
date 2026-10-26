@@ -80,7 +80,7 @@
       </dl>
       <div v-if="selected.indicateurs.length" class="chips">
         <span class="cell-sub">{{ t('gsms.communication.messages.indicateurs') }}</span>
-        <router-link v-for="n in selected.indicateurs" :key="n" :to="`/platform/qualite/indicateurs/${n}`" class="chip chip--link">I{{ n }}</router-link>
+        <router-link v-for="n in selected.indicateurs" :key="n" :to="`/platform/qualite/indicateurs/${n}`" class="chip chip--link">ind. {{ n }}</router-link>
       </div>
       <p v-if="selected.erreur" class="notice notice--warn"><t-icon name="error-circle" size="14px" />{{ selected.erreur }}</p>
       <p v-if="selected.motif_annulation" class="notice"><t-icon name="info-circle" size="14px" />{{ t('gsms.communication.messages.motif', { motif: selected.motif_annulation }) }}</p>
