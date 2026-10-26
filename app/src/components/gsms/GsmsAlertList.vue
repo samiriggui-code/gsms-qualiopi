@@ -2,7 +2,8 @@
   <section class="panel">
     <header class="panel-head">
       <h3><t-icon :name="icon" size="16px" class="head-icon" />{{ title }}</h3>
-      <span v-if="!loading" class="count">{{ items.length }}</span>
+      <!-- Refus : pas de compteur (un refus ne doit jamais ressembler à un zéro) -->
+      <span v-if="!loading && !error" class="count">{{ items.length }}</span>
     </header>
     <p v-if="subtitle" class="sub">{{ subtitle }}</p>
     <div v-if="loading"><t-skeleton v-for="n in 3" :key="n" animation="gradient" :row-col="[{ width: '70%' }, { width: '40%' }]" class="skel" /></div>
