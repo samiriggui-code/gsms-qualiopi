@@ -118,6 +118,13 @@ import { getEvaluations, type Evaluations } from '@/api/gsms/qualite'
 import { listSessions, type SessionRow } from '@/api/gsms/sessions'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { fmtDate, mapApiLink, stateLabel } from '@/components/gsms/format'
+import { GSMS_MENU, isAccessOpen, type GsmsAccessRule } from '@/config/gsmsMenu'
+import { getPlanning, getReports } from '@/api/gsms/pilotage'
+import { getInvoiceOverview } from '@/api/gsms/invoicing'
+import { listTrainers } from '@/api/gsms/rh'
+import { listMessages } from '@/api/gsms/relances'
+import { centimes, todayIso } from '@/views/gsms/finances/display'
+import type { ModuleFigure } from '@/components/gsms/types'
 
 const { t, te, locale } = useI18n()
 const route = useRoute()
@@ -196,32 +203,84 @@ const indicatorChart = computed(() => fromCounts(countBy(evaluations.value?.indi
 const sessionChart = computed(() => fromCounts(countBy(sessions.value ?? [], (s) => s.status),
   ['PLANIFIEE', 'CONFIRMEE', 'EN_COURS', 'TERMINEE', 'CLOTUREE', 'ANNULEE'], stateLabel, undefined, 'brand'))
 
-const modules = computed<ModuleItem[]>(() => {
-  const out: ModuleItem[] = []
-  if (showQualite.value) {
+// Page d'accueil du back-office : une carte par rubrique que le compte peut ouvrir (règles du menu, GET /bootstrap),
+// avec des chiffres seulement quand ils sont déjà chargés ici (Qualiopi, sessions) ; jamais de chiffre recalculé.
+const MODULE_ROUTES: { key: string; titleKey: string; icon: string; route: string; access?: GsmsAccessRule }[] = [
+  ...GSMS_MENU.filter((s) => s.key === 'pilotage').flatMap((s) => s.entries.filter((e) => e.route !== 'gsmsPilotage')
+    .map((e) => ({ key: e.key, titleKey: `gsms.menu.entrees.${e.key}`, icon: e.icon, route: e.route, access: e.access }))),
+  ...GSMS_MENU.filter((s) => s.overview && s.key !== 'pilotage')
+    .map((s) => ({ key: s.key, titleKey: `gsms.menu.sections.${s.key}`, icon: s.icon, route: s.overview!.route, access: s.overview!.access })),
+]
+// Chiffres des cartes : une synthèse de l'API par rubrique, chargée seulement si la carte est visible.
+type Figures = { loading: boolean; error: unknown; figures: ModuleFigure[] }
+const moduleData = reactive<Record<string, Figures>>({})
+const inDays = (n: number) => { const d = new Date(`${todayIso()}T00:00:00`); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+const MODULE_LOADERS: Record<string, () => Promise<ModuleFigure[]>> = {
+  planning: async () => {
+    const p = await getPlanning({ du: todayIso(), au: inDays(7) })
+    return [{ label: t('gsms.pilotage.modules.chiffres.creneaux7j'), value: p.compteurs.creneaux },
+      { label: t('gsms.pilotage.modules.chiffres.conflits'), value: p.compteurs.conflits }]
+  },
+  rapports: async () => {
+    const r = (await getReports()).rapports
+    return [{ label: t('gsms.pilotage.modules.chiffres.disponibles'), value: `${r.filter((x) => x.disponible).length} / ${r.length}` }]
+  },
+  finances: async () => {
+    const f = await getInvoiceOverview()
+    return [{ label: t('gsms.pilotage.modules.chiffres.aEncaisser'), value: centimes(f.a_encaisser_centimes) },
+      { label: t('gsms.pilotage.modules.chiffres.enRetard'), value: centimes(f.en_retard_centimes) }]
+  },
+  rh: async () => {
+    const tr = await listTrainers()
+    return [{ label: t('gsms.pilotage.modules.chiffres.formateurs'), value: tr.length },
+      { label: t('gsms.pilotage.modules.chiffres.externes'), value: tr.filter((x) => x.is_external).length }]
+  },
+  communication: async () => {
+    const c = (await listMessages({ limite: 1 })).compteurs
+    return [{ label: t('gsms.pilotage.modules.chiffres.aValider'), value: c.A_VALIDER ?? 0 },
+      { label: t('gsms.pilotage.modules.chiffres.enEchec'), value: c.ECHEC ?? 0 }]
+  },
+}
+const loadModule = (key: string) => {
+  const loader = MODULE_LOADERS[key]
+  if (!loader || moduleData[key]) return
+  moduleData[key] = { loading: true, error: null, figures: [] }
+  loader().then((figures) => { moduleData[key] = { loading: false, error: null, figures } })
+    .catch((error) => { moduleData[key] = { loading: false, error, figures: [] } })
+}
+
+const visibleModules = computed(() => MODULE_ROUTES.filter((m) => router.hasRoute(m.route) && isAccessOpen(m.access, access)))
+watch(visibleModules, (list) => list.forEach((m) => loadModule(m.key)), { immediate: true })
+
+const modules = computed<ModuleItem[]>(() => visibleModules.value.map((m) => {
+  const item: ModuleItem = {
+    key: m.key, title: t(m.titleKey), icon: m.icon, to: router.resolve({ name: m.route }).path,
+    description: t(`gsms.pilotage.modules.${m.key}`), figures: [],
+  }
+  const loaded = moduleData[m.key]
+  if (loaded) Object.assign(item, loaded)
+  if (m.key === 'qualiopi' && showQualite.value) {
     const ind = evaluations.value?.indicateurs ?? []
-    out.push({
-      key: 'qualiopi', title: t('gsms.menu.sections.qualiopi'), icon: 'secured', to: '/platform/qualite',
-      description: t('gsms.pilotage.modules.qualiopi'), loading: !evaluations.value && !evaluationsError.value, error: evaluationsError.value,
+    Object.assign(item, {
+      loading: !evaluations.value && !evaluationsError.value, error: evaluationsError.value,
       figures: [
         { label: t('gsms.etats.DEMONTRABLE'), value: ind.filter((i) => i.etat === 'DEMONTRABLE').length },
-        { label: t('gsms.qualite.kpi.ecartsOuverts'), value: ind.reduce((n, i) => n + i.ecarts_ouverts, 0) },
+        { label: t('gsms.pilotage.modules.chiffres.ecarts'), value: ind.reduce((n, i) => n + i.ecarts_ouverts, 0) },
       ],
     })
   }
-  if (showSessions.value) {
+  if (m.key === 'ecole' && showSessions.value) {
     const rows = sessions.value ?? []
-    out.push({
-      key: 'sessions', title: t('gsms.menu.entrees.sessions'), icon: 'calendar-1', to: '/platform/sessions',
-      description: t('gsms.pilotage.modules.sessions'), loading: !sessions.value && !sessionsError.value, error: sessionsError.value,
+    Object.assign(item, {
+      loading: !sessions.value && !sessionsError.value, error: sessionsError.value,
       figures: [
         { label: t('gsms.etats.EN_COURS'), value: rows.filter((s) => s.status === 'EN_COURS').length },
         { label: t('gsms.pilotage.modules.aVenir'), value: rows.filter((s) => s.status === 'PLANIFIEE' || s.status === 'CONFIRMEE').length },
       ],
     })
   }
-  return out
-})
+  return item
+}))
 
 // ── Feuille de route en colonnes ────────────────────────────────────────────────
 const LIMIT = 5
