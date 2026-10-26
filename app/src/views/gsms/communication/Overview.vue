@@ -39,7 +39,12 @@ const kpis = computed<KpiItem[]>(() => [
     { key: 'echecs', label: statusLabel('ECHEC'), value: count('ECHEC'), subtitle: t('gsms.communication.kpi.sansAdresse', { n: count('SANS_ADRESSE') }), icon: 'error-circle', tone: 'danger' as const, to: msgLink('ECHEC') },
   ]),
   ...(evidence.error ? [] : [
-    { key: 'documents', label: t('gsms.communication.kpi.documents'), value: documents.value.length, subtitle: t('gsms.communication.kpi.rattaches'), icon: 'folder-open', to: '/platform/documents' },
+    { key: 'documents', label: t('gsms.communication.kpi.documents'), value: documents.value.length,
+      // Liste de preuves tronquée par l'API : le chiffre est partiel et le dit.
+      subtitle: evidence.data && evidence.data.total > evidence.data.affichees
+        ? t('gsms.communication.documents.tronque', { n: evidence.data.affichees, total: evidence.data.total })
+        : t('gsms.communication.kpi.rattaches'),
+      icon: 'folder-open', to: '/platform/documents' },
   ]),
 ])
 

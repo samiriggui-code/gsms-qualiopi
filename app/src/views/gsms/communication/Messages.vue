@@ -215,7 +215,9 @@ const detail = ref<MessageDetail | null>(null)
 const detailLoading = ref(false)
 const detailError = ref<unknown>(null)
 
+let detailSeq = 0
 async function open(row: MessageRow) {
+  const n = ++detailSeq
   selected.value = row
   drawerVisible.value = true
   actionError.value = null
@@ -223,12 +225,15 @@ async function open(row: MessageRow) {
   detailError.value = null
   detailLoading.value = true
   try {
-    detail.value = await getMessage(row.id)
-    if (selected.value?.id === row.id) selected.value = detail.value
+    // Seule la dernière fiche ouverte compte : une réponse plus ancienne arrivée après est ignorée.
+    const result = await getMessage(row.id)
+    if (n !== detailSeq) return
+    detail.value = result
+    if (selected.value?.id === row.id) selected.value = result
   } catch (e) {
-    detailError.value = e
+    if (n === detailSeq) detailError.value = e
   } finally {
-    detailLoading.value = false
+    if (n === detailSeq) detailLoading.value = false
   }
 }
 
@@ -326,7 +331,7 @@ const MessageActions = defineComponent({
 <style scoped lang="less">
 @import (reference) '@/components/gsms/gsms-list.less';
 .card { .gsms-card(); cursor: pointer; }
-.card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: normal; font-weight: 600; }
+.card .card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: normal; font-weight: 600; }
 .card-actions { margin-top: 10px; }
 .chip { .gsms-chip(); }
 .chip--link { text-decoration: none; &:hover { color: var(--td-brand-color); } }
@@ -349,5 +354,5 @@ const MessageActions = defineComponent({
 .block-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
 .body { margin: 8px 0 0; padding: 12px; max-height: 50vh; overflow: auto; border: 1px solid var(--td-component-stroke); border-radius: var(--app-radius-sm);
   background: var(--td-bg-color-secondarycontainer); font: inherit; font-size: var(--app-text-sm); line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.hash { font-family: var(--td-font-family-mono, monospace); font-size: var(--app-text-xs); }
+.hash { font-family: var(--app-font-family-mono); font-size: var(--app-text-xs); }
 </style>

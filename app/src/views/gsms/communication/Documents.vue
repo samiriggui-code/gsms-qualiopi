@@ -157,7 +157,7 @@ async function download(row: EvidenceRow) {
 .notice--warn { background: var(--td-warning-color-light); .t-icon { color: var(--td-warning-color); } }
 .card { .gsms-card(); }
 .card-link { display: block; color: inherit; text-decoration: none; &:hover .card-title { color: var(--td-brand-color); } }
-.card-title { overflow-wrap: anywhere; white-space: normal; }
+.card .card-title { overflow-wrap: anywhere; white-space: normal; }
 .card-dl { margin-top: 10px; align-self: flex-start; }
 .title-link { display: flex; flex-direction: column; color: inherit; text-decoration: none; &:hover .cell-title { color: var(--td-brand-color); } }
 .cell-title { display: block; font-weight: 500; color: var(--td-text-color-primary); overflow-wrap: anywhere; }
