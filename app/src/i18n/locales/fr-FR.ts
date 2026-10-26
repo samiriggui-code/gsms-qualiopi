@@ -20,6 +20,7 @@ export default {
       suppressionDefinitive: "La suppression est définitive. L’API peut la refuser si l’élément est encore utilisé.",
       supprimer: "Supprimer",
       telecharger: "Télécharger",
+      champsRequis: "À renseigner : {champs}",
       tous: "Tous",
       toutes: "Toutes",
       voirTout: "Voir les {n}",

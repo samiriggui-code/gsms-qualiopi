@@ -4,9 +4,9 @@
     attach="body" destroy-on-close @confirm="submit" @close="close" @cancel="close">
     <div class="action-dialog">
       <p v-if="intro" class="action-dialog__intro">{{ intro }}</p>
-      <GsmsRefusal v-if="error" :error="error" inline />
+      <div ref="refusalBox"><GsmsRefusal v-if="error" :error="error" inline /></div>
       <t-form label-align="top" :data="values" @submit.prevent>
-        <t-form-item v-for="f in normalizedFields" :key="f.name" :label="f.label" :name="f.name">
+        <t-form-item v-for="f in normalizedFields" :key="f.name" :label="f.label" :name="f.name" :required-mark="!!f.required">
           <t-date-picker v-if="f.type === 'date'" v-model="values[f.name]" value-type="YYYY-MM-DD" format="DD/MM/YYYY"
             clearable style="width: 100%" />
           <t-textarea v-else-if="f.type === 'textarea'" v-model="values[f.name]" :autosize="{ minRows: 3, maxRows: 8 }" />
@@ -28,7 +28,7 @@
  * Formulaire d'action générique : les champs sont ceux que l'API demande (`a_saisir`) ou que la route attend ;
  * aucune règle n'est vérifiée ici, l'API répond (refus motivé ou saisie incomplète) et le message s'affiche.
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import GsmsRefusal from './GsmsRefusal.vue'
 import { useI18n } from 'vue-i18n'
 import { inputLabel } from './format'
@@ -39,6 +39,8 @@ export interface ActionField {
   type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio'
   options?: { label: string; value: string | number }[]
   initial?: unknown
+  /** Saisie indispensable à la route : un champ vide n'est pas envoyé, le formulaire le signale. */
+  required?: boolean
 }
 
 const props = withDefaults(defineProps<{
@@ -63,6 +65,7 @@ const normalizedFields = computed<ActionField[]>(() => props.fields.map((f) => {
 
 const values = reactive<Record<string, any>>({})
 const error = ref<unknown>(null)
+const refusalBox = ref<HTMLElement | null>(null)
 const submitting = ref(false)
 
 watch(() => props.visible, (v) => {
@@ -80,6 +83,8 @@ async function submit() {
   submitting.value = true
   error.value = null
   try {
+    const missing = normalizedFields.value.filter((f) => f.required && [undefined, null, ''].includes(values[f.name]))
+    if (missing.length) throw new Error(t('gsms.commun.champsRequis', { champs: missing.map((f) => f.label).join(', ') }))
     const payload: Record<string, any> = {}
     for (const f of normalizedFields.value) {
       const v = values[f.name]
@@ -92,6 +97,8 @@ async function submit() {
     emit('update:visible', false)
   } catch (e) {
     error.value = e
+    // Sur téléphone le formulaire défile : le motif du refus doit être vu, pas resté en haut hors de l'écran.
+    void nextTick(() => refusalBox.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   } finally {
     submitting.value = false
   }

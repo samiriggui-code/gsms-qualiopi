@@ -203,7 +203,8 @@ export interface InvoiceLineInput {
   detail?: string | null
   quantite: string
   unite: string
-  prix_unitaire_centimes: number
+  /** Absent : l'API refuse la ligne (champ requis), jamais remplacé par 0. */
+  prix_unitaire_centimes?: number
   remise_pct: string
   tva_taux: string | null
   exoneree: boolean

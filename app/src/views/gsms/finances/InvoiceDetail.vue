@@ -369,12 +369,12 @@ function openLine(i: number) {
 const lineFields = computed<ActionField[]>(() => {
   const l = lineIndex.value >= 0 ? inv.value?.lignes[lineIndex.value] : undefined
   return [
-    { name: 'libelle', label: t('gsms.finances.factures.libelle'), initial: l?.libelle },
+    { name: 'libelle', label: t('gsms.finances.factures.libelle'), initial: l?.libelle, required: true },
     { name: 'detail', label: t('gsms.finances.factures.detail'), type: 'textarea', initial: l?.detail },
     { name: 'quantite', label: t('gsms.finances.factures.quantite'), type: 'number', initial: l ? Number(l.quantite) : 1 },
     { name: 'unite', label: t('gsms.finances.factures.unite'), type: 'select', initial: l?.unite ?? 'STAGIAIRE',
       options: Object.entries(refs.value?.unites ?? {}).map(([value, label]) => ({ value, label })) },
-    { name: 'prix', label: t('gsms.finances.factures.prixUnitaire'), type: 'number', initial: l ? l.prix_unitaire_centimes / 100 : undefined },
+    { name: 'prix', label: t('gsms.finances.factures.prixUnitaire'), type: 'number', initial: l ? l.prix_unitaire_centimes / 100 : undefined, required: true },
     { name: 'remise_pct', label: t('gsms.finances.factures.remisePct'), type: 'number', initial: l ? Number(l.remise_pct) : 0 },
     { name: 'regime', label: t('gsms.finances.factures.regimeTva'), type: 'radio', initial: l ? (l.exoneree ? 'exoneree' : 'taux') : 'defaut',
       options: ['defaut', 'exoneree', 'taux'].map((value) => ({ value, label: t(`gsms.finances.factures.regimes.${value}`) })) },
@@ -388,7 +388,8 @@ function saveLine(v: Record<string, any>) {
   const line: InvoiceLineInput = {
     ...(current ?? {}),
     libelle: String(v.libelle ?? ''), detail: v.detail ?? null, quantite: String(v.quantite ?? ''), unite: String(v.unite ?? ''),
-    prix_unitaire_centimes: toCentimes(v.prix) ?? 0, remise_pct: String(v.remise_pct ?? 0),
+    // Jamais de 0 € à la place d'un prix absent : sans prix, la ligne part sans ce champ et l'API la refuse (422).
+    prix_unitaire_centimes: toCentimes(v.prix), remise_pct: String(v.remise_pct ?? 0),
     exoneree: v.regime === 'exoneree', tva_taux: v.regime === 'taux' && v.tva_taux != null ? String(v.tva_taux) : null,
   }
   if (lineIndex.value >= 0) lines[lineIndex.value] = line

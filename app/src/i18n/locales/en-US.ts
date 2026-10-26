@@ -20,6 +20,7 @@ export default {
       suppressionDefinitive: "Deletion is permanent. The API may refuse it if the item is still in use.",
       supprimer: "Delete",
       telecharger: "Download",
+      champsRequis: "Required: {champs}",
       tous: "All",
       toutes: "All",
       voirTout: "See all {n}",
