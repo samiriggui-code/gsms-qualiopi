@@ -451,6 +451,8 @@ ne sont pas encore à l'écran.
 
 **Pages publiques par lien signé et contact (26/10/2026)** : `/q/{jeton}`, `/espace/{jeton}`, `/emarger` vivent dans `app/` (`views/gsms/public/`, routes `requiresAuth: false` sans coque, base `/` du routeur quand l'adresse est à la racine) ; Caddy réécrit ces chemins vers `/app/index.html` (`@pages_publiques`), Vite fait de même en dev et réécrit `/api/public/documents/` vers `/api/v1/…`. Émargement : jeton du lien personnel gardé dans le stockage local de l'appareil puis retiré de l'adresse, signature au clic quand le code de salle est là. Formulaire de contact de la landing → `POST /api/v1/public/contact` (e-mail interne du journal des communications aux comptes `leads.read`, limite 5/10 min, `test_contact.py`). L'API Docker de dev doit être reconstruite pour servir `/public/contact`.
 
+**Recette visuelle (26/10/2026)** : photos et vignettes lues dans l'API partout (`media.ts` `mediaSrc`, table de démo et `thumbnail.ts` supprimées), fond du thème dès le premier rendu (`boot.js` lit `WeKnora_<id>_theme` comme `preferenceStorage`), cartes 270 px avec statut sous le titre, rubriques de la fiche formation sur deux colonnes, aide à 40 px du contenu, modules du tableau de bord sans trou, couleur `general.brand_color` appliquée (`brandColor.ts`, nuances claires et sombres, boutons assombris jusqu'au contraste AA ; la valeur par défaut #0369a1 n'est pas un choix : `/bootstrap` ne distingue pas défaut et saisie).
+
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
 L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau

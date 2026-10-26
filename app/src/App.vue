@@ -8,6 +8,8 @@ import ManualKnowledgeEditor from '@/components/manual-knowledge-editor.vue'
 import UploadConfirmHost from '@/components/UploadConfirmHost.vue'
 import GsmsCriticalHost from '@/components/gsms/GsmsCriticalHost.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { applyBrandColor } from '@/components/gsms/brandColor'
 import { useSettingsStore } from '@/stores/settings'
 import { getCurrentUser, userInfoFromApi } from '@/api/auth'
 import { consumePendingTenantSwitchToast } from '@/utils/tenantSwitch'
@@ -196,6 +198,11 @@ const stopInvitationPolling = () => {
 // React to login/logout via the store's isLoggedIn computed. Watching
 // here (rather than only on first mount) handles the OIDC callback
 // flow where the user logs in well after App.vue has already mounted.
+// Couleur principale de l'interface : réglage `general.brand_color` de l'organisme (GET /bootstrap). Sans couleur
+// choisie (ou sans session), le violet GSMS du thème.
+const gsmsAccess = useGsmsAccessStore()
+watch(() => gsmsAccess.bootstrap?.organization?.brand_color ?? null, (c) => { applyBrandColor(c) }, { immediate: true })
+
 watch(
   () => authStore.isLoggedIn,
   (logged) => {

@@ -44,11 +44,17 @@
           <h3 class="title">{{ t('gsms.formations.rubriquesManquantes') }}</h3>
           <ul class="plain"><li v-for="m in sheet.missing" :key="m.field">{{ m.message }}</li></ul>
         </section>
-        <section class="panel">
-          <dl class="kv">
-            <div v-for="f in TEXT_FIELDS" :key="f"><dt>{{ t(`gsms.formations.champs.${f}`) }}</dt><dd class="pre">{{ sheet.program[f] || '—' }}</dd></div>
-          </dl>
-        </section>
+        <!-- Rubriques rédigées : deux colonnes de largeur confortable (une sur téléphone) -->
+        <div class="rubriques">
+          <section v-for="f in TEXT_FIELDS" :key="f" class="panel rubrique">
+            <h3 class="title">{{ t(`gsms.formations.champs.${f}`) }}</h3>
+            <p v-if="sheet.program[f]" class="rubrique-text pre">{{ sheet.program[f] }}</p>
+            <p v-else class="rubrique-empty">
+              {{ t('gsms.commun.nonRenseigne') }}
+              <button v-if="sheet.capabilities.edit?.allowed" type="button" class="link-btn" @click="editVisible = true">{{ t('gsms.formations.completer') }}</button>
+            </p>
+          </section>
+        </div>
         <section v-for="f in LIST_FIELDS" :key="f" class="panel">
           <h3 class="title">{{ t(`gsms.formations.champs.${f}`) }}</h3>
           <ul v-if="sheet.program[f].length" class="plain bullets"><li v-for="(x, i) in sheet.program[f]" :key="i">{{ x }}</li></ul>
@@ -246,12 +252,14 @@ const editFields = computed<ActionField[]>(() => {
   return [
     { name: 'audience', label: t('gsms.formations.champs.audience'), type: 'textarea', initial: p?.audience },
     { name: 'skills', label: t('gsms.formations.champs.skillsUneParLigne'), type: 'textarea', initial: p?.skills.join('\n') },
+    { name: 'content', label: t('gsms.formations.champs.content'), type: 'textarea', initial: p?.content },
     { name: 'delivery_mode', label: t('gsms.formations.modalite'), type: 'select', options: options(sheet.value?.delivery_modes ?? {}), initial: p?.delivery_mode },
     { name: 'teaching_methods', label: t('gsms.formations.champs.teaching_methods'), type: 'textarea', initial: p?.teaching_methods },
     { name: 'teaching_means', label: t('gsms.formations.champs.teaching_means'), type: 'textarea', initial: p?.teaching_means },
     { name: 'evaluation_methods', label: t('gsms.formations.champs.evaluation_methods'), type: 'textarea', initial: p?.evaluation_methods },
     { name: 'access_delay', label: t('gsms.formations.champs.access_delay'), initial: p?.access_delay },
     { name: 'accessibility_info', label: t('gsms.formations.champs.accessibility_info'), type: 'textarea', initial: p?.accessibility_info },
+    { name: 'certification_alignment', label: t('gsms.formations.champs.certification_alignment'), type: 'textarea', initial: p?.certification_alignment },
   ]
 })
 
@@ -346,6 +354,17 @@ async function createDossier() {
 .muted { .gsms-muted(); margin: 0; }
 .kv { .gsms-kv(); }
 .pre { white-space: pre-line; }
+.rubriques {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  @media (max-width: 720px) { grid-template-columns: minmax(0, 1fr); }
+}
+.rubrique .title { margin-bottom: 8px; }
+.rubrique-text { margin: 0; max-width: 70ch; color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 22px; overflow-wrap: break-word; }
+.rubrique-empty { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; color: var(--td-text-color-placeholder); font-size: var(--app-text-sm); }
+.link-btn { .gsms-link-button(); }
 .plain { .gsms-plain(); }
 .bullets { list-style: disc; padding-left: 18px; }
 .gates { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }

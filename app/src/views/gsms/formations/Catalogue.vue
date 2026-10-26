@@ -36,7 +36,7 @@
       <router-link :to="`/platform/formations/${item.id}`" class="card">
         <div class="card-header">
           <div class="card-header-left head">
-            <FormationThumb :image="item.image_url" :size="64" />
+            <FormationThumb :image="item.image_url" :size="56" />
             <span class="title-text">
               <span class="card-title">{{ item.title }}</span>
               <span class="muted">{{ item.code }}</span>

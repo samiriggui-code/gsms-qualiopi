@@ -26,6 +26,10 @@
               <template v-if="s.next"> · {{ t('gsms.parametres.reglages.prochaine', { date: formatDate(s.next.from) }) }}
                 <strong>{{ formatValue(s.next.value) }}</strong></template>
             </p>
+            <p v-if="s.key === BRAND_KEY" class="brand-note">
+              <span class="brand-swatch" :style="{ background: brandNote(s).swatch }" aria-hidden="true" />
+              <span>{{ brandNote(s).text }}</span>
+            </p>
           </div>
           <div class="setting-control control-col">
             <span class="value-text">{{ formatValue(s.value) }}</span>
@@ -89,6 +93,8 @@ import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import SchemaField from './SchemaField.vue'
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/gsms/format'
 import { formatValue, todayIso } from './format'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { brandPalette, chosenBrandColor } from '@/components/gsms/brandColor'
 
 const { t, te } = useI18n()
 const domainLabel = (d: string) => (te(`gsms.parametres.reglages.domaines.${d}`) ? t(`gsms.parametres.reglages.domaines.${d}`) : d)
@@ -139,6 +145,18 @@ function openEdit(s: SettingView) {
   editVisible.value = true
 }
 
+// ── Couleur principale de l'interface (general.brand_color) ──
+const BRAND_KEY = 'general.brand_color'
+const access = useGsmsAccessStore()
+/** Ce que l'interface fait de la couleur : rien (valeur par défaut), appliquée, ou appliquée avec une nuance plus foncée. */
+function brandNote(s: SettingView): { text: string; swatch: string } {
+  const chosen = s.since ? chosenBrandColor(String(s.value ?? '')) : null
+  const palette = chosen ? brandPalette(chosen) : null
+  if (!palette) return { text: t('gsms.parametres.reglages.couleurParDefaut'), swatch: 'var(--td-brand-color)' }
+  if (palette.adjusted) return { text: t('gsms.parametres.reglages.couleurAjustee', { couleur: palette.button }), swatch: palette.button }
+  return { text: t('gsms.parametres.reglages.couleurAppliquee'), swatch: palette.button }
+}
+
 async function save() {
   if (!editing.value) return
   saving.value = true
@@ -146,8 +164,11 @@ async function save() {
   try {
     const res = await changeSetting(editing.value.key, draft.value, draft.from || null, draft.reason.trim() || null)
     MessagePlugin.success(t('gsms.parametres.reglages.succes', { date: formatDate(res.effective_from) }))
+    const key = editing.value.key
     editVisible.value = false
     await load()
+    // Couleur de l'interface : relire GET /bootstrap pour l'appliquer tout de suite.
+    if (key === BRAND_KEY) await access.load(true)
   } catch (err) {
     saveError.value = err
   } finally {
@@ -227,6 +248,8 @@ onMounted(load)
   gap: 4px;
 }
 
+.brand-note { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: var(--td-text-color-secondary); font-size: var(--app-text-sm); line-height: 18px; }
+.brand-swatch { flex-shrink: 0; width: 16px; height: 16px; border-radius: var(--app-radius-xs); border: 1px solid var(--td-component-stroke); }
 .meta code {
   font-family: var(--app-font-family-mono);
 }

@@ -5,11 +5,28 @@
 // Thème : appliqué tout de suite pour éviter que le fond passe du blanc au gris au chargement
 // (couleurs identiques à --td-bg-color-page de theme.css).
 (function () {
-  var t = 'light';
+  // Même clé que composables/preferenceStorage.ts : WeKnora_<id utilisateur | anon>_theme,
+  // puis, comme la migration de ce module, la clé « anon » et l'ancienne clé non préfixée.
+  var t = null;
   try {
-    t = localStorage.getItem('WeKnora_theme') || 'light';
+    var uid = 'anon';
+    try {
+      var u = JSON.parse(localStorage.getItem('weknora_user') || 'null');
+      if (u && u.id) uid = String(u.id);
+    } catch (_) {}
+    t =
+      localStorage.getItem('WeKnora_' + uid + '_theme') ||
+      localStorage.getItem('WeKnora_anon_theme') ||
+      localStorage.getItem('WeKnora_theme');
   } catch (_) {}
-  if (t === 'system') t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+  if (t !== 'light' && t !== 'dark' && t !== 'system') t = 'light';
+  if (t === 'system') {
+    try {
+      t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (_) {
+      t = 'light';
+    }
+  }
   var bg = t === 'dark' ? '#181818' : '#eee';
   var html = document.documentElement;
   html.setAttribute('theme-mode', t);

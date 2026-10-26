@@ -39,7 +39,7 @@
         <slot name="body" />
         <template v-if="modules.length">
           <h3 class="modules-title">{{ t('gsms.landing.modules') }}</h3>
-          <!-- Grille équilibrée : autant de colonnes que la ligne peut en remplir sans carte isolée. -->
+          <!-- Grille équilibrée : autant de colonnes que la ligne peut en remplir ; la dernière ligne s'étire sur toute la largeur. -->
           <div class="modules" :style="{ '--module-cols': moduleColumns(modules.length) }">
             <GsmsModuleCard v-for="(m, i) in modules" :key="m.key" :item="m" :accent="i" />
           </div>
@@ -94,6 +94,8 @@ function moduleColumns(n: number): number {
 .gsms-page-content { .resource-list-content(); }
 .gsms-page-main { .resource-list-main(); }
 .landing { display: flex; flex-direction: column; gap: 20px; }
+// Bloc d'aide : 40 px après le contenu au total (écart de la colonne compris).
+.landing > .help { margin-top: 20px; }
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: stretch; }
 .duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start;
   &.duo--single { grid-template-columns: minmax(0, 1fr); }
@@ -114,7 +116,20 @@ function moduleColumns(n: number): number {
 .engine-name { font-size: var(--app-text-md); font-weight: 500; color: var(--td-text-color-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .engine-detail { font-size: var(--app-text-xs); color: var(--td-text-color-secondary); }
 .modules-title { .gsms-panel-title(); margin: 8px 0 0; font-family: var(--app-font-family-display); font-size: var(--app-text-xl); }
-.modules { display: grid; grid-template-columns: repeat(var(--module-cols), minmax(0, 1fr)); gap: 16px;
-  @media (max-width: 1100px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); } }
+// Lignes souples : chaque carte prend 1/N de la ligne et les cartes de la dernière ligne s'élargissent pour la
+// remplir (7 modules sur 4 colonnes : 4 puis 3 cartes plus larges), sans trou à aucune largeur.
+.modules {
+  --module-gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--module-gap);
+  > * {
+    // Base un peu sous 1/N (flex-grow comble l'écart) : les arrondis au sous-pixel ne renvoient jamais une carte à la ligne.
+    flex: 1 1 calc(100% / var(--module-cols) - var(--module-gap));
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  @media (max-width: 1100px) { > * { flex-basis: calc(50% - var(--module-gap)); } }
+  @media (max-width: 640px) { > * { flex-basis: 100%; } }
+}
 </style>
