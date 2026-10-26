@@ -401,6 +401,23 @@ blocage), `GET /evaluations-acquis` (composé des registres du parcours), `GET /
 `GET /bilans/bpf?exercice=` (**aide** au BPF, cadres marqués calculé / indicatif / partiel / non calculable ; sources
 `docs/bilans/SOURCES.md`). Tests `tests/test_pilotage.py`. Pages 2, 3 et 14 du back-office : à faire.
 
+## 5 novodecies. Facturation, backend (26/10/2026, chantier C10)
+
+Factures, avoirs et encaissements (`app/handler/invoicing.py`, `/api/v1/factures`, `/api/v1/encaissements`, schéma
+`facturation`, migration 0022), module `invoicing` **désactivé par défaut** ; droits `invoices.read`, `invoices.write`,
+`invoices.issue`, `payments.write`. Numéro attribué à l'émission (`FA-AAAA-NNNN`, avoirs `AV-AAAA-NNNN`, sans trou),
+pièce figée (SHA-256 + déclencheur PostgreSQL), correction par avoir plafonné au restant, montants en centimes.
+Sources réglementaires et part « choix de GSMS » : `docs/facturation/SOURCES.md`. Démo : séries `DEMO-FA`/`DEMO-AV`
+retirées par `retirer-demo`. Reste : pages 19 et 20 du front, relances de paiement, facture électronique.
+
+## 5 vicies. Durcissement des routes publiques (26/10/2026, audit de sécurité)
+
+Limites de débit en mémoire (`app/common/limites.py`, mono-instance, 429 en français) sur la connexion (adresse et e-mail),
+`/public/*`, l'émargement et les préinscriptions ; empreinte bcrypt factice pour un e-mail inconnu ; liens de documents datés
+(60 jours, clé dérivée, anciens liens lus 60 jours après l'émission du document) ; `/openapi.json` fermé en production ;
+verrou `FOR UPDATE` sur la réponse à un questionnaire ; fastapi 0.141.1 + starlette 1.7.0 figée ; Caddy plafonne le corps
+à 20 Mo. Détail : `docs/API.md` §1.
+
 ## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
 
 L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau

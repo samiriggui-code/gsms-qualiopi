@@ -52,6 +52,14 @@ EVENT_NAMES = {
     "preinscription.received",
     "preinscription.status_changed",
     "preinscription.converted",
+    # Facturation : pièces comptables, sans effet sur les preuves Qualiopi.
+    "invoice.created",
+    "invoice.updated",
+    "invoice.deleted",
+    "invoice.issued",
+    "credit_note.issued",
+    "payment.recorded",
+    "payment.cancelled",
     # Documents professionnels (devis…) : documents commerciaux, sans effet sur les preuves Qualiopi.
     "edition.created",
     "edition.updated",

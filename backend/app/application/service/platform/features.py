@@ -41,6 +41,9 @@ FEATURES: dict[str, Feature] = {f.code: f for f in (
     Feature("relances", "Relances et communications automatiques", False, ("training",)),
     Feature("edof", "Référencement CPF (EDOF) : dossiers de l'établissement et des formations", True, ("training",)),
     Feature("documents", "Documents professionnels : devis, propositions, rapports, archivage", True, ("training",)),
+    # Désactivée par défaut : une facture émise a un numéro définitif et engage l'organisme. L'activer quand GSMS
+    # devient l'outil de facturation, pour ne pas ouvrir une seconde numérotation à côté du logiciel déjà utilisé.
+    Feature("invoicing", "Facturation : factures, avoirs et encaissements", False, ("documents",)),
     Feature("signature", "Signature électronique et preuve", False, built=False),
     Feature("lms", "Formation à distance", False, ("training",), built=False),
     Feature("agents", "Agents IA", False, built=False),

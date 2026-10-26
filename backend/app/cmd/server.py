@@ -15,6 +15,7 @@ from app.handler.edof import router as edof_router
 from app.handler.funding import router as funding_router
 from app.handler.hr import router as hr_router
 from app.handler.ia import router as ia_router
+from app.handler.invoicing import router as invoicing_router
 from app.handler.journal import router as journal_router
 from app.handler.journey import router as journey_router
 from app.handler.mcp import router as mcp_router
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
         title="GSMS Qualiopi",
         version="0.1.0",
         docs_url=None if settings.app_env == "production" else "/docs",
+        openapi_url=None if settings.app_env == "production" else "/openapi.json",
         redoc_url=None,
     )
     app.add_middleware(
@@ -55,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_router)
     app.include_router(edof_router)
     app.include_router(editions_router)
+    app.include_router(invoicing_router)
     app.include_router(platform_router)
     app.include_router(roadmap_router)
     app.include_router(pilotage_router)

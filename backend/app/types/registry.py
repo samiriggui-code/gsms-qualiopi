@@ -9,6 +9,7 @@ from app.types import edof as _edof  # noqa: F401
 from app.types import event as _events  # noqa: F401
 from app.types import funding as _funding  # noqa: F401
 from app.types import hr as _hr  # noqa: F401
+from app.types import invoicing as _invoicing  # noqa: F401
 from app.types import platform as _platform  # noqa: F401
 from app.types import preinscriptions as _preinscriptions  # noqa: F401
 from app.types import qualiopi_audit as _audit  # noqa: F401
@@ -23,5 +24,5 @@ from app.types import questionnaires as _questionnaires  # noqa: F401
 from app.types import relances as _relances  # noqa: F401
 from app.types import training as _training  # noqa: F401
 
-SCHEMAS = ("iam", "config", "formation", "qualite", "rh", "financement", "communication", "edof", "edition")
+SCHEMAS = ("iam", "config", "formation", "qualite", "rh", "financement", "communication", "edof", "edition", "facturation")
 metadata = Base.metadata

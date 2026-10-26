@@ -14,7 +14,7 @@ de domaine (`*/policy.py`).
 - En revanche, **chaque routeur porte lui-même le préfixe `/api/v1`** (ex. `/api/v1/auth/login`). Seule `GET /health` est hors
   `/api/v1`.
 - Documentation interactive : `/docs` (Swagger) et `/openapi.json`, **uniquement si `APP_ENV != production`**
-  (`docs_url=None` en production ; ReDoc est désactivé partout).
+  (`docs_url=None` et `openapi_url=None` en production ; ReDoc est désactivé partout).
 - CORS (`CORSMiddleware`) : origines = `CORS_ORIGINS` (liste séparée par des virgules, `*` refusé en production),
   `allow_credentials=True`, méthodes `GET POST PUT PATCH DELETE`, en-têtes autorisés `Authorization` et `Content-Type` seulement.
 
@@ -30,7 +30,7 @@ de domaine (`*/policy.py`).
 
 ### Permissions, rôles et modules
 
-- Les droits sont des **permissions** (catalogue figé dans `app/router/rbac.py`, 30 codes). Un compte a l'union des
+- Les droits sont des **permissions** (catalogue figé dans `app/router/rbac.py`, 34 codes). Un compte a l'union des
   permissions de ses rôles : **rôles système** (`admin`, `qualite`, `assistant_qualite`, `gestion`, `financement`,
   `formateur`, `rh`, `lecture`, non modifiables) et **rôles personnalisés** (table `iam.role`).
 - Chaque permission appartient à une **fonctionnalité** (module). Un module désactivé retire ses permissions à tout le monde :
@@ -58,6 +58,12 @@ gardent la forme `{"detail": …}`.
 ### Pages publiques par lien signé
 
 Pas de compte : un jeton `<valeur>.<signature>` (HMAC-SHA256 de `JWT_SECRET`, préfixé par l'usage, `app/application/service/questionnaires/tokens.py`).
+Exception, les **liens de documents** : la valeur signée est `<inscription>:<document>:<expiration>` (horodatage Unix,
+`DOCUMENT_LINK_DAYS` = 60 jours après l'émission du lien, par défaut) et la clé est dérivée de `JWT_SECRET` pour cet usage
+seul (HMAC-SHA256 de `JWT_SECRET` sur un libellé d'usage). Lien expiré → **410** `link_closed`. Chaque relance et chaque
+ouverture de l'espace du stagiaire émettent un lien neuf. **Transition** : les liens envoyés avant ce format (sans date, clé
+`JWT_SECRET`) restent lus tant que le document a été émis il y a moins de 60 jours ; ils s'éteignent donc seuls, sans
+date butoir à surveiller (la branche de lecture pourra être retirée 60 jours après la mise en production).
 
 | Usage | Lien envoyé (construit par l'API) | Route API appelée |
 |---|---|---|
@@ -69,9 +75,29 @@ Pas de compte : un jeton `<valeur>.<signature>` (HMAC-SHA256 de `JWT_SECRET`, pr
 `/q/…` et `/espace/…` sont des **pages du front** ; `/api/public/…` était un relais du front Next
 (`frontend/app/api/public/[...path]/route.ts`) vers `/api/v1/public/…`.
 
+### Limites de débit
+
+Compteurs en mémoire du processus, fenêtre glissante (`app/common/limites.py`) ; au-delà, **429** avec un message en
+français (`{"detail": …}`, préinscription : `{error, detail, message}`) et l'en-tête `Retry-After` (secondes). Le déploiement
+est mono-instance (un seul processus uvicorn) : un compteur local suffit, sans table ni migration ; avec plusieurs processus,
+il faudrait un compteur partagé (PostgreSQL). Seuls une clé (adresse, e-mail) et des horodatages sont gardés, oubliés à la fin
+de la fenêtre.
+
+| Route | Limite |
+|---|---|
+| `POST /api/v1/auth/login` | 30 tentatives par adresse en 10 min ; 10 échecs par e-mail en 15 min (le bon mot de passe est alors refusé aussi jusqu'à la fin de la fenêtre ; une connexion réussie efface les échecs) |
+| `/api/v1/public/questionnaires/…`, `/documents/…`, `/espace/…` | 300 requêtes par adresse en 10 min |
+| `POST /api/v1/emargement/signer` | 120 signatures par adresse en 10 min (une salle entière signe souvent depuis le même réseau) |
+| `POST /api/v1/public/preinscriptions` | 5 envois valides par adresse en 10 min |
+
+Adresse du client : derrière le reverse proxy (connexion venue d'une adresse privée ou locale), la **dernière** adresse de
+`X-Forwarded-For`, ajoutée par Caddy ou Traefik ; une connexion directe depuis une adresse publique garde la sienne.
+Connexion : un e-mail inconnu ou un compte inactif coûtent le même calcul bcrypt (empreinte factice) qu'un compte réel.
+Corps de requête plafonné à 20 Mo par Caddy (`request_body { max_size 20MB }`, `deploy/Caddyfile`), 15 Mo par fichier côté API.
+
 ## 2. Inventaire des routes HTTP
 
-**Total : 235 routes** (234 sous `/api/v1` + `GET /health`), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
+**Total : 258 routes** (257 sous `/api/v1` + `GET /health`, décompte du 26/10/2026), hors routes techniques `/docs`, `/docs/oauth2-redirect` et
 `/openapi.json` (absentes en production). Les 65 routes CRUD sont générées par `crud_router()` (`app/handler/crud.py`) pour 13
 ressources déclarées dans `app/handler/training_resources.py` (liste `ROUTERS`).
 
@@ -92,7 +118,7 @@ Fichier : `backend/app/handler/auth.py` — 13 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
-| `POST` | `/api/v1/auth/login` | Connexion e-mail + mot de passe ; renvoie `access_token` (JWT HS256), `token_type`, `user`. | Public |
+| `POST` | `/api/v1/auth/login` | Connexion e-mail + mot de passe ; renvoie `access_token` (JWT HS256), `token_type`, `user`. | Public — limite de débit (429, §1) |
 | `GET` | `/api/v1/auth/me` | Compte connecté et ses permissions effectives (modules actifs seulement). | Authentifié |
 | `PATCH` | `/api/v1/auth/me` | Modifie son propre nom affiché. | Authentifié |
 | `POST` | `/api/v1/auth/me/password` | Change son mot de passe (actuel redemandé, 12 caractères min., 72 octets max.). | Authentifié — 403 si mot de passe actuel incorrect |
@@ -128,6 +154,16 @@ Fichier : `backend/app/handler/roadmap.py` — 1 route(s).
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `GET` | `/api/v1/pilotage/feuille-de-route` | Feuille de route : échéances de toutes les sources, par semaine (`semaines` 1–26). | Authentifié — contenu filtré : `quality.read` (jalons, actions, preuves), `staff.read` (titres), `funding.read` + module funding (financement) |
+
+### Pilotage : planning et bilans
+
+Fichier : `backend/app/handler/pilotage.py` — 3 route(s). Services : `backend/app/application/service/pilotage/`.
+
+| Méthode | Chemin | Rôle | Droits requis |
+|---|---|---|---|
+| `GET` | `/api/v1/planning` | Créneaux des sessions du `du` au `au` (93 jours au plus, 422 sinon ; défaut : 31 jours dès aujourd'hui) : demi-journées d'émargement, sinon session entière ; formateur, lieu, salle, programme, effectif, capacité ; filtres `formateur`, `lieu` (texte), `programme`, `annulees` ; conflits calculés (même formateur ou même salle, créneaux qui se chevauchent ; `CERTAIN` ou `A_VERIFIER` sans horaires), jamais bloquants ; valeurs proposées aux filtres. | `sessions.read` ou `sessions.read_own` — portée : sessions visibles ; conflits cherchés seulement entre créneaux visibles |
+| `GET` | `/api/v1/bilans` | Inventaire des bilans et rapports produits par l'API (route, nature, permissions, `disponible` pour ce compte). | Authentifié |
+| `GET` | `/api/v1/bilans/bpf?exercice=AAAA` | **Aide** au bilan pédagogique et financier (cerfa 10443, art. L. 6352-11) : stagiaires, heures-stagiaires, formateurs, sous-traitance, objectif ; chaque cadre marqué `CALCULE`, `INDICATIF`, `PARTIEL` ou `NON_CALCULABLE` avec ce qui manque. Ne produit pas le BPF. Sources : `docs/bilans/SOURCES.md`. | `sessions.read` — indications financières (paiements saisis) seulement avec `funding.read` ; exercice à venir : 422 |
 
 ### Qualiopi : référentiel, moteur, revues, cycles, actions correctives
 
@@ -198,7 +234,7 @@ Fichier : `backend/app/handler/documents.py` — 6 route(s).
 | `POST` | `/api/v1/dossiers/{subject}/{subject_id}/pieces/{requirement}/papier` | Déclare une pièce conservée sur papier (lieu + grille). | Authentifié — selon `subject` : `quality.write` (ORGANISME) ou `trainers.write` (FORMATEUR), sinon 403 |
 | `GET` | `/api/v1/dossiers/{subject}/modeles/{requirement}` | Télécharge la trame Markdown d'une pièce. | `quality.read` |
 | `GET` | `/api/v1/dossiers/{subject}/{subject_id}` | État d'un dossier de pièces (attendues, déposées, validité). | `quality.read` |
-| `GET` | `/api/v1/documents/{document_id}/contenu` | Télécharge un document stocké (empreinte vérifiée). | `quality.read` — documents EDOF : `edof.read`, ou `edof.sensitive` pour les pièces sensibles (403) |
+| `GET` | `/api/v1/documents/{document_id}/contenu` | Télécharge un document stocké (empreinte vérifiée) : pièces des dossiers et preuves Qualiopi (convocations, attestations, conventions…). | `quality.read` (voulu : c'est la permission du dossier de preuves ; `documents.read` est celle des documents professionnels) — documents EDOF : `edof.read`, ou `edof.sensitive` pour les pièces sensibles ; version de document professionnel (`EDITION`) : `documents.read` en plus ; facture (`FACTURE`) : `invoices.read` en plus (403) |
 | `POST` | `/api/v1/dossiers/{subject}/{subject_id}/demandes/{requirement}` | Demande une pièce à quelqu'un avec une échéance. | Authentifié — selon `subject` : `quality.write` (ORGANISME) ou `trainers.write` (FORMATEUR), sinon 403 |
 
 ### Formation : sessions, cycle de vie, inscriptions
@@ -357,6 +393,32 @@ Fichier : `backend/app/handler/editions.py` — 12 route(s).
 | `PUT` | `/api/v1/editions/{project_id}/lignes` | Remplace les lignes d'un devis (brouillon). | `documents.write` — brouillon seulement (`EditionPolicy`, refus 409) |
 | `POST` | `/api/v1/editions/{project_id}/actions/{action}` | Circuit du document : `soumettre`, `renvoyer`, `valider`, `envoyer`, `reprendre`, `archiver`, `abandonner`. | `documents.read` — `documents.write` (soumettre, envoyer, reprendre, abandonner) ou `documents.validate` (renvoyer, valider, archiver) — `EditionPolicy`, refus 409 |
 
+### Facturation : factures, avoirs, encaissements
+
+Fichier : `backend/app/handler/invoicing.py` — 13 route(s). Module `invoicing` (**désactivé par défaut**, dépend de
+`documents`). Montants en **centimes entiers** (`*_centimes`). Fondements réglementaires : `docs/facturation/SOURCES.md`.
+
+| Méthode | Chemin | Rôle | Droits requis |
+|---|---|---|---|
+| `GET` | `/api/v1/factures/references` | Libellés : types, statuts, types de client, modes de paiement, unités. | `invoices.read` |
+| `GET` | `/api/v1/factures` | Factures et avoirs (`type`, `statut`, `en_retard`, `q`), avec avoirs, encaissé, reste dû. | `invoices.read` |
+| `GET` | `/api/v1/factures/synthese` | Chiffres de l'accueil : à encaisser, en retard, encaissé ce mois, alertes (échéances, trop-perçus). | `invoices.read` |
+| `GET` | `/api/v1/factures/{id}` | Détail : lignes, TVA par taux, vérifications (`bloquant`, `fondement`), avoirs, encaissements, historique, capacités. | `invoices.read` |
+| `GET` | `/api/v1/factures/{id}/apercu` | Brouillon : aperçu avec filigrane, sans numéro. Émise : pièce archivée (empreinte vérifiée, en-tête `X-Content-SHA256`). | `invoices.read` |
+| `POST` | `/api/v1/factures` | Crée un brouillon : client (`ENTREPRISE`, `STAGIAIRE`, `FINANCEUR`), lignes reprises d'un devis validé (`devis_id`), d'inscriptions (`session_id`, `inscription_ids`) ou d'une source de financement. | `invoices.write` — refus 409 `CLIENT_MISSING`, `QUOTE_NOT_VALIDATED`, `QUOTE_OTHER_CLIENT`, `ENROLLMENT_NOT_IN_SESSION` |
+| `PATCH` | `/api/v1/factures/{id}` | Modifie un brouillon (titre, coordonnées du client, bon de commande, période, échéance, note interne). | `invoices.write` — brouillon seulement (`NOT_DRAFT`, 409) |
+| `PUT` | `/api/v1/factures/{id}/lignes` | Remplace les lignes (prix en centimes, remise, TVA ou `exoneree`) ; les totaux sont recalculés par l'API. | `invoices.write` — brouillon seulement |
+| `DELETE` | `/api/v1/factures/{id}` | Supprime un brouillon (sans numéro : aucun trou). | `invoices.write` — brouillon seulement |
+| `POST` | `/api/v1/factures/{id}/emettre` | Émet : numéro définitif `FA-AAAA-NNNN`, échéance, pièce HTML figée (SHA-256). | `invoices.issue` — `CHECKS_FAILED` (409, `details`) tant qu'une vérification bloquante reste |
+| `POST` | `/api/v1/factures/{id}/avoirs` | Émet un avoir `AV-AAAA-NNNN` (`motif`, `lignes` : `ligne_id` + `montant_ht_centimes` ; vide = tout le restant). | `invoices.issue` — `NOT_AN_INVOICE`, `NOT_ISSUED`, `NOTHING_TO_CREDIT`, `CREDIT_EXCEEDS_REMAINING` (409) |
+| `POST` | `/api/v1/factures/{id}/encaissements` | Enregistre un encaissement (`montant_centimes`, `recu_le`, `mode`, `reference`). | `payments.write` — `INVALID_STATE`, `PAYMENT_EXCEEDS_DUE` (409) ; date future 422 |
+| `GET` | `/api/v1/encaissements` | Encaissements (`du`, `au`, `annules`). | `invoices.read` |
+| `POST` | `/api/v1/encaissements/{id}/annulation` | Annule un encaissement avec motif (jamais effacé). | `payments.write` — `ALREADY_CANCELLED` (409) |
+
+Circuit : brouillon → émise → payée partiellement / payée, ou annulée par avoir (avoirs égaux au total). Une pièce émise
+ne se modifie plus : un déclencheur PostgreSQL le refuse aussi hors de l'API. Événements `invoice.*`, `credit_note.issued`,
+`payment.*` (sans effet sur les preuves Qualiopi). Rôles : `financement` a les quatre droits, `gestion` lit et prépare.
+
 ### Émargement
 
 Fichier : `backend/app/handler/attendance.py` — 7 route(s).
@@ -369,17 +431,18 @@ Fichier : `backend/app/handler/attendance.py` — 7 route(s).
 | `POST` | `/api/v1/inscriptions/{enrollment_id}/lien-emargement` | Lien personnel d'émargement du stagiaire (affiché une fois). | `attendance.write` — portée : sessions visibles seulement |
 | `PUT` | `/api/v1/creneaux/{slot_id}/presences/{enrollment_id}` | Constate présence ou absence d'un stagiaire. | `attendance.write` — `AttendancePolicy` (portée, état), refus 409 |
 | `POST` | `/api/v1/creneaux/{slot_id}/validation` | Contre-validation de la demi-journée par le formateur. | `attendance.write` — `AttendancePolicy` (tous présents/absents constatés), refus 409 |
-| `POST` | `/api/v1/emargement/signer` | Signature du stagiaire avec code de salle + jeton personnel. | Public — réglage `attendance.learner_self_sign`, fenêtre horaire |
+| `POST` | `/api/v1/emargement/signer` | Signature du stagiaire avec code de salle + jeton personnel. | Public — réglage `attendance.learner_self_sign`, fenêtre horaire ; limite de débit (429, §1) |
 
 ### Parcours du stagiaire
 
-Fichier : `backend/app/handler/journey.py` — 8 route(s).
+Fichier : `backend/app/handler/journey.py` — 9 route(s).
 
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `GET` | `/api/v1/sessions/{session_id}/parcours` | Stagiaires × étapes du parcours d'une session. | `sessions.read` ou `sessions.read_own` — portée : sessions visibles seulement |
 | `GET` | `/api/v1/parcours/synthese` | Chiffres de la vue d'ensemble « Parcours apprenant ». | `sessions.read` ou `sessions.read_own` — portée : sessions visibles seulement |
 | `GET` | `/api/v1/parcours/registres/{vue}` | Registre d'une étape toutes sessions visibles confondues. | `sessions.read` ou `sessions.read_own` — portée : sessions visibles seulement |
+| `GET` | `/api/v1/evaluations-acquis` | Évaluations des acquis (détail), attestation et résultat de certification par inscription, composés à partir des registres `evaluations`, `attestation`, `certification` ; filtres `session_id`, `programme`, `etat` (étape évaluations), `resultat` (`REUSSI`, `NON_REUSSI`, `EN_ATTENTE`, `AUCUN`). | `sessions.read` ou `sessions.read_own` — portée : sessions visibles seulement ; filtre inconnu : 422 |
 | `GET` | `/api/v1/inscriptions/{enrollment_id}/parcours` | Parcours d'un stagiaire avec capacités par étape. | `sessions.read` ou `sessions.read_own` — portée : sessions visibles seulement |
 | `POST` | `/api/v1/inscriptions/{enrollment_id}/parcours/{action}` | Exécute une étape du parcours (confirmer, convocation, attestation…). | `sessions.read` ou `sessions.read_own` — `enrollments.write` ou `learners.assess` selon l'étape (`JourneyPolicy`), refus 409 |
 | `GET` | `/api/v1/inscriptions/{enrollment_id}/documents/{document_id}` | Document du stagiaire émis par le moteur (convocation, attestation). | `sessions.read` ou `sessions.read_own` — portée : sessions visibles seulement |
@@ -517,8 +580,8 @@ Fichier : `backend/app/handler/questionnaires.py` — 4 route(s).
 | Méthode | Chemin | Rôle | Droits requis |
 |---|---|---|---|
 | `GET` | `/api/v1/public/questionnaires/{token}` | Questionnaire d'un stagiaire ouvert par lien signé (date d'ouverture enregistrée). | Public — jeton HMAC signé avec `JWT_SECRET` |
-| `POST` | `/api/v1/public/questionnaires/{token}` | Enregistre les réponses (`{"reponses": {...}}`), réponse unique. | Public — jeton HMAC signé avec `JWT_SECRET` |
-| `GET` | `/api/v1/public/documents/{token}` | Convocation ou attestation du stagiaire (fichier figé, empreinte vérifiée). | Public — jeton HMAC signé avec `JWT_SECRET` |
+| `POST` | `/api/v1/public/questionnaires/{token}` | Enregistre les réponses (`{"reponses": {...}}`), réponse unique. | Public — jeton HMAC signé avec `JWT_SECRET` ; limite de débit |
+| `GET` | `/api/v1/public/documents/{token}` | Convocation ou attestation du stagiaire (fichier figé, empreinte vérifiée). | Public — jeton HMAC daté, clé dérivée (410 une fois expiré) ; limite de débit |
 | `GET` | `/api/v1/public/espace/{token}` | Espace du stagiaire : formation, à faire, documents (fermé après la session + délai). | Public — jeton HMAC signé avec `JWT_SECRET` |
 
 ## 3. Entités de paramétrage
@@ -537,10 +600,10 @@ Sections proposées pour le panneau : **Organisme**, **Équipe et accès**, **Mo
 | # | Entité | Où elle vit | Champs principaux | Routes | Section |
 |---|---|---|---|---|---|
 | 1 | Organisme (identité réglementaire) | table `formation.organization` (`training.models.Organization`) | `name`, `nda_number`, `siret`, `action_categories` (AF, BC, VAE, APPRENTISSAGE), `is_new_entrant`, `disability_referent_name/email`, `mobility_referent_name` | `GET /api/v1/organisme` (authentifié), `PATCH /api/v1/organisme` (`settings.manage`, relance le moteur) ; résumé dans `GET /api/v1/bootstrap` | Organisme |
-| 2 | Modules (fonctionnalités) | code `app/application/service/platform/features.py` (`FEATURES`, 14 modules dont 3 non construits) + table `config.feature_state` (`feature`, `enabled`) + variable `FEATURES_AVAILABLE` | `code`, `label`, `default`, `depends_on`, `built` ; état `enabled` | `GET /api/v1/features` (authentifié), `PUT /api/v1/features/{code}` (`settings.manage`) | Modules |
+| 2 | Modules (fonctionnalités) | code `app/application/service/platform/features.py` (`FEATURES`, 15 modules dont 3 non construits) + table `config.feature_state` (`feature`, `enabled`) + variable `FEATURES_AVAILABLE` | `code`, `label`, `default`, `depends_on`, `built` ; état `enabled` | `GET /api/v1/features` (authentifié), `PUT /api/v1/features/{code}` (`settings.manage`) | Modules |
 | 3 | Réglages datés | déclarations `SettingDef` par domaine (`platform/general.py`, `training/settings.py`, `attendance/settings.py`, `qualiopi/settings.py`, `relances/settings.py`, `editions/settings.py`) + table `config.setting_value` (ajout seul) | `key`, `value` (JSON validé par type), `effective_from` (jamais dans le passé), `reason` (obligatoire si `regulatory`) | `GET /api/v1/settings`, `GET /api/v1/settings/{key}/history`, `PUT /api/v1/settings/{key}` (tous `settings.manage`) | Réglages (un onglet par domaine) |
 
-Les 28 réglages déclarés (clé — libellé — module — réglementaire) :
+Les 34 réglages déclarés (clé — libellé — module — réglementaire) :
 
 | Domaine | Clé | Libellé | Module | Motif exigé |
 |---|---|---|---|---|
@@ -572,6 +635,12 @@ Les 28 réglages déclarés (clé — libellé — module — réglementaire) :
 | documents | `documents.devis_validite_jours` | Validité d'un devis (jours) | documents | non |
 | documents | `documents.conditions_paiement` | Conditions de paiement | documents | non |
 | documents | `documents.mentions` | Mentions complémentaires | documents | non |
+| facturation | `facturation.delai_paiement_jours` | Délai de paiement (jours, défaut 30) | invoicing | non |
+| facturation | `facturation.taux_penalites` | Taux des pénalités de retard (défaut : BCE + 10 points) | invoicing | non |
+| facturation | `facturation.escompte` | Conditions d'escompte (défaut : néant) | invoicing | non |
+| facturation | `facturation.forme_juridique` | Forme juridique et capital | invoicing | non |
+| facturation | `facturation.numero_tva` | N° de TVA intracommunautaire | invoicing | non |
+| facturation | `facturation.coordonnees_bancaires` | IBAN, BIC imprimés | invoicing | non |
 
 `GET /api/v1/settings` renvoie pour chacun le `schema` JSON (issu du type Pydantic) : le panneau peut générer ses champs
 de formulaire à partir de ce schéma plutôt que de les coder en dur.
@@ -627,7 +696,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
 
 | # | Entité | Où elle vit | Champs principaux | Routes | Section |
 |---|---|---|---|---|---|
-| 26 | Modèles de documents | fichiers `backend/config/documents_generes/` (convocation, attestation de fin, programme, `_base.html`), `config/documents_pro/` (devis, `_base_a4.html`), `config/qualiopi/carnet.html`, logo `config/organisme/logo.png` ; coordonnées imprimées via les réglages `documents.*` | gabarits Jinja HTML | rendus par `GET /api/v1/fiches/{id}/versions/{vid}/programme`, `GET /api/v1/editions/{id}/apercu`, `GET /api/v1/qualiopi/carnet/impression`, documents du parcours ; aucune route d'édition (le logo n'est pas téléversable) | Documents et modèles |
+| 26 | Modèles de documents | fichiers `backend/config/documents_generes/` (convocation, attestation de fin, programme, `_base.html`), `config/documents_pro/` (devis, facture et avoir, `_base_a4.html`), `config/qualiopi/carnet.html`, logo `config/organisme/logo.png` ; coordonnées imprimées via les réglages `documents.*` | gabarits Jinja HTML | rendus par `GET /api/v1/fiches/{id}/versions/{vid}/programme`, `GET /api/v1/editions/{id}/apercu`, `GET /api/v1/qualiopi/carnet/impression`, documents du parcours ; aucune route d'édition (le logo n'est pas téléversable) | Documents et modèles |
 | 27 | Moyens et partenaires de l'organisme | tables `formation.premises`, `formation.equipment`, `formation.subcontractor`, `formation.partner`, `formation.watch_item` | lieux (`code`, `name`, `kind`, `parent_id`, `capacity`, `accessibility`, `status`…), équipements (`category`, `quantity`, `regulatory_ref`, `next_check_on`…), sous-traitants (`siret`, `qualiopi_certified`, `contract_signed_on`), partenaires (`kind` HANDICAP / SOCIO_ECONOMIQUE), veille (`domain` LEGALE / METIERS / PEDAGOGIQUE) | CRUD `/api/v1/premises`, `/equipment` (écriture `sessions.write`), `/subcontractors`, `/partners`, `/watch-items` (écriture `quality.write`) ; lecture `sessions.read` ou `quality.read` | Moyens et partenaires |
 | 28 | Listes de valeurs codées | constantes dans `app/types/training.py` (`TRACKS`, `PATHWAYS`, `DELIVERY_MODES`, `CERTIFICATION_BASES`, `HABILITATIONS`, `PROGRAM_TRAINER_ROLES`, `RESOURCE_*`, `QUALIFICATION_KINDS`, `PREMISES_KINDS`, `PLACE_STATUSES`, `EQUIPMENT_CATEGORIES`, `SURVEY_AUDIENCES`…), `app/types/edof.py`, `app/types/hr.py` (`STAFF_KINDS`, `CONTRACT_KINDS`, `ABSENCE_KINDS`), `app/types/editions.py` (`KINDS`, `STATUSES`, `UNITS`), `ACTION_CATEGORIES` (`platform/router.py`) | code → libellé | certaines exposées en lecture (`GET /api/v1/fiches/{id}` : `certification_bases`, `habilitations`… ; `GET /api/v1/editions/types` ; `GET /api/v1/organisme` : `categories_possibles`) ; code seulement | Listes de valeurs (lecture seule) |
 | 29 | Configuration de déploiement | variables d'environnement lues par `app/config/config.py` (`Settings`) | `APP_ENV`, `DATABASE_URL`, `JWT_SECRET`, `JWT_TTL_MINUTES`, `CORS_ORIGINS`, `REFERENTIALS_DIR`, `DOCUMENTS_DIR`, `FEATURES_AVAILABLE`, `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/SSL/FROM`, `PUBLIC_URL`, `WEKNORA_URL`, `WEKNORA_SERVICE_EMAIL/PASSWORD`, `IA_MCP_URL`, `IA_COMPTE_TECHNIQUE_EMAIL` | aucune route (seul `FEATURES_AVAILABLE` se voit indirectement par `available` dans `GET /api/v1/features`) | Déploiement (informatif, hors panneau) |
@@ -658,7 +727,7 @@ de formulaire à partir de ce schéma plutôt que de les coder en dur.
    Modules » : garder cet intitulé ou adapter le message côté API.
 6. **Refus motivés** : distinguer 403 (permission de la dépendance) et 409 (politique : code + `details`), et afficher
    `detail` / `details`. Les boutons s'appuient sur les objets `capabilities` renvoyés par les vues de détail.
-7. **Modules désactivés par défaut** : `hr`, `funding` (et ses dispositifs), `relances` sont désactivés tant qu'on ne les active
+7. **Modules désactivés par défaut** : `hr`, `funding` (et ses dispositifs), `relances`, `invoicing` sont désactivés tant qu'on ne les active
    pas (`PUT /api/v1/features/{code}`) ; leurs routes répondent 403 d'ici là. `signature`, `lms`, `agents` ne sont pas
    construits.
 8. **Doublons de routes à arbitrer** : `GET /api/v1/formations` et `GET /api/v1/programs`, `GET /api/v1/formateurs` et

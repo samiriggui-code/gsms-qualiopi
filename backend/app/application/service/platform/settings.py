@@ -46,13 +46,14 @@ class SettingDef:
 def _registry() -> dict[str, SettingDef]:
     from app.application.service.attendance.settings import SETTINGS as attendance
     from app.application.service.editions.settings import SETTINGS as documents
+    from app.application.service.invoicing.settings import SETTINGS as invoicing
     from app.application.service.platform.general import SETTINGS as general
     from app.application.service.qualiopi.settings import SETTINGS as quality
     from app.application.service.relances.settings import SETTINGS as relances
     from app.application.service.training.settings import SETTINGS as training
 
     out: dict[str, SettingDef] = {}
-    for d in (*general, *training, *attendance, *quality, *relances, *documents):
+    for d in (*general, *training, *attendance, *quality, *relances, *documents, *invoicing):
         if d.key in out:
             raise ValueError(f"réglage déclaré deux fois : {d.key}")
         d.adapter().validate_python(d.default)
