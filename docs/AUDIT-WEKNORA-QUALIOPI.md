@@ -90,6 +90,21 @@ référentiel.
 - Un deuxième agent (préparation d'audit, analyse documentaire) n'est utile que si l'usage le réclame. On commence
   avec un seul.
 
+### 3.4 bis Les 4 agents intégrés de WeKnora, appliqués à Qualiopi (P1)
+
+La doc WeKnora annonce quatre agents intégrés : réponse rapide, raisonnement, analyse de données et Wiki. Le chat
+choisit entre deux modes (`quick-answer`, `smart-reasoning`). Proposition : quatre agents GSMS préréglés par
+`ia-preparer`, chacun bâti sur un de ces modes.
+
+| Mode WeKnora | Agent GSMS proposé | Sources | Exemples |
+|---|---|---|---|
+| Réponse rapide (`quick-answer`) | **Référentiel Qualiopi** | Base Référentiel seulement, aucun outil | « Que demande l'indicateur 4 ? », « Différence v9 / v10 ? », avec la source citée |
+| Raisonnement (`smart-reasoning`) | **Préparation d'audit** | Référentiel, Documents de l'organisme, outils MCP GSMS | « Où en suis-je avant l'audit ? », « Quels écarts sur le critère 3 ? », brouillon de plan d'actions |
+| Analyse de données | **Résultats et satisfaction** | Exports de GSMS (questionnaires, résultats) | Lecture des tendances de satisfaction, abandons, réclamations. Les chiffres officiels restent ceux du moteur |
+| Wiki | **Manuel qualité** | Documents de l'organisme | Pages lisibles par processus ou par indicateur. C'est un brouillon, pas une preuve |
+
+À vérifier sur l'instance : l'analyse de données et le Wiki peuvent dépendre du sandbox, aujourd'hui masqué.
+
 ### 3.5 Contexte de page (P1)
 
 `app/src/stores/assistant.ts` ne connaît que les pages de WeKnora (`knowledge_base`, `chat`, `agent_editor`…).
