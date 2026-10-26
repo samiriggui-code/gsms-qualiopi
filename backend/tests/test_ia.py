@@ -130,3 +130,21 @@ def test_session_ia_reservee_aux_comptes_connectes(client, monkeypatch):
     configure(monkeypatch)
     fake_engine(monkeypatch)
     assert client.post("/api/v1/ia/session").status_code == 401
+
+
+def test_session_ia_refusee_sans_les_droits_du_compte_technique(client, db, monkeypatch):
+    """Un rôle personnalisé avec `ia.use` mais sans `quality.read` ne lit pas l'état Qualiopi par l'assistant."""
+    from app.types.auth import CustomRole
+
+    configure(monkeypatch)
+    fake_engine(monkeypatch)
+    db.add_all([CustomRole(code="ia_seule", label="IA seule", permissions=["ia.use"]),
+                CustomRole(code="ia_lecture", label="IA et lecture",
+                           permissions=["ia.use", "quality.read", "sessions.read"])])
+    db.commit()
+    _, headers = make_user(db, "ia_seule", email="ia-seule@test.local")
+    r = client.post("/api/v1/ia/session", headers=headers)
+    assert r.status_code == 403
+    assert "quality.read" in r.json()["detail"] and "sessions.read" in r.json()["detail"]
+    _, headers = make_user(db, "ia_lecture", email="ia-lecture@test.local")
+    assert client.post("/api/v1/ia/session", headers=headers).status_code == 200

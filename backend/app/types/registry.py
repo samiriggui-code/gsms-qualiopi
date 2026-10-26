@@ -9,6 +9,7 @@ from app.types import edof as _edof  # noqa: F401
 from app.types import event as _events  # noqa: F401
 from app.types import funding as _funding  # noqa: F401
 from app.types import hr as _hr  # noqa: F401
+from app.types import ia as _ia  # noqa: F401
 from app.types import invoicing as _invoicing  # noqa: F401
 from app.types import platform as _platform  # noqa: F401
 from app.types import preinscriptions as _preinscriptions  # noqa: F401
