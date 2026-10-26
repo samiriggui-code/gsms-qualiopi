@@ -63,11 +63,14 @@ export function isEmbedPage(): boolean {
   return window.location.pathname.startsWith('/embed/')
 }
 
+/** Page de connexion sous le sous-chemin de l'interface (/app/login derrière la landing, /login sinon). */
+export const LOGIN_URL = `${import.meta.env?.BASE_URL ?? '/'}login`
+
 export function redirectToLogin() {
   if (typeof window === 'undefined') return
-  if (window.location.pathname === '/login') return
+  if (window.location.pathname === LOGIN_URL) return
   if (isEmbedPage()) return
-  window.location.href = '/login'
+  window.location.href = LOGIN_URL
 }
 
 export function clearAuthStorage() {

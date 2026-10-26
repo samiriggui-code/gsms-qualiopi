@@ -38,8 +38,9 @@ const decodeOIDCResult = (encoded: string) => {
   return JSON.parse(new TextDecoder().decode(bytes))
 }
 
+// Chemin relatif à l'interface (servie sous /app/ derrière la landing).
 const clearOIDCCallbackState = (path = '/') => {
-  window.history.replaceState({}, document.title, path)
+  window.history.replaceState({}, document.title, `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`)
 }
 
 const syncOIDCUserContext = async () => {
