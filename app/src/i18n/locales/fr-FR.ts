@@ -249,6 +249,16 @@ export default {
         semaine: "Semaine",
         sessions: "Sessions par statut",
         sessionsSous: "Sessions visibles par ce compte",
+        colonnes: {
+          EN_RETARD: "Échéance dépassée",
+          A_ECHEANCE: "Sous 7 jours",
+          A_VENIR: "Plus tard sur la période",
+        },
+        colonneVide: "Rien dans cette colonne",
+        voirPlus: "Voir les {n} autres",
+        reduire: "Réduire",
+        toutesColonnes: "Afficher toutes les colonnes",
+        filtrerSource: "Filtrer par source",
       },
       qualite: {
         preuves: "Preuves par statut",
@@ -354,9 +364,6 @@ export default {
       aucuneEcheance: "Aucune échéance",
       aucuneEcheanceAide: "Rien à faire sur cette période pour les sources que vous pouvez voir.",
       semaineDu: "Semaine du {date}",
-      aTraiter: "Points à traiter",
-      aTraiterAide: "En retard ou à échéance, avec leur source.",
-      rienATraiter: "Rien en retard ni à échéance.",
       kpi: {
         echeancesDepassees: "échéances dépassées",
         cetteSemaine: "sous 7 jours",

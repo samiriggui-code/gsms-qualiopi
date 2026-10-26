@@ -10,8 +10,8 @@
         <GsmsKpiRow v-if="!error" :items="kpis" :loading="kpiLoading" />
         <!-- Graphiques de la rubrique (GsmsChartCard) : chiffres de l'API seulement, chaque carte montre son refus. -->
         <div v-if="$slots.charts" class="charts"><slot name="charts" /></div>
-        <div class="duo" :class="{ 'duo--single': !engine }">
-          <GsmsAlertList :title="alerts.title" :subtitle="alerts.subtitle" :items="alerts.items" :loading="alerts.loading"
+        <div v-if="alerts || engine" class="duo" :class="{ 'duo--single': !engine || !alerts }">
+          <GsmsAlertList v-if="alerts" :title="alerts.title" :subtitle="alerts.subtitle" :items="alerts.items" :loading="alerts.loading"
             :error="alerts.error" :empty="alerts.empty" :more-to="alerts.moreTo" />
           <section v-if="engine" class="panel engine">
             <header class="panel-head">
@@ -35,9 +35,12 @@
             </ul>
           </section>
         </div>
+        <!-- Contenu propre à la rubrique, avant les modules (ex. feuille de route du tableau de bord). -->
+        <slot name="body" />
         <template v-if="modules.length">
           <h3 class="modules-title">{{ t('gsms.landing.modules') }}</h3>
-          <div class="modules">
+          <!-- Grille équilibrée : autant de colonnes que la ligne peut en remplir sans carte isolée. -->
+          <div class="modules" :style="{ '--module-cols': moduleColumns(modules.length) }">
             <GsmsModuleCard v-for="(m, i) in modules" :key="m.key" :item="m" :accent="i" />
           </div>
         </template>
@@ -70,11 +73,19 @@ withDefaults(defineProps<{
   error?: unknown
   kpis: KpiItem[]
   kpiLoading?: boolean
-  alerts: { title: string; subtitle?: string; items: AlertItem[]; loading?: boolean; error?: unknown; empty: string; moreTo?: string }
+  /** Points à traiter ; absent quand la page les montre autrement (ex. colonnes de la feuille de route). */
+  alerts?: { title: string; subtitle?: string; items: AlertItem[]; loading?: boolean; error?: unknown; empty: string; moreTo?: string } | null
   engine?: { subtitle: string; rows: EngineRow[]; loading?: boolean; error?: unknown } | null
   modules: ModuleItem[]
-}>(), { kpiLoading: false })
+}>(), { kpiLoading: false, alerts: null })
 const { t } = useI18n()
+
+/** Colonnes des modules à grand écran : 1 à 4 cartes sur une ligne, au-delà 4 ou 3 selon ce qui laisse le moins de vide. */
+function moduleColumns(n: number): number {
+  if (n <= 4) return Math.max(n, 1)
+  const gap = (c: number) => (n % c === 0 ? 0 : c - (n % c))
+  return gap(4) <= gap(3) ? 4 : 3
+}
 </script>
 
 <style scoped lang="less">
@@ -82,12 +93,12 @@ const { t } = useI18n()
 .gsms-page { .gsms-page-shell(); }
 .gsms-page-content { .resource-list-content(); }
 .gsms-page-main { .resource-list-main(); }
-.landing { display: flex; flex-direction: column; gap: 16px; }
+.landing { display: flex; flex-direction: column; gap: 20px; }
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: stretch; }
 .duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start;
   &.duo--single { grid-template-columns: minmax(0, 1fr); }
   @media (max-width: 960px) { grid-template-columns: minmax(0, 1fr); } }
-.panel { .gsms-panel(); }
+.panel { .gsms-panel(); padding: 18px 20px; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; h3 { .gsms-panel-title(); margin: 0; display: flex; align-items: center; gap: 6px; } }
 .engine-icon { color: var(--td-brand-color); }
 .count { .gsms-chip(); }
@@ -102,6 +113,8 @@ const { t } = useI18n()
 .engine-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .engine-name { font-size: var(--app-text-md); font-weight: 500; color: var(--td-text-color-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .engine-detail { font-size: var(--app-text-xs); color: var(--td-text-color-secondary); }
-.modules-title { .gsms-panel-title(); margin: 4px 0 0; }
-.modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.modules-title { .gsms-panel-title(); margin: 8px 0 0; font-family: var(--app-font-family-display); font-size: var(--app-text-xl); }
+.modules { display: grid; grid-template-columns: repeat(var(--module-cols), minmax(0, 1fr)); gap: 16px;
+  @media (max-width: 1100px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); } }
 </style>

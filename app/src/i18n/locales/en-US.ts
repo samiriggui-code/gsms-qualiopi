@@ -249,6 +249,16 @@ export default {
         semaine: "Week",
         sessions: "Sessions by status",
         sessionsSous: "Sessions visible to this account",
+        colonnes: {
+          EN_RETARD: "Past due",
+          A_ECHEANCE: "Within 7 days",
+          A_VENIR: "Later in the period",
+        },
+        colonneVide: "Nothing in this column",
+        voirPlus: "Show {n} more",
+        reduire: "Show less",
+        toutesColonnes: "Show all columns",
+        filtrerSource: "Filter by source",
       },
       qualite: {
         preuves: "Evidence by status",
@@ -354,9 +364,6 @@ export default {
       aucuneEcheance: "No deadline",
       aucuneEcheanceAide: "Nothing due in this period for the sources you can see.",
       semaineDu: "Week of {date}",
-      aTraiter: "To handle",
-      aTraiterAide: "Overdue or due soon, with their source.",
-      rienATraiter: "Nothing overdue or due soon.",
       kpi: {
         echeancesDepassees: "past deadlines",
         cetteSemaine: "within 7 days",

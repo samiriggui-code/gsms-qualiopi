@@ -42,6 +42,9 @@
     <div class="file-field">
       <label class="field-label" for="gsms-trainer-piece-file">{{ t('gsms.qualite.dossier.fichier') }}</label>
       <input id="gsms-trainer-piece-file" type="file" @change="onFile" />
+      <span v-if="upload.file" class="file-chosen">
+        <img v-if="fileTypeIcon(upload.file.name, upload.file.type)" :src="fileTypeIcon(upload.file.name, upload.file.type)!" alt="" />{{ upload.file.name }}
+      </span>
     </div>
     <GridPoints v-if="upload.item" v-model="upload.grille" :points="upload.item.grille" :title="t('gsms.grille.titre')" />
   </ActionDialog>
@@ -62,6 +65,7 @@
  * Dossier de pièces FORMATEUR d'une fiche formateur (GET /dossiers/FORMATEUR/{id}, `quality.read`) : états, dépôts,
  * originaux papier et demandes, calculés et jugés par l'API. Les boutons d'écriture suivent `trainers.write`.
  */
+import { fileTypeIcon } from '@/components/gsms/media'
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MessagePlugin } from 'tdesign-vue-next'
@@ -143,5 +147,6 @@ async function done() {
 .row-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .issues { margin: 4px 0 0; color: var(--td-warning-color); font-size: var(--app-text-xs); line-height: 16px; }
 .file-field { margin-bottom: 12px; input { max-width: 100%; } }
+.file-chosen { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--app-text-sm); overflow-wrap: anywhere; img { width: 28px; height: 28px; flex-shrink: 0; } }
 .field-label { display: block; margin-bottom: 6px; font-size: var(--app-text-md); color: var(--td-text-color-primary); }
 </style>

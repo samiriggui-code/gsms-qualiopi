@@ -44,6 +44,9 @@
     <div class="file-field">
       <label class="field-label" for="gsms-piece-file">{{ t('gsms.qualite.dossier.fichier') }}</label>
       <input id="gsms-piece-file" type="file" @change="onFile" />
+      <span v-if="upload.file" class="file-chosen">
+        <img v-if="fileTypeIcon(upload.file.name, upload.file.type)" :src="fileTypeIcon(upload.file.name, upload.file.type)!" alt="" />{{ upload.file.name }}
+      </span>
     </div>
     <GridPoints v-if="upload.item" v-model="upload.grille" :points="upload.item.grille" :title="t('gsms.grille.titre')" />
   </ActionDialog>
@@ -60,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { fileTypeIcon } from '@/components/gsms/media'
 import { computed, defineComponent, h, onMounted, reactive, ref, type PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button as TButton, MessagePlugin } from 'tdesign-vue-next'
@@ -195,5 +199,6 @@ const PieceActions = defineComponent({
 .cell-sub { display: block; color: var(--td-text-color-secondary); font-size: var(--app-text-sm); }
 :deep(.piece-actions) { display: flex; flex-wrap: wrap; gap: 6px; }
 .file-field { margin-bottom: 12px; input { max-width: 100%; } }
+.file-chosen { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--app-text-sm); overflow-wrap: anywhere; img { width: 28px; height: 28px; flex-shrink: 0; } }
 .field-label { display: block; margin-bottom: 6px; font-size: var(--app-text-md); color: var(--td-text-color-primary); }
 </style>

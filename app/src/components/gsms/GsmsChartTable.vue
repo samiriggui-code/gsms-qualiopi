@@ -1,16 +1,18 @@
 <template>
-  <table class="sr-only">
-    <caption>{{ caption }}</caption>
-    <thead>
-      <tr><th scope="col">{{ corner }}</th><th v-for="s in series" :key="s.key" scope="col">{{ s.label }}</th></tr>
-    </thead>
-    <tbody>
-      <tr v-for="(c, i) in categories" :key="c">
-        <th scope="row">{{ c }}</th>
-        <td v-for="s in series" :key="s.key">{{ format(s.values[i] ?? 0) }}</td>
-      </tr>
-    </tbody>
-  </table>
+  <div class="sr-only">
+    <table>
+      <caption>{{ caption }}</caption>
+      <thead>
+        <tr><th scope="col">{{ corner }}</th><th v-for="s in series" :key="s.key" scope="col">{{ s.label }}</th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="(c, i) in categories" :key="c">
+          <th scope="row">{{ c }}</th>
+          <td v-for="s in series" :key="s.key">{{ format(s.values[i] ?? 0) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>
 
 <script setup lang="ts">

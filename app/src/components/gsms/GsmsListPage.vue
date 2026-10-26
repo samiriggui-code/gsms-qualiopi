@@ -19,7 +19,7 @@
           <GsmsEmptyState v-if="!items.length" :title="emptyTitle || t('gsms.commun.aucunResultat')" :description="emptyDescription">
             <slot name="empty-actions" />
           </GsmsEmptyState>
-          <template v-else>
+          <div v-else :class="useTable ? 'list-card' : 'list-plain'">
             <div class="table-bar">
               <span class="table-count" aria-live="polite">
                 {{ t('gsms.liste.lignes', { n: items.length }, items.length) }}
@@ -94,7 +94,7 @@
               <t-pagination v-if="sortedItems.length > pageSize" v-model:current="page" :total="sortedItems.length" :page-size="pageSize" size="small"
                 :show-page-size="false" :show-jumper="false" :total-content="false" />
             </div>
-          </template>
+          </div>
         </template>
         <slot name="after" />
         <GsmsHelpFooter v-if="help" :context="helpContext" />
@@ -173,7 +173,7 @@ const props = withDefaults(defineProps<{
   help: true, helpContext: '',
 })
 const emit = defineEmits<{ retry: [] }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isMobile } = storeToRefs(useGsmsShellStore())
@@ -254,7 +254,7 @@ const onSort = (s: { sortBy: string; descending: boolean } | undefined) => {
   page.value = 1
 }
 const sortedTitle = computed(() => props.columns.find((c) => c.colKey === sort.sortBy)?.title ?? '')
-const collator = computed(() => new Intl.Collator(String(route.meta?.locale ?? undefined) || undefined, { numeric: true, sensitivity: 'base' }))
+const collator = computed(() => new Intl.Collator(locale.value, { numeric: true, sensitivity: 'base' }))
 const sortedItems = computed<T[]>(() => {
   const list = props.items ?? []
   const col = props.columns.find((c) => c.colKey === sort.sortBy)
@@ -336,6 +336,16 @@ const win = globalThis.window
 .card { .gsms-card(); }
 .table { .gsms-table(); }
 .link-btn { .gsms-link-button(); }
+// Grand écran : barre d'outils, tableau et pagination dans une même carte (disposition des listes Metronic).
+.list-card {
+  border: 1px solid var(--td-component-stroke);
+  background: var(--td-bg-color-container);
+  overflow: hidden;
+  .gsms-elevated();
+  .table-bar { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--td-component-stroke); }
+  .table { border: 0; border-radius: 0; box-shadow: none; }
+  .pager { margin: 0; padding: 10px 16px; border-top: 1px solid var(--td-component-stroke); }
+}
 .table-bar {
   display: flex;
   align-items: center;
@@ -362,6 +372,7 @@ const win = globalThis.window
 .table-wrap {
   :deep(.t-table__header) th { background: var(--td-bg-color-secondarycontainer); }
   :deep(.t-table__affixed-header-elm) { border-radius: 0; box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.25); }
+  :deep(tbody td) { vertical-align: middle; }
   :deep(tbody tr) { transition: background-color var(--app-motion-instant) ease; }
   :deep(tbody tr:focus-visible) { outline: 2px solid var(--td-brand-color); outline-offset: -2px; }
   :deep(tbody tr.is-last-opened) { box-shadow: inset 3px 0 0 var(--td-brand-color); background: var(--td-brand-color-light); }

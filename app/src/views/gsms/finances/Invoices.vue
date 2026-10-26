@@ -21,9 +21,6 @@
       <router-link :to="`/platform/factures/${row.id}`" class="cell-link" @click.stop>{{ row.numero || t('gsms.finances.factures.sansNumero') }}</router-link>
     </template>
     <template #cell-client="{ row }">{{ row.client.nom }}</template>
-    <template #cell-emise_le="{ row }">{{ fmtDate(row.emise_le) }}</template>
-    <template #cell-echeance="{ row }">{{ fmtDate(row.echeance) }}</template>
-    <template #cell-total_ttc_centimes="{ row }"><span class="num">{{ centimes(row.total_ttc_centimes) }}</span></template>
     <template #cell-reste_du_centimes="{ row }"><span class="num">{{ row.type === 'FACTURE' ? centimes(row.reste_du_centimes) : '—' }}</span></template>
     <template #cell-statut="{ row }">
       <span class="tags"><GsmsStatusTag :code="row.statut" :label="row.statut_libelle" /><GsmsStatusTag v-if="row.en_retard" code="EN_RETARD" /></span>
@@ -90,13 +87,14 @@ const statusTabs = computed(() => [{ value: 'all', label: t('gsms.commun.tous') 
 const columns = computed<ListColumn[]>(() => [
   { colKey: 'numero', title: t('gsms.finances.factures.numero'), width: 170 },
   { colKey: 'type_libelle', title: t('gsms.finances.factures.type'), width: 90 },
-  { colKey: 'client', title: t('gsms.finances.factures.client') },
+  { colKey: 'client', title: t('gsms.finances.factures.client'), text: (r: InvoiceSummary) => r.client.nom },
   { colKey: 'titre', title: t('gsms.finances.factures.objet') },
-  { colKey: 'emise_le', title: t('gsms.finances.factures.emiseLe'), width: 110 },
-  { colKey: 'echeance', title: t('gsms.finances.factures.echeance'), width: 110 },
-  { colKey: 'total_ttc_centimes', title: t('gsms.finances.factures.totalTtc'), width: 120 },
-  { colKey: 'reste_du_centimes', title: t('gsms.finances.factures.resteDu'), width: 120 },
-  { colKey: 'statut', title: t('gsms.finances.factures.statut') },
+  { colKey: 'emise_le', title: t('gsms.finances.factures.emiseLe'), width: 120, kind: 'relative' },
+  { colKey: 'echeance', title: t('gsms.finances.factures.echeance'), width: 120, kind: 'relative' },
+  { colKey: 'total_ttc_centimes', title: t('gsms.finances.factures.totalTtc'), width: 130, kind: 'centimes' },
+  { colKey: 'reste_du_centimes', title: t('gsms.finances.factures.resteDu'), width: 130, align: 'right',
+    text: (r: InvoiceSummary) => (r.type === 'FACTURE' ? centimes(r.reste_du_centimes) : '') },
+  { colKey: 'statut', title: t('gsms.finances.factures.statut'), text: (r: InvoiceSummary) => r.statut_libelle },
 ])
 
 let seq = 0

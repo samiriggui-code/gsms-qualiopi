@@ -39,7 +39,7 @@
       <p v-if="!dossier.sources.length" class="panel muted">{{ t('gsms.finances.financement.aucuneSource') }}</p>
       <section v-for="s in dossier.sources" :key="s.id" class="panel source">
         <div class="panel-bar">
-          <h3 class="title">{{ s.libelle }}</h3>
+          <h3 class="title"><img v-if="FUNDER_LOGOS[s.dispositif]" :src="FUNDER_LOGOS[s.dispositif]" alt="" class="funder-logo" />{{ s.libelle }}</h3>
           <GsmsStatusTag :code="s.etat" />
         </div>
         <dl class="kv">
@@ -115,6 +115,9 @@
  * décisions : on montre celles qui sont possibles depuis l'état actuel (autorisées, ou refusées pour une condition
  * à réunir) ; les saisies demandées (`a_saisir`) forment le formulaire.
  */
+import logoCpf from '@/assets/gsms/certifications/logo-mon-compte-formation.jpg'
+import logoOpco from '@/assets/gsms/certifications/logo-opco.png'
+import logoFranceTravail from '@/assets/gsms/certifications/logo-france-travail.webp'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -135,6 +138,8 @@ import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import InvoiceCreateDialog from './InvoiceCreateDialog.vue'
 import { euros } from './display'
 
+// Logo du financeur selon le code du dispositif renvoyé par l'API (présentation seulement).
+const FUNDER_LOGOS: Record<string, string> = { CPF: logoCpf, OPCO: logoOpco, FRANCE_TRAVAIL: logoFranceTravail }
 // Refus qui signifient « pas depuis cet état » : l'action n'a pas lieu d'être montrée (décision de l'API, lue telle quelle).
 const NOT_NOW = new Set(['INVALID_TRANSITION', 'FUNDING_CLOSED'])
 const AMOUNTS = new Set(['amount_granted', 'amount_paid'])
@@ -236,6 +241,7 @@ const sourceFields = computed<ActionField[]>(() => [
 </script>
 
 <style scoped lang="less">
+.funder-logo { height: 22px; width: auto; max-width: 64px; margin-right: 8px; vertical-align: -5px; object-fit: contain; border-radius: var(--app-radius-xs); background: var(--td-font-white-1); }
 @import (reference) '@/components/gsms/gsms-list.less';
 .side-section { .gsms-side-section(); }
 .panel { .gsms-panel(); }
