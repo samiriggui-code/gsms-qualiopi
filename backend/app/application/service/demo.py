@@ -349,18 +349,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     # Sandrine Moreau (SSIAP 3), SST pour Marc Perrin (formateur SST), MAC SST pour Nadia Khelifi (prévention).
     team = seed_team(db)
     sandrine, marc, nadia = team["sandrine-moreau"], team["marc-perrin"], team["nadia-khelifi"]
-    db.add(t.TrainerQualification(trainer_id=sandrine.id, kind="SSIAP3", label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
-                                  document_id=_doc(db, "JUSTIFICATIF", "Diplôme SSIAP 3 — S. Moreau").id, created_by=ACTOR))
-    db.add(t.TrainerQualification(trainer_id=marc.id, kind="FORMATEUR_SST", label="Formateur SST", obtained_on=d(-800), valid_until=d(-10),
-                                  document_id=_doc(db, "JUSTIFICATIF", "Certificat formateur SST — M. Perrin").id,
-                                  created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
-    upload(db, subject="FORMATEUR", subject_id=sandrine.id, requirement="CV", content=_pdf("CV S. Moreau"),
-           filename="cv-sandrine-moreau.pdf", mime="application/pdf",
-           checklist=_grid_yes("FORMATEUR", "CV", sans_objet=("CARTE_FORMATEUR_CNAPS",)),
-           note="Formatrice incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
-    db.add(t.StaffDevelopmentAction(trainer_id=sandrine.id, label="Recyclage pédagogique", planned_on=d(-120),
-                                    completed_on=d(-100), created_by=ACTOR))
-    _formateurs(db, d, team)
+    _team_scenarios(db, d, team)
 
     learners = [t.Learner(first_name=f, last_name=n, email=f"{f.lower()}.{n.lower()}@exemple.fr", created_by=ACTOR) for f, n in LEARNERS]
     db.add_all(learners)
@@ -552,6 +541,95 @@ def _factures(db: Session, today: date, s1: t.TrainingSession) -> t.Company:
     db.flush()
     return company
 
+def _team_scenarios(db: Session, d, team: dict) -> None:  # noqa: ANN001
+    """Titres, CV et actions de développement des formateurs de la démo (dont le trou I21 sur Marc Perrin)."""
+    sandrine, marc = team["sandrine-moreau"], team["marc-perrin"]
+    db.add(t.TrainerQualification(trainer_id=sandrine.id, kind="SSIAP3", label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
+                                  document_id=_doc(db, "JUSTIFICATIF", "Diplôme SSIAP 3 — S. Moreau").id, created_by=ACTOR))
+    db.add(t.TrainerQualification(trainer_id=marc.id, kind="FORMATEUR_SST", label="Formateur SST", obtained_on=d(-800), valid_until=d(-10),
+                                  document_id=_doc(db, "JUSTIFICATIF", "Certificat formateur SST — M. Perrin").id,
+                                  created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
+    upload(db, subject="FORMATEUR", subject_id=sandrine.id, requirement="CV", content=_pdf("CV S. Moreau"),
+           filename="cv-sandrine-moreau.pdf", mime="application/pdf",
+           checklist=_grid_yes("FORMATEUR", "CV", sans_objet=("CARTE_FORMATEUR_CNAPS",)),
+           note="Formatrice incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
+    db.add(t.StaffDevelopmentAction(trainer_id=sandrine.id, label="Recyclage pédagogique", planned_on=d(-120),
+                                    completed_on=d(-100), created_by=ACTOR))
+    _formateurs(db, d, team)
+
+
+# Formateur de chaque session de la démo (clé de l'équipe), selon les spécialités affichées sur la landing.
+SESSION_TRAINERS = {"SSIAP1-2026-01": "sandrine-moreau", "SSIAP1-2026-03": "sandrine-moreau", "SST-2026-02": "marc-perrin",
+                    "SST-2026-04": "marc-perrin", "SST-2026-05": "marc-perrin", "MAC-SST-2026-01": "nadia-khelifi"}
+
+
+def replace_demo_team(db: Session) -> dict:
+    """Démo installée avant l'équipe de la landing : ses anciens formateurs et son ancien personnel (acteur « démo »)
+    sont remplacés par l'équipe, les sessions de la démo passent aux nouveaux formateurs, les photos sont corrigées.
+
+    Rien hors de la démo n'est touché ; si une donnée saisie à côté dépend d'un ancien formateur de la démo, refus."""
+    from app.types.edof import Piece
+
+    set_actor(db, ACTOR)
+    data = equipe()
+    names = {(p["prenom"], p["nom"]): p["volet"] for p in data["equipe"]}
+    trainers = db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR)).all()
+    old = [tr for tr in trainers if names.get((tr.first_name, tr.last_name)) != "formateur"]
+    old_ids = [tr.id for tr in old]
+    old_staff = [m for m in db.scalars(select(StaffMember).where(StaffMember.created_by == ACTOR))
+                 if names.get((m.first_name, m.last_name)) in (None, "formateur") or m.trainer_id in old_ids]
+    s1 = db.scalar(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR,
+                                                   t.TrainingSession.reference == "SSIAP1-2026-01"))
+    if s1 is None:
+        raise ConflictError("Démo absente ou incomplète : installer les exemples (seed-demo)")
+    if old_ids:
+        foreign = [
+            *db.scalars(select(t.TrainingSession.reference).where(t.TrainingSession.trainer_id.in_(old_ids),
+                                                                  t.TrainingSession.created_by != ACTOR)),
+            *db.scalars(select(t.TrainerQualification.label).where(t.TrainerQualification.trainer_id.in_(old_ids),
+                                                                   t.TrainerQualification.created_by != ACTOR)),
+            *db.scalars(select(t.StaffDevelopmentAction.label).where(t.StaffDevelopmentAction.trainer_id.in_(old_ids),
+                                                                     t.StaffDevelopmentAction.created_by != ACTOR)),
+            *db.scalars(select(t.ProgramTrainer.id).where(t.ProgramTrainer.trainer_id.in_(old_ids))),
+        ]
+        if foreign:
+            raise ConflictError(f"Données saisies hors démo liées aux anciens formateurs : {', '.join(foreign)}")
+    today = s1.start_date + timedelta(days=40)  # date d'installation de la démo (SSIAP1-2026-01 commence à J-40)
+
+    def d(days: int) -> date:
+        return today + timedelta(days=days)
+
+    removed = {"formateurs": [tr.full_name for tr in old], "personnel": [m.full_name for m in old_staff]}
+    if old_ids:
+        docs = [q.document_id for q in db.scalars(select(t.TrainerQualification).where(
+            t.TrainerQualification.trainer_id.in_(old_ids))) if q.document_id]
+        db.execute(delete(t.TrainerQualification).where(t.TrainerQualification.trainer_id.in_(old_ids)))
+        db.execute(delete(t.StaffDevelopmentAction).where(t.StaffDevelopmentAction.trainer_id.in_(old_ids)))
+        kept = select(Piece.document_id).where(Piece.document_id.is_not(None))
+        db.execute(delete(t.Document).where(t.Document.created_by == ACTOR, ~t.Document.id.in_(kept), (
+            t.Document.id.in_(docs) | ((t.Document.entity_type == "FORMATEUR") & t.Document.entity_id.in_(old_ids)))))
+    for m in old_staff:
+        db.delete(m)
+    db.flush()
+    team = seed_team(db)
+    if old_ids:
+        for s in db.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR)):
+            if s.reference in SESSION_TRAINERS:
+                s.trainer_id = team[SESSION_TRAINERS[s.reference]].id
+        db.flush()
+        for tr in old:
+            db.delete(tr)
+        _team_scenarios(db, d, team)
+    if not any(m.contracts for m in team.values() if isinstance(m, StaffMember)):
+        _personnel(db, d, team)
+    org = db.scalar(select(t.Organization).where(t.Organization.created_by == ACTOR))
+    if org is not None and org.disability_referent_name == "Nadia Roux":
+        org.disability_referent_name = "Émilie Bernard"
+    db.flush()
+    _drop_orphan_evidence(db)
+    return removed | complete_demo(db, corriger=True)
+
+
 def _formateurs(db: Session, d, team: dict) -> None:  # noqa: ANN001
     """Titres et actions de développement : un titre à renouveler dans 45 jours (SSIAP 3 de Jean-Claude Renard), une
     action réalisée et deux prévues. Seuls des titres que la landing affiche. Aucun ne change l'état des contrôles plantés."""
@@ -714,10 +792,8 @@ def remove_demo(db: Session) -> dict[str, int]:
     et les preuves dont la source n'existe plus sont retirées. Réévaluer ensuite (`refresh_all`).
     """
     import app.types.registry  # noqa: F401 (toutes les tables connues, pour retrouver la source des preuves)
-    from app.database.db import Base
     from app.types.qualiopi_capa import CapaAction
     from app.types.qualiopi_evaluation import ControlResult, ControlResultHistory, Finding
-    from app.types.qualiopi_evidence import Evidence
     from app.types.qualiopi_schedule import MilestoneStatus
 
     set_actor(db, "cli")
@@ -753,12 +829,21 @@ def remove_demo(db: Session) -> dict[str, int]:
     count("document", db.execute(delete(t.Document).where(
         t.Document.created_by == ACTOR, ~t.Document.id.in_(select(Piece.document_id).where(Piece.document_id.is_not(None)))
     )).rowcount)
-    # Preuves orphelines : leur ligne source vient d'être supprimée.
-    for source in db.scalars(select(Evidence.source_table).distinct()).all():
-        table = Base.metadata.tables.get(source)
-        if table is None:
-            continue
-        count("evidence", db.execute(delete(Evidence).where(
-            Evidence.source_table == source, ~Evidence.source_id.in_(select(table.c.id)))).rowcount)
+    count("evidence", _drop_orphan_evidence(db))
     db.flush()
     return removed
+
+
+def _drop_orphan_evidence(db: Session) -> int:
+    """Preuves orphelines : leur ligne source vient d'être supprimée."""
+    import app.types.registry  # noqa: F401 (toutes les tables connues, pour retrouver la source des preuves)
+    from app.database.db import Base
+    from app.types.qualiopi_evidence import Evidence
+
+    n = 0
+    for source in db.scalars(select(Evidence.source_table).distinct()).all():
+        table = Base.metadata.tables.get(source)
+        if table is not None:
+            n += db.execute(delete(Evidence).where(
+                Evidence.source_table == source, ~Evidence.source_id.in_(select(table.c.id)))).rowcount
+    return n

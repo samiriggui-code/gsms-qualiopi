@@ -29,7 +29,7 @@ from app.errors.errors import DomainError, InvalidStateError
 from app.middleware.auth import DB, require
 from app.types import training as t
 from app.types.auth import User
-from app.types.preinscriptions import CIVILITIES, COMPLIANCE, STATUSES, Preinscription
+from app.types.preinscriptions import CIVILITIES, COMPLIANCE, POSTAL_CODE, STATUSES, Preinscription, check_birth_date
 
 public_router = APIRouter(prefix="/api/v1/public", tags=["public"])
 router = APIRouter(prefix="/api/v1/preinscriptions", tags=["Préinscriptions"])
@@ -40,7 +40,6 @@ MAX_BODY_BYTES = 16 * 1024
 PUBLIC_ACTOR = "formulaire public du site"
 EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PHONE = re.compile(r"^\+?[0-9 .()-]{10,40}$")
-POSTAL_CODE = re.compile(r"^\d{5}$")
 
 # Libellés des champs du formulaire, pour des messages d'erreur lisibles.
 FIELD_LABELS = {
@@ -126,9 +125,7 @@ class PreinscriptionIn(BaseModel):
     @field_validator("birth_date")
     @classmethod
     def _birth(cls, value: date) -> date:
-        if value >= date.today() or value.year < 1900:
-            raise ValueError("date invalide")
-        return value
+        return check_birth_date(value)
 
     @model_validator(mode="after")
     def _coherence(self) -> PreinscriptionIn:

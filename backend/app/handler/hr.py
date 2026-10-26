@@ -46,7 +46,8 @@ def _check_kind(value: str | None, allowed: tuple[str, ...], what: str) -> None:
 def _view(m: StaffMember, today: date) -> dict:
     current = [c for c in m.contracts if c.covers(today, today)]
     return {
-        "id": m.id, "nom": m.full_name, "email": m.email, "photo_url": m.photo_url,
+        "id": m.id, "nom": m.full_name, "prenom": m.first_name, "nom_de_famille": m.last_name, "email": m.email,
+        "telephone": m.phone, "photo_url": m.photo_url,
         "service": m.service, "service_libelle": STAFF_SERVICES.get(m.service or ""),
         "site": {"visible": m.site_visible, "fonction": m.site_title, "bio": m.site_bio}, "statut": m.kind, "fonction": m.job_title, "actif": m.active,
         "compte_id": m.user_id, "formateur_id": m.trainer_id,
@@ -66,6 +67,7 @@ class StaffIn(BaseModel):
     first_name: str
     last_name: str
     email: str | None = None
+    phone: str | None = Field(default=None, max_length=40)
     kind: str = "SALARIE"
     job_title: str | None = None
     user_id: str | None = None
@@ -119,6 +121,45 @@ def get_staff(staff_id: str, db: DB, _: StaffReader) -> dict:
         view["titres"] = [{"type": q.kind, "libelle": q.label, "numero": q.number,
                            "fin": q.valid_until.isoformat() if q.valid_until else None} for q in trainer.qualifications]
     return view
+
+
+class StaffPatch(BaseModel):
+    """Modification de la fiche : seuls les champs envoyés changent."""
+
+    first_name: str | None = Field(None, min_length=1, max_length=100)
+    last_name: str | None = Field(None, min_length=1, max_length=100)
+    email: str | None = Field(None, max_length=200)
+    phone: str | None = Field(None, max_length=40)
+    kind: str | None = None
+    job_title: str | None = Field(None, max_length=150)
+    service: str | None = None
+    active: bool | None = None
+    user_id: str | None = None
+    trainer_id: str | None = None
+    photo_url: MediaPath = None
+    site_visible: bool | None = None
+    site_title: str | None = Field(None, max_length=200)
+    site_bio: str | None = Field(None, max_length=1000)
+
+
+@router.patch("/rh/personnel/{staff_id}")
+def update_staff(staff_id: str, body: StaffPatch, db: DB, _: StaffWriter) -> dict:
+    m = _staff(db, staff_id)
+    changes = body.model_dump(exclude_unset=True)
+    for field, label in (("first_name", "Le prénom"), ("last_name", "Le nom"), ("kind", "Le statut"), ("active", "L'état")):
+        if field in changes and changes[field] is None:
+            raise InvalidStateError(f"{label} ne peut pas être vidé")
+    _check_kind(changes.get("kind"), STAFF_KINDS, "Statut")
+    _check_kind(changes.get("service"), tuple(STAFF_SERVICES), "Service")
+    if "user_id" in changes or "trainer_id" in changes:
+        _check_links(db, changes.get("user_id", m.user_id), changes.get("trainer_id", m.trainer_id), ignore=m.id)
+    visible = changes.get("site_visible", m.site_visible)
+    if visible and not changes.get("site_title", m.site_title):
+        raise InvalidStateError("Présentation sur le site : indiquez la fonction affichée (site_title)")
+    for key, value in changes.items():
+        setattr(m, key, value)
+    db.commit()
+    return _view(m, date.today())
 
 
 class ContractIn(BaseModel):

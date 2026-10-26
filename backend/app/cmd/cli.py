@@ -5,6 +5,8 @@
   python -m app.cmd.cli seed-demo                      données d'exemple (fictives) + réévaluation ; sur une base
                                                    qui a déjà un organisme, elles s'y ajoutent sans le modifier
   python -m app.cmd.cli retirer-demo                   retire toutes les données d'exemple + réévaluation
+  python -m app.cmd.cli equipe-demo                    démo installée avant l'équipe de la landing : anciens formateurs
+                                                   et personnel de démo remplacés par l'équipe (photos corrigées)
   python -m app.cmd.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
   python -m app.cmd.cli import-gsms-school             offre reprise de GSMS School (29 formations, lieux, équipements)
   python -m app.cmd.cli ia-preparer [--renouveler-jeton]
@@ -86,6 +88,18 @@ def remove_demo() -> None:
     print(f"Réévaluation : {result['results']} résultats de contrôle.")
 
 
+def team_demo() -> None:
+    from app.application.service.demo import replace_demo_team
+
+    with session_factory()() as db:
+        out = replace_demo_team(db)
+        result = refresh_all(db, trigger="equipe-demo")
+        db.commit()
+    print(f"Anciens formateurs de démo remplacés : {', '.join(out['formateurs']) or 'aucun'}.")
+    print(f"Ancien personnel de démo remplacé : {', '.join(out['personnel']) or 'aucun'}.")
+    print(f"Photos attribuées ou corrigées : {out['photos']} ; réévaluation : {result['results']} résultats de contrôle.")
+
+
 def import_formssi() -> None:
     from app.application.service.edof.formssi import import_formssi as run
 
@@ -152,6 +166,7 @@ def main() -> None:
     r.add_argument("folder", nargs="?", default="qualiopi/v9")
     sub.add_parser("seed-demo")
     sub.add_parser("retirer-demo")
+    sub.add_parser("equipe-demo")
     sub.add_parser("import-formssi")
     sub.add_parser("import-gsms-school")
     ia = sub.add_parser("ia-preparer")
@@ -169,6 +184,8 @@ def main() -> None:
         seed_demo()
     elif args.cmd == "retirer-demo":
         remove_demo()
+    elif args.cmd == "equipe-demo":
+        team_demo()
     elif args.cmd == "ia-preparer":
         ia_prepare(args.renouveler_jeton)
 

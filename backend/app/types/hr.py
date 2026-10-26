@@ -32,6 +32,7 @@ class StaffMember(TimestampMixin, Base):
     first_name: Mapped[str] = mapped_column(String(100))
     last_name: Mapped[str] = mapped_column(String(100))
     email: Mapped[str | None] = mapped_column(String(200))
+    phone: Mapped[str | None] = mapped_column(String(40))
     kind: Mapped[str] = mapped_column(String(20), default="SALARIE")
     job_title: Mapped[str | None] = mapped_column(String(150))
     active: Mapped[bool] = mapped_column(Boolean, default=True)

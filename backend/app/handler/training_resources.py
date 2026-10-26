@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.errors.errors import InvalidStateError, NotFoundError
 from app.handler.crud import crud_router, to_dict
 from app.types import training as t
+from app.types.preinscriptions import CIVILITIES
 from app.types.training_schemas import (
     CompanyIn,
     ComplaintIn,
@@ -88,13 +89,21 @@ def _counts(db: Session, column, ids: list) -> dict:
 
 
 def serialize_learners(db: Session, rows: list) -> list[dict]:
+    """Liste : nom, e-mail, photo, entreprise ; jamais l'identité détaillée (LEARNER_PERSONAL_FIELDS)."""
     companies = _names(db, t.Company, {r.company_id for r in rows})
     enrollments = _counts(db, t.Enrollment.learner_id, [r.id for r in rows])
     return [
-        {**to_dict(r), "full_name": r.full_name, "company_name": companies.get(r.company_id),
-         "enrollments": enrollments.get(r.id, 0)}
+        {**{k: v for k, v in to_dict(r).items() if k not in t.LEARNER_PERSONAL_FIELDS}, "full_name": r.full_name,
+         "company_name": companies.get(r.company_id), "enrollments": enrollments.get(r.id, 0)}
         for r in rows
     ]
+
+
+def serialize_learner_detail(db: Session, rows: list) -> list[dict]:
+    """Détail du stagiaire : la liste, plus son identité et ses coordonnées."""
+    return [{**row, **{k: getattr(r, k) for k in t.LEARNER_PERSONAL_FIELDS},
+             "civility_label": CIVILITIES.get(r.civility or "")}
+            for row, r in zip(serialize_learners(db, rows), rows, strict=True)]
 
 
 def serialize_companies(db: Session, rows: list) -> list[dict]:
@@ -195,7 +204,8 @@ ROUTERS = [
     crud_router(
         model=t.Learner, path="learners", schema_in=PersonIn, label="Apprenant",
         write_permission="sessions.write", order_by=[t.Learner.last_name, t.Learner.first_name],
-        serialize=serialize_learners, validate=_exists("company_id", t.Company, "Entreprise"),
+        serialize=serialize_learners, serialize_one=serialize_learner_detail,
+        validate=_exists("company_id", t.Company, "Entreprise"),
         filters={"entreprise": t.Learner.company_id},
     ),
     crud_router(

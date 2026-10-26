@@ -68,10 +68,27 @@ class Learner(TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(40))
     company_id: Mapped[str | None] = mapped_column(ForeignKey("formation.company.id", ondelete="SET NULL"))
     photo_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # chemin de la médiathèque (media_path)
+    # Identité et coordonnées (mêmes notions que la préinscription) : données personnelles, rendues seulement par le
+    # détail du stagiaire (LEARNER_PERSONAL_FIELDS) et masquées dans le journal des modifications.
+    civility: Mapped[str | None] = mapped_column(String(5))  # CIVILITIES de la préinscription
+    usage_name: Mapped[str | None] = mapped_column(String(100))
+    birth_date: Mapped[date | None] = mapped_column(Date)
+    birth_city: Mapped[str | None] = mapped_column(String(120))
+    birth_department: Mapped[str | None] = mapped_column(String(60))
+    birth_country: Mapped[str | None] = mapped_column(String(80))
+    nationality: Mapped[str | None] = mapped_column(String(80))
+    address: Mapped[str | None] = mapped_column(String(300))
+    postal_code: Mapped[str | None] = mapped_column(String(10))
+    city: Mapped[str | None] = mapped_column(String(120))
+    current_situation: Mapped[str | None] = mapped_column(String(300))
 
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+
+LEARNER_PERSONAL_FIELDS = ("civility", "usage_name", "birth_date", "birth_city", "birth_department", "birth_country",
+                           "nationality", "address", "postal_code", "city", "current_situation")
 
 
 class Trainer(TimestampMixin, Base):

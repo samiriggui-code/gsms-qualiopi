@@ -96,11 +96,18 @@ def convert(db: Session, p: Preinscription, actor: User, session_id: str | None 
     enforce(PreinscriptionPolicy(db, actor, today).convert(p, session))
     learner = same_learner(db, p)
     existing = learner is not None
+    # Identité et coordonnées déclarées : recopiées sur un nouveau stagiaire ; sur un stagiaire existant, seulement
+    # dans les champs encore vides (une valeur saisie n'est jamais remplacée).
+    person = PersonIn(first_name=p.first_name, last_name=p.last_name, email=p.email, phone=p.phone,
+                      **{k: getattr(p, k) for k in t.LEARNER_PERSONAL_FIELDS})
     if learner is None:
-        person = PersonIn(first_name=p.first_name, last_name=p.last_name, email=p.email, phone=p.phone)
         learner = t.Learner(**person.model_dump(exclude_none=True), created_by=actor.full_name)
         db.add(learner)
         db.flush()
+    else:
+        for key in ("phone", *t.LEARNER_PERSONAL_FIELDS):
+            if getattr(learner, key) in (None, "") and getattr(person, key) is not None:
+                setattr(learner, key, getattr(person, key))
     enrollment = None
     if session is not None:
         enrollment = training.enroll(db, session, learner.id, actor, funding=p.funding_mode[:60], today=today)

@@ -2,9 +2,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, field_serializer
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, field_serializer
 
 from app.common.media import MediaPath
+from app.types.preinscriptions import POSTAL_CODE, check_birth_date
 
 
 class ORM(BaseModel):
@@ -134,13 +135,40 @@ class SessionOut(ORM):
     status: str
 
 
+def _blank_is_none(value: object) -> object:
+    return None if isinstance(value, str) and not value.strip() else value
+
+
+def _postal_code(value: str | None) -> str | None:
+    if value is not None and not POSTAL_CODE.match(value):
+        raise ValueError("code postal : 5 chiffres attendus")
+    return value
+
+
+Text = Annotated[str | None, BeforeValidator(_blank_is_none)]
+
+
 class PersonIn(BaseModel):
+    """Stagiaire : identité et coordonnées, mêmes notions et mêmes contrôles que la préinscription."""
+
     first_name: str
     last_name: str
     email: str | None = None
     phone: str | None = None
     company_id: str | None = None
     photo_url: MediaPath = None
+    civility: Annotated[Literal["M", "MME"] | None, BeforeValidator(_blank_is_none)] = None
+    usage_name: Annotated[Text, Field(max_length=100)] = None
+    birth_date: Annotated[date | None, BeforeValidator(_blank_is_none),
+                          AfterValidator(lambda v: check_birth_date(v) if v else v)] = None
+    birth_city: Annotated[Text, Field(max_length=120)] = None
+    birth_department: Annotated[Text, Field(max_length=60)] = None
+    birth_country: Annotated[Text, Field(max_length=80)] = None
+    nationality: Annotated[Text, Field(max_length=80)] = None
+    address: Annotated[Text, Field(max_length=300)] = None
+    postal_code: Annotated[Text, AfterValidator(_postal_code)] = None
+    city: Annotated[Text, Field(max_length=120)] = None
+    current_situation: Annotated[Text, Field(max_length=300)] = None
 
 
 class LearnerOut(ORM):

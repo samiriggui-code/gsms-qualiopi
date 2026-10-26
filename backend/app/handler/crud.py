@@ -59,6 +59,7 @@ def crud_router(
     created_event: str | None = None,
     updated_event: str | None = None,
     serialize: Serializer | None = None,
+    serialize_one: Serializer | None = None,
     validate: Callable[[Session, dict], None] | None = None,
     read_permissions: tuple[str, ...] = ("sessions.read",),
     filters: dict[str, Any] | None = None,
@@ -73,6 +74,10 @@ def crud_router(
 
     def dump(db: Session, rows: list[Any]) -> list[dict]:
         return serialize(db, rows) if serialize else [to_dict(r) for r in rows]
+
+    def dump_one(db: Session, obj: Any) -> dict:
+        """Détail, création, modification : `serialize_one` s'il existe (champs que la liste ne rend pas)."""
+        return (serialize_one or dump)(db, [obj])[0]
 
     def load(db: Session, item_id: str):
         obj = db.get(model, item_id)
@@ -122,7 +127,7 @@ def crud_router(
 
     @router.get("/{item_id}")
     def get_item(item_id: str, db: DB, _: User = reader) -> dict:
-        return dump(db, [load(db, item_id)])[0]
+        return dump_one(db, load(db, item_id))
 
     @router.post("", status_code=201)
     def create_item(body: schema_in, db: DB, user: User = writer) -> dict:  # type: ignore[valid-type]
@@ -137,7 +142,7 @@ def crud_router(
         emit(db, created_event or updated_event, obj, user)
         commit(db)
         db.refresh(obj)
-        return dump(db, [obj])[0]
+        return dump_one(db, obj)
 
     @router.patch("/{item_id}")
     def update_item(item_id: str, body: schema_patch, db: DB, user: User = writer) -> dict:  # type: ignore[valid-type]
@@ -151,7 +156,7 @@ def crud_router(
         emit(db, updated_event, obj, user, previous_trainer_id)
         commit(db)
         db.refresh(obj)
-        return dump(db, [obj])[0]
+        return dump_one(db, obj)
 
     @router.delete("/{item_id}", status_code=204)
     def delete_item(item_id: str, db: DB, user: User = writer) -> None:

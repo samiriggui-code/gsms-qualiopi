@@ -262,3 +262,48 @@ def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN
     assert {f"I{f['indicator']:02d}" for f in body["findings"]} == {c.split(".")[0] for c in session_gaps}
     assert not any(f["title"].startswith("I") and " — " in f["title"][:6] for f in body["findings"]), "pas de code en titre"
     assert "seul l'organisme certificateur" in body["disclaimer"]
+
+
+def test_equipe_remplace_les_anciens_formateurs_de_la_demo(demo: Session) -> None:
+    """Base installée avant l'équipe de la landing : l'ancien trio et l'ancien personnel de démo sont remplacés,
+    les sessions de la démo changent de formateur, les trous plantés ne bougent pas, rien d'autre n'est touché."""
+    from app.application.service.demo import SESSION_TRAINERS, replace_demo_team
+    from app.types import training as t
+    from app.types.hr import StaffMember
+
+    # Ancienne démo simulée : l'équipe et ses titres retirés, l'ancien trio et l'ancien personnel remis.
+    team_ids = [tr.id for tr in demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo"))]
+    karim = t.Trainer(first_name="Karim", last_name="Benali", created_by="démo", photo_url="media/avatars/300-1.png")
+    julie = t.Trainer(first_name="Julie", last_name="Martin", created_by="démo")
+    demo.add_all([karim, julie])
+    demo.flush()
+    for s in demo.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == "démo")):
+        s.trainer_id = karim.id if s.reference.startswith("SSIAP") else julie.id
+    demo.query(t.TrainerQualification).filter(t.TrainerQualification.trainer_id.in_(team_ids)).delete()
+    demo.query(t.StaffDevelopmentAction).filter(t.StaffDevelopmentAction.trainer_id.in_(team_ids)).delete()
+    demo.query(StaffMember).delete()
+    demo.query(t.Trainer).filter(t.Trainer.id.in_(team_ids)).delete()
+    demo.add(t.TrainerQualification(trainer_id=julie.id, kind="FORMATEUR_SST", label="Formatrice SST", created_by="démo"))
+    demo.add(StaffMember(first_name="Karim", last_name="Benali", trainer_id=karim.id, created_by="démo"))
+    demo.add(StaffMember(first_name="Nadia", last_name="Roux", created_by="démo"))
+    real = t.Trainer(first_name="Réel", last_name="Formateur", created_by="admin")
+    demo.add(real)
+    demo.flush()
+
+    out = replace_demo_team(demo)
+    assert sorted(out["formateurs"]) == ["Julie Martin", "Karim Benali"] and sorted(out["personnel"]) == ["Karim Benali", "Nadia Roux"]
+    names = {tr.full_name for tr in demo.scalars(select(t.Trainer))}
+    assert "Julie Martin" not in names and "Karim Benali" not in names and "Réel Formateur" in names
+    refs = {s.reference: s.trainer.full_name for s in demo.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == "démo"))}
+    team = {p.id: p for p in demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo"))}
+    assert refs == {ref: next(f"{x.first_name} {x.last_name}" for x in team.values() if x.email.startswith(key.split("-")[0]))
+                    for ref, key in SESSION_TRAINERS.items()}
+    staff = {m.full_name: m for m in demo.scalars(select(StaffMember))}
+    assert len(staff) == 9 and staff["Karim Benali"].trainer_id is None and staff["Karim Benali"].service == "RH"
+    assert staff["Karim Benali"].absences and staff["Thomas Leroy"].contracts
+    refresh_all(demo, trigger="test", today=TODAY)
+    names = _names(demo)
+    found = {(r.control_key, names.get(r.target_id, "organisme"), r.status)
+             for r in demo.scalars(select(ControlResult)) if r.status not in OK}
+    assert found == {(g.control, g.target, g.status) for g in PLANTED_GAPS}, "les trous plantés ne bougent pas"
+    assert replace_demo_team(demo)["formateurs"] == [], "idempotent"

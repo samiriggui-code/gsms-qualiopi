@@ -5,6 +5,7 @@ L'organisme la prend en charge, la refuse (motif) ou la convertit en stagiaire i
 Schéma PostgreSQL : `formation` (journal des modifications automatique).
 """
 
+import re
 from datetime import date, datetime
 
 from sqlalchemy import JSON, Date, DateTime, ForeignKey, String, Text
@@ -20,6 +21,14 @@ STATUSES = {
 }
 OPEN_STATUSES = ("NOUVELLE", "EN_COURS")
 CIVILITIES = {"M": "Monsieur", "MME": "Madame"}
+POSTAL_CODE = re.compile(r"^\d{5}$")
+
+
+def check_birth_date(value: date) -> date:
+    """Date de naissance plausible (passée, après 1900) ; lève ValueError sinon."""
+    if value >= date.today() or value.year < 1900:
+        raise ValueError("date invalide")
+    return value
 
 # Déclarations cochées par le candidat (onglet « Conformité » du formulaire), toutes requises par le formulaire.
 COMPLIANCE = {
