@@ -1,7 +1,8 @@
 <template>
   <GsmsRecordSheet :title="member?.nom || t('gsms.rh.personnel.fiche')" icon="user" back="/platform/personnel"
     :back-label="t('gsms.rh.personnel.titre')" :avatar-name="member?.nom" :avatar-photo="member?.photo_url"
-    :subtitle="member?.fonction || ''" :meta="meta" :ready="!!member" :loading="loading" :error="error" @retry="load">
+    :subtitle="member?.fonction || ''" :meta="meta" :ready="!!member" :loading="loading" :error="error"
+    :tabs="tabs" :tab="current" @update:tab="(v) => (tab = v)" @retry="load">
     <template v-if="member && !member.actif" #status>
       <t-tag variant="light" size="small">{{ t('gsms.rh.personnel.inactif') }}</t-tag>
     </template>
@@ -9,7 +10,47 @@
       <t-button size="small" variant="outline" @click="openEdit"><template #icon><t-icon name="edit-1" /></template>{{ t('gsms.commun.modifier') }}</t-button>
     </template>
 
-    <div v-if="member" class="info-grid">
+    <template v-if="member" #side>
+      <section class="side-section">
+        <div class="identity">
+          <GsmsPersonAvatar :name="member.nom" :photo="member.photo_url" :size="48" />
+          <span class="identity-text"><span class="identity-name">{{ member.nom }}</span><span class="muted">{{ member.fonction || codeLabel(member.statut) }}</span></span>
+        </div>
+        <dl>
+          <div><dt>{{ t('gsms.rh.personnel.service') }}</dt><dd>{{ member.service_libelle || '—' }}</dd></div>
+          <div><dt>{{ t('gsms.rh.personnel.contratEnCours') }}</dt><dd>{{ contractText(member) }}</dd></div>
+          <div><dt>{{ t('gsms.rh.formateurs.email') }}</dt><dd>{{ member.email || '—' }}</dd></div>
+          <div><dt>{{ t('gsms.rh.personnel.telephone') }}</dt><dd>{{ member.telephone || '—' }}</dd></div>
+        </dl>
+      </section>
+    </template>
+
+    <!-- Vue d'ensemble : chiffres, chronologie des contrats, absences et titres, sessions de la fiche formateur liée -->
+    <template v-if="member && current === 'synthese'">
+      <GsmsKpiRow :items="kpis" />
+      <GsmsTimeline :title="t('gsms.ficheEnrichie.chronologie')" :subtitle="t('gsms.ficheEnrichie.chronologieAide')" :items="timeline"
+        :empty="t('gsms.ficheEnrichie.chronologieVide')" />
+      <section v-if="member.formateur_id && canReadSessions" class="panel-block">
+        <div class="panel-bar"><h3 class="title">{{ t('gsms.ficheEnrichie.sessionsFormateur') }}</h3>
+          <router-link :to="`/platform/formateurs/${member.formateur_id}`" class="link">{{ t('gsms.rh.personnel.ouvrirFormateur') }}<t-icon name="chevron-right" size="14px" /></router-link></div>
+        <GsmsRefusal v-if="sessionsError" :error="sessionsError" inline />
+        <t-skeleton v-else-if="!sessions" animation="gradient" :row-col="[{ width: '100%' }, { width: '100%' }]" />
+        <GsmsEmptyState v-else-if="!sessions.length" :title="t('gsms.rh.fiche.aucuneSession')" compact />
+        <ul v-else class="rows">
+          <li v-for="s in sessions.slice(0, 8)" :key="s.id">
+            <router-link :to="`/platform/sessions/${s.id}`" class="row row--link">
+              <span class="row-main">{{ s.program_title || s.program_code }}<span class="muted"> · {{ s.reference }}</span></span>
+              <span class="muted">{{ fmtDate(s.start_date) }} → {{ fmtDate(s.end_date) }}</span>
+              <GsmsStatusTag :code="s.status" />
+            </router-link>
+          </li>
+        </ul>
+      </section>
+    </template>
+
+    <GsmsHistory v-else-if="member && current === 'historique'" table="rh.staff_member" :entity-id="member.id" />
+
+    <div v-else-if="member" class="info-grid">
       <GsmsInfoPanel :title="t('gsms.rh.personnel.coordonnees')" icon="call" :rows="[
         { label: t('gsms.rh.formateurs.email'), value: member.email },
         { label: t('gsms.rh.personnel.telephone'), value: member.telephone },
@@ -89,13 +130,21 @@
 <script setup lang="ts">
 /** Fiche d'une personne du personnel (GET /rh/personnel/{id}) : coordonnées, présence sur le site, contrats, absences. */
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { MessagePlugin } from 'tdesign-vue-next'
 import GsmsRecordSheet, { type SheetMeta } from '@/components/gsms/GsmsRecordSheet.vue'
 import GsmsInfoPanel from '@/components/gsms/GsmsInfoPanel.vue'
 import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
+import GsmsKpiRow from '@/components/gsms/GsmsKpiRow.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
+import GsmsEmptyState from '@/components/gsms/GsmsEmptyState.vue'
+import GsmsTimeline, { type TimelineItem } from '@/components/gsms/GsmsTimeline.vue'
+import GsmsHistory from '@/components/gsms/GsmsHistory.vue'
+import { listSessions, type SessionRow } from '@/api/gsms/sessions'
+import type { KpiItem } from '@/components/gsms/types'
 import {
   addAbsence, addContract, getStaff, listStaffServices, listTrainers, updateStaff,
   type AbsenceIn, type ContractIn, type StaffIn, type StaffMember, type StaffService, type Trainer,
@@ -129,7 +178,61 @@ async function load() {
     loading.value = false
   }
 }
-watch(id, load, { immediate: true })
+watch(id, () => { sessions.value = null; load() }, { immediate: true })
+
+// ── Onglets : vue d'ensemble, fiche, historique (journal des modifications, droit `journal.read`) ──
+const router = useRouter()
+const canReadSessions = computed(() => access.can('sessions.read'))
+const TABS = computed(() => ['synthese', 'fiche', ...(access.can('journal.read') ? ['historique'] : [])])
+const tab = ref(['synthese', 'fiche', 'historique'].includes(String(route.query.onglet)) ? String(route.query.onglet) : 'synthese')
+const current = computed(() => (TABS.value.includes(tab.value) ? tab.value : 'synthese'))
+const tabs = computed(() => [
+  { value: 'synthese', label: t('gsms.ficheEnrichie.synthese') },
+  { value: 'fiche', label: t('gsms.stagiaires.ongletFiche') },
+  ...(TABS.value.includes('historique') ? [{ value: 'historique', label: t('gsms.ficheEnrichie.historique') }] : []),
+])
+watch(tab, (v) => router.replace({ query: { ...route.query, onglet: v } }))
+
+// Sessions de la fiche formateur liée (GET /sessions?formateur=, `sessions.read`).
+const sessions = ref<SessionRow[] | null>(null)
+const sessionsError = ref<unknown>(null)
+watch(() => [member.value?.formateur_id, canReadSessions.value] as const, async ([fid, can]) => {
+  if (!fid || !can) return
+  sessionsError.value = null
+  try {
+    const res = await listSessions({ formateur: fid })
+    if (fid === member.value?.formateur_id) sessions.value = res
+  } catch (e) { sessionsError.value = e }
+}, { immediate: true })
+
+const kpis = computed<KpiItem[]>(() => {
+  const m = member.value
+  if (!m) return []
+  return [
+    { key: 'contrats', label: t('gsms.ficheEnrichie.kpiContrats'), value: m.contrats.length, subtitle: contractText(m), icon: 'file-paste' },
+    { key: 'absences', label: t('gsms.ficheEnrichie.kpiAbsences'), value: m.absences.length, icon: 'calendar' },
+    ...(m.formateur_id ? [{ key: 'titres', label: t('gsms.ficheEnrichie.kpiTitres'), value: m.titres?.length ?? 0, icon: 'certificate' }] : []),
+    { key: 'compte', label: t('gsms.ficheEnrichie.kpiCompte'), value: m.compte_id ? t('gsms.rh.personnel.compteRelie') : t('gsms.rh.personnel.aucunCompte'), icon: 'user-circle' },
+  ]
+})
+const time = (d: string | null | undefined) => (d ? new Date(d.length === 10 ? `${d}T00:00:00` : d).getTime() : 0)
+const timeline = computed<TimelineItem[]>(() => {
+  const m = member.value
+  if (!m) return []
+  const out: TimelineItem[] = []
+  for (const c of m.contrats) {
+    const type = codeLabel(c.type)
+    out.push({ key: `c-${c.id}-d`, date: c.debut, dateLabel: fmtDate(c.debut), title: t('gsms.ficheEnrichie.evtContratDebut', { type }), detail: c.temps ? codeLabel(c.temps) : null, icon: 'file-paste' })
+    if (c.fin) out.push({ key: `c-${c.id}-f`, date: c.fin, dateLabel: fmtDate(c.fin), title: t('gsms.ficheEnrichie.evtContratFin', { type }), icon: 'file-paste' })
+  }
+  for (const a of m.absences) {
+    out.push({ key: `a-${a.id}`, date: a.debut, dateLabel: periodText(a.debut, a.fin), title: t('gsms.ficheEnrichie.evtAbsence', { nature: codeLabel(a.nature) }), icon: 'calendar' })
+  }
+  for (const [i, q] of (m.titres ?? []).entries()) {
+    if (q.fin) out.push({ key: `q-${i}`, date: q.fin, dateLabel: fmtDate(q.fin), title: t('gsms.ficheEnrichie.evtTitreFin', { titre: q.libelle }), icon: 'certificate' })
+  }
+  return out.sort((a, b) => time(b.date) - time(a.date))
+})
 
 const meta = computed<SheetMeta[]>(() => {
   const m = member.value
@@ -198,6 +301,16 @@ const absenceFields = computed<ActionField[]>(() => [
   .wide { grid-column: 1 / -1; }
 }
 .muted { .gsms-muted(); margin: 0; }
+.side-section { .gsms-side-section(); }
+.identity { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.identity-text { display: flex; flex-direction: column; min-width: 0; }
+.identity-name { font-size: var(--app-text-lg); font-weight: 600; color: var(--td-text-color-primary); overflow-wrap: anywhere; }
+.panel-block { .gsms-panel(); display: flex; flex-direction: column; gap: 10px; }
+.panel-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.title { .gsms-panel-title(); margin: 0; }
+.row--link { align-items: center; color: inherit; text-decoration: none;
+  &:hover { background: var(--td-bg-color-container-hover); }
+  &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; } }
 .rows { .gsms-rows(); }
 .row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 8px 12px; }
 .row-main { font-weight: 500; color: var(--td-text-color-primary); overflow-wrap: anywhere; }

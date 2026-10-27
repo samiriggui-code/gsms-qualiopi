@@ -1,7 +1,7 @@
 <template>
   <GsmsListPage :title="t('gsms.ressources.sousTraitants.titre')" icon="link" :subtitle="t('gsms.ressources.sousTraitants.sousTitre')"
     :items="rows" :loading="loading" :error="error" :columns="columns" :empty-title="t('gsms.ressources.sousTraitants.aucun')"
-    :empty-description="t('gsms.ressources.sousTraitants.aucunAide')" @retry="load">
+    :empty-description="t('gsms.ressources.sousTraitants.aucunAide')" :row-to="(row) => `/platform/sous-traitants/${row.id}`" @retry="load">
     <template #actions>
       <t-button v-if="canWrite" size="small" @click="openForm(null)"><template #icon><t-icon name="add" /></template>{{ t('gsms.ressources.sousTraitants.nouveau') }}</t-button>
     </template>
@@ -10,7 +10,7 @@
     </template>
     <template #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
 
-    <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>
+    <template #cell-name="{ row }"><router-link :to="`/platform/sous-traitants/${row.id}`" class="cell-title cell-link" @click.stop>{{ row.name }}</router-link></template>
     <template #cell-siret="{ row }">{{ row.siret || '—' }}</template>
     <template #cell-qualiopi_certified="{ row }">
       <t-tag :theme="row.qualiopi_certified ? 'success' : 'default'" variant="light" size="small">{{ certLabel(row) }}</t-tag>
@@ -22,7 +22,7 @@
     <template #card="{ item }">
       <div class="card card--static">
         <div class="card-header">
-          <div class="card-header-left"><span class="card-title" :title="item.name">{{ item.name }}</span></div>
+          <div class="card-header-left"><router-link :to="`/platform/sous-traitants/${item.id}`" class="card-title card-link" :title="item.name">{{ item.name }}</router-link></div>
           <t-tag :theme="item.qualiopi_certified ? 'success' : 'default'" variant="light" size="small">{{ certLabel(item) }}</t-tag>
         </div>
         <div class="card-meta">
@@ -123,6 +123,7 @@ async function remove(s: Subcontractor) {
 .card--static { cursor: default; }
 .card-actions { margin-top: 8px; }
 .cell-title { display: block; font-weight: 500; }
+.cell-link, .card-link { color: var(--td-text-color-primary); text-decoration: none; &:hover { color: var(--td-brand-color); text-decoration: underline; } }
 .muted { .gsms-muted(); }
 .note { margin: 12px 0 0; }
 </style>

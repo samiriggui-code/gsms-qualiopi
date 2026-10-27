@@ -63,8 +63,32 @@
     </template>
 
     <template v-if="request">
+      <!-- Chiffres et chronologie de la demande (GET /preinscriptions/{id}), inscriptions du stagiaire déjà connu -->
+      <template v-if="tab === 'demande'">
+      <GsmsKpiRow :items="kpis" />
+      <div class="duo">
+        <GsmsTimeline :title="t('gsms.ficheEnrichie.chronologie')" :subtitle="t('gsms.ficheEnrichie.chronologieAide')" :items="timeline"
+          :empty="t('gsms.ficheEnrichie.chronologieVide')" />
+        <section v-if="knownLearner && canReadSessions" class="panel">
+          <h3 class="title">{{ t('gsms.ficheEnrichie.dejaStagiaire') }}</h3>
+          <p class="muted">{{ t('gsms.ficheEnrichie.dejaStagiaireAide') }}</p>
+          <GsmsRefusal v-if="enrolError" :error="enrolError" inline />
+          <t-skeleton v-else-if="!enrolments" animation="gradient" :row-col="[{ width: '100%' }, { width: '100%' }]" />
+          <GsmsEmptyState v-else-if="!enrolments.length" :title="t('gsms.ficheEnrichie.aucuneInscription')" compact />
+          <ul v-else class="rows">
+            <li v-for="e in enrolments" :key="e.id">
+              <router-link :to="`/platform/sessions/${e.session.id}/inscriptions/${e.id}`" class="row row--link">
+                <span class="row-main">{{ e.session.formation_titre || e.session.reference }}<span class="muted"> · {{ e.session.reference }}</span></span>
+                <span class="muted">{{ fmtDate(e.session.debut) }} → {{ fmtDate(e.session.fin) }}</span>
+                <GsmsStatusTag :code="e.statut" />
+              </router-link>
+            </li>
+          </ul>
+          <router-link :to="`/platform/stagiaires/${knownLearner.id}`" class="link">{{ t('gsms.ficheEnrichie.ouvrirFiche') }}</router-link>
+        </section>
+      </div>
       <!-- Demande telle que saisie sur le site -->
-      <section v-if="tab === 'demande'" class="panel">
+      <section class="panel">
         <h3 class="title">{{ t('gsms.commercial.demandes.formationSouhaitee') }}</h3>
         <dl class="kv">
           <div><dt>{{ t('gsms.commercial.demandes.colFormation') }}</dt><dd>
@@ -83,6 +107,9 @@
           <p class="text">{{ request.motivation }}</p>
         </template>
       </section>
+      </template>
+
+      <GsmsHistory v-else-if="tab === 'historique'" table="formation.preinscription" :entity-id="request.id" />
 
       <!-- Déclarations cochées sur le formulaire, avec leur horodatage -->
       <section v-else-if="tab === 'declarations'" class="panel">
@@ -146,6 +173,12 @@ import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import ActionDialog from '@/components/gsms/ActionDialog.vue'
+import GsmsKpiRow from '@/components/gsms/GsmsKpiRow.vue'
+import GsmsEmptyState from '@/components/gsms/GsmsEmptyState.vue'
+import GsmsTimeline, { type TimelineItem } from '@/components/gsms/GsmsTimeline.vue'
+import GsmsHistory from '@/components/gsms/GsmsHistory.vue'
+import { listLearnerInscriptions, type LearnerInscription } from '@/api/gsms/sessions'
+import type { KpiItem } from '@/components/gsms/types'
 import { convertPreinscription, getPreinscription, setPreinscriptionStatus, type PreinscriptionDetail } from '@/api/gsms/preinscriptions'
 import type { Capability } from '@/api/gsms/common'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
@@ -154,7 +187,7 @@ import { nationalityFlag } from '@/components/gsms/media'
 
 type Action = keyof PreinscriptionDetail['capabilities']
 const ACTIONS: Action[] = ['EN_COURS', 'REFUSEE', 'convertir']
-const TABS = ['demande', 'declarations', 'sessions']
+const TABS = ['demande', 'declarations', 'sessions', 'historique']
 
 const { t } = useI18n()
 const route = useRoute()
@@ -200,7 +233,55 @@ const tabs = computed(() => [
   { value: 'demande', label: t('gsms.commercial.demandes.ongletDemande') },
   { value: 'declarations', label: t('gsms.commercial.demandes.ongletDeclarations'), count: request.value?.declarations.length },
   { value: 'sessions', label: t('gsms.commercial.demandes.ongletSessions'), count: request.value?.sessions_proposees.length },
+  // Historique : seulement avec le droit de lire le journal des modifications.
+  ...(access.can('journal.read') ? [{ value: 'historique', label: t('gsms.ficheEnrichie.historique') }] : []),
 ])
+
+// ── Chiffres et chronologie : champs de la demande rendus par l'API (aucun état recalculé) ──
+const kpis = computed<KpiItem[]>(() => {
+  const r = request.value
+  if (!r) return []
+  const ticked = r.declarations.filter((d) => d.cochee).length
+  const open = r.sessions_proposees.filter((x) => x.inscription.allowed).length
+  return [
+    { key: 'statut', label: t('gsms.ficheEnrichie.statut'), value: r.statut_libelle || r.statut, icon: 'flag',
+      tone: r.statut === 'REFUSEE' ? 'danger' : r.statut === 'CONVERTIE' ? 'success' : undefined },
+    { key: 'recue', label: t('gsms.commercial.demandes.colRecue'), value: fmtDate(r.recue_le), subtitle: r.origine || undefined, icon: 'mail' },
+    { key: 'declarations', label: t('gsms.ficheEnrichie.kpiDeclarations'), value: ticked, subtitle: t('gsms.ficheEnrichie.kpiDeclarationsSur', { n: r.declarations.length }),
+      icon: 'check-rectangle', meter: { value: ticked, max: r.declarations.length } },
+    { key: 'sessions', label: t('gsms.ficheEnrichie.kpiSessionsProposees'), value: r.sessions_proposees.length, subtitle: t('gsms.ficheEnrichie.kpiSessionsOuvertes', { n: open }), icon: 'calendar' },
+  ]
+})
+const time = (d: string | null | undefined) => (d ? new Date(d.length === 10 ? `${d}T00:00:00` : d).getTime() : 0)
+const timeline = computed<TimelineItem[]>(() => {
+  const r = request.value
+  if (!r) return []
+  const out: TimelineItem[] = []
+  if (r.recue_le) out.push({ key: 'recue', date: r.recue_le, dateLabel: fmtDateTime(r.recue_le), title: t('gsms.ficheEnrichie.evtRecue'), detail: r.origine, icon: 'mail' })
+  if (r.declarations_le) out.push({ key: 'decl', date: r.declarations_le, dateLabel: fmtDateTime(r.declarations_le), title: t('gsms.ficheEnrichie.evtDeclarations'), icon: 'check-rectangle' })
+  if (r.statut_change_le) out.push({ key: 'statut', date: r.statut_change_le, dateLabel: fmtDateTime(r.statut_change_le),
+    title: t('gsms.ficheEnrichie.evtStatut', { statut: r.statut_libelle || r.statut }), detail: r.traitee_par ? t('gsms.ficheEnrichie.par', { auteur: r.traitee_par }) : r.motif_refus,
+    tone: r.statut === 'REFUSEE' ? 'danger' : r.statut === 'CONVERTIE' ? 'success' : undefined, icon: 'flag' })
+  if (r.conversion?.le) out.push({ key: 'conv', date: r.conversion.le, dateLabel: fmtDateTime(r.conversion.le), title: t('gsms.ficheEnrichie.evtConversion'),
+    detail: r.conversion.session?.reference ?? null, tone: 'success', icon: 'user-add',
+    to: r.conversion.stagiaire ? `/platform/stagiaires/${r.conversion.stagiaire.id}` : null })
+  return out.sort((a, b) => time(b.date) - time(a.date))
+})
+
+// Stagiaire déjà connu (même e-mail ou converti) : ses inscriptions (GET /learners/{id}/inscriptions, `sessions.read`).
+const canReadSessions = computed(() => access.can('sessions.read'))
+const knownLearner = computed(() => request.value?.conversion?.stagiaire ?? request.value?.stagiaire_existant ?? null)
+const enrolments = ref<LearnerInscription[] | null>(null)
+const enrolError = ref<unknown>(null)
+watch(() => [knownLearner.value?.id, canReadSessions.value] as const, async ([lid, can]) => {
+  enrolments.value = null
+  enrolError.value = null
+  if (!lid || !can) return
+  try {
+    const res = await listLearnerInscriptions(lid)
+    if (lid === knownLearner.value?.id) enrolments.value = res
+  } catch (e) { enrolError.value = e }
+}, { immediate: true })
 
 async function load() {
   const asked = id.value
@@ -288,6 +369,11 @@ async function refresh() {
 .ok { color: var(--td-success-color); flex-shrink: 0; }
 .ko { color: var(--td-error-color); flex-shrink: 0; }
 .refused { flex-basis: 100%; color: var(--td-warning-color); font-size: var(--app-text-sm); overflow-wrap: anywhere; }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1100px) { .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.row--link { color: inherit; text-decoration: none;
+  &:hover { background: var(--td-bg-color-container-hover); }
+  &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; } }
 .convert { display: flex; flex-direction: column; gap: 12px; }
 .choices { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
 .choice { display: flex; align-items: flex-start; width: 100%; margin: 0; padding: 8px 10px; border: 1px solid var(--td-component-stroke);

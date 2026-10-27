@@ -4,6 +4,7 @@
  * sont ceux du panneau Paramètres (`listMoyens`, `createMoyen`… dans training.ts) : ce fichier ne fait que les typer.
  * Référence : docs/API.md (routes, droits).
  */
+import { http } from './http'
 import { createMoyen, deleteMoyen, listMoyens, updateMoyen, type MoyenResource, type MoyenRow } from './training'
 
 export interface Premises extends MoyenRow {
@@ -50,6 +51,10 @@ export interface Subcontractor extends MoyenRow {
   qualiopi_certified: boolean
   contract_signed_on: string | null
   last_review_on: string | null
+  /** Colonnes communes rendues par la ressource CRUD : saisie (auteur, date) et dernière mise à jour. */
+  created_at?: string | null
+  created_by?: string | null
+  updated_at?: string | null
 }
 
 export interface Partner extends MoyenRow {
@@ -73,3 +78,5 @@ export const createRessource = <K extends RessourceKind>(kind: K, data: Record<s
 export const updateRessource = <K extends RessourceKind>(kind: K, id: string, data: Record<string, unknown>) =>
   updateMoyen(kind, id, data) as Promise<Rows[K]>
 export const deleteRessource = (kind: RessourceKind, id: string) => deleteMoyen(kind, id)
+/** GET /subcontractors/{id} (`sessions.read` ou `quality.read`) : fiche d'un sous-traitant. */
+export const getSubcontractor = (id: string) => http.get<Subcontractor>(`/subcontractors/${encodeURIComponent(id)}`)

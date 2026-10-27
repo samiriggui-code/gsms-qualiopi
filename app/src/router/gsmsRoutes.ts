@@ -92,6 +92,7 @@ export const gsmsRoutes: RouteRecordRaw[] = [
   { path: 'lieux', name: 'gsmsLieux', component: () => import('../views/gsms/ressources/Premises.vue'), meta: meta('lieux') },
   { path: 'equipements', name: 'gsmsEquipements', component: () => import('../views/gsms/ressources/Equipment.vue'), meta: meta('equipements') },
   { path: 'sous-traitants', name: 'gsmsSousTraitants', component: () => import('../views/gsms/ressources/Subcontractors.vue'), meta: meta('sousTraitants') },
+  { path: 'sous-traitants/:subcontractorId', name: 'gsmsSousTraitant', component: () => import('../views/gsms/ressources/SubcontractorSheet.vue'), meta: meta('sousTraitants') },
   { path: 'partenaires', name: 'gsmsPartenaires', component: () => import('../views/gsms/ressources/Partners.vue'), meta: meta('partenaires') },
   // I et J. Communication : vue d'ensemble, messages et relances (page 37), documents (page 38)
   { path: 'communication', name: 'gsmsCommunication', component: () => import('../views/gsms/communication/Overview.vue'), meta: meta('communication') },

@@ -50,8 +50,43 @@
     </template>
 
     <template v-if="trainer">
+      <!-- Vue d'ensemble : chiffres comptés par l'API, échéances (GET /rh/echeances), sessions et chronologie -->
+      <template v-if="tab === 'synthese'">
+        <GsmsKpiRow :items="kpis" />
+        <div class="duo">
+          <GsmsAlertList :title="t('gsms.ficheEnrichie.echeancesTitres')" :subtitle="t('gsms.ficheEnrichie.echeancesTitresAide')" icon="time"
+            :items="deadlineItems" :loading="titles === null && !titlesError && !deadlinesError" :error="deadlinesError" :empty="t('gsms.ficheEnrichie.aucuneEcheance')" />
+          <GsmsChartCard :title="t('gsms.ficheEnrichie.sessionsParStatut')" icon="chart-pie" :loading="sessions === null && !sessionsError"
+            :error="sessionsError" :empty="!sessions?.length" :empty-text="t('gsms.rh.fiche.aucuneSession')">
+            <GsmsDonut :data="sessionChart" :total="sessions?.length" :total-label="t('gsms.graphiques.total')" />
+          </GsmsChartCard>
+        </div>
+        <section class="panel">
+          <div class="panel-bar"><h3 class="title">{{ t('gsms.ficheEnrichie.sessionsActives') }}</h3>
+            <span v-if="sessions" class="chip">{{ activeSessions.length }}</span></div>
+          <GsmsRefusal v-if="sessionsError" :error="sessionsError" inline />
+          <t-skeleton v-else-if="!sessions" animation="gradient" :row-col="[{ width: '100%' }, { width: '100%' }]" />
+          <GsmsEmptyState v-else-if="!activeSessions.length" :title="t('gsms.ficheEnrichie.aucuneSessionActive')" compact />
+          <ul v-else class="rows">
+            <li v-for="s in activeSessions" :key="s.id">
+              <router-link :to="`/platform/sessions/${s.id}`" class="row row--link">
+                <FormationThumb :image="s.program_image_url" :size="32" />
+                <span class="row-main">{{ s.program_title || s.program_code }}<span class="muted"> · {{ s.reference }}</span></span>
+                <span class="muted">{{ fmtDate(s.start_date) }} → {{ fmtDate(s.end_date) }}<template v-if="s.location"> · {{ s.location }}</template></span>
+                <span class="muted">{{ s.capacity ? t('gsms.commercial.demandes.inscritsPlaces', { n: s.learners_count, total: s.capacity }) : t('gsms.commercial.demandes.inscrits', { n: s.learners_count }) }}</span>
+                <GsmsStatusTag :code="s.status" />
+              </router-link>
+            </li>
+          </ul>
+        </section>
+        <GsmsTimeline :title="t('gsms.ficheEnrichie.chronologie')" :subtitle="t('gsms.ficheEnrichie.chronologieAide')" :items="timeline"
+          :loading="titles === null && !titlesError" :error="titlesError" :empty="t('gsms.ficheEnrichie.chronologieVide')" />
+      </template>
+
+      <GsmsHistory v-else-if="tab === 'historique'" table="formation.trainer" :entity-id="id" />
+
       <!-- Titres et habilitations : échéances (état décidé par GET /rh/echeances) -->
-      <section v-if="tab === 'titres'" class="panel">
+      <section v-else-if="tab === 'titres'" class="panel">
         <div class="panel-bar">
           <h3 class="title">{{ t('gsms.rh.fiche.titres') }}</h3>
           <t-button v-if="canWrite" size="small" @click="openTitle(null)"><template #icon><t-icon name="add" /></template>{{ t('gsms.rh.fiche.ajouterTitre') }}</t-button>
@@ -148,6 +183,16 @@ import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import GsmsRowActions from '@/components/gsms/GsmsRowActions.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
 import TrainerDossier from './TrainerDossier.vue'
+import GsmsKpiRow from '@/components/gsms/GsmsKpiRow.vue'
+import GsmsAlertList from '@/components/gsms/GsmsAlertList.vue'
+import GsmsChartCard from '@/components/gsms/GsmsChartCard.vue'
+import GsmsDonut from '@/components/gsms/GsmsDonut.vue'
+import GsmsEmptyState from '@/components/gsms/GsmsEmptyState.vue'
+import GsmsTimeline, { type TimelineItem } from '@/components/gsms/GsmsTimeline.vue'
+import GsmsHistory from '@/components/gsms/GsmsHistory.vue'
+import FormationThumb from '@/views/gsms/formations/FormationThumb.vue'
+import { countBy, fromCounts } from '@/components/gsms/chartTheme'
+import type { AlertItem, KpiItem } from '@/components/gsms/types'
 import {
   addQualification, deleteQualification, deleteTrainer, getTrainer, linkTrainerAccount, listQualifications,
   listStaffDevelopment, listTitleDeadlines, updateQualification, updateTrainer,
@@ -158,10 +203,10 @@ import { listUsers, type UserOut } from '@/api/gsms/auth'
 import { downloadDocument } from '@/api/gsms/dossiers'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { useGsmsValueListsStore } from '@/stores/gsmsValueLists'
-import { fmtDate, refusalText } from '@/components/gsms/format'
+import { fmtDate, refusalText, stateLabel } from '@/components/gsms/format'
 import { trainerFields, trainerPayload } from './forms'
 
-const TABS = ['titres', 'dossier', 'sessions', 'developpement']
+const TABS = ['synthese', 'titres', 'dossier', 'sessions', 'developpement', 'historique']
 
 const { t } = useI18n()
 const route = useRoute()
@@ -180,7 +225,7 @@ const loading = ref(false)
 const error = ref<unknown>(null)
 const actionError = ref<unknown>(null)
 const busy = ref('')
-const tab = ref(TABS.includes(String(route.query.onglet)) ? String(route.query.onglet) : 'titres')
+const tab = ref(TABS.includes(String(route.query.onglet)) ? String(route.query.onglet) : 'synthese')
 
 const titles = ref<TrainerQualification[] | null>(null)
 const titlesError = ref<unknown>(null)
@@ -194,10 +239,13 @@ const users = ref<UserOut[] | null>(null)
 const usersError = ref<unknown>(null)
 
 const tabs = computed(() => [
+  { value: 'synthese', label: t('gsms.ficheEnrichie.synthese') },
   { value: 'titres', label: t('gsms.rh.fiche.titres'), count: titles.value?.length },
   { value: 'dossier', label: t('gsms.rh.fiche.dossier') },
   { value: 'sessions', label: t('gsms.rh.fiche.sessions'), count: trainer.value?.sessions },
   { value: 'developpement', label: t('gsms.rh.fiche.developpement') },
+  // Historique : seulement avec le droit de lire le journal des modifications.
+  ...(access.can('journal.read') ? [{ value: 'historique', label: t('gsms.ficheEnrichie.historique') }] : []),
 ])
 
 async function load() {
@@ -227,23 +275,72 @@ async function loadTitles() {
   if (d.status === 'fulfilled') deadlines.value = d.value.filter((x) => x.formateur_id === tid)
   else { deadlines.value = []; deadlinesError.value = d.reason }
 }
-async function loadTab(v: string) {
+async function loadSessions() {
   const tid = id.value
-  if (v === 'titres') await loadTitles()
-  else if (v === 'sessions') {
-    sessionsError.value = null
-    try {
-      const res = await listSessions({ formateur: tid })
-      if (tid === id.value) sessions.value = res
-    } catch (e) { if (tid === id.value) sessionsError.value = e }
-  } else if (v === 'developpement') {
-    devError.value = null
-    try {
-      const res = await listStaffDevelopment(tid)
-      if (tid === id.value) dev.value = res
-    } catch (e) { if (tid === id.value) devError.value = e }
-  }
+  sessionsError.value = null
+  try {
+    const res = await listSessions({ formateur: tid })
+    if (tid === id.value) sessions.value = res
+  } catch (e) { if (tid === id.value) sessionsError.value = e }
 }
+async function loadDev() {
+  const tid = id.value
+  devError.value = null
+  try {
+    const res = await listStaffDevelopment(tid)
+    if (tid === id.value) dev.value = res
+  } catch (e) { if (tid === id.value) devError.value = e }
+}
+async function loadTab(v: string) {
+  if (v === 'titres') await loadTitles()
+  else if (v === 'sessions') await loadSessions()
+  else if (v === 'developpement') await loadDev()
+  else if (v === 'synthese') await Promise.all([loadTitles(), loadSessions(), loadDev()])
+}
+
+// ── Vue d'ensemble : regroupements d'affichage des lignes et états rendus par l'API ──
+const ACTIVE = ['PLANIFIEE', 'CONFIRMEE', 'EN_COURS']
+const SESSION_ORDER = ['EN_COURS', 'CONFIRMEE', 'PLANIFIEE', 'TERMINEE', 'CLOTUREE', 'ANNULEE']
+const activeSessions = computed(() => (sessions.value ?? []).filter((s) => ACTIVE.includes(s.status)))
+const sessionChart = computed(() => fromCounts(countBy(sessions.value ?? [], (s) => s.status), SESSION_ORDER, stateLabel))
+const kpis = computed<KpiItem[]>(() => {
+  const tr = trainer.value
+  const expired = deadlines.value.filter((d) => d.etat === 'EXPIRE').length
+  const devDone = (dev.value ?? []).filter((d) => d.completed_on).length
+  return [
+    { key: 'sessions', label: t('gsms.ficheEnrichie.kpiSessions'), value: tr?.sessions ?? 0, icon: 'calendar' },
+    { key: 'actives', label: t('gsms.ficheEnrichie.sessionsActives'), value: sessions.value ? activeSessions.value.length : '—', icon: 'play-circle' },
+    { key: 'titres', label: t('gsms.ficheEnrichie.kpiTitres'), value: tr?.qualifications ?? 0, icon: 'certificate',
+      subtitle: deadlines.value.length ? t('gsms.ficheEnrichie.kpiTitresAlerte', { n: deadlines.value.length }) : undefined,
+      tone: expired > 0 ? 'danger' : undefined },
+    { key: 'dev', label: t('gsms.ficheEnrichie.kpiDeveloppement'), value: dev.value ? devDone : '—', icon: 'chart-bar',
+      subtitle: dev.value ? t('gsms.ficheEnrichie.kpiDevSur', { n: devDone, total: dev.value.length }) : undefined,
+      meter: dev.value ? { value: devDone, max: dev.value.length } : undefined },
+  ]
+})
+const deadlineItems = computed<AlertItem[]>(() => deadlines.value.map((d) => ({
+  id: d.titre_id, title: d.libelle, kind: kindLabel(d.type), when: fmtDate(d.fin),
+  tone: d.etat === 'EXPIRE' ? 'danger' as const : 'warning' as const, to: `/platform/formateurs/${d.formateur_id}?onglet=titres`,
+})))
+const time = (d: string | null | undefined) => (d ? new Date(d.length === 10 ? `${d}T00:00:00` : d).getTime() : 0)
+const timeline = computed<TimelineItem[]>(() => {
+  const out: TimelineItem[] = []
+  for (const q of titles.value ?? []) {
+    if (q.obtained_on) out.push({ key: `q-${q.id}-o`, date: q.obtained_on, dateLabel: fmtDate(q.obtained_on), title: t('gsms.ficheEnrichie.evtTitreObtenu', { titre: q.label }), detail: kindLabel(q.kind), tone: 'success', icon: 'certificate' })
+    if (q.valid_until) {
+      const late = deadlineOf(q)?.etat === 'EXPIRE'
+      out.push({ key: `q-${q.id}-v`, date: q.valid_until, dateLabel: fmtDate(q.valid_until), title: t('gsms.ficheEnrichie.evtTitreFin', { titre: q.label }), detail: deadlineOf(q) ? stateLabel(deadlineOf(q)!.etat) : null, tone: late ? 'danger' : undefined, icon: 'time' })
+    }
+  }
+  for (const d of dev.value ?? []) {
+    if (d.completed_on) out.push({ key: `d-${d.id}-c`, date: d.completed_on, dateLabel: fmtDate(d.completed_on), title: t('gsms.ficheEnrichie.evtDevRealisee', { action: d.label }), tone: 'success', icon: 'chart-bar' })
+    else if (d.planned_on) out.push({ key: `d-${d.id}-p`, date: d.planned_on, dateLabel: fmtDate(d.planned_on), title: t('gsms.ficheEnrichie.evtDevPrevue', { action: d.label }), icon: 'chart-bar' })
+  }
+  for (const s of sessions.value ?? []) {
+    out.push({ key: `s-${s.id}`, date: s.start_date, dateLabel: fmtDate(s.start_date), title: t('gsms.ficheEnrichie.evtSession', { session: s.reference }), detail: [s.program_title, stateLabel(s.status)].filter(Boolean).join(' · '), icon: 'calendar', to: `/platform/sessions/${s.id}` })
+  }
+  return out.sort((a, b) => time(b.date) - time(a.date))
+})
 async function loadUsers() {
   if (!canManageUsers.value || users.value) return
   usersError.value = null
@@ -373,5 +470,8 @@ section.panel > .title { margin-bottom: 10px; }
 .row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
 .deadline { display: flex; align-items: center; gap: 4px; margin: 6px 0 0; color: var(--td-text-color-primary); font-size: var(--app-text-md); font-weight: 500;
   &.deadline--late { color: var(--td-error-color); } }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1100px) { .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.chip { .gsms-chip(); }
 .more { color: var(--td-brand-color); font-size: var(--app-text-sm); text-decoration: none; &:hover { text-decoration: underline; } }
 </style>

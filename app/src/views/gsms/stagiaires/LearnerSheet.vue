@@ -16,10 +16,75 @@
           <div><dt>{{ t('gsms.stagiaires.creeLe') }}</dt><dd>{{ fmtDate(learner.created_at) }}</dd></div>
         </dl>
       </section>
+      <section v-if="trainers.length" class="side-section">
+        <h3>{{ t('gsms.ficheEnrichie.formateurs') }}</h3>
+        <ul class="people">
+          <li v-for="f in trainers" :key="f.id">
+            <router-link :to="`/platform/formateurs/${f.id}`" class="person"><GsmsPersonAvatar :name="f.nom" :photo="f.photo" :size="28" />{{ f.nom }}</router-link>
+          </li>
+        </ul>
+      </section>
     </template>
 
+    <!-- Vue d'ensemble : chiffres, points à traiter, formations, chronologie et questionnaires, tirés des parcours rendus par l'API -->
+    <template v-if="learner && current === 'synthese'">
+      <GsmsKpiRow :items="kpis" :loading="journeysLoading" />
+      <GsmsRefusal v-if="journeysError" :error="journeysError" inline />
+      <div class="duo">
+        <GsmsAlertList :title="t('gsms.ficheEnrichie.aTraiter')" :subtitle="t('gsms.ficheEnrichie.aTraiterAide')" icon="time" :items="todo"
+          :loading="journeysLoading" :error="journeysError" :empty="t('gsms.ficheEnrichie.rienATraiter')" />
+        <section class="panel">
+          <div class="panel-bar"><h3 class="title">{{ t('gsms.ficheEnrichie.formationsSuivies') }}</h3><span v-if="journeys" class="chip">{{ journeys.length }}</span></div>
+          <t-skeleton v-if="journeysLoading" animation="gradient" :row-col="[{ width: '100%' }, { width: '100%' }]" />
+          <GsmsEmptyState v-else-if="journeys && !journeys.length" :title="t('gsms.stagiaires.aucuneInscription')" compact />
+          <ul v-else-if="journeys" class="enrol-list">
+            <li v-for="j in journeys" :key="j.inscription.id" class="enrol">
+              <FormationThumb :image="j.inscription.session.formation_image_url" :size="40" />
+              <div class="enrol-body">
+                <div class="enrol-top">
+                  <router-link :to="`/platform/sessions/${j.inscription.session.id}/inscriptions/${j.inscription.id}`" class="enrol-title">{{ j.inscription.session.formation_titre || j.inscription.session.reference }}</router-link>
+                  <GsmsStatusTag :code="j.inscription.statut" />
+                </div>
+                <span class="muted">{{ j.inscription.session.reference }} · {{ fmtDate(j.inscription.session.debut) }} → {{ fmtDate(j.inscription.session.fin) }}</span>
+                <template v-if="j.journey">
+                  <span class="meter" aria-hidden="true"><span :style="{ width: pct(progress(j).done, progress(j).total) }" /></span>
+                  <span class="muted">{{ t('gsms.ficheEnrichie.avancement', { faits: progress(j).done, total: progress(j).total }) }}</span>
+                </template>
+                <span v-if="j.inscription.abandon_le" class="muted alert-text">{{ t('gsms.ficheEnrichie.abandonMotif', { date: fmtDate(j.inscription.abandon_le), motif: abandonReason(j) || '—' }) }}</span>
+              </div>
+            </li>
+          </ul>
+        </section>
+      </div>
+      <GsmsTimeline :title="t('gsms.ficheEnrichie.chronologie')" :subtitle="t('gsms.ficheEnrichie.chronologieAide')" :items="timeline"
+        :loading="journeysLoading" :error="journeysError" :empty="t('gsms.ficheEnrichie.chronologieVide')" />
+      <section class="panel">
+        <div class="panel-bar"><h3 class="title">{{ t('gsms.ficheEnrichie.questionnaires') }}</h3><span v-if="!journeysLoading" class="chip">{{ questionnaires.length }}</span></div>
+        <p class="muted">{{ t('gsms.ficheEnrichie.questionnairesAide') }}</p>
+        <t-skeleton v-if="journeysLoading" animation="gradient" :row-col="[{ width: '100%' }]" />
+        <GsmsEmptyState v-else-if="!questionnaires.length" :title="t('gsms.ficheEnrichie.questionnairesVide')" compact />
+        <ul v-else class="rows">
+          <li v-for="(q, i) in questionnaires" :key="i" class="row row--col">
+            <div class="enrol-top">
+              <span class="row-main">{{ q.titre }}<span class="muted"> · {{ q.session }}</span></span>
+              <t-tag :theme="q.repondu ? 'success' : 'default'" variant="light" size="small">
+                {{ q.repondu ? t('gsms.ficheEnrichie.reponduLe', { date: fmtDate(q.repondu) }) : t('gsms.ficheEnrichie.sansReponse') }}
+              </t-tag>
+            </div>
+            <span class="muted">{{ t('gsms.ficheEnrichie.envoyeLe', { date: fmtDate(q.envoye) }) }}<template v-if="q.ouvert"> · {{ t('gsms.ficheEnrichie.ouvertLe', { date: fmtDate(q.ouvert) }) }}</template></span>
+            <details v-if="q.reponses.length" class="answers">
+              <summary>{{ t('gsms.ficheEnrichie.nReponses', { n: q.reponses.length }) }}</summary>
+              <dl><template v-for="(r, k) in q.reponses" :key="k"><dt>{{ r.question }}</dt><dd>{{ r.reponse }}</dd></template></dl>
+            </details>
+          </li>
+        </ul>
+      </section>
+    </template>
+
+    <GsmsHistory v-else-if="learner && current === 'historique'" table="formation.learner" :entity-id="learner.id" />
+
     <!-- Fiche : identité et coordonnées rendues par GET /learners/{id} -->
-    <div v-if="learner && current === 'fiche'" class="info-grid">
+    <div v-else-if="learner && current === 'fiche'" class="info-grid">
       <GsmsInfoPanel :title="t('gsms.stagiaires.groupes.identite')" icon="user" :rows="[
         { label: t('gsms.stagiaires.champs.civilite'), value: learner.civility_label || learner.civility },
         { label: t('gsms.stagiaires.champs.nom'), value: learner.last_name },
@@ -69,13 +134,19 @@
           </div>
           <GsmsRefusal v-if="j.error" :error="j.error" inline />
           <template v-else-if="j.journey">
+            <span class="meter" aria-hidden="true"><span :style="{ width: pct(progress(j).done, progress(j).total) }" /></span>
             <div class="steps">
               <span v-for="s in j.journey.etapes" :key="s.etape" class="step"><GsmsStepMark :state="s.etat" :label="stepLabel(s.etape)" />{{ stepLabel(s.etape) }}</span>
             </div>
             <p class="muted">
               {{ t('gsms.parcours.financement') }} : {{ j.journey.contact.financement || t('gsms.sessions.financementNonRenseigne') }} ·
               {{ t('gsms.parcours.assiduite') }} : {{ t('gsms.parcours.demiJournees', { n: j.journey.assiduite.suivies, total: j.journey.assiduite.prevues }) }}
+              <template v-if="j.journey.assiduite.heures_prevues != null"> · {{ t('gsms.ficheEnrichie.heures', { n: j.journey.assiduite.heures_suivies ?? 0, total: j.journey.assiduite.heures_prevues }) }}</template>
             </p>
+            <router-link v-if="j.inscription.session.formateur_id" :to="`/platform/formateurs/${j.inscription.session.formateur_id}`" class="person">
+              <GsmsPersonAvatar :name="j.inscription.session.formateur || ''" :photo="j.inscription.session.formateur_photo_url" :size="24" />{{ j.inscription.session.formateur }}
+            </router-link>
+            <p v-if="j.journey.abandon" class="muted alert-text">{{ t('gsms.ficheEnrichie.abandonMotif', { date: fmtDate(abandonOf(j).le), motif: abandonOf(j).motif || '—' }) }}</p>
             <router-link :to="`/platform/sessions/${j.inscription.session.id}/inscriptions/${j.inscription.id}`" class="link">
               {{ t('gsms.stagiaires.ouvrirParcours') }}<t-icon name="chevron-right" size="14px" />
             </router-link>
@@ -144,6 +215,12 @@ import GsmsStepMark from '@/components/gsms/GsmsStepMark.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import GsmsInfoPanel from '@/components/gsms/GsmsInfoPanel.vue'
 import ActionDialog from '@/components/gsms/ActionDialog.vue'
+import GsmsKpiRow from '@/components/gsms/GsmsKpiRow.vue'
+import GsmsAlertList from '@/components/gsms/GsmsAlertList.vue'
+import GsmsEmptyState from '@/components/gsms/GsmsEmptyState.vue'
+import GsmsTimeline, { type TimelineItem } from '@/components/gsms/GsmsTimeline.vue'
+import GsmsHistory from '@/components/gsms/GsmsHistory.vue'
+import type { AlertItem, KpiItem } from '@/components/gsms/types'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { nationalityFlag } from '@/components/gsms/media'
 import { listCompanies, type Company } from '@/api/gsms/entreprises'
@@ -180,17 +257,93 @@ const busy = ref('')
 
 // Onglet Financement : seulement si le module est actif et lisible pour ce compte (GET /bootstrap).
 const showFunding = computed(() => access.hasFeature('funding') && access.can('funding.read'))
-const TABS = computed(() => ['fiche', 'parcours', 'documents', ...(showFunding.value ? ['financement'] : [])])
-const tab = ref(['fiche', 'parcours', 'documents', 'financement'].includes(String(route.query.onglet)) ? String(route.query.onglet) : 'fiche')
-const current = computed(() => (TABS.value.includes(tab.value) ? tab.value : 'fiche'))
+// Historique : seulement avec le droit de lire le journal des modifications.
+const showHistory = computed(() => access.can('journal.read'))
+const TABS = computed(() => ['synthese', 'fiche', 'parcours', 'documents', ...(showFunding.value ? ['financement'] : []), ...(showHistory.value ? ['historique'] : [])])
+const ALL_TABS = ['synthese', 'fiche', 'parcours', 'documents', 'financement', 'historique']
+const tab = ref(ALL_TABS.includes(String(route.query.onglet)) ? String(route.query.onglet) : 'synthese')
+const current = computed(() => (TABS.value.includes(tab.value) ? tab.value : 'synthese'))
 const documents = computed(() => (journeys.value ?? []).flatMap((j) =>
   (j.journey?.documents ?? []).map((doc: JourneyDocument) => ({ doc, enrollment: j.inscription.id, session: j.inscription.session.reference }))))
 const tabs = computed(() => [
+  { value: 'synthese', label: t('gsms.ficheEnrichie.synthese') },
   { value: 'fiche', label: t('gsms.stagiaires.ongletFiche') },
   { value: 'parcours', label: t('gsms.sessions.parcours'), count: journeys.value?.length },
   { value: 'documents', label: t('gsms.stagiaires.documents'), count: journeys.value ? documents.value.length : undefined },
   ...(showFunding.value ? [{ value: 'financement', label: t('gsms.parcours.financement') }] : []),
+  ...(showHistory.value ? [{ value: 'historique', label: t('gsms.ficheEnrichie.historique') }] : []),
 ])
+
+// ── Vue d'ensemble : regroupements d'affichage des états et dates rendus par l'API (aucun état recalculé) ──
+const journeysLoading = computed(() => journeys.value === null && !journeysError.value)
+const pct = (n: number, total: number) => `${total > 0 ? Math.min(100, (n / total) * 100) : 0}%`
+function progress(j: EnrollmentView) {
+  const steps = (j.journey?.etapes ?? []).filter((s) => s.etat !== 'SANS_OBJET')
+  return { done: steps.filter((s) => s.etat === 'FAIT').length, total: steps.length }
+}
+const abandonOf = (j: EnrollmentView) => (j.journey?.abandon ?? {}) as { le?: string | null; motif?: string | null }
+const abandonReason = (j: EnrollmentView) => abandonOf(j).motif ?? null
+const allSteps = computed(() => (journeys.value ?? []).flatMap((j) => (j.journey?.etapes ?? []).map((s) => ({ s, j }))))
+const kpis = computed<KpiItem[]>(() => {
+  const steps = allSteps.value.filter((x) => x.s.etat !== 'SANS_OBJET')
+  const done = steps.filter((x) => x.s.etat === 'FAIT').length
+  const late = allSteps.value.filter((x) => x.s.etat === 'EN_RETARD').length
+  const att = (journeys.value ?? []).reduce((a, j) => ({ p: a.p + (j.journey?.assiduite.prevues ?? 0), s: a.s + (j.journey?.assiduite.suivies ?? 0) }), { p: 0, s: 0 })
+  return [
+    { key: 'inscriptions', label: t('gsms.ficheEnrichie.kpiInscriptions'), value: learner.value?.enrollments ?? 0, icon: 'books' },
+    { key: 'etapes', label: t('gsms.ficheEnrichie.kpiEtapes'), value: done, subtitle: t('gsms.ficheEnrichie.kpiEtapesSur', { n: steps.length }), icon: 'check-circle', meter: { value: done, max: steps.length } },
+    { key: 'retards', label: t('gsms.ficheEnrichie.kpiRetards'), value: late, icon: 'error-circle', tone: late > 0 ? 'danger' : undefined },
+    { key: 'assiduite', label: t('gsms.ficheEnrichie.kpiAssiduite'), value: att.s, subtitle: t('gsms.ficheEnrichie.kpiDemiJournees', { n: att.p }), icon: 'calendar', meter: { value: att.s, max: att.p } },
+    { key: 'documents', label: t('gsms.ficheEnrichie.kpiDocuments'), value: documents.value.length, icon: 'file' },
+  ]
+})
+const todo = computed<AlertItem[]>(() => allSteps.value
+  .filter((x) => x.s.etat === 'EN_RETARD' || x.s.etat === 'A_ECHEANCE')
+  .map(({ s, j }) => ({
+    id: `${j.inscription.id}-${s.etape}`, title: stepLabel(s.etape), subtitle: j.inscription.session.formation_titre ?? undefined,
+    kind: j.inscription.session.reference, when: s.echeance ? fmtDate(s.echeance) : undefined,
+    tone: s.etat === 'EN_RETARD' ? 'danger' as const : 'warning' as const,
+    to: `/platform/sessions/${j.inscription.session.id}/inscriptions/${j.inscription.id}`,
+  })))
+const time = (d: string | null | undefined) => (d ? new Date(d.length === 10 ? `${d}T00:00:00` : d).getTime() : 0)
+const timeline = computed<TimelineItem[]>(() => {
+  const out: TimelineItem[] = []
+  for (const j of journeys.value ?? []) {
+    const session = j.inscription.session.reference
+    const link = `/platform/sessions/${j.inscription.session.id}/inscriptions/${j.inscription.id}`
+    const jr = j.journey
+    if (!jr) continue
+    if (jr.contact.inscrit_le) out.push({ key: `${j.inscription.id}-in`, date: jr.contact.inscrit_le, dateLabel: fmtDate(jr.contact.inscrit_le), title: t('gsms.ficheEnrichie.evtInscription', { session }), icon: 'user-add', to: link })
+    for (const s of jr.etapes) {
+      if (s.etat === 'FAIT' && s.le) out.push({ key: `${j.inscription.id}-${s.etape}`, date: s.le, dateLabel: fmtDate(s.le), title: t('gsms.ficheEnrichie.evtEtape', { etape: stepLabel(s.etape), session }), detail: s.detail, tone: 'success', icon: 'check', to: link })
+    }
+    for (const d of jr.documents) {
+      if (d.emis_le) out.push({ key: `${j.inscription.id}-doc-${d.id}`, date: d.emis_le, dateLabel: fmtDateTime(d.emis_le), title: t('gsms.ficheEnrichie.evtDocument', { titre: d.titre, session }), detail: d.par, icon: 'file' })
+    }
+    const ab = abandonOf(j)
+    if (jr.abandon && ab.le) out.push({ key: `${j.inscription.id}-ab`, date: ab.le, dateLabel: fmtDate(ab.le), title: t('gsms.ficheEnrichie.evtAbandon', { session }), detail: ab.motif, tone: 'danger', icon: 'close' })
+  }
+  for (const [i, q] of questionnaires.value.entries()) {
+    if (q.envoye) out.push({ key: `q-${i}-env`, date: q.envoye, dateLabel: fmtDateTime(q.envoye), title: t('gsms.ficheEnrichie.evtQuestionnaireEnvoye', { titre: q.titre }), detail: q.session, icon: 'mail' })
+    if (q.repondu) out.push({ key: `q-${i}-rep`, date: q.repondu, dateLabel: fmtDateTime(q.repondu), title: t('gsms.ficheEnrichie.evtQuestionnaireRepondu', { titre: q.titre }), detail: q.session, tone: 'success', icon: 'chat' })
+  }
+  return out.sort((a, b) => time(b.date) - time(a.date))
+})
+interface QuestionnaireView { titre: string; session: string; envoye: string | null; ouvert: string | null; repondu: string | null; reponses: { question: string; reponse: string }[] }
+const questionnaires = computed<QuestionnaireView[]>(() => (journeys.value ?? []).flatMap((j) => (j.journey?.questionnaires ?? []).map((q) => ({
+  titre: String(q.questionnaire ?? q.type ?? ''), session: j.inscription.session.reference,
+  envoye: (q.envoye_le as string | null) ?? null, ouvert: (q.ouvert_le as string | null) ?? null, repondu: (q.repondu_le as string | null) ?? null,
+  reponses: ((q.reponses as { question: string; reponse: unknown }[] | undefined) ?? []).map((r) => ({ question: r.question, reponse: String(r.reponse) })),
+}))))
+// Formateurs des sessions suivies (une fois chacun), avec leur fiche.
+const trainers = computed(() => {
+  const seen = new Map<string, { id: string; nom: string; photo: string | null }>()
+  for (const j of journeys.value ?? []) {
+    const s = j.inscription.session
+    if (s.formateur_id && !seen.has(s.formateur_id)) seen.set(s.formateur_id, { id: s.formateur_id, nom: s.formateur ?? '—', photo: s.formateur_photo_url ?? null })
+  }
+  return [...seen.values()]
+})
 
 async function load() {
   const lid = id.value
@@ -303,4 +456,25 @@ async function download(enrollmentId: string, documentId: string, name: string) 
 .info-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (min-width: 768px) { .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .companies-note { margin-top: 8px; }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1100px) { .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.chip { .gsms-chip(); }
+.enrol-list { list-style: none; margin: 0; padding: 0; li + li { border-top: 1px dashed var(--td-component-stroke); } }
+.enrol { display: flex; gap: 12px; padding: 10px 0; min-width: 0; }
+.enrol-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.enrol-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+.enrol-title { min-width: 0; color: var(--td-text-color-primary); font-size: var(--app-text-md); font-weight: 600; text-decoration: none; overflow-wrap: anywhere;
+  &:hover { color: var(--td-brand-color); text-decoration: underline; } }
+.meter { display: block; height: 6px; margin: 2px 0; border-radius: var(--app-radius-pill); background: var(--td-bg-color-component); overflow: hidden;
+  span { display: block; height: 100%; border-radius: inherit; background: var(--td-text-color-secondary); } }
+.alert-text { color: var(--td-error-color); }
+.row--col { flex-direction: column; align-items: stretch; }
+.answers { font-size: var(--app-text-sm);
+  summary { cursor: pointer; color: var(--td-text-color-secondary); }
+  dl { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; }
+  dt { color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); }
+  dd { margin: 0; color: var(--td-text-color-primary); overflow-wrap: anywhere; } }
+.people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.person { display: inline-flex; align-items: center; gap: 8px; color: var(--td-text-color-primary); font-size: var(--app-text-sm); text-decoration: none;
+  &:hover { color: var(--td-brand-color); } }
 </style>
