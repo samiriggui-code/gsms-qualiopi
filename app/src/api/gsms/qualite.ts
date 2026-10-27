@@ -392,8 +392,8 @@ export const updateSurvey = (id: string, body: SurveyIn) => http.patch<Survey>(`
 export const deleteSurvey = (id: string) => http.delete<void>(`/surveys/${enc(id)}`)
 
 // ── Analyse documentaire d'un indicateur (moteur IA) ──────────────────────────
-// POST /ia/analyses, contrat `gsms.ia.analyse-indicateur/1` (backend/app/application/service/ia/analyse.py,
-// docs/AUDIT-TECHNIQUE-IA.md §9). Droits `ia.use` + `quality.read`.
+// POST /ia/analyses, contrat `gsms.ia.analyse-indicateur/2` (backend/app/application/service/ia/analyse.py et
+// observations.py, docs/API.md « Moteur IA »). Droits `ia.use` + `quality.read`.
 
 export interface IndicatorAnalysisIn {
   indicateur: number
@@ -401,6 +401,8 @@ export interface IndicatorAnalysisIn {
   question?: string | null
   /** 1 à 10 (5 par défaut côté API). */
   max_passages?: number
+  /** Observations et propositions du modèle (false par défaut) : nettement plus long. */
+  analyse_ia?: boolean
 }
 
 /** Passage retrouvé par la recherche documentaire : un texte, pas une preuve validée. */
@@ -419,6 +421,31 @@ export interface AnalysisReference {
   score: number | null
 }
 
+/** Passage cité par l'IA : toujours un passage réellement retrouvé (vérifié par GSMS), `passage` = « P1 », « P2 »… */
+export interface CitedPassage {
+  passage: string
+  passage_id: string
+  document_id: string
+  titre: string
+  base: string
+}
+
+export interface AIObservation {
+  nature: 'contradiction' | 'manque' | 'incomplet' | 'constat' | string
+  texte: string
+  passages: CitedPassage[]
+  statut: 'PROPOSITION_IA' | string
+}
+
+/** Proposition d'action de l'IA telle que rendue par l'analyse (statut PROPOSEE). */
+export interface AIProposal {
+  id: string
+  action: string
+  justification: string
+  passages: CitedPassage[]
+  statut: string
+}
+
 export interface IndicatorAnalysis {
   contrat: string
   correlation_id: string
@@ -434,13 +461,32 @@ export interface IndicatorAnalysis {
     passages_rejetes: number
     resumes_generes_ecartes: number
   }
-  observations_ia: unknown[]
-  propositions: unknown[]
+  observations_ia: AIObservation[]
+  propositions: AIProposal[]
   controles_non_executes: { controle: string; motif: string }[]
   erreurs: { etape: string; message: string }[]
+  /** NON_DEMANDEE, EN_ATTENTE ou DECIDEE, au moment de la réponse. */
   validation_humaine: { statut: string }
   duree_ms: number
   avertissement: string
 }
 
 export const analyseIndicator = (body: IndicatorAnalysisIn) => http.post<IndicatorAnalysis>('/ia/analyses', body)
+
+/** Proposition enregistrée (GET /ia/propositions, réponse de la décision). Droit `quality.read`. */
+export interface AIProposalRow extends AIProposal {
+  correlation_id: string
+  indicateur: number
+  /** PROPOSEE, ACCEPTEE ou REJETEE. */
+  statut: string
+  decide_par: string | null
+  decide_le: string | null
+  motif: string | null
+  cree_le: string
+}
+
+export const listAIProposals = (query: { statut?: string; indicateur?: number } = {}) =>
+  http.get<AIProposalRow[]>('/ia/propositions', { query })
+/** Décision définitive (409 si déjà décidée), motif obligatoire pour un rejet (422). Droit `quality.write`. */
+export const decideAIProposal = (id: string, body: { decision: 'ACCEPTEE' | 'REJETEE'; motif?: string | null }) =>
+  http.post<AIProposalRow>(`/ia/propositions/${enc(id)}/decision`, body)

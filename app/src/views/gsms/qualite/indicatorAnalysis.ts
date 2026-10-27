@@ -36,3 +36,24 @@ export function cleanQuestion(question: string | null | undefined, max = 500): s
   const q = (question ?? '').trim()
   return q ? q.slice(0, max) : undefined
 }
+
+/** Identifiant HTML d'un passage du bloc « Passages retrouvés », cible des renvois depuis l'analyse par l'IA. */
+export function passageAnchor(passageId: string): string {
+  return `passage-${passageId.replace(/[^A-Za-z0-9_-]/g, '_')}`
+}
+
+/**
+ * Repère « P1 », « P2 »… de chaque passage, dans l'ordre des références rendues par l'API : c'est la numérotation
+ * avec laquelle l'IA cite les passages (`CitedPassage.passage`), reprise pour que les renvois se lisent.
+ */
+export function referenceLabels(references: readonly { passage_id: string }[]): Map<string, string> {
+  return new Map(references.map((r, i) => [r.passage_id, `P${i + 1}`]))
+}
+
+/**
+ * Remplace une proposition par la version rendue par l'API après décision (statut, date, motif viennent de l'API ;
+ * rien n'est calculé ici). Liste inchangée si la proposition n'y figure pas.
+ */
+export function withDecision<P extends { id: string }, D extends { id: string }>(list: readonly P[], decided: D): (P | (P & D))[] {
+  return list.map((p) => (p.id === decided.id ? { ...p, ...decided } : p))
+}
