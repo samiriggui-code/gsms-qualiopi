@@ -390,3 +390,57 @@ export const listSurveys = () => http.get<Survey[]>('/surveys')
 export const createSurvey = (body: SurveyIn) => http.post<Survey>('/surveys', body)
 export const updateSurvey = (id: string, body: SurveyIn) => http.patch<Survey>(`/surveys/${enc(id)}`, body)
 export const deleteSurvey = (id: string) => http.delete<void>(`/surveys/${enc(id)}`)
+
+// ── Analyse documentaire d'un indicateur (moteur IA) ──────────────────────────
+// POST /ia/analyses, contrat `gsms.ia.analyse-indicateur/1` (backend/app/application/service/ia/analyse.py,
+// docs/AUDIT-TECHNIQUE-IA.md §9). Droits `ia.use` + `quality.read`.
+
+export interface IndicatorAnalysisIn {
+  indicateur: number
+  /** 500 caractères au plus ; sans question, la recherche part du titre et de l'énoncé de l'indicateur. */
+  question?: string | null
+  /** 1 à 10 (5 par défaut côté API). */
+  max_passages?: number
+}
+
+/** Passage retrouvé par la recherche documentaire : un texte, pas une preuve validée. */
+export interface AnalysisReference {
+  /** « referentiel » (textes officiels) ou « organisme » (documents de l'organisme). */
+  base: string
+  passage_id: string
+  document_id: string
+  titre: string
+  gsms_document_id: string | null
+  version_document: string | null
+  position: { debut: number | null; fin: number | null; rang: number | null }
+  extrait: string
+  extrait_tronque: boolean
+  /** Score de la recherche : sert à l'ordre, jamais une probabilité de conformité (non affiché). */
+  score: number | null
+}
+
+export interface IndicatorAnalysis {
+  contrat: string
+  correlation_id: string
+  cree_le: string
+  perimetre: { indicateur: number; referentiel: string; documents_autorises: string[] | null }
+  /** Chaîne de l'indicateur, identique à GET /qualiopi/indicateurs/{n} : l'état du moteur Qualiopi fait foi. */
+  moteur: IndicatorChain
+  recherche: {
+    statut: 'REFERENCES_RETROUVEES' | 'AUCUNE_REFERENCE' | 'ERREUR_TECHNIQUE' | string
+    motif: string | null
+    modele_embedding: string | null
+    references: AnalysisReference[]
+    passages_rejetes: number
+    resumes_generes_ecartes: number
+  }
+  observations_ia: unknown[]
+  propositions: unknown[]
+  controles_non_executes: { controle: string; motif: string }[]
+  erreurs: { etape: string; message: string }[]
+  validation_humaine: { statut: string }
+  duree_ms: number
+  avertissement: string
+}
+
+export const analyseIndicator = (body: IndicatorAnalysisIn) => http.post<IndicatorAnalysis>('/ia/analyses', body)

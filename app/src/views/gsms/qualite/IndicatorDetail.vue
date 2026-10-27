@@ -56,6 +56,7 @@
           <p>{{ ex.texte }}</p>
         </details>
       </section>
+      <IndicatorAnalysis v-else-if="tab === 'analyse' && canIa" :number="number" />
       <section v-else class="panel">
         <p v-if="!chain.historique.length" class="muted">{{ t('gsms.commun.aucunHistorique') }}</p>
         <ul class="timeline">
@@ -76,6 +77,8 @@ import GsmsRecordSheet from '@/components/gsms/GsmsRecordSheet.vue'
 import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
 import { getIndicatorChain, type IndicatorChain } from '@/api/gsms/qualite'
 import { fmtDate, fmtDateTime } from '@/components/gsms/format'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import IndicatorAnalysis from './IndicatorAnalysis.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -84,11 +87,15 @@ const chain = ref<IndicatorChain | null>(null)
 const loading = ref(false)
 const error = ref<unknown>(null)
 const tab = ref('controles')
+const access = useGsmsAccessStore()
+// Onglet présent seulement avec `ia.use` ; l'API exige aussi `quality.read` et répond 403 sinon (refus affiché).
+const canIa = computed(() => access.can('ia.use'))
 const tabs = computed(() => [
   { value: 'controles', label: t('gsms.qualite.fiche.controles'), count: chain.value?.controles.length },
   { value: 'preuves', label: t('gsms.qualite.fiche.preuvesOnglet'), count: chain.value?.preuves.total },
   { value: 'ecarts', label: t('gsms.qualite.fiche.ecarts'), count: chain.value?.ecarts.length },
   { value: 'exigences', label: t('gsms.qualite.fiche.exigencesOnglet') },
+  ...(canIa.value ? [{ value: 'analyse', label: t('gsms.qualite.analyse.onglet') }] : []),
   { value: 'historique', label: t('gsms.commun.historique') },
 ])
 
