@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     # outil répond avec les droits de la personne, qui voit déjà ces données dans GSMS. À activer si le modèle de l'IA
     # est chez un fournisseur extérieur et que l'envoi de ces données n'est pas validé (RGPD).
     ia_masquer_coordonnees: bool = False
+    # Voix du chat de l'assistant (dictée et lecture des réponses). Fournisseur : vide = voix désactivée,
+    # « elevenlabs », ou « openai » (toute API compatible OpenAI : OpenAI, serveur local…, adresse dans ia_voix_url).
+    # L'audio part chez le fournisseur choisi ; rien n'est conservé par GSMS.
+    ia_voix_fournisseur: str = ""
+    ia_voix_cle: str = ""
+    ia_voix_url: str = ""
+    ia_voix_voix: str = ""  # identifiant de la voix (ElevenLabs : voice_id ; OpenAI : nom de la voix)
+    ia_voix_modele_synthese: str = ""
+    ia_voix_modele_transcription: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

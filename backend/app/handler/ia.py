@@ -3,10 +3,12 @@
 import logging
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
+from app.application.service.ia import voix
 from app.application.service.ia.analyse import MAX_PASSAGES, MAX_QUESTION, analyse_indicator
 from app.application.service.ia.espace import ensure_mcp_service
 from app.application.service.ia.session import IAUnavailable, open_session
@@ -145,3 +147,39 @@ def ia_proposal_decision(proposal_id: str, body: DecisionIn, user: QualityWriter
         analysis.validation_status = "DECIDEE"
     db.commit()
     return _proposal_view(proposal)
+
+
+
+# ── Voix du chat ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/voix")
+def ia_voice_status(_: IAUser) -> dict:
+    """La voix est-elle réglée (le front n'affiche le micro et la lecture que si oui), et ses limites."""
+    return voix.status()
+
+
+@router.post("/voix/transcription")
+async def ia_voice_transcription(_: IAUser, file: Annotated[UploadFile, File()]) -> dict:
+    """Texte d'une dictée (l'enregistrement n'est pas conservé). 422 pour un enregistrement refusé, 503 sinon."""
+    audio = await file.read(voix.MAX_AUDIO + 1)
+    try:
+        return {"texte": voix.transcribe(audio, file.filename or "dictee.webm", file.content_type or "")}
+    except voix.VoiceUnavailable as e:
+        refused = len(audio) > voix.MAX_AUDIO or not audio or "Format audio" in str(e)
+        raise HTTPException(status_code=422 if refused else 503, detail=str(e)) from e
+
+
+class SpeechIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    texte: str = Field(min_length=1, max_length=voix.MAX_TEXT)
+
+
+@router.post("/voix/synthese")
+def ia_voice_speech(body: SpeechIn, _: IAUser) -> Response:
+    """Lecture à voix haute d'un texte (MP3 ; rien n'est conservé)."""
+    try:
+        audio, kind = voix.synthesize(body.texte)
+    except voix.VoiceUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return Response(content=audio, media_type=kind, headers={"Cache-Control": "no-store"})
