@@ -1,4 +1,5 @@
 import { get, post, put, del } from "../../utils/request";
+import { visibleAgents } from '@/config/gitssFeatures';
 import type { AssistantAccessLevel } from "../assistant";
 
 // 智能体配置
@@ -204,7 +205,9 @@ export function listAgents(params?: {
   creator?: 'all' | 'mine' | 'others';
 }) {
   const qs = params?.creator && params.creator !== 'all' ? `?creator=${params.creator}` : '';
-  return get<{ data: CustomAgent[]; disabled_own_agent_ids?: string[] }>(`/api/v1/agents${qs}`);
+  // GSMS : agents sans usage Qualiopi et assistant interne cachés, agents intégrés en français (config/gitssFeatures).
+  return get<{ data: CustomAgent[]; disabled_own_agent_ids?: string[] }>(`/api/v1/agents${qs}`).then((res) =>
+    Array.isArray(res?.data) ? { ...res, data: visibleAgents(res.data) } : res);
 }
 
 // 获取智能体详情

@@ -45,3 +45,28 @@ export function sandboxSectionVisible(capabilities: Record<string, { supported?:
  * désactivés dans le back-office GSMS, qui n'a pas (encore) de guide propre à ses écrans. Le code est gardé.
  */
 export const WEKNORA_GUIDES_ENABLED = false
+
+/**
+ * Agents du moteur IA cachés partout dans le back-office (liste, sélecteur, discussion) :
+ * - les agents intégrés de WeKnora sans usage Qualiopi (les assistants GSMS les remplacent) ;
+ * - l'assistant interne « Analyse documentaire (GSMS) », réservé au contrat d'analyse de l'API (jamais une discussion).
+ * « Réponse rapide » et « Raisonnement » restent : ce sont les agents par défaut de la discussion.
+ */
+export const HIDDEN_AGENT_IDS = new Set([
+  'builtin-deep-researcher', 'builtin-data-analyst', 'builtin-knowledge-graph-expert',
+  'builtin-document-assistant', 'builtin-wiki-researcher', 'builtin-wiki-fixer',
+])
+export const HIDDEN_AGENT_NAMES = new Set(['Analyse documentaire (GSMS)'])
+
+/** Noms français des agents intégrés gardés (WeKnora les livre en anglais). */
+export const BUILTIN_AGENT_NAMES: Record<string, string> = {
+  'builtin-quick-answer': 'Réponse rapide',
+  'builtin-smart-reasoning': 'Raisonnement',
+}
+
+/** Agents visibles dans le back-office, sous leur nom français. */
+export function visibleAgents<T extends { id: string; name: string }>(agents: T[]): T[] {
+  return agents
+    .filter((a) => !HIDDEN_AGENT_IDS.has(a.id) && !HIDDEN_AGENT_NAMES.has(a.name))
+    .map((a) => (BUILTIN_AGENT_NAMES[a.id] ? { ...a, name: BUILTIN_AGENT_NAMES[a.id] } : a))
+}
