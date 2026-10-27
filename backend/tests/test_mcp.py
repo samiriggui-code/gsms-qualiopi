@@ -1,4 +1,4 @@
-"""Serveur MCP du moteur Qualiopi : protocole, authentification, droits et outils en lecture seule."""
+"""Serveur MCP de GSMS : protocole, authentification, droits et outils de lecture (actions : test_mcp_actions.py)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application.service.ia.compte import ROLE, mcp_token, technical_account
-from app.handler.mcp_outils import TOOLS
+from app.handler.mcp_outils import ACTION_TOOLS, TOOLS
 from app.types import training as t
 from app.types.qualiopi_evidence import Evidence
 from tests.conftest import find_session, make_user
@@ -75,7 +75,10 @@ def test_poignee_de_main_et_liste_des_outils(client, db: Session) -> None:  # no
     assert {"etat_indicateurs", "fiche_indicateur", "lister_preuves", "fiche_preuve", "lister_ecarts",
             "lister_echeances", "lister_actions_correctives", "synthese_session", "fiche_formation",
             "lister_sessions", "planning", "lister_audits", "lister_veille", "lister_reclamations"} <= {t["name"] for t in tools}
-    assert all(t["annotations"]["readOnlyHint"] for t in tools)
+    actions = {t.name for t in ACTION_TOOLS}
+    assert all(t["annotations"]["readOnlyHint"] for t in tools if t["name"] not in actions)
+    assert all(not t["annotations"]["readOnlyHint"] and t["annotations"]["destructiveHint"]
+               for t in tools if t["name"] in actions)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
     # Aucun texte ne prononce la conformité.
     assert "conforme" not in json.dumps(tools, ensure_ascii=False).lower().replace("non conforme", "")
@@ -123,7 +126,12 @@ def test_compte_technique_droits_explicites_revocation_et_renouvellement(client,
 
     roles = {r["code"]: r for r in client.get("/api/v1/auth/roles", headers=make_user(db, "admin")[1]).json()}
     assert "ia.use" not in roles[ROLE]["permissions"]
-    assert all(p.endswith((".read", ".read_own")) for p in roles[ROLE]["permissions"])  # lectures seulement
+    # Lectures, plus les seules écritures des outils d'action (exécutés après approbation de la personne).
+    writes = {p for p in roles[ROLE]["permissions"] if not p.endswith((".read", ".read_own"))}
+    assert writes == {"sessions.write", "enrollments.write", "learners.assess", "quality.write", "evidence.validate",
+                      "funding.write", "invoices.write", "leads.write", "communications.manage"}
+    assert not writes & {"users.manage", "settings.manage", "invoices.issue", "payments.write", "staff.write",
+                         "referential.manage", "edof.write"}
 
     new = mcp_token(db, renew=True)
     db.commit()

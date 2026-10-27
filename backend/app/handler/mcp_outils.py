@@ -1,4 +1,4 @@
-"""Outils du serveur MCP : lectures du moteur Qualiopi pour l'assistant IA.
+"""Outils du serveur MCP de l'assistant IA : lectures de toute l'application et actions après approbation.
 
 Chaque outil appelle la fonction de la route HTTP correspondante (mêmes services, mêmes politiques, même
 forme de réponse) : aucune règle métier n'est recodée ici. On n'ajoute que :
@@ -11,7 +11,12 @@ forme de réponse) : aucune règle métier n'est recodée ici. On n'ajoute que :
   l'identité détaillée (naissance, nationalité) des réponses (`sans_contact`) ; par défaut rien n'est retiré, puisque
   chaque outil répond avec les droits de la personne pour qui l'assistant travaille (`mcp.py`).
 
-Tous les outils sont en lecture seule : aucun n'écrit en base.
+Les outils de lecture n'écrivent jamais en base. Les outils d'action (`writes=True`, regroupés dans `ACTION_TOOLS`)
+appellent la fonction de la route POST correspondante, avec la même permission, le même modèle Pydantic pour le corps
+et les mêmes politiques (refus motivé `PolicyDenied`) : ils créent ou font avancer un objet dans GSMS au nom de la
+personne, avec ses droits croisés avec ceux du compte technique (`mcp.py`). Le moteur IA ne les exécute qu'après
+l'approbation explicite de la personne dans la conversation (« approbation toujours requise », posée par
+`ia/espace.py`).
 """
 
 from __future__ import annotations
@@ -22,13 +27,19 @@ import typing
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.application.access.journey import ACTIONS as JOURNEY_ACTIONS
+from app.application.access.preinscriptions import TRANSITIONS as PREINSCRIPTION_TRANSITIONS
+from app.application.access.qualiopi_capa import ACTIONS as CAPA_ACTIONS
 from app.application.service.edof import service as edof_service
+from app.application.service.qualiopi.evidence.service import HUMAN_STATUSES
+from app.application.service.training.lifecycle import TRANSITIONS as SESSION_TRANSITIONS
 from app.config.config import get_settings
 from app.errors.errors import InvalidStateError, NotFoundError
 from app.handler import documents as documents_routes
@@ -43,6 +54,7 @@ from app.handler import pilotage as pilotage_routes
 from app.handler import preinscriptions as preinscriptions_routes
 from app.handler import qualiopi as routes
 from app.handler import qualiopi_ecrans as screens
+from app.handler import relances as relances_routes
 from app.handler import training as training_routes
 from app.handler import training_offre as offre_routes
 from app.handler.training_resources import QUALITY_READ
@@ -52,9 +64,12 @@ from app.types import training as t
 from app.types.auth import User
 from app.types.preinscriptions import STATUSES as PREINSCRIPTION_STATUSES
 from app.types.preinscriptions import Preinscription
-from app.types.qualiopi_audit import Audit
-from app.types.qualiopi_capa import CAPA_STATUSES
+from app.types.qualiopi_audit import JUDGMENTS, Audit
+from app.types.qualiopi_capa import CAPA_STATUSES, CapaAction
+from app.types.qualiopi_evaluation import Finding
 from app.types.qualiopi_evidence import EVIDENCE_STATUSES, Evidence
+from app.types.qualiopi_review import CONCLUSIONS
+from app.types.relances import Message
 
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
@@ -70,6 +85,9 @@ class Tool:
     permission: str | tuple[str, ...]  # une permission, ou plusieurs dont l'une suffit (comme `require_any`)
     run: Callable[[Session, User, dict], object]
     required: tuple[str, ...] = ()
+    writes: bool = False  # outil d'action : enregistre dans GSMS (après approbation de la personne)
+    idempotent: bool = True  # le rejouer à l'identique ne change rien de plus
+    open_world: bool = False  # agit hors de GSMS (envoi d'e-mails)
 
     @property
     def permissions(self) -> tuple[str, ...]:
@@ -80,8 +98,8 @@ class Tool:
         if self.required:
             schema["required"] = list(self.required)
         return {"name": self.name, "description": self.description, "inputSchema": schema,
-                "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True,
-                                "openWorldHint": False}}
+                "annotations": {"readOnlyHint": not self.writes, "destructiveHint": self.writes,
+                                "idempotentHint": self.idempotent, "openWorldHint": self.open_world}}
 
 
 # ── Lecture des arguments ────────────────────────────────────────────────────────
@@ -608,7 +626,7 @@ _NUMBER = {"type": "integer", "minimum": 1, "maximum": 99}
 _LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT, "default": DEFAULT_LIMIT,
           "description": "Nombre maximal de lignes renvoyées"}
 
-TOOLS: tuple[Tool, ...] = (
+READ_TOOLS: tuple[Tool, ...] = (
     Tool("etat_indicateurs",
          "État de préparation calculé par le moteur pour chaque indicateur du référentiel en vigueur, sur une période "
          "(par défaut le cycle de certification en cours). C'est un état de préparation à partir des preuves "
@@ -874,4 +892,404 @@ TOOLS: tuple[Tool, ...] = (
          "journal.read", _journal),
 )
 
+
+# ── Actions (après approbation de la personne) ───────────────────────────────────
+#
+# Chaque action appelle la fonction de la route POST (elle enregistre elle-même, comme pour une requête HTTP) ; le
+# corps est construit avec le modèle Pydantic de la route. Un refus (permission, état, conditions) remonte tel quel
+# en `DomainError` et `mcp.py` n'enregistre alors rien.
+
+_APPROVAL = (" Action : s'exécute dans GSMS au nom de la personne, avec ses droits, seulement après son approbation "
+             "explicite dans la conversation ; si l'application refuse (droit, état, condition), le motif est rendu "
+             "et rien n'est enregistré.")
+
+
+def _body(model: type[BaseModel], **fields: object) -> BaseModel:
+    """Corps de la route validé par son propre modèle ; refus lisible sinon."""
+    try:
+        return model.model_validate({k: v for k, v in fields.items() if v is not None})
+    except ValidationError as e:
+        problems = "; ".join(f"{'.'.join(str(p) for p in err['loc']) or 'corps'} : {err['msg']}" for err in e.errors())
+        raise InvalidStateError(f"Arguments refusés : {problems}") from None
+
+
+def _decimal(args: dict, key: str) -> Decimal | None:
+    value = args.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise InvalidStateError(f"« {key} » doit être un nombre")
+    try:
+        return Decimal(str(value))
+    except InvalidOperation:
+        raise InvalidStateError(f"« {key} » doit être un nombre") from None
+
+
+def _choice(args: dict, key: str, allowed: tuple[str, ...] | list[str], what: str) -> str:
+    value = _required(args, key, what)
+    if value not in allowed:
+        raise InvalidStateError(f"« {key} » inconnu : {value} (attendus : {', '.join(allowed)})")
+    return value
+
+
+def _strings(args: dict, key: str) -> list[str] | None:
+    value = args.get(key)
+    if value is None or value == []:
+        return None
+    if not isinstance(value, list) or not all(isinstance(v, str) and v.strip() for v in value):
+        raise InvalidStateError(f"« {key} » doit être une liste de textes")
+    return [v.strip() for v in value]
+
+
+def _object(args: dict, key: str) -> dict | None:
+    value = args.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise InvalidStateError(f"« {key} » doit être un objet")
+    return value
+
+
+def _enrollment_arg(db: Session, args: dict) -> str:
+    """Une inscription se désigne par son identifiant, ou par sa session et son stagiaire."""
+    value = _str(args, "inscription")
+    if value is not None:
+        if db.get(t.Enrollment, value) is None:
+            raise NotFoundError(f"Inscription introuvable : {value}")
+        return value
+    session, learner = _str(args, "session"), _str(args, "stagiaire")
+    if session is None or learner is None:
+        raise InvalidStateError("Indiquez l'inscription (« inscription ») ou la session et le stagiaire "
+                                "(« session », « stagiaire »)")
+    session_id, learner_id = _session_id(db, session), _person_id(db, t.Learner, learner, "Stagiaire")
+    found = db.scalar(select(t.Enrollment.id).where(t.Enrollment.session_id == session_id,
+                                                    t.Enrollment.learner_id == learner_id))
+    if found is None:
+        raise NotFoundError(f"Pas d'inscription de {learner} à la session {session}")
+    return found
+
+
+def _session_out(s: t.TrainingSession) -> object:
+    # Même réponse que la route (`response_model=SessionView`).
+    return _out(training_routes.SessionView.model_validate(s).model_dump(mode="json"))
+
+
+def _create_session(db: Session, user: User, args: dict) -> object:
+    trainer = _str(args, "formateur")
+    body = _body(training_routes.SessionCreate,
+                 reference=_required(args, "reference", "la référence de la session"),
+                 program_id=_program_id(db, _required(args, "formation", "la formation (identifiant, code ou slug)")),
+                 start_date=_date(args, "debut"), end_date=_date(args, "fin"), location=_str(args, "lieu"),
+                 room=_str(args, "salle"), trainer_id=_person_id(db, t.Trainer, trainer, "Formateur") if trainer else None,
+                 capacity=_int(args, "capacite", lo=1, hi=10000))
+    return _session_out(training_routes.create_session(body, db, user))
+
+
+def _session_transition(db: Session, user: User, args: dict) -> object:
+    session_id = _session_arg(db, args)
+    action = _choice(args, "action", list(SESSION_TRANSITIONS), "la transition")
+    body = _body(training_routes.TransitionIn, motif=_str(args, "motif"))
+    return _session_out(training_routes.apply_transition(session_id, action, body, db, user))
+
+
+def _enroll(db: Session, user: User, args: dict) -> object:
+    session_id = _session_arg(db, args)
+    learner = _required(args, "stagiaire", "le stagiaire (identifiant ou « Prénom Nom »)")
+    body = _body(training_routes.EnrollIn, learner_id=_person_id(db, t.Learner, learner, "Stagiaire"),
+                 company_id=_str(args, "entreprise"), financement=_str(args, "financement"))
+    return _out(training_routes.enroll(session_id, body, db, user))
+
+
+def _journey_step(db: Session, user: User, args: dict) -> object:
+    enrollment_id = _enrollment_arg(db, args)
+    action = _choice(args, "action", list(JOURNEY_ACTIONS), "l'étape du parcours")
+    inputs = _object(args, "donnees") or {}
+    if not all(isinstance(v, (str, int, float, bool)) or v is None for v in inputs.values()):
+        raise InvalidStateError("« donnees » : des textes, nombres ou booléens seulement")
+    return _out(journey_routes.act(enrollment_id, action, db=db, user=user, body=inputs))
+
+
+def _evaluate(db: Session, user: User, args: dict) -> object:
+    return _out(routes.evaluate_all(db=db, user=user))
+
+
+def _open_audit(db: Session, user: User, args: dict) -> object:
+    sessions = _strings(args, "sessions")
+    body = _body(screens.AuditIn, titre=_required(args, "titre", "l'intitulé de l'audit"),
+                 type=_str(args, "type"), auditeur=_required(args, "auditeur", "l'auditeur"),
+                 prevu_le=_date(args, "prevu_le"),
+                 sessions=[_session_id(db, s) for s in sessions] if sessions else None)
+    return _out(screens.open_audit(body, db=db, user=user))
+
+
+def _audit_arg(db: Session, args: dict) -> str:
+    return _by_reference(db, Audit, _required(args, "audit", "l'audit (identifiant ou référence)"), "Audit")
+
+
+# Le jugement « CONFORME » de l'audit interne est libellé « Satisfait » dans l'application (JUDGMENT_LABELS) : l'outil
+# le nomme ainsi, pour qu'aucun texte remis à l'assistant ne ressemble à une décision de conformité.
+_JUDGMENT_ARGS = {("SATISFAIT" if j == "CONFORME" else j): j for j in JUDGMENTS}
+
+
+def _judge(db: Session, user: User, args: dict) -> object:
+    audit_id = _audit_arg(db, args)
+    number = _int(args, "numero", lo=1, hi=99)
+    if number is None:
+        raise InvalidStateError("Indiquez le numéro de l'indicateur (« numero »)")
+    body = _body(screens.JudgmentIn, jugement=_JUDGMENT_ARGS[_choice(args, "jugement", list(_JUDGMENT_ARGS), "le jugement")],
+                 commentaire=_str(args, "commentaire"))
+    return _out(screens.judge_indicator(audit_id, number, body, db=db, user=user))
+
+
+def _close_audit(db: Session, user: User, args: dict) -> object:
+    audit_id = _audit_arg(db, args)
+    body = _body(screens.CloseIn, conclusion=_required(args, "conclusion", "la conclusion de l'audit"))
+    return _out(screens.close(audit_id, body, db=db, user=user))
+
+
+def _open_capa(db: Session, user: User, args: dict) -> object:
+    finding_id = _by_reference(db, Finding, _required(args, "ecart", "l'écart (identifiant ou référence)"), "Écart")
+    body = _body(routes.CapaIn, titre=_required(args, "titre", "l'intitulé"), plan=_required(args, "plan", "le plan"),
+                 responsable=_required(args, "responsable", "le responsable"),
+                 echeance=_date(args, "echeance"), cause=_str(args, "cause"), type=_str(args, "type"))
+    return _out(routes.open_action(finding_id, body, db=db, user=user))
+
+
+def _capa_step(db: Session, user: User, args: dict) -> object:
+    capa_id = _by_reference(db, CapaAction, _required(args, "action_corrective", "l'action corrective "
+                                                      "(identifiant ou référence)"), "Action corrective")
+    action = _choice(args, "action", list(CAPA_ACTIONS), "l'étape")
+    body = _body(routes.CapaStepIn, note=_str(args, "note"), motif=_str(args, "motif"))
+    return _out(routes.act_on_action(capa_id, action, body, db=db, user=user))
+
+
+def _validate_evidence(db: Session, user: User, args: dict) -> object:
+    evidence_id = _evidence_id(db, _required(args, "preuve", "la preuve (identifiant ou référence)"))
+    body = _body(routes.ValidationIn, decision=_choice(args, "decision", HUMAN_STATUSES, "la décision"),
+                 comment=_str(args, "commentaire"), checklist=_object(args, "grille"))
+    return _out(routes.validate_evidence(evidence_id, body, db=db, user=user))
+
+
+def _review(db: Session, user: User, args: dict) -> object:
+    number = _int(args, "numero", lo=1, hi=99)
+    if number is None:
+        raise InvalidStateError("Indiquez le numéro de l'indicateur (« numero »)")
+    body = _body(routes.ReviewIn, conclusion=_choice(args, "conclusion", CONCLUSIONS, "la conclusion"),
+                 comment=_required(args, "commentaire", "le commentaire de la revue"),
+                 valid_months=_int(args, "validite_mois", lo=1, hi=60), severity=_str(args, "gravite"))
+    return _out(routes.review_indicator(number, body, db=db, user=user))
+
+
+def _open_funding(db: Session, user: User, args: dict) -> object:
+    enrollment_id = _enrollment_arg(db, args)
+    body = _body(funding_routes.CaseIn, cout=_decimal(args, "cout"))
+    return _out(funding_routes.open_case(enrollment_id, body, db=db, user=user))
+
+
+def _funding_source(db: Session, user: User, args: dict) -> object:
+    case_id = _required(args, "dossier", "le dossier de financement (identifiant)")
+    body = _body(funding_routes.SourceIn, dispositif=_required(args, "dispositif", "le dispositif (ex. CPF, OPCO)"),
+                 financeur=_str(args, "financeur"), montant_demande=_decimal(args, "montant_demande"),
+                 signataire=_str(args, "signataire"), destinataire_facture=_str(args, "destinataire_facture"),
+                 payeur=_str(args, "payeur"))
+    return _out(funding_routes.add_source(case_id, body, db=db, user=user))
+
+
+def _draft_invoice(db: Session, user: User, args: dict) -> object:
+    learner, session = _str(args, "stagiaire"), _str(args, "session")
+    body = _body(invoicing_routes.CreateIn, client_type=_str(args, "type_client"), entreprise_id=_str(args, "entreprise"),
+                 stagiaire_id=_person_id(db, t.Learner, learner, "Stagiaire") if learner else None,
+                 financeur=_object(args, "financeur"), titre=_str(args, "titre"), devis_id=_str(args, "devis"),
+                 session_id=_session_id(db, session) if session else None,
+                 inscription_ids=_strings(args, "inscriptions"),
+                 financement_source_id=_str(args, "source_financement"))
+    return _out(invoicing_routes.create_invoice(body, db=db, user=user))
+
+
+def _preinscription_arg(db: Session, args: dict) -> str:
+    return _by_reference(db, Preinscription, _required(args, "demande", "la demande (identifiant ou référence)"),
+                         "Demande")
+
+
+def _preinscription_status(db: Session, user: User, args: dict) -> object:
+    preinscription_id = _preinscription_arg(db, args)
+    body = _body(preinscriptions_routes.StatusIn,
+                 statut=_choice(args, "statut", list(PREINSCRIPTION_TRANSITIONS), "le statut"),
+                 motif=_str(args, "motif"))
+    return _out(preinscriptions_routes.change_status(preinscription_id, body, db=db, user=user))
+
+
+def _convert_preinscription(db: Session, user: User, args: dict) -> object:
+    preinscription_id = _preinscription_arg(db, args)
+    session = _str(args, "session")
+    body = _body(preinscriptions_routes.ConversionIn, session_id=_session_id(db, session) if session else None)
+    return _out(preinscriptions_routes.convert(preinscription_id, body, db=db, user=user))
+
+
+def _run_reminders(db: Session, user: User, args: dict) -> object:
+    return _out(relances_routes.run_now(db=db, _=user))
+
+
+def _validate_message(db: Session, user: User, args: dict) -> object:
+    message_id = _by_reference(db, Message, _required(args, "message", "le message (identifiant ou référence)"),
+                               "Message")
+    return _out(relances_routes.validate(message_id, db=db, user=user))
+
+
+_SESSION_ARG = {"type": "string", "description": "Identifiant ou référence de la session"}
+_ENROLLMENT_ARGS = {
+    "inscription": {"type": "string", "description": "Identifiant de l'inscription"},
+    "session": {"type": "string", "description": "Ou : session (identifiant ou référence), avec le stagiaire"},
+    "stagiaire": {"type": "string", "description": "Ou : stagiaire (identifiant ou « Prénom Nom »), avec la session"},
+}
+_JOURNEY_STEPS = "; ".join(f"{name} ({step.label}" + (f", à saisir : {', '.join(step.inputs)}" if step.inputs else "")
+                           + ")" for name, step in JOURNEY_ACTIONS.items())
+
+ACTION_TOOLS: tuple[Tool, ...] = (
+    Tool("creer_session",
+         "Crée une session de formation (statut PLANIFIEE) : référence unique, formation, dates, lieu, salle, "
+         "formateur et capacité." + _APPROVAL,
+         {"reference": {"type": "string", "description": "Référence unique de la session (ex. SSIAP1-2026-03)"},
+          "formation": {"type": "string", "description": "Identifiant, code ou slug de la formation"},
+          "debut": {"type": "string", "format": "date", "description": "Premier jour AAAA-MM-JJ"},
+          "fin": {"type": "string", "format": "date", "description": "Dernier jour AAAA-MM-JJ"},
+          "lieu": {"type": "string"}, "salle": {"type": "string"},
+          "formateur": {"type": "string", "description": "Identifiant ou « Prénom Nom » du formateur"},
+          "capacite": {"type": "integer", "minimum": 1, "description": "Nombre de places"}},
+         "sessions.write", _create_session, ("reference", "formation", "debut", "fin"), writes=True, idempotent=False),
+    Tool("changer_statut_session",
+         "Fait avancer le cycle de vie d'une session : confirm (confirmer), start (démarrer), finish (terminer), "
+         "close (clôturer), cancel (annuler, motif obligatoire). L'application décide si c'est possible maintenant "
+         "(voir les actions possibles de fiche_session)." + _APPROVAL,
+         {"session": _SESSION_ARG, "action": {"type": "string", "enum": list(SESSION_TRANSITIONS)},
+          "motif": {"type": "string", "description": "Motif (obligatoire pour cancel)"}},
+         "sessions.write", _session_transition, ("session", "action"), writes=True, idempotent=False),
+    Tool("inscrire_stagiaire",
+         "Inscrit un stagiaire existant à une session (inscription au statut INSCRIT), si l'application l'accepte "
+         "(capacité, statut de la session, doublon)." + _APPROVAL,
+         {"session": _SESSION_ARG,
+          "stagiaire": {"type": "string", "description": "Identifiant ou « Prénom Nom » du stagiaire"},
+          "entreprise": {"type": "string", "description": "Identifiant de l'entreprise qui envoie le stagiaire"},
+          "financement": {"type": "string", "description": "Mode de financement noté sur l'inscription"}},
+         "sessions.write", _enroll, ("session", "stagiaire"), writes=True, idempotent=False),
+    Tool("etape_parcours",
+         "Réalise une étape du parcours d'une inscription ; c'est ce qui produit les pièces (convention, "
+         "convocation, attestation…) et enregistre analyses, positionnements, évaluations et satisfaction. Étapes : "
+         + _JOURNEY_STEPS + ". Les saisies vont dans « donnees » (date au format AAAA-MM-JJ, aujourd'hui par défaut). "
+         "L'application décide si l'étape est possible maintenant (voir parcours_session)." + _APPROVAL,
+         {**_ENROLLMENT_ARGS, "action": {"type": "string", "enum": list(JOURNEY_ACTIONS)},
+          "donnees": {"type": "object", "description": "Saisies de l'étape (ex. {\"date\": \"2026-10-27\", "
+                                                       "\"motif\": \"…\"})"}},
+         ("sessions.read", "sessions.read_own"), _journey_step, ("action",), writes=True, idempotent=False),
+    Tool("reevaluer_qualiopi",
+         "Relance le moteur Qualiopi : rapprochement des preuves et réévaluation complète des contrôles (bouton "
+         "« tout réévaluer »). Rend le résumé de l'évaluation ; l'état obtenu reste un état de préparation, jamais une "
+         "décision de conformité." + _APPROVAL,
+         {},
+         "quality.write", _evaluate, writes=True, idempotent=True),
+    Tool("ouvrir_audit",
+         "Ouvre un audit interne ou un audit blanc de l'organisme, ou d'une ou plusieurs sessions (échantillon) : la "
+         "photo des résultats, des preuves et des écarts est prise maintenant et ne bouge plus. C'est "
+         "l'auto-évaluation de l'organisme, pas l'audit du certificateur." + _APPROVAL,
+         {"titre": {"type": "string"}, "type": {"type": "string", "enum": list(screens.AUDIT_KINDS), "default": "BLANC"},
+          "auditeur": {"type": "string", "description": "Nom de la personne qui audite"},
+          "prevu_le": {"type": "string", "format": "date"},
+          "sessions": {"type": "array", "items": {"type": "string"},
+                       "description": "Sessions examinées (identifiant ou référence) ; sinon l'échantillon proposé"}},
+         "quality.read", _open_audit, ("titre", "auditeur"), writes=True, idempotent=False),
+    Tool("juger_indicateur_audit",
+         "Enregistre le jugement de l'organisme sur un indicateur d'un audit en cours : SATISFAIT, NC_MINEURE ou "
+         "NC_MAJEURE (non-conformité, commentaire obligatoire), NON_APPLICABLE." + _APPROVAL,
+         {"audit": {"type": "string", "description": "Identifiant ou référence de l'audit"},
+          "numero": {**_NUMBER, "description": "Numéro de l'indicateur"},
+          "jugement": {"type": "string", "enum": list(_JUDGMENT_ARGS)}, "commentaire": {"type": "string"}},
+         "quality.read", _judge, ("audit", "numero", "jugement"), writes=True, idempotent=True),
+    Tool("cloturer_audit",
+         "Clôt un audit dont tous les indicateurs sont jugés : chaque non-conformité devient un écart, sur lequel "
+         "ouvrir une action corrective." + _APPROVAL,
+         {"audit": {"type": "string", "description": "Identifiant ou référence de l'audit"},
+          "conclusion": {"type": "string"}},
+         "quality.read", _close_audit, ("audit", "conclusion"), writes=True, idempotent=False),
+    Tool("ouvrir_action_corrective",
+         "Ouvre une action corrective ou préventive sur un écart (l'écart passe « en traitement »)." + _APPROVAL,
+         {"ecart": {"type": "string", "description": "Identifiant ou référence de l'écart (ex. CST-000042)"},
+          "titre": {"type": "string"}, "plan": {"type": "string", "description": "Plan d'action"},
+          "responsable": {"type": "string"},
+          "echeance": {"type": "string", "format": "date", "description": "Échéance AAAA-MM-JJ (pas dans le passé)"},
+          "cause": {"type": "string", "description": "Cause identifiée"},
+          "type": {"type": "string", "enum": ["CORRECTIVE", "PREVENTIVE"], "default": "CORRECTIVE"}},
+         "quality.read", _open_capa, ("ecart", "titre", "plan", "responsable", "echeance"), writes=True,
+         idempotent=False),
+    Tool("avancer_action_corrective",
+         "Fait avancer une action corrective : demarrer, realiser (note obligatoire), verifier (vérification de "
+         "l'efficacité), annuler (motif obligatoire)." + _APPROVAL,
+         {"action_corrective": {"type": "string", "description": "Identifiant ou référence (ex. CAPA-000007)"},
+          "action": {"type": "string", "enum": list(CAPA_ACTIONS)},
+          "note": {"type": "string"}, "motif": {"type": "string"}},
+         "quality.read", _capa_step, ("action_corrective", "action"), writes=True, idempotent=False),
+    Tool("valider_preuve",
+         "Valide ou rejette une preuve (décision humaine attestée ; motif obligatoire pour un rejet ; une pièce "
+         "avec grille de relecture ne se valide que si chaque point est satisfait)." + _APPROVAL,
+         {"preuve": {"type": "string", "description": "Identifiant ou référence de la preuve"},
+          "decision": {"type": "string", "enum": list(HUMAN_STATUSES)}, "commentaire": {"type": "string"},
+          "grille": {"type": "object", "description": "Réponses de la grille : code du point → OUI, NON ou SANS_OBJET"}},
+         "evidence.validate", _validate_evidence, ("preuve", "decision"), writes=True, idempotent=False),
+    Tool("revue_indicateur",
+         "Enregistre une revue humaine attestée d'un indicateur : l'état calculé et les preuves consultées sont "
+         "figés avec elle (conclusion INSUFFISANT : un écart est ouvert)." + _APPROVAL,
+         {"numero": {**_NUMBER, "description": "Numéro de l'indicateur"},
+          "conclusion": {"type": "string", "enum": list(CONCLUSIONS)}, "commentaire": {"type": "string"},
+          "validite_mois": {"type": "integer", "minimum": 1, "maximum": 60, "default": 12},
+          "gravite": {"type": "string", "description": "Gravité de l'écart si INSUFFISANT (mineure par défaut)"}},
+         "evidence.validate", _review, ("numero", "conclusion", "commentaire"), writes=True, idempotent=False),
+    Tool("ouvrir_dossier_financement",
+         "Ouvre le dossier de financement d'une inscription (coût : prix de la formation par défaut)." + _APPROVAL,
+         {**_ENROLLMENT_ARGS, "cout": {"type": "number", "description": "Coût de la formation pour ce stagiaire"}},
+         "funding.write", _open_funding, writes=True, idempotent=False),
+    Tool("ajouter_source_financement",
+         "Ajoute une source de financement (CPF, OPCO, France Travail, entreprise…) à un dossier, qui suit ensuite le "
+         "circuit de son dispositif." + _APPROVAL,
+         {"dossier": {"type": "string", "description": "Identifiant du dossier de financement"},
+          "dispositif": {"type": "string", "description": "Code du dispositif activé (ex. CPF, OPCO)"},
+          "financeur": {"type": "string"}, "montant_demande": {"type": "number"}, "signataire": {"type": "string"},
+          "destinataire_facture": {"type": "string"}, "payeur": {"type": "string"}},
+         "funding.write", _funding_source, ("dossier", "dispositif"), writes=True, idempotent=False),
+    Tool("creer_facture_brouillon",
+         "Prépare une facture en brouillon (sans numéro définitif, rien n'est émis ni envoyé) pour une entreprise, un "
+         "stagiaire ou un financeur, éventuellement à partir d'un devis, d'une session, d'inscriptions ou d'une source "
+         "de financement." + _APPROVAL,
+         {"type_client": {"type": "string", "enum": ["ENTREPRISE", "STAGIAIRE", "FINANCEUR"]},
+          "entreprise": {"type": "string", "description": "Identifiant de l'entreprise cliente"},
+          "stagiaire": {"type": "string", "description": "Identifiant ou « Prénom Nom » du stagiaire client"},
+          "financeur": {"type": "object", "description": "Financeur client : nom, adresse, code_postal, ville, siret"},
+          "titre": {"type": "string"}, "devis": {"type": "string", "description": "Identifiant du devis"},
+          "session": _SESSION_ARG,
+          "inscriptions": {"type": "array", "items": {"type": "string"}, "description": "Identifiants d'inscriptions"},
+          "source_financement": {"type": "string", "description": "Identifiant de la source de financement"}},
+         "invoices.write", _draft_invoice, ("type_client",), writes=True, idempotent=False),
+    Tool("traiter_preinscription",
+         "Prend en charge une demande de préinscription (EN_COURS, ou réouverture d'un refus) ou la refuse (REFUSEE, "
+         "motif obligatoire)." + _APPROVAL,
+         {"demande": {"type": "string", "description": "Identifiant ou référence de la demande (ex. PRE-2026-001)"},
+          "statut": {"type": "string", "enum": list(PREINSCRIPTION_TRANSITIONS)}, "motif": {"type": "string"}},
+         "leads.write", _preinscription_status, ("demande", "statut"), writes=True, idempotent=False),
+    Tool("convertir_preinscription",
+         "Convertit une demande de préinscription en stagiaire (repris par son e-mail s'il existe déjà) et, si une "
+         "session est donnée, l'y inscrit." + _APPROVAL,
+         {"demande": {"type": "string", "description": "Identifiant ou référence de la demande"},
+          "session": {"type": "string", "description": "Session où l'inscrire (identifiant ou référence)"}},
+         "leads.write", _convert_preinscription, ("demande",), writes=True, idempotent=False),
+    Tool("lancer_relances",
+         "Lance tout de suite le circuit des relances et e-mails automatiques (le travail de fond le fait aussi à "
+         "chaque passage) : planification selon les règles de l'organisme puis envoi des messages dus et validés. "
+         "Des e-mails peuvent partir." + _APPROVAL,
+         {},
+         "communications.manage", _run_reminders, writes=True, idempotent=True, open_world=True),
+    Tool("valider_message",
+         "Valide un message en attente de validation (relance externe) : il part tout de suite s'il est dû." + _APPROVAL,
+         {"message": {"type": "string", "description": "Identifiant ou référence du message (ex. MSG-000001)"}},
+         "communications.manage", _validate_message, ("message",), writes=True, idempotent=False, open_world=True),
+)
+
+TOOLS: tuple[Tool, ...] = READ_TOOLS + ACTION_TOOLS
 BY_NAME = {tool.name: tool for tool in TOOLS}

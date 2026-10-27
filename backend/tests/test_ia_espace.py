@@ -25,6 +25,8 @@ class FakeWorkspace:
         self.kb_refused, self.ssrf = kb_refused, ssrf
         self.calls: list[tuple[str, str]] = []
         self.tokens: dict[str, str] = {}
+        self.approvals: dict[str, dict[str, bool]] = {}  # service → outil → approbation requise
+        self.approval_refused: str | None = None
 
     def __call__(self, method: str, path: str, payload: dict | None = None, token: str | None = None,
                  timeout: float = 30) -> tuple[int, dict]:  # noqa: ARG002
@@ -42,6 +44,18 @@ class FakeWorkspace:
             self.tokens[service["id"]] = token_value
             self.services.append(service)
             return 200, {"success": True, "data": service}
+        if "/tool-approvals" in path:
+            sid = path.split("/")[4]
+            assert any(s["id"] == sid for s in self.services)
+            if method == "GET":
+                rows = [{"service_id": sid, "tool_name": name, "require_approval": required, "enabled": True}
+                        for name, required in self.approvals.get(sid, {}).items()]
+                return 200, {"success": True, "data": rows}
+            assert method == "PUT" and set(payload) == {"require_approval"}
+            if self.approval_refused:
+                return 500, {"success": False, "error": {"message": self.approval_refused}}
+            self.approvals.setdefault(sid, {})[path.split("/")[6]] = payload["require_approval"]
+            return 200, {"success": True, "data": None}
         if path.startswith("/api/v1/mcp-services/") and path.endswith("/credentials"):
             sid = path.split("/")[4]
             self.tokens[sid] = payload["token"]
@@ -113,9 +127,13 @@ def test_serveur_mcp_declare_a_l_ouverture_de_session_une_seule_fois(client, db:
     assert client.post("/api/v1/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
                        headers={"Authorization": f"Bearer {token}"}).status_code == 200
 
+    # Chaque outil d'action exige l'approbation de la personne dans le moteur IA.
+    assert workspace.approvals["svc1"] == dict.fromkeys(espace.action_tool_names(), True)
+
     workspace.calls.clear()
     assert client.post("/api/v1/ia/session", headers=headers).json()["gsms_mcp"]["ok"] is True
-    assert workspace.calls == [("GET", "/api/v1/mcp-services")]  # rien à refaire
+    # Rien à refaire : une lecture des services, une lecture des approbations.
+    assert workspace.calls == [("GET", "/api/v1/mcp-services"), ("GET", "/api/v1/mcp-services/svc1/tool-approvals")]
     assert len(workspace.services) == 1
 
 
@@ -127,6 +145,37 @@ def test_adresse_corrigee_et_service_desactive_respecte(db: Session, workspace: 
     assert workspace.services[0]["enabled"] is False
     assert any("corrigé" in line for line in report.done)
     assert any("désactivé" in line for line in report.problems)
+
+
+def test_approbations_des_outils_d_action(db: Session, workspace: FakeWorkspace) -> None:
+    from app.handler.mcp_outils import ACTION_TOOLS, TOOLS
+
+    names = espace.action_tool_names()
+    assert names == [tool.name for tool in ACTION_TOOLS] and len(names) < len(TOOLS)
+    assert {"creer_session", "inscrire_stagiaire", "etape_parcours", "ouvrir_audit", "reevaluer_qualiopi"} <= set(names)
+    report = espace.ensure_mcp_service(db, "jeton-weknora")
+    assert report.ok and workspace.approvals["svc1"] == dict.fromkeys(names, True)
+    assert any(f"{len(names)} outil(s) d'action" in line for line in report.done)
+
+    # Un administrateur a retiré l'approbation de deux outils (ou un outil est nouveau) : seuls ceux-là sont reposés,
+    # et une approbation posée en plus sur un outil de lecture est laissée telle quelle.
+    workspace.approvals["svc1"]["creer_session"] = False
+    del workspace.approvals["svc1"]["inscrire_stagiaire"]
+    workspace.approvals["svc1"]["lister_sessions"] = True
+    workspace.calls.clear()
+    report = espace.ensure_mcp_service(db, "jeton-weknora")
+    puts = [path for method, path in workspace.calls if method == "PUT"]
+    assert puts == [f"/api/v1/mcp-services/svc1/tool-approvals/{n}" for n in names
+                    if n in ("creer_session", "inscrire_stagiaire")]
+    assert workspace.approvals["svc1"]["creer_session"] is True and workspace.approvals["svc1"]["lister_sessions"] is True
+
+    # Refus du moteur : rapporté, sans bloquer le reste.
+    workspace.approvals["svc1"]["etape_parcours"] = False
+    workspace.approval_refused = "MCP tool approval is not configured"
+    report = espace.ensure_mcp_service(db, "jeton-weknora")
+    assert not report.ok
+    assert any("etape_parcours : MCP tool approval is not configured" in p for p in report.problems)
+    assert workspace.services[0]["url"] == "http://api:8000/api/v1/mcp"
 
 
 def test_renouvellement_du_jeton(db: Session, workspace: FakeWorkspace) -> None:

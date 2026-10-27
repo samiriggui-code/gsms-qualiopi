@@ -4,7 +4,9 @@ Deux opérations idempotentes, appelées avec le jeton du compte de service WeKn
 
 - `ensure_mcp_service` : déclare (ou corrige l'adresse de) le serveur MCP de l'API dans l'espace. Appelée à chaque
   ouverture de session IA (légère : une lecture, une écriture au plus) et par `python -m app.cmd.cli ia-preparer`.
-  Un service désactivé par un administrateur dans WeKnora reste désactivé.
+  Un service désactivé par un administrateur dans WeKnora reste désactivé. Chaque outil d'action du serveur
+  (`mcp_outils.ACTION_TOOLS`) y reçoit « approbation toujours requise » : le moteur suspend l'appel jusqu'au clic
+  « Approuver » de la personne dans la conversation. Seules les approbations manquantes sont posées.
 - `ensure_referential_kb` : crée la base de connaissances et y dépose les textes officiels des indicateurs
   (`referentials/qualiopi/v*/source/*.md`). Lourde (indexation par le moteur, qui exige un modèle d'embedding) :
   elle n'est lancée que par la commande `ia-preparer`, qui dit ce qui a été fait et ce qui manque.
@@ -20,21 +22,28 @@ from sqlalchemy.orm import Session
 from app.application.service.ia.compte import mcp_token
 from app.application.service.ia.weknora import IAUnavailable, call, message_of
 from app.config.config import get_settings
+from app.handler.mcp_outils import TOOLS
 
 MCP_NAME = "Moteur Qualiopi (GSMS)"
 MCP_TRANSPORT = "http-streamable"
 MCP_DESCRIPTION = ("Lecture de toute l'application GSMS Qualiopi, avec les droits de la personne qui pose la question : "
                    "état Qualiopi (indicateurs, preuves, écarts, échéances, actions correctives, audits), sessions, "
                    "planning, formations, stagiaires et inscriptions, formateurs et personnel, salles et équipements, "
-                   "financement, facturation, EDOF, préinscriptions, documents, évaluations, satisfaction, journal.")
+                   "financement, facturation, EDOF, préinscriptions, documents, évaluations, satisfaction, journal. "
+                   "Actions dans GSMS au nom de la personne, chacune après son approbation : créer une session, la faire "
+                   "avancer, inscrire, mener le parcours (convocation, attestation…), réévaluer Qualiopi, auditer, "
+                   "actions correctives, valider une preuve, financement, facture en brouillon, préinscriptions, "
+                   "relances.")
 MCP_USAGE = (
     "Utilisez ces outils pour répondre sur tout ce qui se passe dans l'organisme de formation. Pour Qualiopi, ils "
     "renvoient l'état de préparation "
     "calculé par le moteur à partir des preuves disponibles : ce n'est jamais une décision de conformité, que seul "
     "l'organisme certificateur prononce. Le référentiel exige des preuves ; les délais et relances de l'application "
-    "sont des recommandations, pas des obligations. Une session ou une preuve se désigne par sa référence."
+    "sont des recommandations, pas des obligations. Une session ou une preuve se désigne par sa référence. "
+    "Les outils d'action enregistrent dans GSMS au nom de la personne : ne les appelez que si elle le demande, après "
+    "avoir dit précisément ce qui sera fait ; chacun attend son approbation, et l'application peut refuser avec un "
+    "motif, à lui rapporter tel quel."
 )
-
 KB_NAME = "Référentiel Qualiopi"
 KB_DESCRIPTION = ("Textes officiels des indicateurs du référentiel national qualité (versions 9 et 10), tels que "
                   "livrés avec GSMS Qualiopi (dossiers referentials/qualiopi/v*/source).")
@@ -90,6 +99,12 @@ def ensure_mcp_service(db: Session, token: str, *, renew: bool = False) -> Repor
             return report
         report.done.append(f"Serveur MCP « {MCP_NAME} » déclaré ({url})")
         db.commit()  # compte technique créé au passage
+        service_id = (body.get("data") or {}).get("id")
+        if service_id:
+            _ensure_approvals(service_id, token, report)
+        else:
+            report.problems.append("Approbations des outils d'action non posées : le moteur IA n'a pas rendu "
+                                   "l'identifiant du service MCP")
         return report
     changes = {}
     if existing.get("url") != url:
@@ -112,12 +127,42 @@ def ensure_mcp_service(db: Session, token: str, *, renew: bool = False) -> Repor
                     token=token), "Jeton du service MCP")
         report.done.append("Jeton du compte technique " + ("renouvelé" if renew else "enregistré") + " dans le moteur IA")
     db.commit()
+    _ensure_approvals(existing["id"], token, report)
     if not existing.get("enabled", True):
         report.problems.append(f"Le serveur MCP « {MCP_NAME} » est désactivé dans le moteur IA (choix d'un "
                                "administrateur, laissé tel quel)")
     if not report.done:
         report.done.append(f"Serveur MCP « {MCP_NAME} » déjà déclaré, rien à changer")
     return report
+
+
+def action_tool_names() -> list[str]:
+    """Outils du serveur MCP qui enregistrent dans GSMS : approbation de la personne toujours requise."""
+    return [tool.name for tool in TOOLS if tool.writes]
+
+
+def _ensure_approvals(service_id: str, token: str, report: Report) -> None:
+    """« Approbation toujours requise » sur chaque outil d'action ; seules les manquantes sont posées. Un échec est
+    rapporté sans bloquer (le reste de la préparation et la session IA continuent)."""
+    status, body = call("GET", f"/api/v1/mcp-services/{service_id}/tool-approvals", token=token)
+    if not _ok(status, body):
+        report.problems.append(f"Approbations des outils d'action non vérifiées : {message_of(body)} (HTTP {status})")
+        return
+    required = {row.get("tool_name") for row in body.get("data") or [] if row.get("require_approval")}
+    missing = [name for name in action_tool_names() if name not in required]
+    posed, refused = [], []
+    for name in missing:
+        status, body = call("PUT", f"/api/v1/mcp-services/{service_id}/tool-approvals/{name}",
+                            {"require_approval": True}, token=token)
+        if _ok(status, body):
+            posed.append(name)
+        else:
+            refused.append(f"{name} : {message_of(body)} (HTTP {status})")
+    if posed:
+        report.done.append(f"Approbation de la personne exigée pour {len(posed)} outil(s) d'action : {', '.join(posed)}")
+    if refused:
+        report.problems.append(f"Approbation non posée pour {len(refused)} outil(s) d'action, par exemple « {refused[0]} » ; "
+                               "à cocher dans les réglages du service MCP du moteur IA")
 
 
 # ── Base de connaissances « Référentiel Qualiopi » ──────────────────────────────

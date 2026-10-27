@@ -1,4 +1,4 @@
-"""Serveur MCP du moteur Qualiopi (transport « Streamable HTTP », sans état), pour l'assistant IA.
+"""Serveur MCP de GSMS (transport « Streamable HTTP », sans état), pour l'assistant IA : lectures et actions.
 
 Implémentation JSON-RPC 2.0 minimale, sans SDK : `initialize`, `ping`, `tools/list`, `tools/call` et les
 notifications. Le serveur ne pousse rien vers le client : pas de flux SSE (GET répond 405), pas de session
@@ -12,10 +12,17 @@ Authentification : `Authorization: Bearer <jeton>`, obligatoire à chaque requê
 Chaque outil exige la permission de la route HTTP qu'il reprend ; un module éteint ou un droit manquant donne
 un résultat d'outil en erreur avec le motif lisible.
 
+Lecture et écriture : un outil de lecture n'enregistre jamais rien (retour arrière systématique). Un outil d'action
+(`Tool.writes`) appelle la route POST qu'il reprend et n'est exécuté par le moteur IA qu'après l'approbation explicite
+de la personne (« approbation toujours requise », posée par `ia/espace.py`) ; ce qu'il enregistre est journalisé au
+nom de la personne, marqué « via l'assistant IA ». Un refus motivé de l'application (`DomainError` : 409, 404, 422…)
+donne un résultat d'outil en erreur avec le motif, et rien n'est enregistré.
+
 Pour qui l'outil répond : avec le jeton « mcp », le moteur IA nomme dans l'en-tête `X-WeKnora-Principal`
 (`web_user:<compte WeKnora>`) la personne pour qui il travaille. L'outil tourne alors au nom de cette personne
 (compte GSMS retrouvé par `iam.compte_ia`, noté à l'ouverture de sa session IA), avec les seuls droits communs à
-elle et au compte technique : l'assistant ne montre jamais à quelqu'un ce que GSMS lui ferme. Sans personne
+elle et au compte technique : l'assistant ne montre ni ne fait jamais pour quelqu'un ce que GSMS lui ferme. Ces droits
+croisés valent aussi pour les politiques appelées par la route (permission d'une étape, d'un jugement…). Sans personne
 identifiée, ou pour un compte inconnu ou désactivé, l'outil est refusé.
 """
 
@@ -30,6 +37,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.common.journal import set_actor
 from app.config.config import get_settings
 from app.database.db import get_db
 from app.errors.errors import DomainError
@@ -47,11 +55,14 @@ PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 MAX_TEXT = 120_000  # caractères renvoyés par un outil, au-delà on tronque en le disant
 
 INSTRUCTIONS = (
-    "Outils en lecture seule du moteur Qualiopi de GSMS (organisme de formation). Ils donnent l'état de "
-    "préparation calculé à partir des preuves disponibles, les preuves, les écarts, les échéances, les actions "
-    "correctives et la synthèse d'une session. Le moteur ne prononce jamais la conformité : seul l'organisme "
-    "certificateur en décide ; ne présentez jamais un état « démontrable » comme une conformité acquise. "
-    "Distinguez ce que le référentiel exige (des preuves) de ce qui est recommandé (délais, relances)."
+    "Outils de GSMS (organisme de formation). Les outils de lecture donnent l'état de préparation Qualiopi calculé "
+    "à partir des preuves disponibles, les preuves, les écarts, les échéances, les actions correctives, les "
+    "sessions et le reste de l'application. Les outils d'action (créer une session, inscrire, faire avancer un "
+    "parcours, ouvrir un audit…) enregistrent dans GSMS au nom de la personne : ne les proposez que si elle le "
+    "demande, dites ce qui sera fait, et ils ne s'exécutent qu'après son approbation. Le moteur ne prononce jamais "
+    "la conformité : seul l'organisme certificateur en décide ; ne présentez jamais un état « démontrable » comme "
+    "une conformité acquise. Distinguez ce que le référentiel exige (des preuves) de ce qui est recommandé (délais, "
+    "relances)."
 )
 
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS = -32700, -32600, -32601, -32602
@@ -118,6 +129,14 @@ def caller_of(db: Session, token_user: User, principal: str | None) -> Caller:
     return Caller(person, permissions_of(db, token_user) & permissions_of(db, person))
 
 
+def _refused(e: DomainError) -> str:
+    """Motif du refus, avec le détail quand la politique en donne un (raisons d'une conversion impossible…)."""
+    details = getattr(e, "details", None) or []
+    lines = [d if isinstance(d, str) else d.get("message") for d in details if isinstance(d, (str, dict))]
+    lines = [line for line in lines if line and line not in e.message]
+    return e.message + (" : " + " ; ".join(lines) if lines else "")
+
+
 def _call_tool(db: Session, caller: Caller, params: dict) -> dict:
     name = params.get("name")
     tool = BY_NAME.get(name) if isinstance(name, str) else None
@@ -131,12 +150,29 @@ def _call_tool(db: Session, caller: Caller, params: dict) -> dict:
     user = caller.user
     if not set(tool.permissions) & caller.permissions:  # l'une des permissions de la route suffit
         return _text_result(_refusal(db, user, tool.permissions).detail, is_error=True)
+    # Les politiques appelées par la route lisent les droits sur la session SQLAlchemy (`permissions_of`) : on y pose
+    # les droits effectifs de l'appel, pour qu'une étape ou un jugement exige aussi le droit du compte technique.
+    cache: dict = db.info.setdefault("permissions", {})
+    previous = cache.get(user.id)
+    cache[user.id] = caller.permissions
+    if tool.writes:
+        set_actor(db, f"{user.full_name} <{user.email}> via l'assistant IA")
+    saved = False
     try:
-        return _text_result(tool.run(db, user, args))
+        result = _text_result(tool.run(db, user, args))
+        if tool.writes:
+            db.commit()  # la route a déjà enregistré ; rien de plus en attente normalement
+            saved = True
+        return result
     except DomainError as e:
-        return _text_result(e.message, is_error=True)
+        return _text_result(_refused(e), is_error=True)
     finally:
-        db.rollback()  # lecture seule : rien n'est jamais enregistré par un outil
+        if not saved:
+            db.rollback()  # lecture, ou action refusée : rien n'est enregistré
+        if previous is None:
+            cache.pop(user.id, None)
+        else:
+            cache[user.id] = previous
 
 
 def _handle(db: Session, caller: Caller, message: object) -> dict | None:

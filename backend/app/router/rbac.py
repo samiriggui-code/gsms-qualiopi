@@ -51,7 +51,7 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("payments.write", "Enregistrer et annuler les encaissements", "invoicing"),
     Permission("leads.read", "Consulter les demandes de préinscription reçues du site", "training"),
     Permission("leads.write", "Traiter les demandes de préinscription : prise en charge, refus, conversion", "training"),
-    Permission("ia.use", "Utiliser l'assistant IA : session du moteur IA et ses outils de lecture Qualiopi", "core"),
+    Permission("ia.use", "Utiliser l'assistant IA : lectures, et actions dans GSMS après approbation, avec ses propres droits", "core"),
     Permission("journal.read", "Consulter le journal des modifications", "core"),
     Permission("users.manage", "Gérer les comptes et attribuer les rôles", "core"),
     Permission("settings.manage", "Modifier les réglages et activer les fonctionnalités", "core"),
@@ -83,13 +83,19 @@ SYSTEM_ROLES: dict[str, tuple[str, frozenset[str]]] = {
     "rh": ("Ressources humaines : personnel, contrats, absences, titres des formateurs", frozenset({
         "sessions.read", "trainers.write", "staff.read", "staff.write", "journal.read",
     })),
-    # Compte technique de l'assistant IA (serveur MCP, son jeton n'ouvre aucune autre route) : toutes les lectures,
-    # aucune écriture. Chaque outil répond avec les seuls droits communs à ce compte et à la personne pour qui
-    # l'assistant travaille (handler/mcp.py) : il ne montre jamais à quelqu'un ce que GSMS lui ferme.
-    "assistant_ia": ("Assistant IA : lecture de toute l'application par le serveur MCP, avec les droits de la personne "
-                     "qui pose la question (compte technique)",
+    # Compte technique de l'assistant IA (serveur MCP, son jeton n'ouvre aucune autre route) : toutes les lectures, et
+    # les seules écritures des outils d'action du serveur MCP (handler/mcp_outils.py, ACTION_TOOLS), que le moteur IA
+    # n'exécute qu'après l'approbation explicite de la personne. Chaque outil répond et agit avec les seuls droits
+    # communs à ce compte et à la personne pour qui l'assistant travaille (handler/mcp.py) : il ne montre ni ne fait
+    # jamais pour quelqu'un ce que GSMS lui ferme.
+    "assistant_ia": ("Assistant IA : lecture de toute l'application et actions approuvées dans la conversation, par le "
+                     "serveur MCP, avec les droits de la personne qui pose la question (compte technique)",
                      frozenset({"quality.read", "sessions.read", "sessions.read_own", "funding.read", "staff.read", "edof.read",
-                                "documents.read", "invoices.read", "leads.read", "journal.read"})),
+                                "documents.read", "invoices.read", "leads.read", "journal.read",
+                                # Écritures des outils d'action (permission de la route ou de la politique qu'elle applique)
+                                "sessions.write", "enrollments.write", "learners.assess", "quality.write",
+                                "evidence.validate", "funding.write", "invoices.write", "leads.write",
+                                "communications.manage"})),
     "lecture": ("Lecture seule", frozenset({"sessions.read", "quality.read", "journal.read", "edof.read",
                                            "documents.read", "ia.use"})),
 }

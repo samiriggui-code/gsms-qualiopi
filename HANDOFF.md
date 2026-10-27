@@ -380,6 +380,16 @@ renouvellement** (le front rappelle `/ia/session`, qui revérifie le compte GSMS
 (`DISABLE_REGISTRATION=true`, voir « Première installation » dans `docs/API.md`). Point ouvert : régler les modèles du
 moteur IA demande le compte de service, faute d'écran d'administration côté GSMS.
 
+**Actions de l'assistant (27/10/2026)** : le serveur MCP a aussi 19 outils d'action (`ACTION_TOOLS` dans
+`backend/app/handler/mcp_outils.py` : créer une session, changer son statut, inscrire, étape de parcours, réévaluer
+Qualiopi, ouvrir/juger/clore un audit, ouvrir/faire avancer une action corrective, valider une preuve, revue d'indicateur,
+dossier et source de financement, facture en brouillon, traiter/convertir une préinscription, lancer les relances, valider
+un message). Chacun appelle la route POST existante (même permission, même modèle, mêmes politiques) ; droits croisés
+personne ∩ compte technique jusque dans les politiques ; journal « Nom <e-mail> via l'assistant IA » ; refus motivé sans
+rien enregistrer. `ensure_mcp_service` pose « approbation toujours requise » sur chacun dans WeKnora. Le rôle
+`assistant_ia` reçoit les seules écritures nécessaires. Tests : `backend/tests/test_mcp_actions.py`. `docs/API.md` reste à
+compléter (fichier modifié par une autre session au moment du chantier).
+
 ## 5 quindecies. Préinscriptions du site, backend (26/10/2026, chantier C9)
 
 Le formulaire de la landing poste vers `POST /api/v1/public/preinscriptions` (au lieu de `/api/preinscriptions`, absent) ;
