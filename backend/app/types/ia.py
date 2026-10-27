@@ -67,3 +67,18 @@ class IAProposal(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decision_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class IAAccount(Base):
+    """Compte WeKnora d'une personne ↔ son compte GSMS, noté à chaque ouverture de session IA.
+
+    Le moteur IA appelle le serveur MCP avec le jeton du compte technique et nomme, dans l'en-tête
+    `X-WeKnora-Principal`, le compte WeKnora pour lequel il travaille : cette table dit de quel compte GSMS il s'agit,
+    pour répondre avec les droits de cette personne."""
+
+    __tablename__ = "compte_ia"
+    __table_args__ = {"schema": "iam"}
+
+    weknora_user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -35,6 +35,22 @@ def bearer(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def acting(db: Session, person=None, role: str = ROLE) -> dict:  # noqa: ANN001
+    """En-têtes d'un appel du moteur IA : jeton du compte technique et personne pour qui il travaille."""
+    from uuid import uuid4
+
+    from app.types.ia import IAAccount
+
+    if person is None:
+        person, _ = make_user(db, role, email=f"personne-{uuid4().hex[:8]}@test.local")
+    weknora_id = f"wk-{person.id}"
+    if db.get(IAAccount, weknora_id) is None:
+        db.add(IAAccount(weknora_user_id=weknora_id, user_id=person.id))
+    token = mcp_token(db)
+    db.commit()
+    return {**bearer(token), "X-WeKnora-Principal": f"web_user:{weknora_id}"}
+
+
 def test_poignee_de_main_et_liste_des_outils(client, db: Session) -> None:  # noqa: ANN001
     h = bearer(mcp_token(db))
     db.commit()
@@ -58,7 +74,7 @@ def test_poignee_de_main_et_liste_des_outils(client, db: Session) -> None:  # no
     assert [t["name"] for t in tools] == [t.name for t in TOOLS]
     assert {"etat_indicateurs", "fiche_indicateur", "lister_preuves", "fiche_preuve", "lister_ecarts",
             "lister_echeances", "lister_actions_correctives", "synthese_session", "fiche_formation",
-            "lister_sessions", "planning", "lister_audits", "lister_veille", "lister_reclamations"} == {t["name"] for t in tools}
+            "lister_sessions", "planning", "lister_audits", "lister_veille", "lister_reclamations"} <= {t["name"] for t in tools}
     assert all(t["annotations"]["readOnlyHint"] for t in tools)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
     # Aucun texte ne prononce la conformité.
@@ -106,7 +122,8 @@ def test_compte_technique_droits_explicites_revocation_et_renouvellement(client,
     assert client.post("/api/v1/auth/login", json={"email": account.email, "password": ""}).status_code != 200
 
     roles = {r["code"]: r for r in client.get("/api/v1/auth/roles", headers=make_user(db, "admin")[1]).json()}
-    assert sorted(roles[ROLE]["permissions"]) == ["quality.read", "sessions.read"]
+    assert "ia.use" not in roles[ROLE]["permissions"]
+    assert all(p.endswith((".read", ".read_own")) for p in roles[ROLE]["permissions"])  # lectures seulement
 
     new = mcp_token(db, renew=True)
     db.commit()
@@ -123,8 +140,7 @@ def test_droit_manquant_ou_module_eteint_donne_un_refus_lisible(client, demo: Se
     is_error, text = tool(client, formateur, "etat_indicateurs")
     assert is_error and "quality.read" in text
 
-    h = bearer(mcp_token(demo))
-    demo.commit()
+    h = acting(demo)
     _, admin = make_user(demo, "admin")
     assert client.put("/api/v1/features/qualiopi", json={"enabled": False}, headers=admin).status_code == 200
     is_error, text = tool(client, h, "lister_preuves")
@@ -132,10 +148,9 @@ def test_droit_manquant_ou_module_eteint_donne_un_refus_lisible(client, demo: Se
 
 
 def test_outils_reprennent_les_routes_existantes(client, demo: Session) -> None:  # noqa: ANN001
-    h = bearer(mcp_token(demo))
-    demo.commit()
-    # Même rôle que le compte technique : les capacités renvoyées (boutons permis) sont donc les mêmes.
-    _, user = make_user(demo, ROLE, email="pair@test.local")
+    # L'outil répond au nom de la personne : mêmes réponses (capacités comprises) que la route appelée par elle.
+    pair, user = make_user(demo, ROLE, email="pair@test.local")
+    h = acting(demo, pair)
 
     _, readiness = tool(client, h, "etat_indicateurs")
     assert readiness == client.get("/api/v1/qualiopi/readiness", headers=user).json()
@@ -180,8 +195,7 @@ def test_outils_reprennent_les_routes_existantes(client, demo: Session) -> None:
 
 
 def test_fiche_formation_par_identifiant_code_ou_slug(client, demo: Session) -> None:  # noqa: ANN001
-    h = bearer(mcp_token(demo))
-    demo.commit()
+    h = acting(demo)
     _, user = make_user(demo, ROLE, email="pair@test.local")
     program = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1"))
     expected = client.get(f"/api/v1/qualiopi/formations/{program.id}", headers=user).json()
@@ -196,8 +210,7 @@ def test_fiche_formation_par_identifiant_code_ou_slug(client, demo: Session) -> 
 
 def test_lister_sessions_comme_la_route(client, demo: Session) -> None:  # noqa: ANN001
     # Le compte technique a sessions.read : mêmes sessions que la route.
-    h = bearer(mcp_token(demo))
-    demo.commit()
+    h = acting(demo)
     is_error, out = tool(client, h, "lister_sessions")
     full = client.get("/api/v1/sessions", headers=make_user(demo, "qualite")[1]).json()
     assert not is_error and out["total"] == len(full) and out["sessions"] == full[:50]
@@ -214,8 +227,7 @@ def test_lister_sessions_comme_la_route(client, demo: Session) -> None:  # noqa:
 
 
 def test_planning_comme_la_route(client, demo: Session) -> None:  # noqa: ANN001
-    h = bearer(mcp_token(demo))
-    demo.commit()
+    h = acting(demo)
     _, user = make_user(demo, "qualite", email="qualite-planning@test.local")
     for args, query in (({}, ""), ({"du": "2020-01-01", "au": "2020-03-31"}, "?du=2020-01-01&au=2020-03-31"),
                         ({"annulees": True}, "?annulees=true")):
@@ -227,8 +239,7 @@ def test_planning_comme_la_route(client, demo: Session) -> None:  # noqa: ANN001
 
 
 def test_lister_audits(client, demo: Session) -> None:  # noqa: ANN001
-    h = bearer(mcp_token(demo))
-    demo.commit()
+    h = acting(demo)
     _, user = make_user(demo, ROLE, email="pair@test.local")
     _, out = tool(client, h, "lister_audits")
     full = client.get("/api/v1/qualiopi/audits", headers=user).json()
@@ -241,8 +252,7 @@ def test_lister_audits(client, demo: Session) -> None:  # noqa: ANN001
 
 
 def test_lister_veille_et_reclamations(client, demo: Session) -> None:  # noqa: ANN001
-    h = bearer(mcp_token(demo))
-    demo.commit()
+    h = acting(demo)
     _, user = make_user(demo, ROLE, email="pair@test.local")
     _, watch = tool(client, h, "lister_veille", limite=2)
     full = client.get("/api/v1/watch-items", headers=user).json()
@@ -256,3 +266,32 @@ def test_lister_veille_et_reclamations(client, demo: Session) -> None:  # noqa: 
     _, formateur = make_user(demo, "formateur")
     is_error, text = tool(client, formateur, "lister_reclamations")
     assert is_error and "sessions.read ou quality.read" in text
+
+
+def test_le_jeton_technique_repond_au_nom_d_une_personne_identifiee(client, demo: Session) -> None:  # noqa: ANN001
+    token = mcp_token(demo)
+    demo.commit()
+    # Sans personne, ou pour un compte inconnu : aucun outil ne répond.
+    is_error, text = tool(client, bearer(token), "etat_indicateurs")
+    assert is_error and "sans personne identifiée" in text
+    is_error, text = tool(client, {**bearer(token), "X-WeKnora-Principal": "web_user:inconnu"}, "etat_indicateurs")
+    assert is_error and "inconnu" in text
+    # Personne désactivée : refus aussi.
+    person, _ = make_user(demo, "qualite", email="partie@test.local")
+    h = acting(demo, person)
+    assert not tool(client, h, "etat_indicateurs")[0]
+    person.is_active = False
+    demo.commit()
+    assert tool(client, h, "etat_indicateurs")[0]
+
+
+def test_droits_croises_l_assistant_ne_montre_pas_ce_que_gsms_ferme(client, demo: Session) -> None:  # noqa: ANN001
+    from app.types.auth import CustomRole
+
+    demo.add(CustomRole(code="ia_seule", label="IA seule", permissions=["ia.use"]))
+    demo.commit()
+    seule, _ = make_user(demo, "ia_seule", email="ia-seule@test.local")
+    is_error, text = tool(client, acting(demo, seule), "etat_indicateurs")
+    assert is_error and "quality.read" in text  # le compte technique peut lire, la personne non : refus
+    lecture, _ = make_user(demo, "lecture", email="lecteur@test.local")
+    assert not tool(client, acting(demo, lecture), "etat_indicateurs")[0]

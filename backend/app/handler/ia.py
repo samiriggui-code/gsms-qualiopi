@@ -8,13 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
 from app.application.service.ia.analyse import MAX_PASSAGES, MAX_QUESTION, analyse_indicator
-from app.application.service.ia.compte import technical_account
 from app.application.service.ia.espace import ensure_mcp_service
 from app.application.service.ia.session import IAUnavailable, open_session
 from app.database.db import utcnow
 from app.middleware.auth import DB, _refusal, permissions_of, require
 from app.types.auth import User
-from app.types.ia import PROPOSAL_STATUSES, IAAnalysis, IAProposal
+from app.types.ia import PROPOSAL_STATUSES, IAAccount, IAAnalysis, IAProposal
 
 router = APIRouter(prefix="/api/v1/ia", tags=["ia"])
 log = logging.getLogger(__name__)
@@ -33,20 +32,22 @@ def ia_session(user: IAUser, db: DB) -> dict:
     Au passage, le serveur MCP du moteur Qualiopi est déclaré dans l'espace s'il ne l'est pas (idempotent).
     Un échec de cette déclaration n'empêche jamais la session : il est rendu dans `gsms_mcp`.
 
-    Les assistants lisent le moteur avec le compte technique, pas avec le compte de la personne : la session est
-    refusée à qui n'a pas toutes ses permissions (rôle personnalisé avec `ia.use` sans `quality.read`, par
-    exemple), sinon l'assistant lui montrerait ce que GSMS lui interdit."""
-    missing = sorted(permissions_of(db, technical_account(db)) - permissions_of(db, user))
-    db.commit()  # compte technique créé au premier appel
-    if missing:
-        raise HTTPException(status_code=403, detail=(
-            "L'assistant IA lit le moteur Qualiopi avec les droits " + ", ".join(missing) + " : votre compte ne les a "
-            "pas, l'assistant vous montrerait des données qui vous sont fermées. À demander à un administrateur."))
+    Le compte WeKnora de la personne est noté (`iam.compte_ia`) : quand un assistant appelle le serveur MCP pour elle,
+    chaque outil répond avec ses droits à elle, croisés avec ceux du compte technique (voir `mcp.py`). L'assistant ne
+    lui montre donc jamais ce que GSMS lui ferme."""
     try:
         session = open_session(user.id, user.full_name)
     except IAUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     body = dict(session.browser)
+    weknora_id = str((body.get("user") or {}).get("id") or "")
+    if weknora_id:
+        account = db.get(IAAccount, weknora_id)
+        if account is None:
+            db.add(IAAccount(weknora_user_id=weknora_id, user_id=user.id))
+        elif account.user_id != user.id:
+            account.user_id = user.id
+        db.commit()
     try:
         body["gsms_mcp"] = ensure_mcp_service(db, session.service_token).view()
     except Exception as e:  # noqa: BLE001 (la session reste utilisable sans les outils Qualiopi)

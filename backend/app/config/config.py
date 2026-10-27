@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     ia_mcp_url: str = "http://api:8000/api/v1/mcp"
     # Compte technique GSMS au nom duquel l'assistant IA lit le moteur Qualiopi (rôle « assistant_ia »).
     ia_compte_technique_email: str = "assistant-ia@gsms.local"
+    # Retirer e-mails, téléphones, adresses et identité détaillée des réponses du serveur MCP. Par défaut non : chaque
+    # outil répond avec les droits de la personne, qui voit déjà ces données dans GSMS. À activer si le modèle de l'IA
+    # est chez un fournisseur extérieur et que l'envoi de ces données n'est pas validé (RGPD).
+    ia_masquer_coordonnees: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

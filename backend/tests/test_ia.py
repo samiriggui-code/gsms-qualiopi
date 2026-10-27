@@ -29,7 +29,7 @@ def fake_engine(monkeypatch, registration_open: bool = True):  # noqa: ANN001, A
         memberships = [{"tenant_id": state["accounts"][email]["home"]}]
         if email in state["members"] and email != SERVICE:
             memberships.append({"tenant_id": 1})
-        return {"success": True, "token": token, "refresh_token": "rt-7-jours", "user": {"email": email},
+        return {"success": True, "token": token, "refresh_token": "rt-7-jours", "user": {"email": email, "id": f"wk-{email}"},
                 "active_tenant": {"id": tenant}, "memberships": memberships}
 
     def post(path, payload, token=None):  # noqa: ANN001, ANN202
@@ -189,23 +189,21 @@ def test_session_ia_reservee_aux_comptes_connectes(client, monkeypatch):
     assert client.post("/api/v1/ia/session").status_code == 401
 
 
-def test_session_ia_refusee_sans_les_droits_du_compte_technique(client, db, monkeypatch):
-    """Un rôle personnalisé avec `ia.use` mais sans `quality.read` ne lit pas l'état Qualiopi par l'assistant."""
+def test_session_ia_note_le_compte_weknora_de_la_personne(client, db, monkeypatch):
+    """La session s'ouvre avec `ia.use` ; les outils MCP répondront ensuite avec les droits de la personne
+    (test_mcp.py) : le compte WeKnora reçu est relié au compte GSMS."""
     from app.types.auth import CustomRole
+    from app.types.ia import IAAccount
 
     configure(monkeypatch)
     fake_engine(monkeypatch)
-    db.add_all([CustomRole(code="ia_seule", label="IA seule", permissions=["ia.use"]),
-                CustomRole(code="ia_lecture", label="IA et lecture",
-                           permissions=["ia.use", "quality.read", "sessions.read"])])
+    db.add(CustomRole(code="ia_seule", label="IA seule", permissions=["ia.use"]))
     db.commit()
-    _, headers = make_user(db, "ia_seule", email="ia-seule@test.local")
+    user, headers = make_user(db, "ia_seule", email="ia-seule@test.local")
     r = client.post("/api/v1/ia/session", headers=headers)
-    assert r.status_code == 403
-    assert "quality.read" in r.json()["detail"] and "sessions.read" in r.json()["detail"]
-    _, headers = make_user(db, "ia_lecture", email="ia-lecture@test.local")
-    assert client.post("/api/v1/ia/session", headers=headers).status_code == 200
-
+    assert r.status_code == 200
+    weknora_id = r.json()["user"]["id"]
+    assert db.get(IAAccount, weknora_id).user_id == user.id
 
 def test_invitation_revoquee_meme_si_l_inscription_echoue(client, db, monkeypatch):
     _, headers = make_user(db, "qualite")

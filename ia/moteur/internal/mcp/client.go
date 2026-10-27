@@ -66,6 +66,10 @@ type ClientConfig struct {
 	OAuthRepo interfaces.MCPOAuthRepository
 }
 
+// PrincipalHeader carries "<principal type>:<principal id>" on every tool
+// call (GSMS Qualiopi), e.g. "web_user:<WeKnora user id>".
+const PrincipalHeader = "X-WeKnora-Principal"
+
 // mcpGoClient wraps mark3labs/mcp-go client to implement our MCPClient interface
 type mcpGoClient struct {
 	service      *types.MCPService
@@ -828,6 +832,14 @@ func (c *mcpGoClient) CallTool(ctx context.Context, name string, args map[string
 		for key, value := range mcp.GenerateParamHeaders(&mcp.Tool{Name: name, RawInputSchema: schema}, params) {
 			req.Header.Set(key, value)
 		}
+	}
+	// GSMS Qualiopi: tell the MCP server who the call is made for, so it can
+	// answer with that person's rights instead of the shared service token's.
+	if principal, ok := types.PrincipalFromContext(ctx); ok {
+		if req.Header == nil {
+			req.Header = make(http.Header)
+		}
+		req.Header.Set(PrincipalHeader, principal.Type+":"+principal.ID)
 	}
 
 	var callErr error

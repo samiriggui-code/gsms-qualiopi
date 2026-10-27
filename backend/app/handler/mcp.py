@@ -11,11 +11,18 @@ Authentification : `Authorization: Bearer <jeton>`, obligatoire à chaque requê
 - ou jeton de connexion ordinaire d'un utilisateur GSMS (client MCP personnel) : ses propres droits.
 Chaque outil exige la permission de la route HTTP qu'il reprend ; un module éteint ou un droit manquant donne
 un résultat d'outil en erreur avec le motif lisible.
+
+Pour qui l'outil répond : avec le jeton « mcp », le moteur IA nomme dans l'en-tête `X-WeKnora-Principal`
+(`web_user:<compte WeKnora>`) la personne pour qui il travaille. L'outil tourne alors au nom de cette personne
+(compte GSMS retrouvé par `iam.compte_ia`, noté à l'ouverture de sa session IA), avec les seuls droits communs à
+elle et au compte technique : l'assistant ne montre jamais à quelqu'un ce que GSMS lui ferme. Sans personne
+identifiée, ou pour un compte inconnu ou désactivé, l'outil est refusé.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -29,6 +36,7 @@ from app.errors.errors import DomainError
 from app.handler.mcp_outils import BY_NAME, TOOLS
 from app.middleware.auth import _refusal, permissions_of, user_from_token
 from app.types.auth import User
+from app.types.ia import IAAccount
 
 router = APIRouter(prefix="/api/v1", tags=["mcp"])
 
@@ -84,7 +92,33 @@ def _text_result(payload: object, *, is_error: bool = False) -> dict:
     return {"content": [{"type": "text", "text": text}], "isError": is_error}
 
 
-def _call_tool(db: Session, user: User, params: dict) -> dict:
+PRINCIPAL_HEADER = "x-weknora-principal"
+
+
+@dataclass(frozen=True)
+class Caller:
+    """Pour qui les outils répondent : la personne et ses droits effectifs (ou le motif du refus)."""
+
+    user: User | None
+    permissions: frozenset[str] = frozenset()
+    refused: str | None = None
+
+
+def caller_of(db: Session, token_user: User, principal: str | None) -> Caller:
+    """Jeton utilisateur : ses droits. Jeton « mcp » : la personne nommée par le moteur IA, droits croisés."""
+    if token_user.email.lower() != get_settings().ia_compte_technique_email.lower().strip():
+        return Caller(token_user, permissions_of(db, token_user))
+    kind, _, weknora_id = (principal or "").strip().partition(":")
+    if kind != "web_user" or not weknora_id:
+        return Caller(None, refused="Appel sans personne identifiée : l'outil ne répond qu'au nom d'un compte GSMS")
+    account = db.get(IAAccount, weknora_id)
+    person = db.get(User, account.user_id) if account else None
+    if person is None or not person.is_active:
+        return Caller(None, refused="Compte inconnu ou désactivé dans GSMS : l'outil ne répond pas")
+    return Caller(person, permissions_of(db, token_user) & permissions_of(db, person))
+
+
+def _call_tool(db: Session, caller: Caller, params: dict) -> dict:
     name = params.get("name")
     tool = BY_NAME.get(name) if isinstance(name, str) else None
     if tool is None:
@@ -92,7 +126,10 @@ def _call_tool(db: Session, user: User, params: dict) -> dict:
     args = params.get("arguments") or {}
     if not isinstance(args, dict):
         return _text_result("Les arguments doivent être un objet", is_error=True)
-    if not set(tool.permissions) & permissions_of(db, user):  # l'une des permissions de la route suffit
+    if caller.user is None:
+        return _text_result(caller.refused or "Appel refusé", is_error=True)
+    user = caller.user
+    if not set(tool.permissions) & caller.permissions:  # l'une des permissions de la route suffit
         return _text_result(_refusal(db, user, tool.permissions).detail, is_error=True)
     try:
         return _text_result(tool.run(db, user, args))
@@ -102,7 +139,7 @@ def _call_tool(db: Session, user: User, params: dict) -> dict:
         db.rollback()  # lecture seule : rien n'est jamais enregistré par un outil
 
 
-def _handle(db: Session, user: User, message: object) -> dict | None:
+def _handle(db: Session, caller: Caller, message: object) -> dict | None:
     """Une requête JSON-RPC → sa réponse (None pour une notification)."""
     if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
         return _error(message.get("id") if isinstance(message, dict) else None, INVALID_REQUEST, "Requête JSON-RPC invalide")
@@ -125,7 +162,7 @@ def _handle(db: Session, user: User, message: object) -> dict | None:
     if method == "tools/list":
         return _result(rid, {"tools": [tool.descriptor() for tool in TOOLS]})
     if method == "tools/call":
-        return _result(rid, _call_tool(db, user, params))
+        return _result(rid, _call_tool(db, caller, params))
     # Dont « server/discover » : le client retombe alors sur la poignée de main `initialize`.
     return _error(rid, METHOD_NOT_FOUND, f"Méthode non prise en charge : {method}")
 
@@ -138,10 +175,11 @@ async def mcp_endpoint(request: Request, user: Annotated[User, Depends(mcp_user)
     except ValueError:
         return JSONResponse(_error(None, PARSE_ERROR, "JSON illisible"), status_code=400)
     # La base est lue en dehors de la boucle d'événements.
+    caller = await run_in_threadpool(caller_of, db, user, request.headers.get(PRINCIPAL_HEADER))
     if isinstance(message, list):  # lot JSON-RPC (anciennes versions du protocole)
-        replies = [r for r in [await run_in_threadpool(_handle, db, user, m) for m in message] if r is not None]
+        replies = [r for r in [await run_in_threadpool(_handle, db, caller, m) for m in message] if r is not None]
         return JSONResponse(replies) if replies else Response(status_code=202)
-    reply = await run_in_threadpool(_handle, db, user, message)
+    reply = await run_in_threadpool(_handle, db, caller, message)
     return JSONResponse(reply) if reply is not None else Response(status_code=202)
 
 

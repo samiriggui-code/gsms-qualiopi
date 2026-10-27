@@ -23,11 +23,13 @@ from app.config.config import get_settings
 
 MCP_NAME = "Moteur Qualiopi (GSMS)"
 MCP_TRANSPORT = "http-streamable"
-MCP_DESCRIPTION = ("Lecture seule du moteur Qualiopi de GSMS : état des indicateurs, preuves, écarts, échéances, "
-                   "actions correctives, synthèse d'une session, fiche d'une formation, sessions et planning, audits internes, "
-                   "veille, réclamations.")
+MCP_DESCRIPTION = ("Lecture de toute l'application GSMS Qualiopi, avec les droits de la personne qui pose la question : "
+                   "état Qualiopi (indicateurs, preuves, écarts, échéances, actions correctives, audits), sessions, "
+                   "planning, formations, stagiaires et inscriptions, formateurs et personnel, salles et équipements, "
+                   "financement, facturation, EDOF, préinscriptions, documents, évaluations, satisfaction, journal.")
 MCP_USAGE = (
-    "Utilisez ces outils pour répondre sur la situation Qualiopi de l'organisme. Ils renvoient l'état de préparation "
+    "Utilisez ces outils pour répondre sur tout ce qui se passe dans l'organisme de formation. Pour Qualiopi, ils "
+    "renvoient l'état de préparation "
     "calculé par le moteur à partir des preuves disponibles : ce n'est jamais une décision de conformité, que seul "
     "l'organisme certificateur prononce. Le référentiel exige des preuves ; les délais et relances de l'application "
     "sont des recommandations, pas des obligations. Une session ou une preuve se désigne par sa référence."
@@ -94,6 +96,10 @@ def ensure_mcp_service(db: Session, token: str, *, renew: bool = False) -> Repor
         changes["url"] = url
     if existing.get("transport_type") != MCP_TRANSPORT:
         changes["transport_type"] = MCP_TRANSPORT
+    if existing.get("description") != MCP_DESCRIPTION:
+        changes["description"] = MCP_DESCRIPTION
+    if existing.get("usage_instructions") != MCP_USAGE:
+        changes["usage_instructions"] = MCP_USAGE
     if changes:
         _data(*call("PUT", f"/api/v1/mcp-services/{existing['id']}", changes, token=token), "Mise à jour du service MCP")
         report.done.append(f"Serveur MCP « {MCP_NAME} » corrigé : {', '.join(sorted(changes))}")
