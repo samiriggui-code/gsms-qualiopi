@@ -563,7 +563,14 @@ le moteur IA (fork, `ia/moteur/internal/mcp/client.go`) envoie à chaque appel l
 web_user:<compte WeKnora>`, que GSMS relie au compte GSMS noté à l'ouverture de la session IA (`iam.compte_ia`) ; l'outil
 tourne avec les seuls droits communs à cette personne et au compte technique. Sans personne identifiée, ou pour un compte
 inconnu ou désactivé, l'outil est refusé. L'assistant ne montre donc jamais à quelqu'un ce que GSMS lui ferme, et
-`POST /ia/session` ne demande plus que `ia.use`. Ce compte a un mot de passe aléatoire jamais communiqué (aucune connexion
+`POST /ia/session` ne demande plus que `ia.use`. **Actions** : 19 outils d'action (créer une session, changer son statut, inscrire, étape de parcours —
+convocation, attestation…—, réévaluer Qualiopi, ouvrir, juger et clôturer un audit, ouvrir et faire avancer une action
+corrective, valider une preuve, revue d'indicateur, dossier et source de financement, facture en brouillon, traiter et
+convertir une préinscription, planifier les relances, valider un message) appellent la route correspondante avec sa
+permission ; le compte technique a les écritures nécessaires, toujours croisées avec celles de la personne (y compris dans
+les politiques métier). `ensure_mcp_service` pose dans le moteur IA « approbation toujours requise » sur chacun : l'agent
+s'arrête jusqu'au clic « Approuver » de la personne. Sur succès, l'action est enregistrée au journal sous
+« <personne> via l'assistant IA » ; un refus motivé ne laisse rien en base. Ce compte a un mot de passe aléatoire jamais communiqué (aucune connexion
 possible) ; ses rôles se voient et se changent dans la gestion des comptes. Le jeton « mcp » ne périme pas mais n'ouvre aucune
 autre route (401) ; il est lié à l'empreinte du mot de passe du compte : `ia-preparer --renouveler-jeton` l'invalide et
 dépose le nouveau, désactiver le compte coupe l'accès aussitôt. Un utilisateur GSMS peut aussi appeler `/api/v1/mcp` avec son
