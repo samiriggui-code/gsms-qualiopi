@@ -179,8 +179,9 @@ fermée ; sandbox coupée en production.
 
 8. **Revue CodeRabbit** du code backend de ce chantier (`coderabbit review --committed --base-commit 93cc184 --dir
    backend`) : 1 point, mineur (R11), corrigé et testé ; aucun point de sécurité.
-9. **Moteur IA adapté** : un agent personnalisé sans modèle de reclassement cherche sans reclasser (R10). Compilation
-   vérifiée par la construction de l'image ; les tests Go du moteur n'ont pas été lancés.
+9. **Moteur IA adapté** : un agent personnalisé sans modèle de reclassement cherche sans reclasser (R10). Image
+   reconstruite ; `go vet` et `go test ./internal/application/service/` passent (27/10/2026, sans l'étiquette
+   `anydoc`, dont la bibliothèque native n'est fournie qu'à la construction de l'image).
 
 10. **Analyse par le modèle et validation humaine** (contrat `gsms.ia.analyse-indicateur/2`, migration `0029`) : option
     `analyse_ia` ; GSMS envoie à l'assistant interne « Analyse documentaire (GSMS) » (ni base, ni outil, température 0)
