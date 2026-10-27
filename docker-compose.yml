@@ -88,6 +88,8 @@ services:
         condition: service_started
       ia-docreader:
         condition: service_started
+      ia-neo4j:
+        condition: service_started
     volumes:
       - ia-files:/data/files
       - ia-docreader-tmp:/tmp/docreader:ro
@@ -129,6 +131,21 @@ services:
       retries: 6
       start_period: 30s
 
+  # Graphe de connaissances du moteur IA (entités et liens extraits des documents). Réseau interne seulement.
+  ia-neo4j:
+    image: neo4j:2025.10.1
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${IA_NEO4J_PASSWORD:?IA_NEO4J_PASSWORD est obligatoire (voir ia/.env)}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - ia-neo4j:/data
+
   ia-redis:
     image: redis:7.0-alpine
     restart: unless-stopped
@@ -138,5 +155,6 @@ volumes:
   gsms-postgres:
   gsms-documents:
   ia-postgres:
+  ia-neo4j:
   ia-files:
   ia-docreader-tmp:

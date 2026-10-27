@@ -31,6 +31,9 @@ def fake_kb(monkeypatch, rows: list[dict]) -> dict:  # noqa: ANN001
         assert token == "jeton-service"
         if (method, path) == ("GET", "/api/v1/knowledge-bases"):
             return 200, {"success": True, "data": [KB]}
+        if method == "PUT" and path == "/api/v1/knowledge-bases/kb-docs":
+            state["configured"] = payload["config"]
+            return 200, {"success": True}
         if method == "DELETE" and path.startswith("/api/v1/knowledge/"):
             state["deleted"].append(path.rsplit("/", 1)[1])
             return 200, {"success": True}
@@ -88,6 +91,9 @@ def test_synchronisation_verse_et_retire(db: Session, tmp_path, monkeypatch) -> 
 
     report = documents.sync_org_documents(db, "jeton-service")
 
+    # Capacités du moteur activées sur la base : Wiki, graphe, questions par document.
+    assert state["configured"]["indexing_strategy"]["graph_enabled"] and state["configured"]["indexing_strategy"]["wiki_enabled"]
+    assert state["configured"]["question_generation_config"]["enabled"]
     assert sorted(state["deleted"]) == ["k-change", "k-gone", "k-old"]  # « k-main » n'appartient pas à GSMS
     assert [u["meta"]["gsms_document_id"] for u in state["uploads"]] == [new.id]
     upload = state["uploads"][0]

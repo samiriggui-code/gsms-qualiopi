@@ -66,6 +66,28 @@ def _file_name(doc: t.Document) -> str:
     return f"{stem} (v{doc.version}){_format(doc.mime_type)}"
 
 
+# Capacités du moteur IA activées sur cette base : recherche par le sens et par mots-clés, pages Wiki de synthèse,
+# graphe de connaissances (entités et liens, conteneur ia-neo4j) et questions possibles par document. Chacune fait
+# travailler le modèle sur chaque document versé.
+STRATEGY = {"vector_enabled": True, "keyword_enabled": True, "wiki_enabled": True, "graph_enabled": True}
+QUESTIONS = {"enabled": True, "question_count": 3}
+
+
+def _ensure_capabilities(kb: dict, token: str, report: Report) -> None:
+    strategy = kb.get("indexing_strategy") or {}
+    questions = kb.get("question_generation_config") or {}
+    if all(strategy.get(k) == v for k, v in STRATEGY.items()) and questions.get("enabled"):
+        return
+    payload = {"name": kb.get("name") or KB_NAME, "description": kb.get("description") or KB_DESCRIPTION,
+               "config": {"indexing_strategy": STRATEGY, "question_generation_config": QUESTIONS}}
+    status, body = call("PUT", f"/api/v1/knowledge-bases/{kb['id']}", payload, token=token)
+    if _ok(status, body):
+        kb.update({"indexing_strategy": STRATEGY, "question_generation_config": QUESTIONS})
+        report.done.append(f"Base « {KB_NAME} » : Wiki, graphe de connaissances et questions par document activés")
+    else:
+        report.problems.append(f"Capacités non activées sur la base « {KB_NAME} » : {message_of(body)} (HTTP {status})")
+
+
 def _ensure_kb(token: str, report: Report) -> dict | None:
     bases = _data(*call("GET", "/api/v1/knowledge-bases", token=token), "Liste des bases de connaissances") or []
     kb = next((b for b in bases if b.get("name") == KB_NAME), None)
@@ -80,6 +102,7 @@ def _ensure_kb(token: str, report: Report) -> dict | None:
         _attach_models(kb, token, report)
     if not kb.get("embedding_model_id"):
         report.problems.append(f"La base « {KB_NAME} » n'a pas de modèle d'embedding : documents versés mais non indexés")
+    _ensure_capabilities(kb, token, report)
     return kb
 
 
