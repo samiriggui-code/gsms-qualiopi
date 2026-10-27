@@ -42,7 +42,7 @@ const reasonId = `gate-${Math.random().toString(36).slice(2, 9)}`
 function click() {
   if (props.pending) return
   if (refused.value) {
-    if (props.decision?.message) MessagePlugin.info(props.decision.message)
+    if (props.decision?.message) MessagePlugin.error(props.decision.message)
     return
   }
   emit('run')
@@ -53,7 +53,8 @@ function click() {
 .gate { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; max-width: 100%; }
 .gate--refused { opacity: 0.6; cursor: not-allowed; }
 .gate__reason {
-  color: var(--td-text-color-secondary);
+  // Refus motivé de l'API : texte d'alerte en rouge, comme tout refus.
+  color: var(--td-error-color);
   font-size: var(--app-text-sm);
   line-height: 18px;
   overflow-wrap: anywhere;

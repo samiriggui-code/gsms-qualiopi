@@ -88,3 +88,24 @@
 }
 // Étiquette pleine d'état intermédiaire (jetons warning gris) : texte sombre sur le gris clair du mode sombre.
 :root[theme-mode="dark"] .t-tag--warning.t-tag--dark { color: var(--td-gray-color-14); }
+
+// Gravité à trois niveaux (components/gsms/severity.ts) : haute rouge plein, moyenne contour rouge sans fond,
+// basse grise. Pastilles, puces et repères qui ne sont pas des t-tag reprennent ces classes.
+.t-tag--danger.t-tag--outline {
+  background-color: transparent;
+  border-color: var(--td-error-color);
+  color: var(--td-error-color);
+}
+.gsms-severity--haute {
+  background-color: var(--td-error-color-1);
+  color: var(--td-error-color);
+}
+.gsms-severity--moyenne {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--td-error-color);
+  color: var(--td-error-color);
+}
+.gsms-severity--basse {
+  background-color: var(--td-bg-color-component);
+  color: var(--td-text-color-secondary);
+}

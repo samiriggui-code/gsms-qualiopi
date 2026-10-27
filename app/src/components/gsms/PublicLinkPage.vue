@@ -10,7 +10,7 @@
         <span>{{ t('gsms.public.commun.chargement') }}</span>
       </section>
 
-      <section v-else-if="error" class="public-card" role="alert">
+      <section v-else-if="error" class="public-card public-card--refus" role="alert">
         <h1 ref="titleEl" class="public-title" tabindex="-1">{{ errorTitleText }}</h1>
         <p class="public-text">{{ errorText }}</p>
         <button v-if="retry && (error.kind === 'reseau' || error.kind === 'indisponible' || error.kind === 'limite')"
@@ -160,6 +160,11 @@ onBeforeUnmount(() => metas.forEach((m) => m.remove()))
   font-weight: 700;
   text-wrap: balance;
   outline: none;
+}
+
+/* Refus ou erreur de l'API : titre d'alerte en rouge (teinte 7 : contraste AA sur fond clair). */
+.public-card--refus .public-title {
+  color: var(--td-error-color-7);
 }
 
 .public-subtitle {
