@@ -68,3 +68,23 @@
 .t-select-option.t-is-selected:not(.t-is-disabled):not(:has(.t-checkbox)) {
   gap: 8px;
 }
+
+// Sobriété : la couleur de marque reste aux actions, liens, sélections et focus. Une étiquette « primary » en
+// variante claire ou en contour (catégorie, rôle, état en cours) et une alerte d'information ne décorent plus
+// avec la marque : elles prennent les surfaces et le texte neutres du thème (l'icône et le libellé portent le sens).
+.t-tag--primary.t-tag--light,
+.t-tag--primary.t-tag--light-outline {
+  background-color: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-primary);
+}
+.t-tag--primary.t-tag--outline,
+.t-tag--primary.t-tag--light-outline {
+  border-color: var(--td-component-border);
+  color: var(--td-text-color-primary);
+}
+.t-alert--info {
+  background-color: var(--td-bg-color-secondarycontainer);
+  .t-alert__icon { color: var(--td-text-color-secondary); }
+}
+// Étiquette pleine d'état intermédiaire (jetons warning gris) : texte sombre sur le gris clair du mode sombre.
+:root[theme-mode="dark"] .t-tag--warning.t-tag--dark { color: var(--td-gray-color-14); }

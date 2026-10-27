@@ -379,7 +379,7 @@ const win = globalThis.window
   :deep(tbody td) { vertical-align: middle; }
   :deep(tbody tr) { transition: background-color var(--app-motion-instant) ease; }
   :deep(tbody tr:focus-visible) { outline: 2px solid var(--td-brand-color); outline-offset: -2px; }
-  :deep(tbody tr.is-last-opened) { box-shadow: inset 3px 0 0 var(--td-brand-color); background: var(--td-brand-color-light); }
+  :deep(tbody tr.is-last-opened) { box-shadow: inset 3px 0 0 var(--td-brand-color); background: var(--app-selection-bg); }
   .table:not(.is-clickable) :deep(tbody tr) { cursor: default; }
 }
 .cell-link { color: var(--td-text-color-primary); font-weight: 500; text-decoration: none; &:hover { color: var(--td-brand-color); } }

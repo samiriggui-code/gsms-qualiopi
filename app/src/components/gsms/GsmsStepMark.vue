@@ -26,7 +26,7 @@ const text = computed(() => `${props.label ? `${props.label} : ` : ''}${stateLab
 <style scoped lang="less">
 .step-mark { display: inline-flex; flex-shrink: 0; color: var(--td-text-color-placeholder); }
 .is-success { color: var(--td-success-color); }
-.is-warning { color: var(--td-warning-color); }
+.is-warning { color: var(--td-text-color-secondary); }
 .is-danger { color: var(--td-error-color); }
 .is-muted { color: var(--td-text-color-disabled); }
 </style>

@@ -182,7 +182,7 @@ const code = (slot: string) => act('code', async () => {
 .presence-name { font-size: var(--app-text-md); color: var(--td-text-color-primary); }
 .presence-actions { display: flex; gap: 6px; }
 .code-box { text-align: center; }
-.code-value { font-size: var(--app-text-4xl); font-weight: 700; letter-spacing: 4px; color: var(--td-brand-color); font-variant-numeric: tabular-nums; }
+.code-value { font-size: var(--app-text-4xl); font-weight: 700; letter-spacing: 4px; color: var(--td-text-color-primary); font-variant-numeric: tabular-nums; }
 .code-link { display: block; margin-top: 8px; padding: 6px 8px; border-radius: var(--app-radius-sm); background: var(--td-bg-color-secondarycontainer); overflow-wrap: anywhere; font-size: var(--app-text-sm); }
 @media (max-width: 720px) {
   .presence-actions { width: 100%; .t-button { flex: 1; } }

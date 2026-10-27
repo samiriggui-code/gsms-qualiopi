@@ -63,7 +63,7 @@ const { t } = useI18n()
   &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; } }
 .dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; flex-shrink: 0; background: var(--td-text-color-disabled); }
 .dot.tone-danger { background: var(--td-error-color); }
-.dot.tone-warning { background: var(--td-warning-color); }
+.dot.tone-warning { background: transparent; box-shadow: inset 0 0 0 1.5px var(--td-text-color-secondary); }
 .dot.tone-success { background: var(--td-success-color); }
 .alert-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .alert-title { color: var(--td-text-color-primary); font-size: var(--app-text-md); font-weight: 500; line-height: 20px; overflow-wrap: anywhere; }
@@ -71,7 +71,7 @@ const { t } = useI18n()
 .alert-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; max-width: 40%; text-align: right; }
 .alert-when { font-size: var(--app-text-sm); font-weight: 500; font-variant-numeric: tabular-nums; }
 .alert-when.tone-danger { color: var(--td-error-color); }
-.alert-when.tone-warning { color: var(--td-warning-color); }
+.alert-when.tone-warning { color: var(--td-text-color-primary); }
 .alert-kind { .gsms-chip(); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .more { margin-top: 8px; color: var(--td-brand-color); font-size: var(--app-text-sm); text-decoration: none; &:hover { text-decoration: underline; } }
 </style>

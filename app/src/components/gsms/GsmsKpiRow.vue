@@ -6,8 +6,8 @@
       </div>
     </template>
     <template v-else>
-      <component :is="item.to ? 'router-link' : 'div'" v-for="(item, i) in items" :key="item.key" :to="item.to" class="kpi"
-        :class="[`accent-${i % 5}`, item.tone ? `tone-${item.tone}` : '', { 'kpi--link': !!item.to }]">
+      <component :is="item.to ? 'router-link' : 'div'" v-for="item in items" :key="item.key" :to="item.to" class="kpi"
+        :class="[item.tone ? `tone-${item.tone}` : '', { 'kpi--link': !!item.to }]">
         <span class="kpi-icon" aria-hidden="true"><t-icon :name="item.icon" size="20px" /></span>
         <div class="kpi-text">
           <span class="kpi-label">{{ item.label }}</span>
@@ -44,7 +44,8 @@ withDefaults(defineProps<{ items: KpiItem[]; loading?: boolean }>(), { loading: 
   @media (max-width: 720px) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 }
 .kpi {
-  --accent: var(--td-brand-color);
+  // Neutre par défaut ; seuls un état d'alerte (rouge) ou satisfaisant (vert) renvoyé par la page colorent la carte.
+  --accent: var(--td-text-color-secondary);
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -54,34 +55,27 @@ withDefaults(defineProps<{ items: KpiItem[]; loading?: boolean }>(), { loading: 
   overflow: hidden;
   border: 1px solid var(--td-component-stroke);
   .gsms-elevated();
-  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 9%, var(--td-bg-color-container)), var(--td-bg-color-container) 65%);
+  background: var(--td-bg-color-container);
   color: inherit;
   text-decoration: none;
   transition: border-color var(--app-motion-fast) ease, box-shadow var(--app-motion-fast) ease, transform var(--app-motion-fast) ease;
-  // Filet de couleur à gauche : repère du rôle de la carte (le libellé et l'icône le disent aussi).
-  &::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); }
   &.kpi--link:hover {
-    border-color: color-mix(in srgb, var(--accent) 40%, var(--td-component-stroke));
-    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 12%, transparent);
-    .kpi-chevron { color: var(--accent); transform: translateX(2px); }
+    border-color: var(--td-component-border);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--td-text-color-primary) 8%, transparent);
+    .kpi-chevron { color: var(--td-text-color-primary); transform: translateX(2px); }
   }
   &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { transition: none; }
   @media (max-width: 720px) { flex-direction: column; gap: 8px; padding: 12px 12px 12px 14px; }
 }
-.accent-0 { --accent: var(--td-brand-color); }
-.accent-1 { --accent: var(--td-success-color); }
-.accent-2 { --accent: var(--td-warning-color); }
-.accent-3 { --accent: var(--td-brand-color-hover); }
-.accent-4 { --accent: var(--td-error-color); }
+// Filet à gauche seulement pour un état : le libellé et l'icône le disent aussi.
+.tone-danger, .tone-success { &::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); } }
 .tone-danger { --accent: var(--td-error-color); }
-.tone-warning { --accent: var(--td-warning-color); }
 .tone-success { --accent: var(--td-success-color); }
-.tone-muted { --accent: var(--td-gray-color-6); }
 .kpi-icon {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   width: 40px; height: 40px; border-radius: var(--app-radius-md);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  background: var(--td-bg-color-secondarycontainer);
   color: var(--accent);
   @media (max-width: 720px) { width: 32px; height: 32px; border-radius: var(--app-radius-sm); }
 }
@@ -89,7 +83,7 @@ withDefaults(defineProps<{ items: KpiItem[]; loading?: boolean }>(), { loading: 
 .kpi-label { color: var(--td-text-color-secondary); font-size: var(--app-text-xs); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
 .kpi-value { margin-top: 6px; color: var(--td-text-color-primary); font-family: var(--app-font-family-display); font-size: 26px; font-weight: 700; line-height: 30px; overflow-wrap: anywhere; }
 .kpi-sub { margin-top: 2px; color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); line-height: 16px; overflow-wrap: anywhere; }
-.kpi-meter { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 16%, transparent); overflow: hidden; }
+.kpi-meter { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--td-bg-color-component); overflow: hidden; }
 .kpi-meter-fill { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
 .kpi-chevron { position: absolute; top: 12px; right: 10px; color: var(--td-text-color-placeholder); transition: transform var(--app-motion-fast) ease, color var(--app-motion-fast) ease;
   @media (max-width: 720px) { top: 10px; } }

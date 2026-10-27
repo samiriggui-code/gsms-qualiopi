@@ -1,7 +1,7 @@
 <template>
   <div class="gsms-refusal" :class="{ 'gsms-refusal--inline': inline, 'gsms-refusal--illustrated': !!illus }" role="alert">
     <GsmsIllustration v-if="illus" :n="illus" :height="150" class="gsms-refusal__illus" />
-    <div v-else class="gsms-refusal__icon"><t-icon :name="icon" /></div>
+    <div v-else class="gsms-refusal__icon" :class="{ 'is-error': isError }"><t-icon :name="icon" /></div>
     <div class="gsms-refusal__body">
       <div class="gsms-refusal__title">{{ refusal.title }}</div>
       <div class="gsms-refusal__message">{{ refusal.message }}</div>
@@ -29,6 +29,8 @@ const illus = computed(() => {
   if (s === 0 || s === -1 || s >= 500) return 20
   return 0
 })
+// Rouge seulement pour une action refusée (409) ou une erreur (API muette, serveur) ; droit, introuvable, saisie : gris.
+const isError = computed(() => { const s = refusal.value.status; return s === 409 || s === 0 || s === -1 || s >= 500 })
 const icon = computed(() => {
   const s = refusal.value.status
   if (s === 403) return 'lock-on'
@@ -74,8 +76,9 @@ const icon = computed(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--td-warning-color-light);
-  color: var(--td-warning-color);
+  background: var(--td-bg-color-component);
+  color: var(--td-text-color-secondary);
+  &.is-error { background: var(--td-error-color-light); color: var(--td-error-color); }
   font-size: var(--app-text-2xl);
 
   .gsms-refusal--inline & { width: 28px; height: 28px; font-size: var(--app-text-xl); }

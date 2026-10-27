@@ -44,7 +44,7 @@ const filled = (v: unknown) => v !== null && v !== undefined && String(v).trim()
 .info-panel { .gsms-panel(); display: flex; flex-direction: column; gap: 12px; }
 .ip-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .ip-title { .gsms-panel-title(); display: inline-flex; align-items: center; gap: 8px; margin: 0; }
-.ip-icon { color: var(--td-brand-color); }
+.ip-icon { color: var(--td-text-color-secondary); }
 .ip-rows {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));

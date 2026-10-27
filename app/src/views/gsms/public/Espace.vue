@@ -154,7 +154,7 @@ const upcoming = computed(() => (data.value?.creneaux ?? []).filter((c) => c.pre
 
 <style scoped>
 .es-hero {
-  border-top: 4px solid var(--td-brand-color);
+  border-top: 1px solid var(--td-component-stroke);
 }
 
 .es-strong {
@@ -181,7 +181,7 @@ const upcoming = computed(() => (data.value?.creneaux ?? []).filter((c) => c.pre
 .es-facts .t-icon {
   flex: none;
   margin-top: 3px;
-  color: var(--td-brand-color);
+  color: var(--td-text-color-secondary);
 }
 
 .es-list {

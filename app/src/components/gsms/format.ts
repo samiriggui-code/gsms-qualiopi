@@ -63,6 +63,29 @@ export function stateTheme(code: string | null | undefined): TagTheme {
   return (code && THEMES[code]) || 'default'
 }
 
+/**
+ * Lecture sobre d'un état : `ok` (vert), `alert` (rouge), `pending` (état intermédiaire : à risque, en attente, à
+ * vérifier) ou `neutral`. Seuls `ok` et `alert` sont colorés ; `pending` se distingue du neutre par un contour gris,
+ * jamais par une couleur. Présentation seulement : l'état vient de l'API.
+ */
+export type StateTone = 'ok' | 'alert' | 'pending' | 'neutral'
+
+export function stateTone(code: string | null | undefined): StateTone {
+  const theme = stateTheme(code)
+  if (theme === 'success') return 'ok'
+  if (theme === 'danger') return 'alert'
+  if (theme === 'warning') return 'pending'
+  return 'neutral'
+}
+
+/** Thème et variante d'une étiquette `t-tag` d'état : vert, rouge, ou gris (contour pour un état intermédiaire). */
+export function stateTag(code: string | null | undefined): { theme: 'success' | 'danger' | 'default'; variant: 'light' | 'light-outline' } {
+  const tone = stateTone(code)
+  if (tone === 'ok') return { theme: 'success', variant: 'light' }
+  if (tone === 'alert') return { theme: 'danger', variant: 'light' }
+  return { theme: 'default', variant: tone === 'pending' ? 'light-outline' : 'light' }
+}
+
 /** Un détail de refus (chaîne ou objet) en une ligne lisible. */
 function detailLine(d: unknown): string {
   if (d === null || d === undefined) return ''

@@ -75,14 +75,11 @@ const isFaq = computed(() => props.type === 'faq')
   height: 28px;
   border-radius: var(--app-radius-md);
 
-  &.is-document {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--td-brand-color) 15%, transparent) 0%, color-mix(in srgb, var(--td-brand-color) 8%, transparent) 100%);
-    color: var(--td-brand-color-active);
-  }
-
+  // Type de base : l'icône le dit, sans teinte par catégorie.
+  &.is-document,
   &.is-faq {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--weknora-faq-color, #0052d9) 15%, transparent) 0%, color-mix(in srgb, var(--weknora-faq-color, #0052d9) 8%, transparent) 100%);
-    color: var(--weknora-faq-color, #0052d9);
+    background: var(--td-bg-color-secondarycontainer);
+    color: var(--td-text-color-secondary);
   }
 }
 </style>

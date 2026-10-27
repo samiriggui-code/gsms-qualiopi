@@ -243,8 +243,8 @@ async function submit() {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--td-brand-color-light);
-  color: var(--td-brand-color);
+  background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-secondary);
   font-size: var(--app-text-xl);
   &.is-danger { background: var(--td-error-color-light); color: var(--td-error-color); }
 }

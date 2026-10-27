@@ -232,7 +232,7 @@ async function reevaluate() {
 .crit { .gsms-panel(); padding: 18px 20px 20px; }
 .crit.is-skeleton { min-height: 140px; }
 .crit-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 10px; }
-.crit-num { font-size: var(--app-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--td-brand-color); }
+.crit-num { font-size: var(--app-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--td-text-color-secondary); }
 .crit-title { margin: 0; flex: 1 1 auto; font-family: var(--app-font-family-display); font-size: var(--app-text-2xl); font-weight: 600; color: var(--td-text-color-primary); }
 .crit-score { font-size: var(--app-text-sm); color: var(--td-text-color-secondary); }
 .crit-bar { display: flex; gap: 2px; height: 6px; border-radius: var(--app-radius-xs); overflow: hidden; margin-bottom: 16px; background: var(--td-bg-color-component); }
@@ -240,7 +240,7 @@ async function reevaluate() {
 .tone-success { --tone: var(--td-success-color); }
 .tone-warning { --tone: var(--td-warning-color); }
 .tone-danger { --tone: var(--td-error-color); }
-.tone-primary { --tone: var(--td-brand-color); }
+.tone-primary { --tone: var(--td-text-color-secondary); }
 .tone-default { --tone: var(--td-text-color-placeholder); }
 .seg { background: var(--tone); }
 .ind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
@@ -249,7 +249,7 @@ async function reevaluate() {
   display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 12px 16px; min-width: 0;
   background: var(--td-bg-color-container); border: 1px solid var(--td-component-stroke); border-left: 3px solid var(--tone);
   color: inherit; text-decoration: none; transition: border-color var(--app-motion-fast) ease, transform var(--app-motion-fast) ease;
-  &:hover { border-color: var(--td-brand-color); border-left-color: var(--tone); transform: translateY(-1px); }
+  &:hover { border-color: var(--td-component-border); border-left-color: var(--tone); transform: translateY(-1px); }
   &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 }
 .ind-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

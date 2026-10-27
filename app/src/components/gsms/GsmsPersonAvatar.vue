@@ -29,8 +29,8 @@ const initials = computed(() => (props.name ?? '').split(/[\s-]+/).filter(Boolea
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 50%;
-  background: var(--td-brand-color-light);
-  color: var(--td-brand-color);
+  background: var(--td-bg-color-component);
+  color: var(--td-text-color-secondary);
   font-weight: 600;
   img { width: 100%; height: 100%; object-fit: cover; }
 }

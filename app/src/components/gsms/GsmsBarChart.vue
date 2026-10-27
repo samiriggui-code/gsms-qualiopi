@@ -51,7 +51,8 @@ const empty = computed(() => (single.value
   : allZero(props.series.flatMap((s) => s.values))))
 
 const seriesColors = computed(() => props.series.map((s, i) => colorOf(palette.value, s.tone, i)))
-const dataColors = computed(() => props.data.map((d, i) => colorOf(palette.value, d.tone, i)))
+// Une seule série : barres de la couleur de marque, sauf rôle d'état (rouge / vert) donné par la page.
+const dataColors = computed(() => props.data.map((d, i) => colorOf(palette.value, d.tone ?? 'brand', i)))
 const legend = computed<LegendItem[]>(() => props.series.map((s, i) => ({ key: s.key, label: s.label, color: seriesColors.value[i], tone: s.tone })))
 const tableSeries = computed(() => (single.value
   ? [{ key: 'v', label: t('gsms.graphiques.valeur'), values: props.data.map((d) => d.value) }]

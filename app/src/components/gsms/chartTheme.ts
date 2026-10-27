@@ -4,9 +4,8 @@
  * Les graphiques n'affichent que des chiffres renvoyés par l'API (compteurs, synthèses) ; le front peut seulement
  * regrouper pour l'affichage des lignes que l'API a déjà classées (par état, par semaine…). Aucune règle métier ici.
  *
- * Couleurs : jetons du thème (violet GSMS, états succès / vigilance / erreur de TDesign) lus sur la page, plus une
- * palette catégorielle vérifiée (écart de teinte suffisant pour les daltonismes, en clair et en sombre). Le mode
- * suit l'attribut `theme-mode` de <html>.
+ * Couleurs sobres : rouge pour une série d'alerte (retard, échec), vert pour une série satisfaisante (à jour, fait),
+ * sinon couleur de marque et gris, tous lus dans les jetons du thème. Le mode suit l'attribut `theme-mode` de <html>.
  */
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import { stateTheme } from './format'
@@ -41,21 +40,31 @@ export interface ChartSeries {
 
 type Mode = 'light' | 'dark'
 
-/** Palette catégorielle (6 teintes, ordre fixe) validée en clair sur #fff et en sombre sur #242424. */
-const CATEGORICAL: Record<Mode, string[]> = {
-  light: ['#5a2be0', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#2a78d6'],
-  dark: ['#7a55f0', '#d95926', '#199e70', '#c98500', '#d55181', '#3987e5'],
+/**
+ * Palette catégorielle (6 rangs, ordre fixe) : couleur de marque et gris seulement, lus sur la page pour suivre
+ * `general.brand_color`. Le rouge et le vert restent réservés aux séries qui signifient un état (retard / à jour) ;
+ * la légende et le tableau donnent toujours le libellé, la nuance n'est jamais le seul repère.
+ */
+const CATEGORICAL: Record<Mode, [string, string][]> = {
+  light: [['--td-brand-color-4', '#5a2be0'], ['--td-gray-color-12', '#2c2c2c'], ['--td-brand-color-2', '#a58cf2'],
+    ['--td-gray-color-8', '#777777'], ['--td-brand-color-6', '#371a94'], ['--td-gray-color-6', '#a6a6a6']],
+  dark: [['--td-brand-color-7', '#7a55f0'], ['--td-gray-color-3', '#e7e7e7'], ['--td-brand-color-9', '#b9a6f3'],
+    ['--td-gray-color-7', '#8b8b8b'], ['--td-brand-color-5', '#5a2be0'], ['--td-gray-color-5', '#c5c5c5']],
 }
 
-/** Rôles → jetons du thème (lus sur <html>) ; valeur de secours si le jeton manque (le bleu d'information n'a pas de jeton). */
+/**
+ * Rôles → jetons du thème (lus sur <html>) ; valeur de secours si le jeton manque. Seuls `success` (vert) et `danger`
+ * (rouge) sont colorés ; `warning` (état intermédiaire) est un gris foncé (jetons warning neutralisés dans theme.css),
+ * `info` une nuance claire de la marque, `neutral` un gris clair.
+ */
 const TONE_TOKENS: Record<Mode, Record<ChartTone, [string, string]>> = {
   light: {
-    success: ['--td-success-color-5', '#00a870'], warning: ['--td-warning-color-5', '#ed7b2f'], danger: ['--td-error-color-8', '#b11f26'],
-    brand: ['--td-brand-color-4', '#5a2be0'], info: ['', '#2a78d6'], neutral: ['--td-gray-color-6', '#a6a6a6'],
+    success: ['--td-success-color-5', '#00a870'], warning: ['--td-gray-color-10', '#4b4b4b'], danger: ['--td-error-color-8', '#b11f26'],
+    brand: ['--td-brand-color-4', '#5a2be0'], info: ['--td-brand-color-2', '#a58cf2'], neutral: ['--td-gray-color-6', '#a6a6a6'],
   },
   dark: {
-    success: ['--td-success-color-7', '#46bf96'], warning: ['--td-warning-color-5', '#cf6e2d'], danger: ['--td-error-color-5', '#a03f46'],
-    brand: ['--td-brand-color-7', '#7a55f0'], info: ['', '#6da7ec'], neutral: ['--td-gray-color-7', '#8b8b8b'],
+    success: ['--td-success-color-7', '#46bf96'], warning: ['--td-gray-color-4', '#dcdcdc'], danger: ['--td-error-color-7', '#de6670'],
+    brand: ['--td-brand-color-7', '#7a55f0'], info: ['--td-brand-color-9', '#b9a6f3'], neutral: ['--td-gray-color-7', '#8b8b8b'],
   },
 }
 
@@ -84,7 +93,7 @@ function readPalette(): ChartPalette {
   return {
     mode,
     tones,
-    categorical: CATEGORICAL[mode],
+    categorical: CATEGORICAL[mode].map(([name, fallback]) => token(name, fallback)),
     surface: token('--td-bg-color-container', mode === 'dark' ? '#242424' : '#ffffff'),
     text: token('--td-text-color-primary', mode === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.9)'),
     muted: token('--td-text-color-secondary', mode === 'dark' ? 'rgba(255, 255, 255, 0.55)' : 'rgba(0, 0, 0, 0.6)'),

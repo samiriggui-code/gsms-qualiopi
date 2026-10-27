@@ -257,7 +257,7 @@ function decided(row: unknown) {
   h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: var(--app-text-md); font-weight: 600; }
   h4 { margin: 10px 0 6px; font-size: var(--app-text-sm); font-weight: 600; }
   &--attente { border-left-color: var(--td-warning-color); }
-  &--moteur { border-left-color: var(--td-brand-color); }
+  &--moteur { border-left-color: var(--td-text-color-secondary); }
   &--textes { border-left-color: var(--td-gray-color-6); }
   &--ia { border-left-color: var(--td-warning-color); background: var(--td-warning-color-light); }
   &--erreur { border-left-color: var(--td-error-color); h3 { color: var(--td-error-color); } }

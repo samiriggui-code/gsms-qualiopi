@@ -83,8 +83,8 @@ const parent = computed(() => crumbs.value[crumbs.value.length - 2])
   width: 28px;
   height: 28px;
   border-radius: var(--app-radius-sm);
-  background: var(--td-brand-color-light);
-  color: var(--td-brand-color);
+  background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-secondary);
 }
 .title-text { min-width: 0; overflow-wrap: anywhere; }
 .header-subtitle { margin: 0; font-family: var(--app-font-family); line-height: 20px; }

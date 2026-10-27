@@ -1,5 +1,5 @@
 <template>
-  <router-link :to="item.to" class="module" :class="`accent-${accent % 5}`">
+  <router-link :to="item.to" class="module">
     <div class="module-head">
       <span class="module-icon"><t-icon :name="item.icon" size="20px" /></span>
       <h3>{{ item.title }}</h3>
@@ -21,6 +21,7 @@
 import GsmsRefusal from './GsmsRefusal.vue'
 import type { ModuleItem } from './types'
 
+// `accent` (rang de la carte) est accepté pour compatibilité mais ne colore plus rien : cartes neutres.
 withDefaults(defineProps<{ item: ModuleItem; accent?: number }>(), { accent: 0 })
 </script>
 
@@ -28,7 +29,6 @@ withDefaults(defineProps<{ item: ModuleItem; accent?: number }>(), { accent: 0 }
 @import (reference) './gsms-list.less';
 .module {
   .gsms-panel();
-  --accent: var(--td-brand-color);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -38,13 +38,9 @@ withDefaults(defineProps<{ item: ModuleItem; accent?: number }>(), { accent: 0 }
   &:hover { border-color: var(--td-component-border); box-shadow: 0 3px 10px color-mix(in srgb, var(--td-text-color-primary) 5%, transparent); }
   &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 }
-.accent-1 { --accent: var(--td-success-color); }
-.accent-2 { --accent: var(--td-warning-color); }
-.accent-3 { --accent: #7c3aed; }
-.accent-4 { --accent: var(--td-error-color); }
 .module-head { display: flex; align-items: center; gap: 10px; h3 { flex: 1; min-width: 0; margin: 0; font-size: var(--app-text-lg); font-weight: 600; color: var(--td-text-color-primary); } }
 .module-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--app-radius-sm);
-  background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+  background: var(--td-bg-color-secondarycontainer); color: var(--td-text-color-secondary); border: 1px solid var(--td-component-stroke); }
 .chevron { color: var(--td-text-color-placeholder); }
 .module-desc { .gsms-muted(); margin: 0; }
 .figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }

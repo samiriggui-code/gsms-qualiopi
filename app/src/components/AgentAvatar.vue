@@ -25,24 +25,13 @@ const props = withDefaults(defineProps<{
   size: 'medium'
 });
 
-// 预定义的渐变色方案 - 现代、柔和、专业
+// Sobriété : gris unis (lettre blanche, contraste AA), quelques nuances pour distinguer les éléments voisins
+// sans couleur décorative ; la couleur reste réservée aux états et aux actions.
 const gradients = [
-  { from: '#667eea', to: '#764ba2' },  // 紫蓝渐变
-  { from: '#4facfe', to: '#00f2fe' },  // 蓝青渐变
-  { from: '#43e97b', to: '#38f9d7' },  // 绿青渐变
-  { from: '#11998e', to: '#38ef7d' },  // 深绿渐变
-  { from: '#5ee7df', to: '#b490ca' },  // 青紫渐变
-  { from: '#48c6ef', to: '#6f86d6' },  // 蓝紫渐变
-  { from: '#a8edea', to: '#fed6e3' },  // 青粉渐变（柔和）
-  { from: '#667db6', to: '#0082c8' },  // 蓝色渐变
-  { from: '#36d1dc', to: '#5b86e5' },  // 青蓝渐变
-  { from: '#56ab2f', to: '#a8e063' },  // 草绿渐变
-  { from: '#614385', to: '#516395' },  // 深紫蓝渐变
-  { from: '#02aab0', to: '#00cdac' },  // 青绿渐变
-  { from: '#6a82fb', to: '#fc5c7d' },  // 蓝粉渐变（柔和）
-  { from: '#834d9b', to: '#d04ed6' },  // 紫色渐变
-  { from: '#4776e6', to: '#8e54e9' },  // 蓝紫渐变
-  { from: '#00b09b', to: '#96c93d' },  // 青绿渐变
+  { from: '#4b4b4b', to: '#4b4b4b' },
+  { from: '#5e5e5e', to: '#5e5e5e' },
+  { from: '#383838', to: '#383838' },
+  { from: '#2c2c2c', to: '#2c2c2c' },
 ];
 
 // 根据名称生成一个稳定的哈希值

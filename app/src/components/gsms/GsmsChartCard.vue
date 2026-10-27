@@ -47,7 +47,7 @@ const titleId = `chart-${useId()}`
 .chart-icon {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   width: 28px; height: 28px; border-radius: var(--app-radius-sm);
-  background: color-mix(in srgb, var(--td-brand-color) 12%, transparent); color: var(--td-brand-color);
+  background: var(--td-bg-color-secondarycontainer); color: var(--td-text-color-secondary);
 }
 .chart-titles { flex: 1; min-width: 0; h3 { .gsms-panel-title(); margin: 0; overflow-wrap: anywhere; } }
 .chart-sub { .gsms-muted(); margin: 2px 0 0; overflow-wrap: anywhere; }

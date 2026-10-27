@@ -111,7 +111,7 @@ onBeforeUnmount(() => metas.forEach((m) => m.remove()))
   font-size: var(--app-text-md);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--td-brand-color);
+  color: var(--td-text-color-secondary);
 }
 
 .public-page__loading {
@@ -172,7 +172,7 @@ onBeforeUnmount(() => metas.forEach((m) => m.remove()))
 }
 
 .public-subtitle .t-icon {
-  color: var(--td-brand-color);
+  color: var(--td-text-color-secondary);
   font-size: var(--app-text-2xl);
 }
 
@@ -225,7 +225,7 @@ onBeforeUnmount(() => metas.forEach((m) => m.remove()))
 }
 
 .public-btn--ghost:hover:not(:disabled) {
-  background: var(--td-brand-color-light);
+  background: var(--td-bg-color-container-hover);
   color: var(--td-brand-color);
 }
 
@@ -257,8 +257,8 @@ onBeforeUnmount(() => metas.forEach((m) => m.remove()))
 }
 
 .public-row:hover {
-  border-color: var(--td-brand-color);
-  background: var(--td-brand-color-light);
+  border-color: var(--td-text-color-placeholder);
+  background: var(--td-bg-color-container-hover);
 }
 
 .public-row__body {
@@ -280,7 +280,7 @@ onBeforeUnmount(() => metas.forEach((m) => m.remove()))
 
 .public-row .t-icon {
   flex: none;
-  color: var(--td-brand-color);
+  color: var(--td-text-color-secondary);
 }
 
 .public-alert {

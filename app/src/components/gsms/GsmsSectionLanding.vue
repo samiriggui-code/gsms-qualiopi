@@ -102,7 +102,7 @@ function moduleColumns(n: number): number {
   @media (max-width: 960px) { grid-template-columns: minmax(0, 1fr); } }
 .panel { .gsms-panel(); padding: 18px 20px; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; h3 { .gsms-panel-title(); margin: 0; display: flex; align-items: center; gap: 6px; } }
-.engine-icon { color: var(--td-brand-color); }
+.engine-icon { color: var(--td-text-color-secondary); }
 .count { .gsms-chip(); }
 .sub { .gsms-muted(); margin: 4px 0 8px; }
 .skel { margin-top: 8px; }

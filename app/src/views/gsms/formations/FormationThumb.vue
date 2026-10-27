@@ -27,8 +27,8 @@ const src = computed(() => (failed.value ? null : mediaSrc(props.image)))
   flex-shrink: 0;
   overflow: hidden;
   border-radius: var(--app-radius-sm);
-  background: var(--td-brand-color-light);
-  color: var(--td-brand-color);
+  background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-placeholder);
   img { width: 100%; height: 100%; object-fit: cover; }
 }
 </style>

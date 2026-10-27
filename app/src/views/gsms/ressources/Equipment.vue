@@ -177,9 +177,9 @@ async function remove(e: Equipment) {
 .late, .card .card-description.late { color: var(--td-error-color); font-weight: 500; }
 .tag-gap { margin-left: 4px; }
 .next { .gsms-panel(); display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px;
-  border-left: 3px solid var(--td-brand-color);
+  border-left: 3px solid var(--td-component-border);
   &.next--late { border-left-color: var(--td-error-color); .next-icon { color: var(--td-error-color); } } }
-.next-icon { color: var(--td-brand-color); flex-shrink: 0; }
+.next-icon { color: var(--td-text-color-secondary); flex-shrink: 0; }
 .next-text { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere;
   strong { color: var(--td-text-color-primary); font-size: var(--app-text-md); } }
 .next-label { .gsms-muted(); }

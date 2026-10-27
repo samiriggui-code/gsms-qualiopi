@@ -132,7 +132,7 @@ function created(result: unknown) {
 .card { .gsms-card(); text-decoration: none; color: inherit; }
 .muted { .gsms-muted(); margin: 4px 0 0; }
 .notice { .gsms-notice(); }
-.bar { height: 6px; border-radius: var(--app-radius-pill); background: var(--td-bg-color-secondarycontainer); overflow: hidden; span { display: block; height: 100%; background: var(--td-brand-color); } }
+.bar { height: 6px; border-radius: var(--app-radius-pill); background: var(--td-bg-color-secondarycontainer); overflow: hidden; span { display: block; height: 100%; background: var(--td-text-color-secondary); } }
 .sample { margin-top: 4px; }
 .sample-title { margin: 0 0 6px; font-size: var(--app-text-md); font-weight: 500; }
 .sample-list { display: flex; flex-direction: column; gap: 4px; }

@@ -45,20 +45,13 @@ const emojiChar = computed(() => {
   return v.slice(6).trim() || '';
 });
 
-// 预定义渐变色（与项目绿色主色协调，偏空间/协作感）
+// Sobriété : gris unis (lettre blanche, contraste AA), quelques nuances pour distinguer les éléments voisins
+// sans couleur décorative ; la couleur reste réservée aux états et aux actions.
 const gradients = [
-  { from: '#5a2be0', to: '#5a2be0' },  // 主绿
-  { from: '#11998e', to: '#38ef7d' },  // 深绿渐变
-  { from: '#43e97b', to: '#38f9d7' },  // 绿青
-  { from: '#02aab0', to: '#00cdac' },  // 青绿
-  { from: '#36d1dc', to: '#5b86e5' }, // 青蓝
-  { from: '#4facfe', to: '#00f2fe' },  // 蓝青
-  { from: '#667eea', to: '#764ba2' },  // 紫蓝
-  { from: '#4776e6', to: '#8e54e9' },  // 蓝紫
-  { from: '#56ab2f', to: '#a8e063' },  // 草绿
-  { from: '#00b09b', to: '#96c93d' },  // 青绿
-  { from: '#5ee7df', to: '#b490ca' },  // 青紫
-  { from: '#614385', to: '#516395' },  // 深紫蓝
+  { from: '#4b4b4b', to: '#4b4b4b' },
+  { from: '#5e5e5e', to: '#5e5e5e' },
+  { from: '#383838', to: '#383838' },
+  { from: '#2c2c2c', to: '#2c2c2c' },
 ];
 
 const hashCode = (str: string): number => {
