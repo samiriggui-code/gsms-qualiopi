@@ -14,8 +14,10 @@ from app.database.db import Base, new_id, utcnow
 
 # Résultat technique de la recherche documentaire (pas un état de préparation Qualiopi).
 REFERENCE_STATUSES = ("REFERENCES_RETROUVEES", "AUCUNE_REFERENCE", "ERREUR_TECHNIQUE")
-# Validation humaine de l'analyse : aucune proposition n'est encore produite, rien n'est à valider.
-VALIDATION_STATUSES = ("NON_DEMANDEE",)
+# Validation humaine de l'analyse : rien à valider, ou des propositions de l'IA en attente de décision.
+VALIDATION_STATUSES = ("NON_DEMANDEE", "EN_ATTENTE", "DECIDEE")
+# Décision humaine sur une proposition de l'IA.
+PROPOSAL_STATUSES = ("PROPOSEE", "ACCEPTEE", "REJETEE")
 
 
 class IAAnalysis(Base):
@@ -38,4 +40,30 @@ class IAAnalysis(Base):
     error: Mapped[str | None] = mapped_column(Text)
     duration_ms: Mapped[int] = mapped_column(Integer)
     validation_status: Mapped[str] = mapped_column(String(30), default="NON_DEMANDEE")
+    # Analyse par le modèle (facultative) : modèle employé, observations gardées et rejetées (citation invalide).
+    generation_model: Mapped[str | None] = mapped_column(String(120))
+    observations_kept: Mapped[int | None] = mapped_column(Integer)
+    observations_rejected: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class IAProposal(Base):
+    """Proposition d'action de l'IA : jamais appliquée d'elle-même, acceptée ou rejetée par une personne.
+
+    Garde ce qu'il faut pour répondre à un auditeur : d'où vient la proposition (analyse, passages cités), qui l'a
+    acceptée ou rejetée, quand et pourquoi."""
+
+    __tablename__ = "ia_proposition"
+    __table_args__ = {"schema": "qualite"}
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    analysis_id: Mapped[str] = mapped_column(String(36), index=True)
+    indicator_number: Mapped[int] = mapped_column(Integer, index=True)
+    action: Mapped[str] = mapped_column(Text)
+    justification: Mapped[str] = mapped_column(Text)
+    passages: Mapped[list[dict]] = mapped_column(JSON, default=list)  # passage, document et titre cités
+    status: Mapped[str] = mapped_column(String(20), default="PROPOSEE", index=True)
+    decided_by: Mapped[str | None] = mapped_column(String(36))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -1,6 +1,6 @@
 """Analyse d'un indicateur : contrat versionné entre le moteur Qualiopi et le moteur IA (WeKnora).
 
-Contrat `gsms.ia.analyse-indicateur/1`. GSMS orchestre, dans cet ordre :
+Contrat `gsms.ia.analyse-indicateur/2` (la version 1 n'avait pas l'analyse par le modèle). GSMS orchestre, dans cet ordre :
 
 1. **moteur Qualiopi** : la chaîne de l'indicateur (`indicator_chain`), recopiée telle quelle dans `moteur`. Son
    état de préparation reste la seule référence ; rien ne le recalcule ni ne le modifie ici ;
@@ -14,9 +14,13 @@ Contrat `gsms.ia.analyse-indicateur/1`. GSMS orchestre, dans cet ordre :
 3. **trace** (`qualite.ia_analyse`) : identifiant de corrélation, version du référentiel, documents consultés, durée,
    résultat technique. Ni le texte des documents ni la question (seulement son empreinte).
 
-Ce que cette version ne fait pas, et dit ne pas faire (`controles_non_executes`) : aucune génération par un modèle
-de langage, donc aucune observation, aucune détection de contradiction et aucune proposition d'action. Un passage
-retrouvé dans un document de l'organisme n'est pas une preuve validée : seul l'état du moteur dit ce qui est démontrable.
+4. **analyse par le modèle**, seulement sur demande (`analyse_ia`) : observations (contradiction, manque, incomplet,
+   constat) et propositions d'action sur les seuls passages vérifiés, validées par `observations.py` (forme, citations
+   vers des passages fournis). Les observations sont des propositions de l'IA ; les propositions d'action sont
+   enregistrées (`qualite.ia_proposition`) et attendent une décision humaine.
+
+Ce qui n'est pas fait est dit (`controles_non_executes`). Un passage retrouvé dans un document de l'organisme n'est pas
+une preuve validée : seul l'état du moteur dit ce qui est démontrable.
 """
 
 from __future__ import annotations
@@ -29,14 +33,15 @@ from sqlalchemy.orm import Session
 from app.application.service.ia.documents import KB_NAME as DOCS_KB_NAME
 from app.application.service.ia.documents import eligible_documents
 from app.application.service.ia.espace import KB_NAME, _all_knowledge, _data
+from app.application.service.ia.observations import analyse as model_analyse
 from app.application.service.ia.session import open_service_session
 from app.application.service.ia.weknora import IAUnavailable, call
 from app.application.service.qualiopi.chain import indicator_chain
 from app.application.service.qualiopi.referential.importer import active_version
 from app.types.auth import User
-from app.types.ia import IAAnalysis
+from app.types.ia import IAAnalysis, IAProposal
 
-CONTRACT = "gsms.ia.analyse-indicateur/1"
+CONTRACT = "gsms.ia.analyse-indicateur/2"
 MAX_PASSAGES = 10
 MAX_QUESTION = 500
 EXCERPT = 1200  # caractères d'un passage rendus au plus
@@ -44,10 +49,8 @@ EXCERPT = 1200  # caractères d'un passage rendus au plus
 # tableau, entités) sont rédigés par un modèle à l'indexation : ce ne sont pas des citations, ils sont écartés.
 SOURCE_CHUNKS = ("text", "parent_text")
 
-NOT_RUN = [
-    {"controle": "observations du modèle de langage",
-     "motif": "non branchées dans cette version du contrat : aucune observation, contradiction ni proposition n'est générée"},
-]
+NOT_ASKED = {"controle": "observations du modèle de langage",
+             "motif": "non demandées (option analyse_ia) : aucune observation, contradiction ni proposition n'est générée"}
 
 
 def _title_prefix(version: str, number: int) -> str:
@@ -122,7 +125,7 @@ def _search(db: Session, version: str, number: int, query: str, limit: int) -> d
 
 
 def analyse_indicator(db: Session, user: User, number: int, question: str | None = None,
-                      max_passages: int = 5) -> dict:
+                      max_passages: int = 5, analyse_ia: bool = False) -> dict:
     started = time.monotonic()
     version = active_version(db)
     chain = indicator_chain(db, version, number, user)  # lève NotFoundError pour un numéro inconnu
@@ -156,8 +159,40 @@ def analyse_indicator(db: Session, user: User, number: int, question: str | None
     trace.chunk_ids = [r["passage_id"] for r in references]
     trace.consulted_documents = sorted({r["document_id"] for r in references})
     trace.rejected_references = rejected
-    trace.duration_ms = int((time.monotonic() - started) * 1000)
     db.add(trace)
+    db.flush()  # identifiant de corrélation, auquel les propositions se rattachent
+
+    observations, proposals, not_run = [], [], [NOT_ASKED]
+    if analyse_ia and not references:
+        not_run = [{"controle": "observations du modèle de langage", "motif": "aucun passage vérifié à analyser"}]
+    elif analyse_ia:
+        try:
+            outcome = model_analyse(open_service_session()["token"], chain, references)
+        except IAUnavailable as e:
+            outcome = None
+            errors.append({"etape": "analyse par le modèle", "message": str(e)})
+            not_run = [{"controle": "observations du modèle de langage", "motif": f"échec : {e}"}]
+        if outcome is not None:
+            trace.generation_model = outcome.model
+            trace.observations_kept = len(outcome.observations) + len(outcome.proposals)
+            trace.observations_rejected = outcome.rejected
+            not_run = []
+            if outcome.error:
+                errors.append({"etape": "analyse par le modèle", "message": outcome.error})
+                not_run = [{"controle": "observations du modèle de langage", "motif": outcome.error}]
+            if outcome.rejected:
+                errors.append({"etape": "analyse par le modèle", "message": f"{outcome.rejected} observation(s) ou "
+                               "proposition(s) rejetée(s) : sans citation, ou citant un passage non fourni"})
+            observations = outcome.observations
+            for item in outcome.proposals:
+                row = IAProposal(analysis_id=trace.id, indicator_number=number, action=item["action"],
+                                 justification=item["justification"], passages=item["passages"])
+                db.add(row)
+                db.flush()
+                proposals.append({"id": row.id, **item, "statut": row.status})
+            if proposals:
+                trace.validation_status = "EN_ATTENTE"
+    trace.duration_ms = int((time.monotonic() - started) * 1000)
     db.commit()
     return {
         "contrat": CONTRACT,
@@ -168,12 +203,13 @@ def analyse_indicator(db: Session, user: User, number: int, question: str | None
         "recherche": {"statut": trace.reference_status, "motif": reason, "modele_embedding": trace.embedding_model,
                       "references": references, "passages_rejetes": rejected,
                       "resumes_generes_ecartes": generated},
-        "observations_ia": [],
-        "propositions": [],
-        "controles_non_executes": NOT_RUN,
+        "observations_ia": observations,
+        "propositions": proposals,
+        "controles_non_executes": not_run,
         "erreurs": errors,
         "validation_humaine": {"statut": trace.validation_status},
         "duree_ms": trace.duration_ms,
-        "avertissement": "L'état de préparation est celui du moteur Qualiopi ; les passages sont des textes officiels "
-                         "retrouvés par la recherche, pas un constat. Seul l'organisme certificateur décide de la conformité.",
+        "avertissement": "L'état de préparation est celui du moteur Qualiopi ; les passages sont des textes retrouvés "
+                         "par la recherche, pas un constat ; les observations et propositions de l'IA ne sont pas des "
+                         "décisions. Seul l'organisme certificateur décide de la conformité.",
     }

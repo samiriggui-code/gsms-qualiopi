@@ -182,6 +182,20 @@ fermée ; sandbox coupée en production.
 9. **Moteur IA adapté** : un agent personnalisé sans modèle de reclassement cherche sans reclasser (R10). Compilation
    vérifiée par la construction de l'image ; les tests Go du moteur n'ont pas été lancés.
 
+10. **Analyse par le modèle et validation humaine** (contrat `gsms.ia.analyse-indicateur/2`, migration `0029`) : option
+    `analyse_ia` ; GSMS envoie à l'assistant interne « Analyse documentaire (GSMS) » (ni base, ni outil, température 0)
+    les seuls passages vérifiés, numérotés et balisés comme données ; la réponse JSON est validée par schéma et chaque
+    observation ou proposition doit citer un passage fourni, sinon elle est rejetée et comptée. Les propositions
+    d'action sont enregistrées (`qualite.ia_proposition`, statut `PROPOSEE`) et acceptées ou rejetées par une personne
+    (`quality.write`, motif obligatoire pour un rejet, décision définitive, qui et quand gardés) ; accepter n'applique
+    rien. Vérifié par tests avec un moteur simulé ; **pas encore en direct** : le modèle local ne tient pas la charge
+    (§6), à rejouer avec le modèle de production.
+11. **Front** : onglet « Analyse documentaire » de la fiche indicateur (droit `ia.use`), qui distingue l'état du moteur,
+    les passages retrouvés et l'analyse IA.
+12. **Démo** : `seed-demo` dépose de vrais PDF lisibles (texte extractible) ; **Ollama** de dev redémarre seul ;
+    **pilote nettoyé** (pièces « PILOTE » remplacées, retirées de l'index par la synchronisation, comptes d'essai ôtés
+    de l'espace).
+
 ## 10. Configuration (sans secrets)
 
 - API (`.env`) : `WEKNORA_URL`, `WEKNORA_SERVICE_EMAIL`, `WEKNORA_SERVICE_PASSWORD`, `WEKNORA_SERVICE_NAME`,
@@ -203,10 +217,12 @@ fermée ; sandbox coupée en production.
 
 1. **P0** : choisir le fournisseur de production (local ou UE), avec un contexte d'au moins 16 000 jetons (consignes
    jamais tronquées), puis rejouer le pilote et le test d'injection au niveau des assistants.
-2. **P1** : observations du modèle dans le contrat (version 2) : réponse JSON validée par schéma, chaque citation
-   rattachée à un passage réellement retrouvé (sinon rejetée), statut « proposition IA » jusqu'à validation humaine ;
-   c'est là que se jugeront contradictions, incomplétude et absence de preuve (§6 bis).
+2. **P1** : rejouer en direct, avec le modèle de production, l'analyse par le modèle (contradictions, incomplétude,
+   absence de preuve) sur le pilote, et mesurer le taux d'observations rejetées.
 3. **P1** : routage local / distant explicite (politique par type de tâche et classe de données), seulement quand un
    modèle distant existe.
-4. **P2** : écran « Analyse » dans la fiche indicateur (moteur, références, IA identifiée comme telle, validation).
-5. **P2** : `seed-demo` dépose de vrais PDF lisibles (les pièces de démo actuelles ne s'indexent pas).
+4. **P1** : déployer le moteur IA sur le VPS : `deploy/install.sh` et `deploy.sh` ne lancent aujourd'hui ni `ia-app` ni
+   ses bases (ni `ia-preparer`).
+5. **P2** : une proposition acceptée pourrait préremplir une action corrective dans « Constats et actions » (toujours
+   créée par une personne).
+6. **P2** : écran Paramètres › Moteur IA (permission `ia.admin`) pour régler les modèles sans le compte de service.

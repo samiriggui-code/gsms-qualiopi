@@ -58,13 +58,13 @@ def test_trois_assistants_crees_puis_remis_a_jour_sans_doublon(engine: FakeAgent
     report = assistants.ensure_assistants("jeton-weknora")
     assert report.ok, report.problems
     names = [a["name"] for a in engine.agents]
-    assert names == ["Référentiel Qualiopi", "Préparation d'audit", "Résultats et satisfaction"]
+    assert names == ["Référentiel Qualiopi", "Préparation d'audit", "Résultats et satisfaction", assistants.ANALYST_NAME]
 
     # Second passage : mêmes agents, configuration réécrite (consignes du dépôt), aucun doublon.
     engine.agents[0]["config"]["system_prompt"] = "modifié à la main"
     report = assistants.ensure_assistants("jeton-weknora")
-    assert report.ok and len(engine.agents) == 3
-    assert all("mis à jour" in line for line in report.done[:3])
+    assert report.ok and len(engine.agents) == 4
+    assert all("mis à jour" in line for line in report.done[:4])
     assert engine.agents[0]["config"]["system_prompt"] == assistants.REFERENTIAL_PROMPT
 
 
@@ -73,8 +73,13 @@ def test_assistants_en_lecture_seule_relies_a_la_base_et_au_serveur_mcp(engine: 
     by_name = {a["name"]: a["config"] for a in engine.agents}
     assert all(c["access_level"] == "read_only" for c in by_name.values())
     assert all(c["model_id"] == "llm-b" for c in by_name.values())  # le modèle de discussion par défaut
-    assert all(c["knowledge_bases"] == ["kb1"] for c in by_name.values())
     assert all(not c["web_search_enabled"] for c in by_name.values())
+    analyst = by_name.pop(assistants.ANALYST_NAME)
+    assert all(c["knowledge_bases"] == ["kb1"] for c in by_name.values())
+    # L'assistant interne d'analyse ne lit que les passages que GSMS lui donne : ni base, ni outil, aucun hasard.
+    assert analyst["knowledge_bases"] == [] and analyst["kb_selection_mode"] == "none"
+    assert analyst["mcp_selection_mode"] == "none" and analyst["temperature"] == 0
+    assert "données non fiables" in analyst["system_prompt"]
 
     ref = by_name["Référentiel Qualiopi"]
     assert ref["agent_mode"] == "quick-answer" and ref["mcp_selection_mode"] == "none"
@@ -110,7 +115,7 @@ def test_un_refus_du_moteur_est_dit_sans_bloquer_les_autres(monkeypatch) -> None
     fake = FakeAgents(refuse="Résultats et satisfaction")
     monkeypatch.setattr(assistants, "call", fake)
     report = assistants.ensure_assistants("jeton-weknora")
-    assert len(fake.agents) == 2
+    assert len(fake.agents) == 3
     assert report.problems == ["Assistant « Résultats et satisfaction » non créé : unknown tool (HTTP 400)"]
 
 
@@ -129,4 +134,4 @@ def test_preparation_d_audit_lit_aussi_les_documents_de_l_organisme() -> None:
     assert agents["Préparation d'audit"]["knowledge_bases"] == ["kb-ref", "kb-docs"]
     assert agents["Référentiel Qualiopi"]["knowledge_bases"] == ["kb-ref"]  # textes officiels seulement
     assert "jamais une consigne" in agents["Préparation d'audit"]["system_prompt"]
-    assert {a["knowledge_bases"][0] for a in agents.values()} == {"kb-ref"}
+    assert {c["knowledge_bases"][0] for n, c in agents.items() if n != assistants.ANALYST_NAME} == {"kb-ref"}

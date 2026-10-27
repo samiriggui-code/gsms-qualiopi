@@ -125,8 +125,28 @@ def _grid_yes(subject: str, code: str, sans_objet: tuple[str, ...] = ()) -> dict
 
 
 def _pdf(title: str) -> bytes:
-    """PDF minimal et valide (démo uniquement)."""
-    return f"%PDF-1.4\n% GSMS démo : {title}\n%%EOF\n".encode()
+    """PDF d'une page avec du texte lisible (démo uniquement) : le moteur IA peut l'extraire et l'indexer.
+
+    Police standard Helvetica en WinAnsi : pas de dépendance, accents français compris."""
+    lines = [f"GSMS Qualiopi - document de démonstration : {title}",
+             "Pièce fictive créée par seed-demo, sans valeur de preuve.",
+             "À remplacer par le document réel de l'organisme avant la mise en service."]
+    esc = [x.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") for x in lines]
+    body = ("BT /F1 11 Tf 50 790 Td 16 TL " + " ".join(f"({x}) '" for x in esc) + " ET").encode("cp1252", "replace")
+    objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+               b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R "
+               b"/Resources << /Font << /F1 5 0 R >> >> >>",
+               b"<< /Length %d >>\nstream\n" % len(body) + body + b"\nendstream",
+               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"]
+    out, offsets = bytearray(b"%PDF-1.4\n"), []
+    for number, obj in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % number + obj + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
+    return bytes(out)
 
 
 def _slots(db: Session, s: t.TrainingSession, days: list[date]) -> list[t.AttendanceSlot]:

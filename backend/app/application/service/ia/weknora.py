@@ -66,6 +66,37 @@ def upload(path: str, fields: dict[str, str], file_name: str, content: bytes, mi
         raise IAUnavailable(f"Moteur IA injoignable : {e}") from e
 
 
+def stream_answer(path: str, payload: dict, token: str, timeout: float = 300) -> str:
+    """Réponse d'une discussion du moteur IA lue dans son flux (événements SSE), jusqu'à la fin du flux.
+
+    Ne garde que le texte de la réponse (`answer`) ; une erreur du moteur lève IAUnavailable avec son message.
+    `timeout` borne chaque lecture : un moteur muet plus longtemps arrête l'attente au lieu de la prolonger."""
+    url = get_settings().weknora_url.rstrip("/") + path
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST", headers={
+        "Content-Type": "application/json", "Accept": "text/event-stream", "Accept-Language": "fr-FR",
+        "Authorization": f"Bearer {token}"})
+    answer: list[str] = []
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (URL fixée par la configuration)
+            for raw in resp:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                event = _decode(line[5:].strip().encode())
+                kind = event.get("response_type")
+                if kind == "error":
+                    raise IAUnavailable(f"Le moteur IA a refusé la demande : {event.get('content') or 'sans détail'}")
+                if kind == "answer":
+                    answer.append(str(event.get("content") or ""))
+                if kind == "complete" or (kind == "answer" and event.get("done")):
+                    break
+    except urllib.error.HTTPError as e:
+        raise IAUnavailable(f"Le moteur IA a refusé la demande : {message_of(_decode(e.read()))} (HTTP {e.code})") from e
+    except (OSError, http.client.HTTPException) as e:
+        raise IAUnavailable(f"Moteur IA injoignable ou trop lent : {e}") from e
+    return "".join(answer)
+
+
 def message_of(body: dict) -> str:
     """Message d'erreur lisible d'une réponse WeKnora (formes `error.message`, `message` ou `error`)."""
     err = body.get("error")

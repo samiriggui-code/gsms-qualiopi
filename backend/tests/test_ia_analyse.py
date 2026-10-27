@@ -1,4 +1,4 @@
-"""Contrat `gsms.ia.analyse-indicateur/1` : moteur Qualiopi intact, références vérifiées, trace sans contenu."""
+"""Contrat `gsms.ia.analyse-indicateur/2` : moteur Qualiopi intact, références vérifiées, trace sans contenu."""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -75,7 +75,7 @@ def test_analyse_garde_le_moteur_et_rejette_les_references_hors_perimetre(client
     r = client.post("/api/v1/ia/analyses", headers=headers, json={"indicateur": 11, "question": "Que faut-il prouver ?"})
     assert r.status_code == 200
     body = r.json()
-    assert body["contrat"] == "gsms.ia.analyse-indicateur/1"
+    assert body["contrat"] == "gsms.ia.analyse-indicateur/2"
     # Le moteur Qualiopi est recopié tel quel : même réponse que sa route.
     assert body["moteur"] == client.get("/api/v1/qualiopi/indicateurs/11", headers=headers).json()
     # Autorisés : les textes indexés de l'indicateur 11 en V9, et les documents de l'organisme encore éligibles dans GSMS

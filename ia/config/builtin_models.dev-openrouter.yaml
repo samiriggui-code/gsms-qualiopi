@@ -1,0 +1,30 @@
+# Modèles du moteur IA pour le POSTE DE DÉVELOPPEMENT : génération par OpenRouter, embeddings en local (Ollama).
+#
+# Routage : l'indexation des documents (embeddings) reste sur la machine ; seules les questions et les passages
+# retrouvés partent chez le fournisseur pour la génération (discussion, assistants). Les réponses des outils MCP peuvent
+# contenir les noms des stagiaires concernés par une pièce manquante : à valider (RGPD) avant tout usage réel.
+#
+# Activer (docker-compose.dev.yml) : IA_MODELES_DEV=builtin_models.dev-openrouter.yaml dans le .env de la racine,
+# puis renseigner dans ia/.env (jamais dans git) :
+#   OPENROUTER_API_KEY=…            clé du compte OpenRouter
+#   IA_MODELE_DISCUSSION=…          identifiant OpenRouter du modèle de discussion (contexte ≥ 16 000 jetons)
+# L'embedding garde l'identifiant gsms-dev-embedding : les bases déjà indexées restent valables.
+# Relu à chaque démarrage du moteur ; une entrée retirée du fichier est retirée du moteur.
+builtin_models:
+  - id: gsms-dev-chat-distant
+    type: KnowledgeQA
+    source: remote
+    is_default: true
+    name: ${IA_MODELE_DISCUSSION}
+    parameters:
+      base_url: https://openrouter.ai/api/v1
+      api_key: ${OPENROUTER_API_KEY}
+      provider: openrouter
+  - id: gsms-dev-embedding
+    type: Embedding
+    source: local
+    is_default: true
+    name: bge-m3:latest
+    parameters:
+      embedding_parameters:
+        dimension: 1024

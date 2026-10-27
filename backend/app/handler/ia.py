@@ -1,19 +1,20 @@
 """API Moteur IA : session WeKnora du back-office (une seule connexion) et analyse d'un indicateur (contrat versionné)."""
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.application.service.ia.analyse import MAX_PASSAGES, MAX_QUESTION, analyse_indicator
 from app.application.service.ia.compte import technical_account
 from app.application.service.ia.espace import ensure_mcp_service
 from app.application.service.ia.session import IAUnavailable, open_session
+from app.database.db import utcnow
 from app.middleware.auth import DB, _refusal, permissions_of, require
 from app.types.auth import User
-from app.types.ia import IAAnalysis
+from app.types.ia import PROPOSAL_STATUSES, IAAnalysis, IAProposal
 
 router = APIRouter(prefix="/api/v1/ia", tags=["ia"])
 log = logging.getLogger(__name__)
@@ -62,16 +63,18 @@ class AnalyseIn(BaseModel):
     indicateur: int = Field(ge=1, le=99)
     question: str | None = Field(default=None, max_length=MAX_QUESTION)
     max_passages: int = Field(default=5, ge=1, le=MAX_PASSAGES)
+    analyse_ia: bool = False
 
 
 @router.post("/analyses")
 def ia_analyse(body: AnalyseIn, user: IAUser, db: DB) -> dict:
-    """Analyse d'un indicateur (contrat `gsms.ia.analyse-indicateur/1`) : état du moteur Qualiopi tel quel, textes
-    officiels retrouvés par le moteur IA avec leurs références, ce qui n'a pas été fait, trace enregistrée.
+    """Analyse d'un indicateur (contrat `gsms.ia.analyse-indicateur/2`) : état du moteur Qualiopi tel quel, passages
+    retrouvés par le moteur IA avec leurs références, et sur demande (`analyse_ia`) observations et propositions du
+    modèle validées par GSMS ; ce qui n'a pas été fait ; trace enregistrée.
     Demande aussi `quality.read` : l'état de l'indicateur est lu avec les droits de la personne."""
     if "quality.read" not in permissions_of(db, user):
         raise _refusal(db, user, ("quality.read",))
-    return analyse_indicator(db, user, body.indicateur, body.question, body.max_passages)
+    return analyse_indicator(db, user, body.indicateur, body.question, body.max_passages, body.analyse_ia)
 
 
 @router.get("/analyses")
@@ -83,5 +86,61 @@ def ia_analyses(_: JournalReader, db: DB, indicateur: int | None = None, limite:
     return [{"correlation_id": a.id, "contrat": a.contract, "utilisateur_id": a.user_id, "indicateur": a.indicator_number,
              "referentiel": a.referential_version, "etat_moteur": a.engine_status, "statut_recherche": a.reference_status,
              "documents_consultes": a.consulted_documents, "passages": a.chunk_ids, "passages_rejetes": a.rejected_references,
-             "modele_embedding": a.embedding_model, "erreur": a.error, "duree_ms": a.duration_ms,
+             "modele_embedding": a.embedding_model, "modele_generation": a.generation_model,
+             "observations_gardees": a.observations_kept, "observations_rejetees": a.observations_rejected,
+             "erreur": a.error, "duree_ms": a.duration_ms,
              "validation_humaine": a.validation_status, "cree_le": a.created_at.isoformat()} for a in db.scalars(q)]
+
+
+QualityReader = Annotated[User, Depends(require("quality.read"))]
+QualityWriter = Annotated[User, Depends(require("quality.write"))]
+
+
+def _proposal_view(p: IAProposal) -> dict:
+    return {"id": p.id, "correlation_id": p.analysis_id, "indicateur": p.indicator_number, "action": p.action,
+            "justification": p.justification, "passages": p.passages, "statut": p.status,
+            "decide_par": p.decided_by, "decide_le": p.decided_at.isoformat() if p.decided_at else None,
+            "motif": p.decision_note, "cree_le": p.created_at.isoformat()}
+
+
+@router.get("/propositions")
+def ia_proposals(_: QualityReader, db: DB, statut: str | None = None, indicateur: int | None = None) -> list[dict]:
+    """Propositions d'action de l'IA, les plus récentes d'abord (200 au plus)."""
+    if statut is not None and statut not in PROPOSAL_STATUSES:
+        raise HTTPException(422, f"Statut inconnu : {statut} (attendus : {', '.join(PROPOSAL_STATUSES)})")
+    q = select(IAProposal).order_by(IAProposal.created_at.desc(), IAProposal.id).limit(200)
+    if statut:
+        q = q.where(IAProposal.status == statut)
+    if indicateur is not None:
+        q = q.where(IAProposal.indicator_number == indicateur)
+    return [_proposal_view(p) for p in db.scalars(q)]
+
+
+class DecisionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision: Literal["ACCEPTEE", "REJETEE"]
+    motif: str | None = Field(default=None, max_length=1000)
+
+
+@router.post("/propositions/{proposal_id}/decision")
+def ia_proposal_decision(proposal_id: str, body: DecisionIn, user: QualityWriter, db: DB) -> dict:
+    """Décision humaine sur une proposition de l'IA, définitive et tracée (qui, quand, pourquoi).
+
+    Accepter n'applique rien de soi-même : l'action se crée ensuite dans GSMS par le circuit habituel."""
+    proposal = db.get(IAProposal, proposal_id)
+    if proposal is None:
+        raise HTTPException(404, "Proposition introuvable")
+    if proposal.status != "PROPOSEE":
+        raise HTTPException(409, f"Proposition déjà {proposal.status.lower()} : la décision ne se change pas")
+    motif = (body.motif or "").strip() or None
+    if body.decision == "REJETEE" and motif is None:
+        raise HTTPException(422, "Indiquez le motif du rejet")
+    proposal.status, proposal.decided_by, proposal.decided_at, proposal.decision_note = (
+        body.decision, user.id, utcnow(), motif)
+    pending = db.scalar(select(func.count()).select_from(IAProposal).where(
+        IAProposal.analysis_id == proposal.analysis_id, IAProposal.status == "PROPOSEE", IAProposal.id != proposal.id))
+    analysis = db.get(IAAnalysis, proposal.analysis_id)
+    if analysis is not None and not pending:
+        analysis.validation_status = "DECIDEE"
+    db.commit()
+    return _proposal_view(proposal)
