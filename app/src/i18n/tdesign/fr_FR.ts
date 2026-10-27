@@ -5,7 +5,18 @@
 // n'est pas une dépendance du projet ; les libellés affichés viennent des tableaux ci-dessous.
 import type { GlobalConfigProvider } from 'tdesign-vue-next'
 
-const frFR: GlobalConfigProvider = {
+// Clés lues par TDesign 1.19.2 à l'exécution (présentes dans sa locale en_US) mais absentes de ses déclarations de types :
+// on les déclare ici plutôt que de les retirer, ce qui remettrait ces textes en anglais.
+type RuntimeOnlyKeys = {
+  timePicker?: { dayjsLocale?: string }
+  table?: { filterInputPlaceholder?: string }
+  datePicker?: { placeholder?: { quarter?: string; week?: string } }
+  upload?: { triggerUploadText?: { uploading?: string } }
+  form?: { errorMessage?: { email?: string } }
+  colorPicker?: { singleColor?: string; gradientColor?: string }
+}
+
+const frFR: GlobalConfigProvider & RuntimeOnlyKeys = {
   autoComplete: { empty: 'Aucune donnée' },
   pagination: {
     itemsPerPage: '{size} / page',
