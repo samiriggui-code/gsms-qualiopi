@@ -7,6 +7,7 @@ export const DEPLOYMENT_CAPABILITY_KEYS = [
   'integrations.mcpserver',
   'settings.mcp',
   'settings.websearch',
+  'settings.vectorstore',
   'settings.storage',
   'settings.sandbox',
   'settings.sandbox.docker',
@@ -60,6 +61,7 @@ export function isDeploymentCapabilitySupported(
 
 export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapabilityKey>> = {
   websearch: 'settings.websearch',
+  vectorstore: 'settings.vectorstore',
   storage: 'settings.storage',
   sandbox: 'settings.sandbox.remote',
   // Skills are baked into a sandbox image. Hide the catalog when the

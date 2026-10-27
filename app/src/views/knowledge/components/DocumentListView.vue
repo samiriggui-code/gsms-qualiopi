@@ -103,10 +103,20 @@ const formatTime = (time?: string) => {
 
 const getSourceInfo = (item: KnowledgeItem): { icon: string; label: string } => {
   const ch = item.channel;
+  if (ch === 'feishu') return { icon: 'cloud-download', label: t('knowledgeBase.channelFeishu') };
+  // Drive (云盘) connectors use their own channel so Drive docs show
+  // "飞书云盘" / "Lark 云盘", distinct from the wiki connector's "飞书".
+  if (ch === 'feishu_drive') return { icon: 'cloud-download', label: t('knowledgeBase.channelFeishuDrive') };
+  if (ch === 'lark_drive') return { icon: 'cloud-download', label: t('knowledgeBase.channelLarkDrive') };
   if (ch === 'notion') return { icon: 'cloud-download', label: t('knowledgeBase.channelNotion') };
+  if (ch === 'yuque') return { icon: 'cloud-download', label: t('knowledgeBase.channelYuque') };
   if (ch === 'confluence') return { icon: 'cloud-download', label: t('knowledgeBase.channelConfluence') };
   if (ch === 'gitlab') return { icon: 'cloud-download', label: t('knowledgeBase.channelGitLab') };
   if (ch === 'seafile') return { icon: 'cloud-download', label: t('knowledgeBase.channelSeafile') };
+  if (ch === 'ima') return { icon: 'cloud-download', label: t('knowledgeBase.channelIma') };
+  if (ch === 'wechat') return { icon: 'cloud-download', label: t('knowledgeBase.channelWechat') };
+  if (ch === 'wecom') return { icon: 'cloud-download', label: t('knowledgeBase.channelWecom') };
+  if (ch === 'dingtalk') return { icon: 'cloud-download', label: t('knowledgeBase.channelDingtalk') };
   if (ch === 'slack') return { icon: 'cloud-download', label: t('knowledgeBase.channelSlack') };
   if (ch === 'im') return { icon: 'cloud-download', label: t('knowledgeBase.channelIm') };
   if (item.type === 'url') return { icon: 'link', label: t('knowledgeBase.channelUrl') };

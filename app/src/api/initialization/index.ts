@@ -1,6 +1,5 @@
 import { get, post, put } from '../../utils/request';
 import i18n from '@/i18n'
-import { ENABLED_MODEL_PROVIDERS } from '@/config/gitssFeatures'
 import type { ModelCapabilities, ModelSpecOverride, ReasoningEffortLevel } from '../model'
 
 const t = (key: string) => i18n.global.t(key)
@@ -147,7 +146,7 @@ export interface KBModelConfigRequest {
     multimodal: {
         enabled: boolean
     }
-    /** 存储引擎选择："local" | "minio" | "s3"，影响文档上传与文档内图片存储 */
+    /** 存储引擎选择："local" | "minio" | "cos" | "obs" 等，影响文档上传与文档内图片存储 */
     storageBackendId?: string
     storageProvider?: string
     nodeExtract: {
@@ -414,7 +413,14 @@ export function testMultimodalFunction(testData: {
     vlm_base_url: string;
     vlm_api_key?: string;
     vlm_interface_type?: string;
-    storage_type?: 'minio';
+    storage_type?: 'cos' | 'minio';
+    // COS optional fields (required only when storage_type === 'cos')
+    cos_secret_id?: string;
+    cos_secret_key?: string;
+    cos_region?: string;
+    cos_bucket_name?: string;
+    cos_app_id?: string;
+    cos_path_prefix?: string;
     // MinIO optional fields
     minio_bucket_name?: string;
     minio_path_prefix?: string;
@@ -441,6 +447,15 @@ export function testMultimodalFunction(testData: {
         }
         if (testData.storage_type) {
             formData.append('storage_type', testData.storage_type);
+        }
+        // Append COS fields only when storage_type is COS
+        if (testData.storage_type === 'cos') {
+            if (testData.cos_secret_id) formData.append('cos_secret_id', testData.cos_secret_id);
+            if (testData.cos_secret_key) formData.append('cos_secret_key', testData.cos_secret_key);
+            if (testData.cos_region) formData.append('cos_region', testData.cos_region);
+            if (testData.cos_bucket_name) formData.append('cos_bucket_name', testData.cos_bucket_name);
+            if (testData.cos_app_id) formData.append('cos_app_id', testData.cos_app_id);
+            if (testData.cos_path_prefix) formData.append('cos_path_prefix', testData.cos_path_prefix);
         }
         // MinIO fields
         if (testData.minio_bucket_name) formData.append('minio_bucket_name', testData.minio_bucket_name);
@@ -671,7 +686,7 @@ export function listModelProviders(modelType?: string): Promise<ModelProviderOpt
         if (!Array.isArray(data)) {
             return Promise.reject(new Error('model providers response is not a list'));
         }
-        return (data as ModelProviderOption[]).filter((p) => ENABLED_MODEL_PROVIDERS.has(p.value));
+        return data as ModelProviderOption[];
     });
 }
 

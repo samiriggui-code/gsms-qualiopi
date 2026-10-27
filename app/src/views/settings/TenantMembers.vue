@@ -152,7 +152,7 @@
         </div>
       </div>
       <p class="section-description">
-        {{ $t('tenantMember.sectionDescription') }}
+        {{ MEMBERS_READ_ONLY ? $t('tenantMember.gsmsReadOnly') : $t('tenantMember.sectionDescription') }}
         <a
           class="doc-link"
           :href="docsUrl('tenantAuth')"
@@ -523,6 +523,7 @@ import {
   type TenantInvitation,
 } from '@/api/tenant/invitations'
 import { docsUrl } from '@/utils/docsUrl'
+import { MEMBERS_READ_ONLY } from '@/config/gitssFeatures'
 import {
   listAuditLog,
   type AuditLog,
@@ -637,8 +638,9 @@ const currentRole = computed<TenantRole | ''>(() => (authStore.currentTenantRole
 // mirror that or the buttons would be invisible to the exact admins
 // who actually need them. Local Owners of their own tenant come in via
 // the role branch.
+// GSMS : comptes créés par GSMS (connexion unique) ; aucune invitation, aucun rôle ni retrait depuis ici.
 const canManage = computed(
-  () => currentRole.value === 'owner' || authStore.canAccessAllTenants === true,
+  () => !MEMBERS_READ_ONLY && (currentRole.value === 'owner' || authStore.canAccessAllTenants === true),
 )
 // Admin+ (and cross-tenant superusers) can view the audit log. Mirrors
 // the server's g.Admin() guard on /tenants/:id/audit-log so we don't

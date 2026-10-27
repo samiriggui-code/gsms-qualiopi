@@ -48,7 +48,7 @@ export function normalizeSettingsSection(section: string, tab?: string | null): 
 
 /**
  * Settings left-nav → URL. Every page, including integrations, is
- * `?section=<navKey>` (e.g. `integration-cli`). `tab` is dropped.
+ * `?section=<navKey>` (e.g. `integration-claw`). `tab` is dropped.
  * `panel` is the tab inside system settings and stays only on that page.
  */
 export function buildSettingsRouteQuery(

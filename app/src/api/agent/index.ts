@@ -352,12 +352,13 @@ export interface IMChannel {
   id: string;
   tenant_id?: number;
   agent_id: string;
-  platform: 'slack' | 'telegram' | 'mattermost';
+  // 'lark' is Feishu's international edition; it shares Feishu's credentials and modes.
+  platform: 'wecom' | 'feishu' | 'lark' | 'slack' | 'telegram' | 'dingtalk' | 'mattermost' | 'wechat' | 'qqbot' | 'yunzhijia';
   name: string;
   enabled: boolean;
-  mode: 'webhook' | 'websocket';
+  mode: 'webhook' | 'websocket' | 'longpoll';
   output_mode: 'stream' | 'full';
-  locale?: '' | 'fr-FR' | 'en-US';
+  locale?: '' | 'fr-FR' | 'zh-CN' | 'zh-TW' | 'en-US' | 'ko-KR' | 'ja-JP' | 'ru-RU';
   session_mode?: 'user' | 'thread';
   knowledge_base_id?: string;
   credentials: Record<string, any>;
@@ -436,4 +437,28 @@ export function getSuggestedQuestions(
   if (params?.limit) query.set('limit', String(params.limit));
   const qs = query.toString();
   return get<{ data: { questions: SuggestedQuestion[] } }>(`/api/v1/agents/${agentId}/suggested-questions${qs ? '?' + qs : ''}`);
+}
+// ===== WeChat QR Code Login =====
+
+export interface WeChatQRCodeResult {
+  qrcode_url: string;
+  qrcode: string;
+}
+
+export interface WeChatQRCodeStatus {
+  status: 'wait' | 'scaned' | 'confirmed' | 'expired';
+  credentials?: {
+    bot_token: string;
+    ilink_bot_id: string;
+    ilink_user_id: string;
+  };
+  baseurl?: string;
+}
+
+export function getWeChatQRCode() {
+  return post<{ data: WeChatQRCodeResult }>('/api/v1/wechat/qrcode');
+}
+
+export function pollWeChatQRCodeStatus(qrcode: string) {
+  return post<{ data: WeChatQRCodeStatus }>('/api/v1/wechat/qrcode/status', { qrcode });
 }

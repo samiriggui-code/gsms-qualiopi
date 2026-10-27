@@ -283,12 +283,13 @@ test('a vanished saved Seafile selection is cleared by unchecking its library', 
   } finally { f.close() }
 })
 
-test('the single-library guard leaves other connectors\' selections alone', async () => {
-  for (const type of ['notion', 'confluence']) {
+test('the single-library guard leaves Feishu and Lark Drive selections alone', async () => {
+  for (const type of ['feishu_drive', 'lark_drive']) {
     const f = await fixture({ create: true })
     try {
       f.vm.selectType(f.vm.connectorDefs.find((def: any) => def.type === type))
-      // Colon-separated IDs under two roots must both stay selectable outside Seafile.
+      // Drive IDs are "folderToken:fileToken"; roots under two folders must
+      // both stay selectable.
       f.vm.resources = [
         { external_id: 'folderA:fileA', name: 'A', type: 'file', has_children: false },
         { external_id: 'folderB:fileB', name: 'B', type: 'file', has_children: false },
@@ -300,6 +301,76 @@ test('the single-library guard leaves other connectors\' selections alone', asyn
       assert.deepEqual(f.warnings, [], type)
     } finally { f.close() }
   }
+})
+
+test('a new Yuque data source adopts the TOC folder layout, but not the filter', async () => {
+  const f = await fixture({ create: true })
+  try {
+    assert.equal(f.vm.form.config.settings.folder_mode, undefined)
+    f.vm.selectType(f.vm.connectorDefs.find((def: any) => def.type === 'yuque'))
+    assert.equal(f.vm.form.config.settings.folder_mode, 'toc')
+    // The layout is a presentation choice; toc_only decides what may enter the
+    // knowledge base, so a new source is deliberately left without it.
+    assert.equal(f.vm.form.config.settings.toc_only, undefined)
+    assert.equal(f.vm.yuqueTOCOnly, false)
+  } finally { f.close() }
+})
+
+test('an existing Yuque data source reports its admission filter', async () => {
+  const f = await fixture({ type: 'yuque', settings: { folder_mode: 'toc', toc_only: true } })
+  try {
+    assert.equal(f.vm.yuqueTOCOnly, true)
+  } finally { f.close() }
+})
+
+test('an existing Yuque data source is never switched to the TOC layout', async () => {
+  const f = await fixture({ type: 'yuque', settings: {} })
+  try {
+    // Opening a source created before this control existed must not inject
+    // folder_mode: the connector default (flat) has to stand, otherwise editing
+    // an unrelated field would silently re-file the whole knowledge base.
+    assert.equal(f.vm.form.config.settings.folder_mode, undefined)
+    assert.equal(f.vm.yuqueFolderMode, 'none')
+  } finally { f.close() }
+})
+
+test('an existing Yuque data source on the TOC layout reports it', async () => {
+  const f = await fixture({ type: 'yuque', settings: { folder_mode: 'toc' } })
+  try {
+    assert.equal(f.vm.yuqueFolderMode, 'toc')
+  } finally { f.close() }
+})
+
+test('a DingTalk data source reports the uploaded-file switch, defaulting to off', async () => {
+  const off = await fixture({ type: 'dingtalk', settings: {} })
+  try {
+    // The connector treats a missing key as false, so an existing source that
+    // predates this control must render as off — and stay untouched.
+    assert.equal(off.vm.dingtalkIncludeUploadedFiles, false)
+    assert.equal(off.vm.form.config.settings.include_uploaded_files, undefined)
+  } finally { off.close() }
+
+  const on = await fixture({ type: 'dingtalk', settings: { include_uploaded_files: true } })
+  try {
+    assert.equal(on.vm.dingtalkIncludeUploadedFiles, true)
+  } finally { on.close() }
+
+  const explicitOff = await fixture({ type: 'dingtalk', settings: { include_uploaded_files: false } })
+  try {
+    assert.equal(explicitOff.vm.dingtalkIncludeUploadedFiles, false)
+  } finally { explicitOff.close() }
+})
+
+test('toggling the DingTalk uploaded-file switch writes the settings key', async () => {
+  const f = await fixture({ type: 'dingtalk', settings: {} })
+  try {
+    f.vm.dingtalkIncludeUploadedFiles = true
+    assert.equal(f.vm.form.config.settings.include_uploaded_files, true)
+    f.vm.dingtalkIncludeUploadedFiles = false
+    assert.equal(f.vm.form.config.settings.include_uploaded_files, false)
+    // The switch is scoped to DingTalk: no other connector's key is written.
+    assert.equal(f.vm.form.config.settings.include_sheets, undefined)
+  } finally { f.close() }
 })
 
 test('Cloud hierarchy limitation stays visible after an empty space expansion', async () => {
@@ -324,15 +395,44 @@ test('Cloud hierarchy limitation stays visible after an empty space expansion', 
   } finally { f.close() }
 })
 
-test('saving unrelated fields leaves the source settings untouched', async () => {
-  const settings = { timezone: 'Asia/Shanghai', resync_required: true }
-  const f = await fixture({ type: 'notion', settings })
+for (const type of ['feishu', 'lark', 'feishu_drive', 'lark_drive']) {
+  test(`${type} preserves inherited parse mode when saving unrelated settings`, async () => {
+    const settings = { timezone: 'Asia/Shanghai', resync_required: true }
+    const f = await fixture({ type, settings })
+    try {
+      assert.equal(f.vm.feishuParseMode, '')
+      assert.equal(f.vm.form.config.settings.parse_mode, undefined)
+      f.vm.form.name = 'Renamed source'
+      await f.vm.handleSubmit()
+      const saved = f.calls.find(call => call.method === 'updateDataSource')
+      assert.ok(saved)
+      assert.deepEqual(saved.args[1].config.settings, settings)
+      assert.equal('parse_mode' in settings, false, 'opening the editor must not mutate props')
+    } finally { f.close() }
+  })
+}
+
+test('Feishu explicit mode changes are saved without mutating the source configuration', async () => {
+  const settings = { parse_mode: 'export', timezone: 'Asia/Shanghai' }
+  const f = await fixture({ type: 'feishu', settings })
   try {
-    f.vm.form.name = 'Renamed source'
-    await f.vm.handleSubmit()
-    const saved = f.calls.find(call => call.method === 'updateDataSource')
-    assert.ok(saved)
-    assert.deepEqual(saved.args[1].config.settings, settings)
+    assert.equal(f.vm.feishuParseMode, 'export')
+    f.vm.feishuParseMode = 'blocks'
+    assert.equal(settings.parse_mode, 'export')
+    assert.equal(f.vm.buildConfigPayload().settings.parse_mode, 'blocks')
+    f.vm.feishuParseMode = ''
+    assert.deepEqual(JSON.parse(JSON.stringify(f.vm.buildConfigPayload().settings)), { timezone: 'Asia/Shanghai' })
+    assert.equal(settings.parse_mode, 'export')
+  } finally { f.close() }
+})
+
+test('new Feishu sources keep the blocks default and do not leak it to another connector', async () => {
+  const f = await fixture({ create: true })
+  try {
+    f.vm.selectType(f.vm.connectorDefs.find((def: any) => def.type === 'feishu'))
+    assert.equal(f.vm.feishuParseMode, 'blocks')
+    f.vm.selectType(f.vm.connectorDefs.find((def: any) => def.type === 'gitlab'))
+    assert.equal(f.vm.form.config.settings.parse_mode, undefined)
   } finally { f.close() }
 })
 

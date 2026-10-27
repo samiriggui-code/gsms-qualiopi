@@ -1,72 +1,80 @@
-// Fonctions de WeKnora gardées pour Global-IT-SS.
-// Les listes ci-dessous viennent de l'API du backend : tout ce qui n'y est pas listé
-// est masqué dans le back-office (fournisseurs chinois, moteurs inutilisés, services
-// qui envoient les documents chez Tencent…). Le code front des autres fonctions
-// abandonnées (messageries, sources de données, WeKnora Cloud…) a été supprimé.
-
-/** Fournisseurs de modèles (`value` de /models/providers). */
-export const ENABLED_MODEL_PROVIDERS = new Set([
-  'openrouter', 'anthropic', 'openai', 'azure_openai', 'gemini', 'deepseek', 'nvidia',
-  'litellm', 'generic', 'cohere', 'jina', 'pinecone', 'huggingface_tei',
-])
-
-/** Recherche web (`id` de /web-search-providers/types). */
-export const ENABLED_WEB_SEARCH_PROVIDERS = new Set([
-  'duckduckgo', 'searxng', 'google', 'bing', 'brave', 'tavily', 'exa',
-])
-
-/** Moteurs d'analyse de documents (`Name` de /system/parser-engines). */
-export const DISABLED_PARSER_ENGINES = new Set(['weknoracloud'])
+// Réglages propres à GSMS sur les écrans du moteur IA (WeKnora 0.8.3).
+// Toutes les fonctions de WeKnora sont disponibles dans le back-office : fournisseurs de modèles, de recherche web,
+// moteurs d'analyse (dont WeKnora Cloud), messageries, sources de données, moteurs vectoriels, stockages, compétences,
+// bac à sable… Ce qui envoie des données hors de la machine ou donne un accès à la machine reste éteint tant qu'un
+// administrateur ne l'a pas configuré : rien n'est activé d'office par ce fichier.
+// Seules exceptions ci-dessous : ce qui contournerait la connexion unique GSMS, et l'assistant interne de l'API.
 
 /**
- * Sections des paramètres masquées (le code reste).
- * GSMS : `members` (les comptes sont ceux de l'API Qualiopi, voir Paramètres › Équipe et accès),
- * `envvars` (secrets des skills), `integration-im` (messageries) et `integration-cli` (outil en ligne de commande du
- * moteur IA) n'ont pas de sens pour un organisme de formation.
- * `sandbox` n'est pas dans la liste : voir `sandboxSectionVisible`.
+ * Sections des paramètres masquées. Aucune aujourd'hui : chaque section reste soumise au rôle WeKnora
+ * (`settingsAccess.ts`) et aux capacités du déploiement (`deploymentCapabilities.ts`).
  */
-export const HIDDEN_SETTINGS_SECTIONS = new Set([
-  'members', 'envvars', 'integration-im', 'integration-cli',
-])
+export const HIDDEN_SETTINGS_SECTIONS = new Set<string>()
 
 /**
- * Section « sandbox » : visible seulement si le moteur IA déclare explicitement le sandbox Docker actif
- * (`settings.sandbox.docker` à `supported: true`). Il ne l'est que sur un poste de développement
- * (docker-compose.dev-sandbox.yml) : le sandbox Docker donne au moteur l'accès root à la machine, il reste éteint
- * en production. Un échec de la détection laisse la section masquée.
+ * Section « Membres » en lecture seule. Les comptes du moteur IA sont créés par GSMS, un par personne, à sa première
+ * session (`POST /ia/session`, rôle contributeur) ; ils suivent les droits de Paramètres › Équipe et accès.
+ * Inviter, partager un lien d'inscription, changer un rôle ou retirer quelqu'un depuis le moteur IA contournerait GSMS :
+ * la liste des membres et le journal d'audit restent consultables, sans ces actions.
+ */
+export const MEMBERS_READ_ONLY = true
+
+/**
+ * Section « Bac à sable » : visible pour les administrateurs (rôle exigé par `settingsAccess.ts`), sauf si le moteur IA
+ * déclare n'avoir aucun bac à sable (`settings.sandbox` à `supported: false`). Voir la section n'active rien :
+ * le bac à sable Docker (accès root à la machine par docker.sock) reste coupé tant que le moteur ne l'autorise pas
+ * (`WEKNORA_SANDBOX_DOCKER_ENABLED`, seulement dans docker-compose.dev.yml) ; la page le signale alors.
  */
 export function sandboxSectionVisible(capabilities: Record<string, { supported?: boolean } | undefined>): boolean {
-  return capabilities['settings.sandbox.docker']?.supported === true
+  return capabilities['settings.sandbox']?.supported !== false
 }
 
 /**
  * Guides d'accueil de WeKnora (dialogue « Bienvenue », visites guidées des bases de connaissances, des agents,
- * des modèles…). Ils recouvrent l'écran au premier passage et ne présentent que des fonctions du moteur IA :
- * désactivés dans le back-office GSMS, qui n'a pas (encore) de guide propre à ses écrans. Le code est gardé.
+ * des modèles…) : traduits en français (`newUserGuide`, `contextualGuide` dans fr-FR.ts), donc actifs.
  */
-export const WEKNORA_GUIDES_ENABLED = false
+export const WEKNORA_GUIDES_ENABLED = true
 
 /**
- * Agents du moteur IA cachés partout dans le back-office (liste, sélecteur, discussion) :
- * - les agents intégrés de WeKnora sans usage Qualiopi (les assistants GSMS les remplacent) ;
- * - l'assistant interne « Analyse documentaire (GSMS) », réservé au contrat d'analyse de l'API (jamais une discussion).
- * « Réponse rapide » et « Raisonnement » restent : ce sont les agents par défaut de la discussion.
+ * Agents du moteur IA cachés partout dans le back-office (liste, sélecteur, discussion) : seulement l'assistant
+ * interne « Analyse documentaire (GSMS) », réservé au contrat d'analyse de l'API (jamais une discussion).
  */
-export const HIDDEN_AGENT_IDS = new Set([
-  'builtin-deep-researcher', 'builtin-data-analyst', 'builtin-knowledge-graph-expert',
-  'builtin-document-assistant', 'builtin-wiki-researcher', 'builtin-wiki-fixer',
-])
+export const HIDDEN_AGENT_IDS = new Set<string>()
 export const HIDDEN_AGENT_NAMES = new Set(['Analyse documentaire (GSMS)'])
 
-/** Noms français des agents intégrés gardés (WeKnora les livre en anglais). */
+/** Noms français des agents intégrés (WeKnora les livre en anglais, sans traduction française). */
 export const BUILTIN_AGENT_NAMES: Record<string, string> = {
   'builtin-quick-answer': 'Réponse rapide',
   'builtin-smart-reasoning': 'Raisonnement',
+  'builtin-deep-researcher': 'Recherche approfondie',
+  'builtin-data-analyst': 'Analyse de données',
+  'builtin-knowledge-graph-expert': 'Graphe de connaissances',
+  'builtin-document-assistant': 'Assistant documentaire',
+  'builtin-wiki-researcher': 'Questions sur le wiki',
+  'builtin-wiki-fixer': 'Correction du wiki',
+  'builtin-skill-installer': 'Installation de compétences',
+  'builtin-weknora-assistant': 'Assistant du moteur IA',
 }
 
-/** Agents visibles dans le back-office, sous leur nom français. */
-export function visibleAgents<T extends { id: string; name: string }>(agents: T[]): T[] {
+/** Descriptions françaises des agents intégrés déclarés par le moteur (ia/moteur/config/builtin_agents.yaml). */
+export const BUILTIN_AGENT_DESCRIPTIONS: Record<string, string> = {
+  'builtin-quick-answer': 'Questions-réponses (RAG) sur les bases de connaissances, pour des réponses rapides et précises',
+  'builtin-smart-reasoning': 'Raisonnement ReAct : réflexion en plusieurs étapes et appel d\'outils',
+  'builtin-data-analyst': 'Analyse des fichiers CSV et Excel : requêtes SQL et statistiques',
+  'builtin-wiki-researcher': 'Répond aux questions à partir des bases de connaissances de type wiki',
+  'builtin-wiki-fixer': 'Corrige les pages wiki d\'après les problèmes relevés par l\'inspection',
+  'builtin-skill-installer': 'Agent interne : installe une compétence téléversée et ses dépendances dans l\'image du bac à sable',
+  'builtin-weknora-assistant': 'Explique le fonctionnement du moteur IA et gère votre espace : analyse des documents, activité des bases, santé et réparations du wiki',
+}
+
+/** Agents visibles dans le back-office, sous leur nom (et leur description) en français. */
+export function visibleAgents<T extends { id: string; name: string; description?: string }>(agents: T[]): T[] {
   return agents
     .filter((a) => !HIDDEN_AGENT_IDS.has(a.id) && !HIDDEN_AGENT_NAMES.has(a.name))
-    .map((a) => (BUILTIN_AGENT_NAMES[a.id] ? { ...a, name: BUILTIN_AGENT_NAMES[a.id] } : a))
+    .map((a) => {
+      const name = BUILTIN_AGENT_NAMES[a.id]
+      if (!name) return a
+      const description = BUILTIN_AGENT_DESCRIPTIONS[a.id]
+      return { ...a, name, ...(description && a.description !== undefined ? { description } : {}) }
+    })
 }

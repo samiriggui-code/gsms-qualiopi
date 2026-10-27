@@ -1,12 +1,11 @@
 import { get, post, put, del } from '@/utils/request'
-import { ENABLED_WEB_SEARCH_PROVIDERS } from '@/config/gitssFeatures'
 
 // WebSearchProviderEntity represents a configured web search provider instance
 export interface WebSearchProviderEntity {
   id?: string
   tenant_id?: number
   name: string
-  provider: 'brave' | 'bing' | 'google' | 'duckduckgo' | 'tavily' | 'searxng' | 'exa'
+  provider: 'brave' | 'bing' | 'google' | 'duckduckgo' | 'tavily' | 'ollama' | 'baidu' | 'searxng' | 'keenable' | 'zhipu' | 'metaso' | 'exa' | 'bocha' | 'serply'
   description?: string
   parameters: {
     // api_key is never returned by the server in this shape; it lives behind
@@ -30,7 +29,7 @@ export interface WebSearchProviderTypeInfo {
   id: string
   name: string
   requires_api_key: boolean
-  // Keyless-by-default providers that still accept an optional key.
+  // Keyless-by-default providers that still accept an optional key (e.g. Keenable).
   supports_optional_api_key?: boolean
   requires_engine_id?: boolean
   requires_base_url?: boolean
@@ -81,7 +80,7 @@ export function deleteWebSearchProvider(id: string) {
 export function listWebSearchProviderTypes(): Promise<WebSearchProviderTypeInfo[]> {
   return get('/api/v1/web-search-providers/types').then((res: any) => {
     if (res.success && res.data) {
-      return (res.data as WebSearchProviderTypeInfo[]).filter((p) => ENABLED_WEB_SEARCH_PROVIDERS.has(p.id))
+      return res.data
     }
     return []
   })

@@ -14,13 +14,26 @@ const props = withDefaults(defineProps<{
 
 // The card subtitle and the connector picker resolve the same name through this
 // composable, so the icon's alt text and the visible label next to it cannot
-// disagree. Screen readers and copied page text get "Notion", not "notion".
+// disagree. Screen readers and copied page text get "钉钉文档", not "dingtalk".
 const { connectorLabel } = useConnectorLabel()
 
 const iconMap = datasourceIconMap
 
 function fallbackText(type: string) {
-  return type.slice(0, 1).toUpperCase() || '?'
+  switch (type) {
+    case 'feishu':
+      return 'F'
+    case 'lark':
+      return 'L'
+    case 'notion':
+      return 'N'
+    case 'yuque':
+      return 'Y'
+    case 'ima':
+      return 'I'
+    default:
+      return type.slice(0, 1).toUpperCase() || '?'
+  }
 }
 </script>
 

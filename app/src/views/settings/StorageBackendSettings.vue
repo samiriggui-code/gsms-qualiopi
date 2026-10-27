@@ -172,7 +172,7 @@
           </div>
           <template v-if="needsCredentials">
             <div class="form-item">
-              <label class="form-label required">Access Key</label>
+              <label class="form-label required">Access Key / Secret ID</label>
               <t-input v-model="form.config.access_key_id" placeholder="***" clearable>
                 <template #prefix-icon><t-icon name="lock-on" /></template>
               </t-input>
@@ -187,6 +187,10 @@
           <div v-if="form.provider !== 'local'" class="form-item">
             <label class="form-label required">Bucket</label>
             <t-input v-model="form.config.bucket_name" :disabled="!!editing" clearable />
+          </div>
+          <div v-if="form.provider === 'cos'" class="form-item">
+            <label class="form-label">App ID</label>
+            <t-input v-model="form.config.app_id" :disabled="!!editing" :placeholder="t('settings.storageBackend.optionalPlaceholder')" clearable />
           </div>
         </section>
 
@@ -208,6 +212,22 @@
               <span class="form-desc form-desc--inline">{{ t('settings.storageBackend.forcePathStyleDesc') }}</span>
             </div>
           </div>
+          <div v-if="form.provider === 'oss'" class="form-item">
+            <div class="vision-toggle">
+              <t-switch v-model="form.config.use_temp_bucket" />
+              <span class="form-desc form-desc--inline">{{ t('settings.storageBackend.useTempBucketDesc') }}</span>
+            </div>
+          </div>
+          <template v-if="['cos', 'tos'].includes(form.provider) || (form.provider === 'oss' && form.config.use_temp_bucket)">
+            <div class="form-item">
+              <label class="form-label">{{ t('settings.storageBackend.tempBucketLabel') }}</label>
+              <t-input v-model="form.config.temp_bucket_name" :placeholder="t('settings.storageBackend.tempBucketPlaceholder')" clearable />
+            </div>
+            <div class="form-item">
+              <label class="form-label">{{ t('settings.storageBackend.tempRegionLabel') }}</label>
+              <t-input v-model="form.config.temp_region" :placeholder="t('settings.storageBackend.tempRegionPlaceholder')" clearable />
+            </div>
+          </template>
         </section>
       </t-form>
 
@@ -244,11 +264,9 @@ const loading = ref(false), saving = ref(false), testing = ref(false), visible =
 const backends = ref<StorageBackend[]>([]), providers = ref<string[]>([]), defaultID = ref('')
 const editing = ref<StorageBackend | null>(null)
 const rawTestResult = ref<'ok' | 'error' | null>(null)
-// Global-IT-SS n'expose que ces moteurs ; les autres renvoyés par l'API ne sont pas proposés à la création.
-const SUPPORTED_PROVIDERS = new Set(['local', 'minio', 's3'])
 const blankConfig = (): StorageBackendConfig => ({ mode: 'remote', endpoint: '', region: '', access_key_id: '', secret_access_key: '', bucket_name: '', path_prefix: '', use_ssl: true })
 const form = reactive<{ name: string; provider: string; config: StorageBackendConfig }>({ name: '', provider: 'local', config: blankConfig() })
-const needsEndpoint = computed(() => form.provider !== 'local' && !(form.provider === 'minio' && form.config.mode === 'docker'))
+const needsEndpoint = computed(() => !['local', 'cos'].includes(form.provider) && !(form.provider === 'minio' && form.config.mode === 'docker'))
 const needsRegion = computed(() => !['local', 'minio'].includes(form.provider))
 const needsCredentials = computed(() => form.provider !== 'local' && !(form.provider === 'minio' && form.config.mode === 'docker'))
 
@@ -311,7 +329,7 @@ async function load() {
   loading.value = true
   try {
     const [list, types] = await Promise.all([listStorageBackends(), listStorageBackendTypes()])
-    backends.value = list.data || []; defaultID.value = list.default_storage_backend_id || ''; providers.value = (types.data || []).filter((p) => SUPPORTED_PROVIDERS.has(p))
+    backends.value = list.data || []; defaultID.value = list.default_storage_backend_id || ''; providers.value = types.data || []
   } finally { loading.value = false }
 }
 function resetConfig() { form.config = blankConfig(); rawTestResult.value = null }

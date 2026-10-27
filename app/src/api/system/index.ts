@@ -1,5 +1,4 @@
 import { get, post, put, del, patch, postUpload } from '@/utils/request'
-import { DISABLED_PARSER_ENGINES } from '@/config/gitssFeatures'
 import type { CreatedTenantAPIKey, TenantAPIKey, TenantAPIKeyCapability } from '@/api/tenant'
 
 export interface CreatePlatformAPIKeyPayload {
@@ -155,16 +154,12 @@ export interface ParserEnginesResponse {
 }
 
 export function getParserEngines(): Promise<ParserEnginesResponse> {
-  return get('/api/v1/system/parser-engines').then((res: any) => (
-    Array.isArray(res?.data) ? { ...res, data: res.data.filter((e: ParserEngineInfo) => !DISABLED_PARSER_ENGINES.has(e.Name)) } : res
-  ))
+  return get('/api/v1/system/parser-engines')
 }
 
 /** 使用当前填写的参数检测引擎可用性（不保存），用于填写新参数后即时测试 */
 export function checkParserEngines(config: ParserEngineConfig): Promise<ParserEnginesResponse> {
-  return post('/api/v1/system/parser-engines/check', config).then((res: any) => (
-    Array.isArray(res?.data) ? { ...res, data: res.data.filter((e: ParserEngineInfo) => !DISABLED_PARSER_ENGINES.has(e.Name)) } : res
-  ))
+  return post('/api/v1/system/parser-engines/check', config)
 }
 
 export function getParserEngineConfig(): Promise<{ data: ParserEngineConfig }> {
@@ -182,13 +177,56 @@ export function reconnectDocReader(addr: string): Promise<ParserEnginesResponse 
 // ---- 存储引擎配置（空间级，供文档/图片存储与 docreader 使用） ----
 
 export interface StorageEngineConfig {
-  default_provider: string // "local" | "minio" | "s3"
+  default_provider: string // "local" | "minio" | "cos" | "tos" | "s3" | "oss" | "ks3" | "obs"
   local: { path_prefix: string }
   minio: { mode: string; endpoint: string; access_key_id: string; secret_access_key: string; bucket_name: string; use_ssl: boolean; path_prefix: string }
+  cos: {
+    secret_id: string
+    secret_key: string
+    region: string
+    bucket_name: string
+    app_id: string
+    path_prefix: string
+  }
+  tos: {
+    endpoint: string
+    region: string
+    access_key: string
+    secret_key: string
+    bucket_name: string
+    path_prefix: string
+  }
   s3: {
     endpoint: string // optional for standard AWS S3
     region: string
     access_key: string // both keys empty => AWS default credential chain
+    secret_key: string
+    bucket_name: string
+    path_prefix: string
+  }
+  oss: {
+    endpoint: string
+    region: string
+    access_key: string
+    secret_key: string
+    bucket_name: string
+    path_prefix: string
+    use_temp_bucket: boolean
+    temp_bucket_name: string
+    temp_region: string
+  }
+  ks3: {
+    endpoint: string
+    region: string
+    access_key: string
+    secret_key: string
+    bucket_name: string
+    path_prefix: string
+  }
+  obs: {
+    endpoint: string
+    region: string
+    access_key: string
     secret_key: string
     bucket_name: string
     path_prefix: string
@@ -221,9 +259,14 @@ export function getStorageEngineStatus(): Promise<{ data: GetStorageEngineStatus
 }
 
 export interface StorageCheckRequest {
-  provider: string // "minio" | "s3"
+  provider: string // "minio" | "cos" | "tos" | "s3" | "oss" | "ks3" | "obs"
   minio?: StorageEngineConfig['minio']
+  cos?: StorageEngineConfig['cos']
+  tos?: StorageEngineConfig['tos']
   s3?: StorageEngineConfig['s3']
+  oss?: StorageEngineConfig['oss']
+  ks3?: StorageEngineConfig['ks3']
+  obs?: StorageEngineConfig['obs']
 }
 
 export interface StorageCheckResponse {

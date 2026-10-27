@@ -2458,7 +2458,10 @@ const imageStorageOptions = computed(() => {
   return [
     { value: 'local', label: t('settings.storage.engineLocal'), disabled: false },
     { value: 'minio', label: 'MinIO', disabled: statusMap.minio === false },
+    { value: 'cos', label: t('settings.storage.engineCos'), disabled: statusMap.cos === false },
+    { value: 'tos', label: t('settings.storage.engineTos'), disabled: statusMap.tos === false },
     { value: 's3', label: 'Amazon S3', disabled: statusMap.s3 === false },
+    { value: 'oss', label: t('settings.storage.engineOss'), disabled: statusMap.oss === false },
   ];
 });
 

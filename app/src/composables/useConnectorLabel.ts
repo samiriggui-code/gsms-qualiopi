@@ -1,14 +1,14 @@
 import { useI18n } from 'vue-i18n'
 
 /**
- * Format a data source connector type ('notion', 'confluence', …) into the
+ * Format a data source connector type ('dingtalk', 'feishu', …) into the
  * user-facing name declared under datasource.connector.* in the i18n bundle.
  *
  * The type icon's alt text, the card subtitle and the connector picker all render
  * this name, so they resolve it through one function and cannot disagree about
  * what a connector is called. They used to: the icon carried the raw type while
  * the label right next to it showed the translation, which put the internal
- * identifier "confluence" into the icon's alt text and into any text copied off the
+ * identifier "dingtalk" into the icon's alt text and into any text copied off the
  * page.
  *
  * The lookup deliberately avoids `t(key) || type`: vue-i18n echoes the key back
