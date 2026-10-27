@@ -188,8 +188,10 @@ fermée ; sandbox coupée en production.
     observation ou proposition doit citer un passage fourni, sinon elle est rejetée et comptée. Les propositions
     d'action sont enregistrées (`qualite.ia_proposition`, statut `PROPOSEE`) et acceptées ou rejetées par une personne
     (`quality.write`, motif obligatoire pour un rejet, décision définitive, qui et quand gardés) ; accepter n'applique
-    rien. Vérifié par tests avec un moteur simulé ; **pas encore en direct** : le modèle local ne tient pas la charge
-    (§6), à rejouer avec le modèle de production.
+    rien. Vérifié par tests avec un moteur simulé, puis **en direct le 27/10/2026** avec le modèle local de dev
+    (indicateur 31, 2 passages, 88 s) : chaîne complète, une observation gardée avec ses citations, une rejetée par la
+    validation. Qualité faible (le modèle qualifie de « contradiction » deux passages du même texte officiel qui ne se
+    contredisent pas) : la mécanique est prête, l'utilité dépend du modèle de production (§12, P0).
 11. **Front** : onglet « Analyse documentaire » de la fiche indicateur (droit `ia.use`), qui distingue l'état du moteur,
     les passages retrouvés et l'analyse IA.
 12. **Démo** : `seed-demo` dépose de vrais PDF lisibles (texte extractible) ; **Ollama** de dev redémarre seul ;
