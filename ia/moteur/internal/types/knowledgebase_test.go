@@ -13,9 +13,8 @@ func TestParseProviderScheme(t *testing.T) {
 	}{
 		{"local://tenant/file.pdf", "local"},
 		{"minio://bucket/key", "minio"},
-		// Removed providers are no longer recognised.
-		{"cos://bucket/key", ""},
-		{"tos://bucket/key", ""},
+		{"cos://bucket/key", "cos"},
+		{"tos://bucket/key", "tos"},
 		{"s3://bucket/key", "s3"},
 		{"s3://my-bucket/weknora/123/exports/abc.png", "s3"},
 		{"https://example.com/img.png", ""},
@@ -41,9 +40,10 @@ func TestInferStorageFromFilePath(t *testing.T) {
 	}{
 		{"local://tenant/file.pdf", "local"},
 		{"minio://bucket/key", "minio"},
-		{"cos://bucket/key", ""},
+		{"cos://bucket/key", "cos"},
+		{"tos://bucket/key", "tos"},
 		{"s3://bucket/key", "s3"},
-		{"https://my-bucket.cos.ap-guangzhou.myqcloud.com/key", ""},
+		{"https://my-bucket.cos.ap-guangzhou.myqcloud.com/key", "cos"},
 		{"https://example.com/img.png", ""},
 		{"", ""},
 	}

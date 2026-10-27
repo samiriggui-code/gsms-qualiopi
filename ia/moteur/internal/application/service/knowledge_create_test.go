@@ -237,7 +237,7 @@ func TestCreateKnowledgeFromImageFallsBackWhenLegacyStorageConfigIsIncomplete(t 
 		ID:        "kb-1",
 		VLMConfig: types.VLMConfig{Enabled: true, ModelID: "vlm-1"},
 	}
-	kb.SetStorageProvider("s3")
+	kb.SetStorageProvider("cos")
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: kb},
@@ -246,8 +246,8 @@ func TestCreateKnowledgeFromImageFallsBackWhenLegacyStorageConfigIsIncomplete(t 
 	}
 	ctx := context.WithValue(newCreateKnowledgeFileContext(), types.TenantInfoContextKey, &types.Tenant{
 		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: "s3",
-			S3:              &types.S3EngineConfig{AccessKey: "incomplete"},
+			DefaultProvider: "cos",
+			COS:             &types.COSEngineConfig{SecretID: "incomplete"},
 		},
 	})
 

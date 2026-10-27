@@ -373,7 +373,7 @@ func normalizeParserFileType(fileType string) string {
 // StorageProviderConfig stores the KB-level storage provider selection.
 // Credentials are managed at the tenant level (StorageEngineConfig).
 type StorageProviderConfig struct {
-	Provider string `yaml:"provider" json:"provider"` // "local", "minio", "s3"
+	Provider string `yaml:"provider" json:"provider"` // "local", "minio", "cos", "tos", "s3", "oss", "ks3", "obs"
 }
 
 func (c StorageProviderConfig) Value() (driver.Value, error) {
@@ -512,7 +512,7 @@ func (kb *KnowledgeBase) SharesStorageBackendWith(other *KnowledgeBase, defaultB
 
 // InferStorageFromFilePath deduces the storage provider from a file path format.
 // Used as a safety fallback when the KB's configured provider doesn't match the data.
-// Supports provider:// scheme (local://, minio://, s3://),
+// Supports provider:// scheme (local://, minio://, cos://, tos://),
 // unified /files/{provider}/... format, and legacy formats.
 func InferStorageFromFilePath(filePath string) string {
 	// Provider scheme format: provider://...
@@ -520,7 +520,12 @@ func InferStorageFromFilePath(filePath string) string {
 		return p
 	}
 	// Legacy formats
-	return ""
+	switch {
+	case strings.HasPrefix(filePath, "https://") && strings.Contains(filePath, ".cos."):
+		return "cos"
+	default:
+		return ""
+	}
 }
 
 // ParseProviderScheme extracts the provider from a provider:// scheme path.
@@ -530,7 +535,7 @@ func ParseProviderScheme(filePath string) string {
 	if _, inner, ok := ParseStorageBackendPath(filePath); ok {
 		filePath = inner
 	}
-	for _, provider := range []string{"local", "minio", "s3", "dummy"} {
+	for _, provider := range []string{"local", "minio", "cos", "tos", "s3", "oss", "ks3", "obs", "dummy"} {
 		if strings.HasPrefix(filePath, provider+"://") {
 			return provider
 		}

@@ -12,9 +12,13 @@ type RerankAPI string
 const (
 	// RerankCohere is the de-facto standard shape — POST {base}/rerank with
 	// {model, query, documents} and a results array of {index,
-	// relevance_score, document}. Cohere defined it; Jina and every
-	// OpenAI-compatible gateway that serves rerank at all copy it.
+	// relevance_score, document}. Cohere defined it; Jina, Zhipu,
+	// SiliconFlow, Qianfan, GPUStack and every OpenAI-compatible gateway
+	// that serves rerank at all copy it.
 	RerankCohere RerankAPI = "cohere-rerank"
+	// RerankDashScope is Alibaba Model Studio's native shape, which wraps
+	// the same fields in input/parameters and answers under output.
+	RerankDashScope RerankAPI = "dashscope-rerank"
 	// RerankNIM is NVIDIA NIM's retrieval shape: a query object, a passages
 	// array, and rankings carrying an unbounded logit instead of a
 	// probability.
@@ -25,12 +29,19 @@ const (
 	// RerankTEI is the native Text Embeddings Inference shape: POST /rerank
 	// with {query, texts}, answering a bare array of {index, score}.
 	RerankTEI RerankAPI = "tei-rerank"
+	// RerankTencentLKEAP is Tencent Cloud's RunRerank action, reached through
+	// the official SDK because it is TC3-signed rather than key-authenticated.
+	RerankTencentLKEAP RerankAPI = "tencent-lkeap"
+	// RerankVolcengineKnowledge is Volcengine's managed Knowledge Service
+	// rerank, reached through the vikingdb SDK for the same reason.
+	RerankVolcengineKnowledge RerankAPI = "volcengine-knowledge"
 )
 
 // Known reports whether the value names a protocol this build implements.
 func (a RerankAPI) Known() bool {
 	switch a {
-	case RerankCohere, RerankNIM, RerankPinecone, RerankTEI:
+	case RerankCohere, RerankDashScope, RerankNIM, RerankPinecone, RerankTEI,
+		RerankTencentLKEAP, RerankVolcengineKnowledge:
 		return true
 	}
 	return false
@@ -41,7 +52,7 @@ func (a RerankAPI) Known() bool {
 // vendor SDKs are imported.
 func (a RerankAPI) HTTPServed() bool {
 	switch a {
-	case RerankCohere, RerankNIM, RerankPinecone, RerankTEI:
+	case RerankCohere, RerankDashScope, RerankNIM, RerankPinecone, RerankTEI:
 		return true
 	}
 	return false

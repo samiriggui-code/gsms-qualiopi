@@ -22,10 +22,11 @@
         "gpt-5.5": {"context_window": 200000, "max_output_tokens": 32000}
       }
     },
-    "openrouter": {
+    "aliyun": {
       "models": [
-        {"id": "qwen/qwen3.9-plus", "reasoning": true, "input": ["text", "image"],
-         "context_window": 1000000, "max_output_tokens": 65536}
+        {"id": "qwen3.9-plus", "reasoning": true, "input": ["text", "image"],
+         "context_window": 1000000, "max_output_tokens": 65536,
+         "compat": {"thinking_always_send": true, "thinking_disable_on_non_stream": true}}
       ]
     },
     "lab-vllm": {

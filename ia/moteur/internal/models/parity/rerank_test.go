@@ -59,11 +59,20 @@ func TestEveryRerankVendorResolvesToAKnownProtocol(t *testing.T) {
 // every rerank call for that vendor.
 func TestRerankProtocolAssignment(t *testing.T) {
 	for id, want := range map[string]api.RerankAPI{
+		"aliyun":          api.RerankDashScope,
 		"nvidia":          api.RerankNIM,
 		"pinecone":        api.RerankPinecone,
 		"huggingface_tei": api.RerankTEI,
+		"lkeap":           api.RerankTencentLKEAP,
+		"volcengine":      api.RerankVolcengineKnowledge,
+		"zhipu":           api.RerankCohere,
 		"jina":            api.RerankCohere,
+		"siliconflow":     api.RerankCohere,
+		"qianfan":         api.RerankCohere,
+		"gpustack":        api.RerankCohere,
 		"generic":         api.RerankCohere,
+		"weknoracloud":    api.RerankCohere,
+		"novita":          api.RerankCohere,
 		"openrouter":      api.RerankCohere,
 		"litellm":         api.RerankCohere,
 	} {
@@ -88,13 +97,35 @@ func TestRerankOutboundShapePerProtocol(t *testing.T) {
 		reply    string
 	}{
 		{
-			name: "cohere shape", provider: "jina", model: "BAAI/bge-reranker-v2-m3",
+			name: "cohere shape", provider: "siliconflow", model: "BAAI/bge-reranker-v2-m3",
 			reply: `{"results":[{"index":0,"relevance_score":0.5}]}`,
 			assert: func(t *testing.T, path string, body map[string]any) {
 				assert.Equal(t, "/v1/rerank", path)
 				assert.Equal(t, "BAAI/bge-reranker-v2-m3", body["model"])
 				assert.Equal(t, "q", body["query"])
 				assert.Equal(t, []any{"d0"}, body["documents"])
+			},
+		},
+		{
+			name: "dashscope shape", provider: "aliyun", model: "gte-rerank-v2",
+			reply: `{"output":{"results":[{"index":0,"relevance_score":0.5,"document":{"text":"d0"}}]}}`,
+			assert: func(t *testing.T, _ string, body map[string]any) {
+				input, ok := body["input"].(map[string]any)
+				require.True(t, ok, "DashScope wraps the query and documents in input")
+				assert.Equal(t, "q", input["query"])
+				assert.Contains(t, body, "parameters")
+				assert.NotContains(t, body, "documents", "documents live under input")
+			},
+		},
+		{
+			name: "dashscope shape for qwen3-rerank", provider: "aliyun", model: "qwen3-rerank",
+			reply: `{"output":{"results":[{"index":0,"relevance_score":0.5,"document":{"text":"d0"}}]}}`,
+			assert: func(t *testing.T, path string, body map[string]any) {
+				assert.Equal(t, "/api/v1/services/rerank/text-rerank/text-rerank", path)
+				assert.Equal(t, "qwen3-rerank", body["model"])
+				input, ok := body["input"].(map[string]any)
+				require.True(t, ok, "qwen3-rerank goes out in the native input wrapper")
+				assert.Equal(t, "q", input["query"])
 			},
 		},
 		{
@@ -138,6 +169,8 @@ func TestRerankOutboundShapePerProtocol(t *testing.T) {
 func rerankPathFor(t *testing.T, provider string) string {
 	t.Helper()
 	switch provider {
+	case "aliyun":
+		return "/api/v1/services/rerank/text-rerank/text-rerank"
 	case "nvidia":
 		return "/v1/retrieval/nvidia/reranking"
 	default:
@@ -174,6 +207,24 @@ func TestNvidiaRerankScoresAreComparable(t *testing.T) {
 	assert.Greater(t, got[0].RelevanceScore, got[1].RelevanceScore)
 }
 
+// TestSignedRerankVendorRequiresItsIdentityPair keeps the pre-catalog
+// contract: WeKnora Cloud rerank is signed with an AppID / AppSecret pair, and
+// a row without one must fail at construction rather than send unsigned
+// requests that the far end rejects with something less readable.
+func TestSignedRerankVendorRequiresItsIdentityPair(t *testing.T) {
+	_, err := rerank.NewReranker(&rerank.RerankerConfig{
+		Provider: "weknoracloud", ModelName: "rerank",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AppID")
+
+	_, err = rerank.NewReranker(&rerank.RerankerConfig{
+		Provider: "weknoracloud", ModelName: "rerank", AppID: "app",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AppSecret")
+}
+
 // TestTruncatePromptTokensOnlyReachesVLLMClassVendors pins the gate on the
 // vLLM extension restored from the pre-catalog client. It is opt-in per row,
 // but the row can only opt into it on a runtime that implements it: no
@@ -182,7 +233,7 @@ func TestNvidiaRerankScoresAreComparable(t *testing.T) {
 func TestTruncatePromptTokensOnlyReachesVLLMClassVendors(t *testing.T) {
 	optIn := map[string]string{models.ExtraTruncatePromptTokens: "512"}
 
-	for _, id := range []string{"generic"} {
+	for _, id := range []string{"generic", "gpustack"} {
 		t.Run(id+" accepts it", func(t *testing.T) {
 			resolved, err := modelruntime.Resolve(modelruntime.Ref{
 				Provider: id, Model: "m", ModelType: types.ModelTypeRerank,
@@ -193,7 +244,7 @@ func TestTruncatePromptTokensOnlyReachesVLLMClassVendors(t *testing.T) {
 		})
 	}
 
-	for _, id := range []string{"jina", "nvidia"} {
+	for _, id := range []string{"jina", "zhipu", "siliconflow", "qianfan", "weknoracloud", "aliyun", "nvidia"} {
 		t.Run(id+" rejects it", func(t *testing.T) {
 			_, err := modelruntime.Resolve(modelruntime.Ref{
 				Provider: id, Model: "m", ModelType: types.ModelTypeRerank, Extra: optIn,
@@ -221,8 +272,21 @@ func TestTruncatePromptTokensRejectsAnInvalidValue(t *testing.T) {
 // TestEveryRerankVendorResolvesToAKnownProtocol only checks they are sane.
 func TestRerankCeilingsAreTheDocumentedOnes(t *testing.T) {
 	for id, want := range map[string]api.RerankSettings{
+		// docs.bigmodel.cn: 最多 128 条，query 与单条文档各 4096 字符
+		"zhipu": {MaxDocuments: 128, MaxQueryChars: 4096, MaxDocumentChars: 4096},
+		// cloud.tencent.com/document/product/1772: RunRerank 60 docs,
+		// Query + Docs together 2000 characters, one request at a time.
+		"lkeap": {MaxDocuments: 60, MaxRequestChars: 2000, MaxConcurrency: 1},
+		// VikingDB Knowledge Service rerank: datas "数组长度不超过 200".
+		"volcengine": {MaxDocuments: 200, MaxConcurrency: 4},
 		// NIM reranking: passages is capped at 512 items.
 		"nvidia": {MaxDocuments: 512},
+		// cloud.baidu.com/doc/qianfan-api: 文本数量不超过64, query 不超过
+		// 1600 个字符, 每条 document 不超过 4096 个字符.
+		"qianfan": {MaxDocuments: 64, MaxQueryChars: 1600, MaxDocumentChars: 4096},
+		// help.aliyun.com text-rerank: 500 documents per request. Its length
+		// limits are stated in tokens, which runes cannot express.
+		"aliyun": {MaxDocuments: 500},
 		// TEI router: --max-client-batch-size defaults to 32.
 		"huggingface_tei": {MaxDocuments: 32},
 	} {
@@ -238,6 +302,26 @@ func TestRerankCeilingsAreTheDocumentedOnes(t *testing.T) {
 			assert.Equal(t, want.MaxRequestChars, got.MaxRequestChars, "max request characters")
 			assert.Equal(t, want.MaxConcurrency, got.MaxConcurrency, "max concurrency")
 		})
+	}
+}
+
+// TestWeKnoraCloudRerankKeepsItsDeadline pins the one rerank vendor that has
+// ever had a client-level timeout. Without it a hung endpoint holds the
+// retrieval stage open for as long as the caller's context allows.
+func TestWeKnoraCloudRerankKeepsItsDeadline(t *testing.T) {
+	resolved, err := modelruntime.Resolve(modelruntime.Ref{
+		Provider: "weknoracloud", Model: "rerank", ModelType: types.ModelTypeRerank,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 60, resolved.Rerank.RequestTimeout)
+
+	// Everyone else has always run without one and relies on the caller.
+	for _, id := range []string{"zhipu", "jina", "siliconflow", "aliyun", "nvidia", "generic"} {
+		other, err := modelruntime.Resolve(modelruntime.Ref{
+			Provider: id, Model: "m", ModelType: types.ModelTypeRerank,
+		})
+		require.NoError(t, err)
+		assert.Zero(t, other.Rerank.RequestTimeout, "%s did not have a client deadline before", id)
 	}
 }
 
@@ -278,9 +362,10 @@ func TestTruncatePromptTokensIsReachableFromTheEditor(t *testing.T) {
 // still looks like a score, and the retrieval threshold still compares it, so
 // a logit-scaled vendor simply loses every negatively scored document.
 func TestRerankScoreScalesMatchTheVendorDocs(t *testing.T) {
-	// NIM spells the field like a probability and returns a logit:
-	// rankings[].logit, e.g. 0.226 / -1.171 / -6.31
-	logitScaled := map[string]bool{"nvidia": true}
+	// Both spell the field like a probability and return neither.
+	//   NIM:      rankings[].logit, e.g. 0.226 / -1.171 / -6.31
+	//   GPUStack: relevance_score,  e.g. 1.951 / -3.734 / -6.157
+	logitScaled := map[string]bool{"nvidia": true, "gpustack": true}
 
 	for _, v := range modelruntime.ListByType(types.ModelTypeRerank) {
 		resolved, err := modelruntime.Resolve(modelruntime.Ref{
@@ -295,6 +380,31 @@ func TestRerankScoreScalesMatchTheVendorDocs(t *testing.T) {
 	}
 }
 
+// TestQwen3RerankUsesNativeDashScopeProtocol keeps qwen3-rerank on the
+// native text-rerank endpoint. Alibaba also documents a flat
+// /compatible-api/v1/reranks shape for it, but the native endpoint serves the
+// same model with identical scores (#3558), and v0.8.0 deployments already
+// have rows that name it — refusing it would break them on upgrade.
+func TestQwen3RerankUsesNativeDashScopeProtocol(t *testing.T) {
+	v, ok := modelruntime.Get("aliyun")
+	require.True(t, ok)
+
+	offered := make([]string, 0)
+	for _, m := range v.ModelsByType(types.ModelTypeRerank) {
+		offered = append(offered, m.ID)
+	}
+	assert.Contains(t, offered, "qwen3-rerank")
+	assert.Contains(t, offered, "gte-rerank-v2")
+
+	for _, model := range []string{"qwen3-rerank", "gte-rerank-v2"} {
+		resolved, err := modelruntime.Resolve(modelruntime.Ref{
+			Provider: "aliyun", Model: model, ModelType: types.ModelTypeRerank,
+		})
+		require.NoError(t, err, model)
+		assert.Equal(t, api.RerankDashScope, resolved.RerankAPI, model)
+	}
+}
+
 // TestGatewayRerankEndpoints pins the URL each gateway's rerank rows reach.
 // All three serve the Cohere dialect the protocol package already speaks, so
 // opening the type was a declaration — but LiteLLM documents the route on the
@@ -304,6 +414,8 @@ func TestGatewayRerankEndpoints(t *testing.T) {
 		provider string
 		wantURL  string
 	}{
+		// https://docs.novita.ai/api-reference/model-apis-llm-create-rerank
+		{provider: "novita", wantURL: "https://api.novita.ai/openai/v1/rerank"},
 		// https://openrouter.ai/docs/api/api-reference/rerank/submit-a-rerank-request
 		{provider: "openrouter", wantURL: "https://openrouter.ai/api/v1/rerank"},
 		// https://docs.litellm.ai/docs/rerank — the curl example posts to
@@ -328,14 +440,14 @@ func TestGatewayRerankEndpoints(t *testing.T) {
 }
 
 // TestScoreScaleIsOverridablePerRow covers the gateways, where the vendor
-// cannot know the answer: a generic endpoint serves whatever
+// cannot know the answer: GPUStack and a generic endpoint serve whatever
 // reranker was deployed behind them, and the two families disagree — BGE
 // answers a 0..1 probability, Qwen3-Reranker an unbounded score. Converting a
 // probability as if it were a logit squeezes every score into [0.5, 0.73],
 // which makes a relevance threshold meaningless, so the operator needs a way
 // to say which one is actually there.
 func TestScoreScaleIsOverridablePerRow(t *testing.T) {
-	for _, id := range []string{"generic"} {
+	for _, id := range []string{"gpustack", "generic"} {
 		t.Run(id, func(t *testing.T) {
 			base := "http://127.0.0.1:9/v1"
 			overridden, err := modelruntime.Resolve(modelruntime.Ref{
@@ -361,7 +473,7 @@ func TestScoreScaleIsOverridablePerRow(t *testing.T) {
 	}
 
 	_, err := modelruntime.Resolve(modelruntime.Ref{
-		Provider: "generic", Model: "m", ModelType: types.ModelTypeRerank,
+		Provider: "gpustack", Model: "m", ModelType: types.ModelTypeRerank,
 		BaseURL: "http://127.0.0.1:9/v1",
 		Extra:   map[string]string{models.ExtraScoreScale: "sigmoid"},
 	})
@@ -374,7 +486,7 @@ func TestScoreScaleIsOverridablePerRow(t *testing.T) {
 // their own documentation and must not offer a switch that only lets an
 // operator get it wrong.
 func TestGatewayVendorsOfferTheScoreScaleOverride(t *testing.T) {
-	gateways := map[string]bool{"generic": true, "litellm": true}
+	gateways := map[string]bool{"generic": true, "gpustack": true, "litellm": true}
 
 	for _, v := range modelruntime.ListByType(types.ModelTypeRerank) {
 		var field *providers.ExtraField

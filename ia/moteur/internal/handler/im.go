@@ -16,7 +16,8 @@ import (
 
 // validIMPlatforms is the set of supported IM platforms.
 var validIMPlatforms = map[string]bool{
-	"slack": true, "telegram": true, "mattermost": true,
+	"wecom": true, "feishu": true, "lark": true, "slack": true, "telegram": true, "dingtalk": true,
+	"mattermost": true, "wechat": true, "qqbot": true, "yunzhijia": true,
 }
 
 // invalidIMPlatformError is the 400 message listing the accepted platforms. It
@@ -110,15 +111,21 @@ func (h *IMHandler) CreateIMChannel(c *gin.Context) {
 	if req.Enabled != nil {
 		channel.Enabled = *req.Enabled
 	}
-	if channel.Mode == "" {
-		if channel.Platform == "mattermost" {
-			channel.Mode = "webhook"
-		} else {
-			channel.Mode = "websocket"
+	// WeChat uses long-polling mode and full output only
+	if req.Platform == "wechat" {
+		channel.Mode = "longpoll"
+		channel.OutputMode = "full"
+	} else {
+		if channel.Mode == "" {
+			if channel.Platform == "mattermost" || channel.Platform == "yunzhijia" {
+				channel.Mode = "webhook"
+			} else {
+				channel.Mode = "websocket"
+			}
 		}
-	}
-	if channel.OutputMode == "" {
-		channel.OutputMode = "stream"
+		if channel.OutputMode == "" {
+			channel.OutputMode = "stream"
+		}
 	}
 	if channel.Credentials == nil {
 		channel.Credentials = types.JSON("{}")
@@ -369,7 +376,18 @@ func (h *IMHandler) ToggleIMChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": channel})
 }
 
-func writeIMCallbackACK(c *gin.Context) {
+func writeIMCallbackACK(c *gin.Context, platform string) {
+	if platform == "yunzhijia" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"type":    2,
+				"content": "",
+			},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
@@ -415,10 +433,11 @@ func (h *IMHandler) IMCallback(c *gin.Context) {
 	}
 
 	defaultMode := "websocket"
-	if channel.Platform == "mattermost" {
+	if channel.Platform == "mattermost" || channel.Platform == "yunzhijia" {
 		defaultMode = "webhook"
 	}
-	if im.ResolveMode(channel, defaultMode) != "webhook" {
+	if im.ResolveMode(channel, defaultMode) != "webhook" ||
+		channel.Platform == "qqbot" || channel.Platform == "wechat" || channel.Platform == "dingtalk" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "HTTP callbacks are disabled for this channel"})
 		return
 	}
@@ -452,12 +471,12 @@ func (h *IMHandler) IMCallback(c *gin.Context) {
 		} else {
 			logger.Infof(ctx, "[IM] Callback parsed no message to process platform=%s path_channel_id=%s", channel.Platform, channelID)
 		}
-		writeIMCallbackACK(c)
+		writeIMCallbackACK(c, channel.Platform)
 		return
 	}
 
 	// Respond immediately to avoid platform timeout
-	writeIMCallbackACK(c)
+	writeIMCallbackACK(c, channel.Platform)
 
 	// Detach from gin request context
 	asyncCtx := context.WithoutCancel(ctx)

@@ -137,6 +137,10 @@ func (f *flowTenantSvc) GetTenantByIDForUser(context.Context, uint64, string) (*
 	return f.tenant, nil
 }
 
+func (f *flowTenantSvc) GetWeKnoraCloudCredentials(context.Context) *types.WeKnoraCloudCredentials {
+	return nil
+}
+
 func TestEmbedExchangeFlowIntegration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

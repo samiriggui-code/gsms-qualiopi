@@ -15,12 +15,15 @@ import (
 	"github.com/Tencent/WeKnora/internal/types"
 )
 
-// legacyProviderIDs is the set of parameters.provider values the pre-catalog
-// code could write (internal/models/provider/provider.go before the refactor),
-// minus the vendors this deployment removed on purpose.
+// legacyProviderIDs is the complete set of parameters.provider values the
+// pre-catalog code could write: provider.AllProviders() plus weknoracloud,
+// as of internal/models/provider/provider.go before the refactor.
 var legacyProviderIDs = []string{
-	"generic", "deepseek", "openai", "anthropic", "gemini", "openrouter",
-	"litellm", "jina", "nvidia", "azure_openai",
+	"generic", "weknoracloud", "aliyun", "zhipu", "volcengine", "hunyuan",
+	"siliconflow", "deepseek", "minimax", "moonshot", "modelscope", "qianfan",
+	"qiniu", "openai", "anthropic", "gemini", "openrouter", "litellm",
+	"requesty", "jina", "mimo", "longcat", "lkeap", "gpustack", "nvidia",
+	"novita", "azure_openai",
 }
 
 // TestLegacyProviderIDsStillRegistered asserts that no provider id an old row
@@ -80,9 +83,24 @@ func legacyRows() []legacyRow {
 			params: types.ModelParameters{Provider: "xai", BaseURL: "https://api.x.ai/v1"},
 		},
 		{
+			name: "VLM row", model: "qwen-vl-max", typ: types.ModelTypeVLLM,
+			params: types.ModelParameters{
+				Provider: "aliyun", BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+				InterfaceType: "openai", SupportsVision: true,
+			},
+		},
+		{
 			name: "local Ollama VLM row (interface_type ollama)", model: "llava:13b", typ: types.ModelTypeVLLM,
 			params: types.ModelParameters{
 				InterfaceType: "ollama", ParameterSize: "13B", BaseURL: "http://localhost:11434",
+			},
+		},
+		{
+			name: "WeKnoraCloud row with app credentials", model: "weknora-chat", typ: types.ModelTypeKnowledgeQA,
+			params: types.ModelParameters{
+				Provider: "weknoracloud", BaseURL: "https://weknora.weixin.qq.com",
+				AppID: "app", AppSecret: "secret",
+				ExtraConfig: map[string]string{"remote_model_name": "hunyuan-turbos"},
 			},
 		},
 		{
@@ -117,6 +135,22 @@ func legacyRows() []legacyRow {
 					"freshness":                   "week",
 					"a_key_no_release_ever_wrote": "1",
 				},
+			},
+		},
+		{
+			name: "embedding row with dimension override", model: "text-embedding-v4", typ: types.ModelTypeEmbedding,
+			params: types.ModelParameters{
+				Provider: "aliyun", BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+				EmbeddingParameters: types.EmbeddingParameters{
+					Dimension: 1024, TruncatePromptTokens: 2048, SupportsDimensionOverride: true,
+				},
+			},
+		},
+		{
+			name: "LKEAP signed rerank row", model: "lkeap-rerank", typ: types.ModelTypeRerank,
+			params: types.ModelParameters{
+				Provider: "lkeap", BaseURL: "https://lkeap.tencentcloudapi.com",
+				ExtraConfig: map[string]string{"secret_key": "sk", "region": "ap-guangzhou"},
 			},
 		},
 		{

@@ -549,7 +549,7 @@ func resolveTranscriptions(
 	}
 	settings.API = protocol
 	switch settings.LanguageParam {
-	case "", api.LanguageForm, api.LanguageHeader:
+	case "", api.LanguageForm, api.LanguageHeader, api.LanguageASROptions:
 	default:
 		return nil, fmt.Errorf("catalog: unknown language_param %q for %s/%s",
 			settings.LanguageParam, vendor.ID, spec.ID)

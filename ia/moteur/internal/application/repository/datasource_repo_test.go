@@ -31,7 +31,7 @@ func TestDataSourceRepositoryUpdateSyncStateClearsErrorMessage(t *testing.T) {
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Feishu",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 		Status:          types.DataSourceStatusError,
 		ErrorMessage:    "previous failure",
 	}
@@ -61,7 +61,7 @@ func TestDataSourceRepositoryUpdatePersistsDisabledSyncDeletions(t *testing.T) {
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Feishu",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 		SyncDeletions:   true,
 	}
 	require.NoError(t, repo.Create(ctx, ds))
@@ -91,7 +91,7 @@ func TestDataSourceRepositoryCreatePersistsDisabledSyncDeletions(t *testing.T) {
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Feishu",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 		SyncDeletions:   false,
 	}
 	require.NoError(t, repo.Create(ctx, ds))
@@ -119,7 +119,7 @@ func TestDataSourceRepositoryCreatePersistsEnabledSyncDeletions(t *testing.T) {
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Feishu",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 		SyncDeletions:   true,
 	}
 	require.NoError(t, repo.Create(ctx, ds))
@@ -140,14 +140,14 @@ func TestDataSourceRepositoryDeleteSoftDeletesOnSQLite(t *testing.T) {
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Delete target",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 	}
 	other := &types.DataSource{
 		ID:              "ds-delete-other",
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Other data source",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 	}
 	require.NoError(t, repo.Create(ctx, target))
 	require.NoError(t, repo.Create(ctx, other))

@@ -309,8 +309,9 @@ func RegisterIMRoutes(r *gin.Engine, imHandler *handler.IMHandler) {
 
 // RegisterIMChannelRoutes registers IM channel CRUD routes (requires authentication).
 //
-// IM channels carry external bot credentials (Slack/Telegram/Mattermost);
-// listing is Viewer+ but any mutation or toggle is Admin+.
+// IM channels carry external bot credentials (WeChat/Feishu/Slack/...);
+// listing is Viewer+ but any mutation, toggle, or QR-code login flow
+// (which can hijack a personal WeChat session) is Admin+.
 func RegisterIMChannelRoutes(r *gin.RouterGroup, imHandler *handler.IMHandler, g *rbacGuards) {
 	// Channel CRUD under agents
 	agentChannels := g.apiKeyGroup(r.Group("/agents/:id/im-channels"), apiKeyManageChannels(apiKeyFullAccess()))
@@ -326,6 +327,14 @@ func RegisterIMChannelRoutes(r *gin.RouterGroup, imHandler *handler.IMHandler, g
 		channels.PUT("/:id", g.Admin(), imHandler.UpdateIMChannel)
 		channels.DELETE("/:id", g.Admin(), imHandler.DeleteIMChannel)
 		channels.POST("/:id/toggle", g.Admin(), imHandler.ToggleIMChannel)
+	}
+
+	// WeChat QR code login (requires authentication) — Admin+: a successful
+	// scan binds a personal WeChat account to the tenant.
+	wechatGroup := g.apiKeyGroup(r.Group("/wechat"), apiKeyManageChannels(apiKeyFullAccess()))
+	{
+		wechatGroup.POST("/qrcode", g.Admin(), imHandler.WeChatGetQRCode)
+		wechatGroup.POST("/qrcode/status", g.Admin(), imHandler.WeChatPollQRCodeStatus)
 	}
 }
 

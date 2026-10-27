@@ -7,8 +7,11 @@ import (
 
 // The channel-creation endpoint rejects any platform without a registered
 // adapter factory, so this set must track the factories wired in the container.
-func TestValidIMPlatforms_CoversRegisteredAdapters(t *testing.T) {
-	want := []string{"slack", "telegram", "mattermost"}
+func TestValidIMPlatforms_CoversLark(t *testing.T) {
+	want := []string{
+		"wecom", "feishu", "lark", "slack", "telegram",
+		"dingtalk", "mattermost", "wechat", "qqbot",
+	}
 	for _, platform := range want {
 		if !validIMPlatforms[platform] {
 			t.Errorf("platform %q is not accepted", platform)

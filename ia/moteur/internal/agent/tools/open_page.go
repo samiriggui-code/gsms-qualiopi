@@ -66,6 +66,7 @@ var SettingsSections = map[string]openPageSection{
 	"memory":                {"长期记忆", "Long-term memory"},
 	"models":                {"模型管理", "Model Management"},
 	"ollama":                {"Ollama", "Ollama"},
+	"weknoracloud":          {"WeKnora Cloud", "WeKnora Cloud"},
 	"websearch":             {"网络搜索", "Web Search"},
 	"vectorstore":           {"向量数据库引擎", "Vector DB Engine"},
 	"parser":                {"解析引擎", "Parser Engine"},
@@ -205,7 +206,7 @@ const openPageSchema = `{
 	`agent_editor: basic, prompts, model, multimodal, conversation, suggestions, tools, mcp, skills, ` +
 	`knowledge, websearch, retrieval, share. ` +
 	`settings: general (personal preferences: language, theme, font), userprofile, assistant, mymemory, ` +
-	`envvars, tenant, members, chathistory, memory, models, ollama, websearch, vectorstore, ` +
+	`envvars, tenant, members, chathistory, memory, models, ollama, weknoracloud, websearch, vectorstore, ` +
 	`parser, storage, sandbox, system (version), system-global, model-catalog, runtime-queues, ` +
 	`platform-api-keys, system-audit-log, integration-im, integration-embed, integration-api, ` +
 	`integration-mcpserver, integration-cli, integration-chrome, integration-claw; ` +

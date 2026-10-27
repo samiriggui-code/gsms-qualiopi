@@ -38,7 +38,7 @@ builtin_models: []
 #     parameters:
 #       base_url: ${LLM_BASE_URL}
 #       api_key: ${LLM_API_KEY}
-#       provider: ${LLM_PROVIDER}  # openai | generic | openrouter | deepseek | ...
+#       provider: ${LLM_PROVIDER}  # openai | generic | aliyun | moonshot | ...
 #       context_window: 200000     # optional; omit to use the 200K default
 #
 #   - id: builtin-embedding-default

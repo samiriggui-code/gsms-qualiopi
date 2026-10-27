@@ -75,3 +75,6 @@ fix-docker.sh
 
 # 注意:不要排除 docs/ —— 里面的 docs.go / swagger.json 是 Go 代码依赖的 swagger 包
 # 注意:不要用 *.md 通配排除 —— skills/preloaded/**/SKILL.md 会被打进镜像给 agent 用
+
+# GSMS Qualiopi : site vitrine de WeKnora, inutile à la construction
+website-docs/homepage/

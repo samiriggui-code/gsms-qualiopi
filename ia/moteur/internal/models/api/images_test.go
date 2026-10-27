@@ -76,8 +76,12 @@ func TestResolveImageURLForStoredImages(t *testing.T) {
 		{name: "local", url: "local://10000/1/img.png"},
 		{name: "minio", url: "minio://bucket/1/img.png"},
 		{name: "s3", url: "s3://bucket/1/img.png"},
+		{name: "cos", url: "cos://bucket/region/1/img.png"},
+		{name: "tos", url: "tos://bucket/1/img.png"},
+		{name: "oss", url: "oss://bucket/1/img.png"},
+		{name: "ks3", url: "ks3://bucket/1/img.png"},
 		{name: "resource reference", url: "resource://a1b2c3/1/img.png"},
-		{name: "backend-wrapped provider", url: "storage://backend-a/s3://bucket/1/img.png"},
+		{name: "backend-wrapped provider", url: "storage://backend-a/cos://bucket/region/1/img.png"},
 	}
 	for _, tc := range stored {
 		t.Run(tc.name, func(t *testing.T) {

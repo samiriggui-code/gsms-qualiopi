@@ -36,6 +36,8 @@ func TestUnreachableUpstreamIsAnErrorForEveryProtocol(t *testing.T) {
 
 	for _, tc := range []struct{ provider, model string }{
 		{"openai", "text-embedding-3-small"},
+		{"aliyun", "tongyi-embedding-vision-plus"},
+		{"volcengine", "doubao-embedding-vision-251215"},
 		{"gemini", "gemini-embedding-001"},
 	} {
 		t.Run(tc.provider, func(t *testing.T) {
@@ -48,6 +50,17 @@ func TestUnreachableUpstreamIsAnErrorForEveryProtocol(t *testing.T) {
 			assert.Error(t, err)
 		})
 	}
+}
+
+// A signing vendor without its identity pair would send unsigned requests
+// and fail at the far end with a less useful error.
+func TestSignedVendorNeedsItsIdentityPair(t *testing.T) {
+	_, err := newEmbedder(Config{
+		Source: types.ModelSourceRemote, Provider: "weknoracloud",
+		BaseURL: "https://weknora.weixin.qq.com", ModelName: "m", AppSecret: "s",
+	}, nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AppID is required")
 }
 
 func TestModelNameIsRequired(t *testing.T) {

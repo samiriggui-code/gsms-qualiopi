@@ -15,9 +15,15 @@ type EmbeddingAPI string
 const (
 	// EmbeddingOpenAI is POST {base}/embeddings with {model, input[]} answering
 	// {data: [{embedding, index}]} — the shape OpenAI defined and every
-	// compatible gateway copied. Jina, NVIDIA and Azure speak
+	// compatible gateway copied. Jina, NVIDIA, Azure and WeKnora Cloud speak
 	// it too, with their own optional fields, URL or credential.
 	EmbeddingOpenAI EmbeddingAPI = "openai-embeddings"
+	// EmbeddingDashScope is Alibaba Model Studio's native multimodal shape:
+	// input.contents, parameters.dimension, output.embeddings.
+	EmbeddingDashScope EmbeddingAPI = "dashscope-embeddings"
+	// EmbeddingArk is Volcengine Ark's multimodal shape, which fuses every
+	// input into one vector and therefore embeds one text per request.
+	EmbeddingArk EmbeddingAPI = "ark-embeddings"
 	// EmbeddingGoogle is Gemini's batchEmbedContents.
 	EmbeddingGoogle EmbeddingAPI = "google-embeddings"
 )
@@ -25,7 +31,7 @@ const (
 // Known reports whether the value names a protocol this build implements.
 func (a EmbeddingAPI) Known() bool {
 	switch a {
-	case EmbeddingOpenAI, EmbeddingGoogle:
+	case EmbeddingOpenAI, EmbeddingDashScope, EmbeddingArk, EmbeddingGoogle:
 		return true
 	}
 	return false

@@ -425,13 +425,13 @@ func TestValidateProcessOverrides_ImageAllowsStorageFallback(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), types.TenantInfoContextKey, &types.Tenant{
 		StorageEngineConfig: &types.StorageEngineConfig{
-			S3: &types.S3EngineConfig{AccessKey: "id"},
+			COS: &types.COSEngineConfig{SecretID: "id"},
 		},
 	})
 	kb := &types.KnowledgeBase{
 		VLMConfig: types.VLMConfig{Enabled: true, ModelID: "vlm-1"},
 	}
-	kb.SetStorageProvider("s3")
+	kb.SetStorageProvider("cos")
 
 	err := ValidateProcessOverrides(ctx, kb, &types.KnowledgeProcessOverrides{}, []string{"png"})
 	require.NoError(t, err)

@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -11,29 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
-
-// capturingRoundTripper records the first HTTP request URL the S3 client
-// would send, without dialing the network.
-type capturingRoundTripper struct {
-	host string
-	path string
-}
-
-func (c *capturingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if c.host == "" {
-		c.host = req.URL.Host
-		c.path = req.URL.Path
-	}
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     http.Header{"Etag": []string{`"test"`}},
-		Body:       io.NopCloser(strings.NewReader("")),
-		Request:    req,
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-	}, nil
-}
 
 func TestNewS3Client_Credentials(t *testing.T) {
 	t.Run("static credentials remain supported", func(t *testing.T) {

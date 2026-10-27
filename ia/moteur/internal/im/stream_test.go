@@ -59,7 +59,7 @@ func TestStreamSenderInterface(t *testing.T) {
 
 	ctx := context.Background()
 	incoming := &IncomingMessage{
-		Platform: PlatformSlack,
+		Platform: PlatformFeishu,
 		UserID:   "test-user",
 		Content:  "hello",
 	}
@@ -113,7 +113,7 @@ func TestStreamFlushBatching(t *testing.T) {
 
 	ctx := context.Background()
 	incoming := &IncomingMessage{
-		Platform: PlatformSlack,
+		Platform: PlatformFeishu,
 		UserID:   "test-user",
 		Content:  "test",
 	}

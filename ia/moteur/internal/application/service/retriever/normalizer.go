@@ -27,15 +27,30 @@ type ScoreNormalizer interface {
 
 // EngineAwareNormalizer maps vector scores onto [0, 1]. Every driver reports
 // vector scores as cosine similarity: pgvector and sqlite-vec compute
-// 1 - cosine distance. The caller (HybridSearch) enforces a
-// same-embedding-model precondition via ResolveEmbeddingModelKeys, so the
-// values are comparable across stores, and the same scale holds on
-// single-store searches, which skip this step.
+// 1 - cosine distance, Qdrant, TencentVectorDB, Doris and Milvus (IP or
+// COSINE over L2-normalized embeddings) return the similarity itself, the
+// Milvus L2 path converts the squared distance, Elasticsearch v8 runs a
+// cosineSimilarity script_score, and OpenSearch and Weaviate convert the
+// (1 + cos) / 2 their APIs return (k-NN cosinesimil score, certainty). The
+// caller (HybridSearch) enforces a same-embedding-model precondition via
+// ResolveEmbeddingModelKeys, so the values are comparable across engines,
+// and the same scale holds on single-store searches, which skip this step.
 //
 // Cosine similarity is theoretically [-1, 1], but the L2-normalized,
 // positive-component IR embeddings WeKnora targets (sentence-transformers,
 // BGE, OpenAI text-embedding-3, Cohere, E5, ...) keep it in [0, 1] in
 // practice; clamp01 floors the rare negative value at 0.
+//
+// Milvus used to be mapped through (score + 1) / 2 here, which put its hits
+// on a different scale from every other engine in a multi-store search, and
+// from its own single-store results.
+//
+// Dead enum references (kept as RetrieverEngineType constants but
+// without a driver implementation — see internal/types/vectorstore.go
+// near the GetVectorStoreTypes definition, where they are flagged
+// "legacy/experimental, no standalone deployable instance"):
+//   - InfinityRetrieverEngineType
+//   - ElasticFaissRetrieverEngineType
 //
 // Unknown engines clamp to [0, 1]; the fan-out caller emits a single WARN
 // per request via warnIfUnknownEngine so Normalize itself stays lock-free

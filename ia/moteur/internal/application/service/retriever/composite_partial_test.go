@@ -57,12 +57,12 @@ func keywordsParams(query string) []types.RetrieveParams {
 func TestCompositeRetrieveExposesPartialResultError(t *testing.T) {
 	cause := errors.New("qdrant keyword search failed in 1 of 2 matched collections")
 	engine := &cannedEngine{
-		engineType: fakeEngineTypeB,
+		engineType: types.QdrantRetrieverEngineType,
 		support:    []types.RetrieverType{types.KeywordsRetrieverType},
 		results: map[types.RetrieverType][]*types.RetrieveResult{
 			types.KeywordsRetrieverType: {{
 				Results:             []*types.IndexWithScore{{ChunkID: "chunk-1", Score: 1}},
-				RetrieverEngineType: fakeEngineTypeB,
+				RetrieverEngineType: types.QdrantRetrieverEngineType,
 				RetrieverType:       types.KeywordsRetrieverType,
 				Error:               cause,
 			}},
@@ -82,11 +82,11 @@ func TestCompositeRetrieveExposesPartialResultError(t *testing.T) {
 // A complete search — including a genuine zero-hit one — must stay quiet.
 func TestCompositeRetrieveStaysSilentWhenResultSetsAreComplete(t *testing.T) {
 	engine := &cannedEngine{
-		engineType: fakeEngineTypeB,
+		engineType: types.QdrantRetrieverEngineType,
 		support:    []types.RetrieverType{types.KeywordsRetrieverType},
 		results: map[types.RetrieverType][]*types.RetrieveResult{
 			types.KeywordsRetrieverType: {{
-				RetrieverEngineType: fakeEngineTypeB,
+				RetrieverEngineType: types.QdrantRetrieverEngineType,
 				RetrieverType:       types.KeywordsRetrieverType,
 			}},
 		},
@@ -105,12 +105,12 @@ func TestCompositeRetrieveStaysSilentWhenResultSetsAreComplete(t *testing.T) {
 func TestCompositeRetrieveDropsResultsOnEngineLevelError(t *testing.T) {
 	cause := errors.New("vector store unavailable")
 	engine := &cannedEngine{
-		engineType: fakeEngineTypeB,
+		engineType: types.QdrantRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType, types.KeywordsRetrieverType},
 		results: map[types.RetrieverType][]*types.RetrieveResult{
 			types.VectorRetrieverType: {{
 				Results:             []*types.IndexWithScore{{ChunkID: "vector-1", Score: 0.9}},
-				RetrieverEngineType: fakeEngineTypeB,
+				RetrieverEngineType: types.QdrantRetrieverEngineType,
 				RetrieverType:       types.VectorRetrieverType,
 			}},
 		},

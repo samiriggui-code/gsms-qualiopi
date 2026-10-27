@@ -47,12 +47,12 @@ func TestBuildIMFileServiceForProvider_FallbackToGlobal(t *testing.T) {
 	stub := &stubIMFileService{}
 	tenant := &types.Tenant{
 		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: "s3",
-			S3: &types.S3EngineConfig{
-				AccessKey:  "id",
+			DefaultProvider: "cos",
+			COS: &types.COSEngineConfig{
+				SecretID:   "id",
 				SecretKey:  "key",
 				BucketName: "bucket",
-				Region:     "us-east-1",
+				Region:     "ap-shanghai",
 			},
 		},
 	}
@@ -68,12 +68,12 @@ func TestIMFileServiceResolver_CachesPerProvider(t *testing.T) {
 	stub := &stubIMFileService{}
 	tenant := &types.Tenant{
 		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: "s3",
-			S3: &types.S3EngineConfig{
-				AccessKey:  "id",
+			DefaultProvider: "cos",
+			COS: &types.COSEngineConfig{
+				SecretID:   "id",
 				SecretKey:  "key",
 				BucketName: "bucket",
-				Region:     "us-east-1",
+				Region:     "ap-shanghai",
 			},
 		},
 	}
@@ -95,12 +95,12 @@ func TestRewriteStorageURLs_MinIOFallbackViaGlobal(t *testing.T) {
 	}
 	tenant := &types.Tenant{
 		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: "s3",
-			S3: &types.S3EngineConfig{
-				AccessKey:  "id",
+			DefaultProvider: "cos",
+			COS: &types.COSEngineConfig{
+				SecretID:   "id",
 				SecretKey:  "key",
 				BucketName: "bucket",
-				Region:     "us-east-1",
+				Region:     "ap-shanghai",
 			},
 		},
 	}
@@ -118,7 +118,7 @@ func TestRewriteStorageURLs_ScopedPathRequiresBoundBackend(t *testing.T) {
 			return "", nil
 		},
 	}
-	input := "![img](storage://backend-a/s3://bucket/10000/exports/a.png)"
+	input := "![img](storage://backend-a/cos://bucket/ap-test/10000/exports/a.png)"
 	output := rewriteStorageURLs(context.Background(), input, newIMFileServiceResolver(&types.Tenant{}, stub))
 	assert.Equal(t, input, output)
 }
@@ -129,7 +129,7 @@ func TestRewriteStorageURLs_ScopedPathRequiresBoundBackend(t *testing.T) {
 func TestRewriteStorageURLs_NonHTTPResultIsNoOp(t *testing.T) {
 	stub := &stubIMFileService{
 		getFileURL: func(_ context.Context, _ string) (string, error) {
-			return "storage://7cb970a6/s3://bcjy/10000/exports/a.png", nil
+			return "storage://7cb970a6/oss://bcjy/10000/exports/a.png", nil
 		},
 	}
 	in := "![img](resource://xifDo7NTSL300Lp1goVutw)"
@@ -139,7 +139,7 @@ func TestRewriteStorageURLs_NonHTTPResultIsNoOp(t *testing.T) {
 }
 
 // URL schemes are case-insensitive (RFC 3986); an uppercase-scheme result (e.g.
-// from a proxy domain configured as HTTPS://...) is renderable and must be
+// from an OBS_PROXY_DOMAIN configured as HTTPS://...) is renderable and must be
 // substituted, not dropped as "non-HTTP".
 func TestRewriteStorageURLs_UppercaseSchemeIsSubstituted(t *testing.T) {
 	stub := &stubIMFileService{
@@ -160,7 +160,7 @@ func TestCleanIMContent_MinIOFallbackIntegration(t *testing.T) {
 		},
 	}
 	tenant := &types.Tenant{
-		StorageEngineConfig: &types.StorageEngineConfig{DefaultProvider: "s3"},
+		StorageEngineConfig: &types.StorageEngineConfig{DefaultProvider: "cos"},
 	}
 	in := "see ![x](minio://wizard-test/10000/exports/x.png) ok"
 	out := cleanIMContent(context.Background(), in, newIMFileServiceResolver(tenant, stub))

@@ -305,6 +305,26 @@ func (s *tenantService) GetTenantByIDForUser(ctx context.Context, tenantID uint6
 	return tenant, nil
 }
 
+func (s *tenantService) GetWeKnoraCloudCredentials(ctx context.Context) *types.WeKnoraCloudCredentials {
+	tenantID, ok := types.TenantIDFromContext(ctx)
+	if !ok {
+		return nil
+	}
+	// Model initialization may run for a shared KB's owner while middleware
+	// still carries the caller's tenant info. Never reuse another tenant's credentials.
+	if tenant, ok := types.TenantInfoFromContext(ctx); ok && tenant != nil && tenant.ID == tenantID {
+		if creds := tenant.Credentials.GetWeKnoraCloud(); creds != nil {
+			return creds
+		}
+	}
+
+	tenant, err := s.repo.GetTenantByID(ctx, tenantID)
+	if err != nil || tenant == nil {
+		return nil
+	}
+	return tenant.Credentials.GetWeKnoraCloud()
+}
+
 func (s *tenantService) validateStorageBucketUniqueness(ctx context.Context, tenant *types.Tenant) error {
 	if tenant.StorageEngineConfig == nil {
 		return nil
@@ -335,8 +355,17 @@ func (s *tenantService) validateStorageBucketUniqueness(ctx context.Context, ten
 		if cfg.MinIO != nil && cfg.MinIO.BucketName != "" {
 			res["minio"] = cfg.MinIO.BucketName
 		}
+		if cfg.COS != nil && cfg.COS.BucketName != "" {
+			res["cos"] = cfg.COS.BucketName
+		}
+		if cfg.TOS != nil && cfg.TOS.BucketName != "" {
+			res["tos"] = cfg.TOS.BucketName
+		}
 		if cfg.S3 != nil && cfg.S3.BucketName != "" {
 			res["s3"] = cfg.S3.BucketName
+		}
+		if cfg.OSS != nil && cfg.OSS.BucketName != "" {
+			res["oss"] = cfg.OSS.BucketName
 		}
 		return res
 	}

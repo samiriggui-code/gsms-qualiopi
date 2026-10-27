@@ -14,7 +14,7 @@ func TestConfigFromModel(t *testing.T) {
 		Parameters: types.ModelParameters{
 			BaseURL:       "https://api.example.com/v1",
 			APIKey:        "sk",
-			Provider:      "openrouter",
+			Provider:      "siliconflow",
 			ExtraConfig:   map[string]string{"remote_model_name": "r"},
 			CustomHeaders: map[string]string{"X": "y"},
 		},
@@ -28,7 +28,7 @@ func TestConfigFromModel(t *testing.T) {
 	}
 	// The vendor decides the wire format; without it every row resolves to
 	// the generic runtime.
-	if cfg.Provider != "openrouter" || cfg.ExtraConfig["remote_model_name"] != "r" {
+	if cfg.Provider != "siliconflow" || cfg.ExtraConfig["remote_model_name"] != "r" {
 		t.Errorf("vendor fields not propagated: %+v", cfg)
 	}
 	if cfg.CustomHeaders["X"] != "y" {

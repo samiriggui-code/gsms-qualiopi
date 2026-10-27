@@ -45,6 +45,39 @@ func TestImageEmbeddingWireFormatPerVendor(t *testing.T) {
 		wantBody                    map[string]any // the first request's body, exactly
 	}{
 		{
+			name: "volcengine fuses, so one image per request", provider: "volcengine",
+			model: "doubao-embedding-vision-251215", base: "/api/v3", images: 2, wantRequests: 2,
+			wantPath: "/api/v3/embeddings/multimodal",
+			wantBody: map[string]any{
+				"model": "doubao-embedding-vision-251215", "encoding_format": "float",
+				"input": []any{map[string]any{"type": "image_url", "image_url": map[string]any{"url": uri}}},
+			},
+		},
+		{
+			name: "aliyun tongyi vision plus takes eight images", provider: "aliyun",
+			model: "tongyi-embedding-vision-plus", base: "/compatible-mode/v1", images: 9, wantRequests: 2,
+			wantPath: dashPath,
+			wantBody: map[string]any{
+				"model": "tongyi-embedding-vision-plus",
+				"input": map[string]any{"contents": func() []any {
+					out := []any{}
+					for _, img := range pngs(8) {
+						out = append(out, map[string]any{"image": img.DataURI()})
+					}
+					return out
+				}()},
+			},
+		},
+		{
+			name: "aliyun multimodal-embedding-v1 takes one image", provider: "aliyun",
+			model: "multimodal-embedding-v1", base: "/compatible-mode/v1", images: 2, wantRequests: 2,
+			wantPath: dashPath,
+			wantBody: map[string]any{
+				"model": "multimodal-embedding-v1",
+				"input": map[string]any{"contents": []any{map[string]any{"image": uri}}},
+			},
+		},
+		{
 			name: "gemini embeds each image as its own inlineData request", provider: "gemini",
 			model: "gemini-embedding-2", base: "/v1beta", images: 2, wantRequests: 1,
 			wantPath: "/v1beta/models/gemini-embedding-2:batchEmbedContents",

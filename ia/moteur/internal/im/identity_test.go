@@ -9,7 +9,7 @@ import (
 
 func TestWithIMIdentity(t *testing.T) {
 	const tenantID uint64 = 42
-	msg := &IncomingMessage{Platform: PlatformSlack, UserID: "open-id-1"}
+	msg := &IncomingMessage{Platform: PlatformFeishu, UserID: "open-id-1"}
 	channel := &IMChannel{ID: "channel-1", TenantID: tenantID, Locale: "ja-JP"}
 	ctx := withIMIdentity(context.Background(), channel, msg)
 
@@ -42,7 +42,7 @@ func TestWithIMIdentity(t *testing.T) {
 	if !ok {
 		t.Fatalf("Principal missing")
 	}
-	if principal.Type != types.PrincipalIMUser || principal.ID != "42:channel-1:slack:open-id-1" {
+	if principal.Type != types.PrincipalIMUser || principal.ID != "42:channel-1:feishu:open-id-1" {
 		t.Fatalf("Principal = %#v, want im_user for the external IM user", principal)
 	}
 

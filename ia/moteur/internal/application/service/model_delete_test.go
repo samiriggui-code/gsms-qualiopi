@@ -355,6 +355,10 @@ func (s *stubTenantServiceForModelDelete) GetTenantByIDForUser(context.Context, 
 	return s.tenant, nil
 }
 
+func (s *stubTenantServiceForModelDelete) GetWeKnoraCloudCredentials(context.Context) *types.WeKnoraCloudCredentials {
+	return nil
+}
+
 func TestDeleteModel_RejectsWhenUsedByMemory(t *testing.T) {
 	ctx := context.WithValue(context.Background(), types.TenantIDContextKey, uint64(1))
 	modelID := "memory-embed"

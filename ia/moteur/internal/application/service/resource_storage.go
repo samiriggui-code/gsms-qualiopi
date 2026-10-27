@@ -24,7 +24,7 @@ func NewResourceCatalogWithStorage(
 		case "local", "minio":
 			// The process-wide drivers do not use the workspace path-prefix settings.
 			global.Config.PathPrefix = ""
-		case "s3":
+		case "s3", "oss", "obs":
 			if global.Config.PathPrefix == "" {
 				global.Config.PathPrefix = "weknora/"
 			}
@@ -41,10 +41,9 @@ func (s *resourceCatalog) globalBackendSnapshot(tenantID uint64) *types.StorageB
 	backend.TenantID = tenantID
 	// Credentials can rotate, but changing location creates a separate instance.
 	// This is deliberately not a legacy alias: startup refreshes those in place.
-	// The two trailing empty fields were temp-bucket settings of removed
-	// providers; they stay in the format so existing derived IDs are stable.
-	identity := fmt.Sprintf("global-storage:%d:%s:%t:%t::", tenantID,
-		backend.Config.LocationKey(backend.Provider), backend.Config.UseSSL, backend.Config.ForcePathStyle)
+	identity := fmt.Sprintf("global-storage:%d:%s:%t:%t:%s:%s", tenantID,
+		backend.Config.LocationKey(backend.Provider), backend.Config.UseSSL, backend.Config.ForcePathStyle,
+		backend.Config.TempBucketName, backend.Config.TempRegion)
 	backend.ID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(identity)).String()
 	backend.Name = fmt.Sprintf("System %s files (%s)", strings.ToUpper(backend.Provider), backend.ID[:8])
 	return &backend
@@ -169,7 +168,16 @@ func resourceMatchesBackend(physical string, backend *types.StorageBackend) bool
 		// local:// paths omit the root/prefix, so different local roots are ambiguous.
 		return true
 	}
-	return u.Host == backend.Config.BucketName
+	if u.Host != backend.Config.BucketName &&
+		(u.Host == "" || u.Host != backend.Config.TempBucketName) {
+		return false
+	}
+	if backend.Provider == "cos" {
+		region, _, _ := strings.Cut(strings.TrimPrefix(u.Path, "/"), "/")
+		return region == backend.Config.Region ||
+			(u.Host == backend.Config.TempBucketName && region == backend.Config.TempRegion)
+	}
+	return true
 }
 
 func resourceBackendLocation(backend *types.StorageBackend) string {
@@ -178,8 +186,6 @@ func resourceBackendLocation(backend *types.StorageBackend) string {
 		// Object paths already include the key prefix; it does not affect reads.
 		c.PathPrefix = ""
 	}
-	// The two trailing empty fields were temp-bucket settings of removed
-	// providers; they stay in the format so existing locations still match.
-	return fmt.Sprintf("%s|%t|%t||", c.LocationKey(backend.Provider),
-		c.UseSSL, c.ForcePathStyle)
+	return fmt.Sprintf("%s|%t|%t|%s|%s", c.LocationKey(backend.Provider),
+		c.UseSSL, c.ForcePathStyle, c.TempBucketName, c.TempRegion)
 }

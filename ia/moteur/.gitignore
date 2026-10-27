@@ -72,3 +72,6 @@ miniprogram/project.private.config.json
 
 # Locally built BrowserSkill runtime and extension bundles
 /artifacts/browserskill/
+
+# GSMS Qualiopi : site vitrine de WeKnora (Next.js), sans rapport avec le moteur
+/website-docs/homepage/

@@ -43,7 +43,7 @@ func TestRetrieveFromStores_LogsPartialFailureAndKeepsResults(t *testing.T) {
 	ctx, logs := captureServiceLogs(t)
 	cause := stderrors.New("qdrant keyword search failed in 1 of 2 matched collections")
 	fake := &fakeRetrieveEngineService{
-		engineType:      types.SQLiteRetrieverEngineType,
+		engineType:      types.QdrantRetrieverEngineType,
 		support:         []types.RetrieverType{types.KeywordsRetrieverType},
 		canned:          []*types.IndexWithScore{{ChunkID: "c1", Score: 0.5}},
 		cannedResultErr: cause,
@@ -74,13 +74,13 @@ func TestRetrieveFromStores_MultiGroupKeepsPartialResults(t *testing.T) {
 	ctx, logs := captureServiceLogs(t)
 	cause := stderrors.New("milvus keyword search failed in 2 of 3 matched collections")
 	partial := &fakeRetrieveEngineService{
-		engineType:      types.PostgresRetrieverEngineType,
+		engineType:      types.MilvusRetrieverEngineType,
 		support:         []types.RetrieverType{types.KeywordsRetrieverType},
 		canned:          []*types.IndexWithScore{{ChunkID: "partial-1", Score: 0.4}},
 		cannedResultErr: cause,
 	}
 	clean := &fakeRetrieveEngineService{
-		engineType: types.PostgresRetrieverEngineType,
+		engineType: types.MilvusRetrieverEngineType,
 		support:    []types.RetrieverType{types.KeywordsRetrieverType},
 		canned:     []*types.IndexWithScore{{ChunkID: "clean-1", Score: 0.6}},
 	}
@@ -115,7 +115,7 @@ func TestRetrieveFromStores_MultiGroupKeepsPartialResults(t *testing.T) {
 func TestRetrieveFromStores_CompleteEmptySearchStaysQuiet(t *testing.T) {
 	ctx, logs := captureServiceLogs(t)
 	fake := &fakeRetrieveEngineService{
-		engineType: types.SQLiteRetrieverEngineType,
+		engineType: types.QdrantRetrieverEngineType,
 		support:    []types.RetrieverType{types.KeywordsRetrieverType},
 	}
 	g := &storeGroup{
@@ -142,7 +142,7 @@ func TestRetrieveFromStores_EngineLevelErrorStillFails(t *testing.T) {
 	ctx, logs := captureServiceLogs(t)
 	cause := stderrors.New("vector store unavailable")
 	fake := &fakeRetrieveEngineService{
-		engineType: types.SQLiteRetrieverEngineType,
+		engineType: types.QdrantRetrieverEngineType,
 		support:    []types.RetrieverType{types.KeywordsRetrieverType},
 		canned:     []*types.IndexWithScore{{ChunkID: "never-returned", Score: 0.5}},
 		cannedErr:  cause,

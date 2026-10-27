@@ -11,9 +11,9 @@ import (
 // of (knowledgeService).buildStorageConfig: every provider listed in
 // types.StorageEngineConfig and types.ParseProviderScheme must produce a
 // fully-populated DocParserStorageConfig when the tenant carries the matching
-// engine config. Before issue #1117 was fixed, s3 fell through the switch and
-// produced a result with only Provider set, silently dropping the bucket /
-// endpoint / credentials and stalling docreader.
+// engine config. Before issue #1117 was fixed, tos/s3/oss/ks3 fell through the
+// switch and produced a result with only Provider set, silently dropping the
+// bucket / endpoint / credentials and stalling docreader.
 func TestBuildStorageConfig_TenantMergeAllProviders(t *testing.T) {
 	t.Parallel()
 
@@ -63,8 +63,38 @@ func TestBuildStorageConfig_TenantMergeAllProviders(t *testing.T) {
 				bucket: "kb-minio", pathPrefix: "wk/",
 			},
 		},
-
-
+		{
+			name:     "cos — appid carried through",
+			kbConfig: &types.StorageProviderConfig{Provider: "cos"},
+			tenant: &types.Tenant{StorageEngineConfig: &types.StorageEngineConfig{
+				COS: &types.COSEngineConfig{
+					Region: "ap-guangzhou", BucketName: "kb-cos-1255000000",
+					SecretID: "cos-sid", SecretKey: "cos-sk",
+					AppID: "1255000000", PathPrefix: "wk/",
+				},
+			}},
+			want: want{
+				provider: "COS", region: "ap-guangzhou", bucket: "kb-cos-1255000000",
+				accessKeyID: "cos-sid", secretAccessKey: "cos-sk",
+				appID: "1255000000", pathPrefix: "wk/",
+			},
+		},
+		{
+			name:     "tos — issue #1117 regression guard",
+			kbConfig: &types.StorageProviderConfig{Provider: "tos"},
+			tenant: &types.Tenant{StorageEngineConfig: &types.StorageEngineConfig{
+				TOS: &types.TOSEngineConfig{
+					Endpoint: "tos-cn-beijing.volces.com", Region: "cn-beijing",
+					AccessKey: "tos-ak", SecretKey: "tos-sk",
+					BucketName: "kb-tos", PathPrefix: "wk/",
+				},
+			}},
+			want: want{
+				provider: "TOS", endpoint: "tos-cn-beijing.volces.com", region: "cn-beijing",
+				accessKeyID: "tos-ak", secretAccessKey: "tos-sk",
+				bucket: "kb-tos", pathPrefix: "wk/",
+			},
+		},
 		{
 			name:     "s3 — issue #1117 regression guard",
 			kbConfig: &types.StorageProviderConfig{Provider: "s3"},
@@ -81,8 +111,38 @@ func TestBuildStorageConfig_TenantMergeAllProviders(t *testing.T) {
 				bucket: "kb-s3", pathPrefix: "wk/",
 			},
 		},
-
-
+		{
+			name:     "oss — issue #1117 regression guard",
+			kbConfig: &types.StorageProviderConfig{Provider: "oss"},
+			tenant: &types.Tenant{StorageEngineConfig: &types.StorageEngineConfig{
+				OSS: &types.OSSEngineConfig{
+					Endpoint: "oss-cn-hangzhou.aliyuncs.com", Region: "cn-hangzhou",
+					AccessKey: "oss-ak", SecretKey: "oss-sk",
+					BucketName: "kb-oss", PathPrefix: "wk/",
+				},
+			}},
+			want: want{
+				provider: "OSS", endpoint: "oss-cn-hangzhou.aliyuncs.com", region: "cn-hangzhou",
+				accessKeyID: "oss-ak", secretAccessKey: "oss-sk",
+				bucket: "kb-oss", pathPrefix: "wk/",
+			},
+		},
+		{
+			name:     "ks3 — added in #1109, must not regress",
+			kbConfig: &types.StorageProviderConfig{Provider: "ks3"},
+			tenant: &types.Tenant{StorageEngineConfig: &types.StorageEngineConfig{
+				KS3: &types.KS3EngineConfig{
+					Endpoint: "ks3-cn-beijing.ksyuncs.com", Region: "cn-beijing",
+					AccessKey: "ks3-ak", SecretKey: "ks3-sk",
+					BucketName: "kb-ks3", PathPrefix: "wk/",
+				},
+			}},
+			want: want{
+				provider: "KS3", endpoint: "ks3-cn-beijing.ksyuncs.com", region: "cn-beijing",
+				accessKeyID: "ks3-ak", secretAccessKey: "ks3-sk",
+				bucket: "kb-ks3", pathPrefix: "wk/",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -129,17 +189,17 @@ func TestBuildStorageConfig_TenantMergeAllProviders(t *testing.T) {
 	}
 }
 
-// TestBuildStorageConfig_LegacyPathOnlyForMinIO verifies that the legacy
-// (kb.StorageConfig "cos_config" column) path is only used for minio, the one
-// remaining provider that historically wrote into it. local/s3 must always
+// TestBuildStorageConfig_LegacyPathOnlyForCOSAndMinIO verifies that the legacy
+// (kb.StorageConfig "cos_config" column) path is only used for the providers
+// that historically wrote into it — cos and minio. tos/s3/oss/ks3 must always
 // resolve through the tenant-merge path, so a populated legacy struct on those
 // providers is intentionally ignored rather than silently aliased onto the
 // wrong fields.
-func TestBuildStorageConfig_LegacyPathOnlyForMinIO(t *testing.T) {
+func TestBuildStorageConfig_LegacyPathOnlyForCOSAndMinIO(t *testing.T) {
 	t.Parallel()
 
-	// Legacy StorageConfig with full COS-shape fields. minio should pick it up;
-	// everything else falls through to the tenant merge.
+	// Legacy StorageConfig with full COS-shape fields. cos+minio should pick it
+	// up; everything else falls through to the tenant merge.
 	legacy := types.StorageConfig{
 		SecretID:   "legacy-sid",
 		SecretKey:  "legacy-sk",
@@ -157,9 +217,13 @@ func TestBuildStorageConfig_LegacyPathOnlyForMinIO(t *testing.T) {
 		wantAppID   string
 		wantTenants bool // true when the test should fall through to tenant merge (empty result)
 	}{
+		{name: "cos uses legacy", provider: "cos", wantBucket: "legacy-bucket", wantSecret: "legacy-sid", wantAppID: "1255000000"},
 		{name: "minio uses legacy", provider: "minio", wantBucket: "legacy-bucket", wantSecret: "legacy-sid", wantAppID: "1255000000"},
 		{name: "local skips legacy", provider: "local", wantTenants: true},
+		{name: "tos skips legacy", provider: "tos", wantTenants: true},
 		{name: "s3 skips legacy", provider: "s3", wantTenants: true},
+		{name: "oss skips legacy", provider: "oss", wantTenants: true},
+		{name: "ks3 skips legacy", provider: "ks3", wantTenants: true},
 	}
 
 	for _, tt := range tests {
@@ -208,7 +272,7 @@ func TestBuildStorageConfig_LegacyPathOnlyForMinIO(t *testing.T) {
 func TestBuildStorageConfig_NoTenantFallsThroughToEmpty(t *testing.T) {
 	t.Parallel()
 
-	for _, p := range []string{"local", "minio", "s3"} {
+	for _, p := range []string{"local", "minio", "cos", "tos", "s3", "oss", "ks3"} {
 		p := p
 		t.Run(p, func(t *testing.T) {
 			t.Parallel()

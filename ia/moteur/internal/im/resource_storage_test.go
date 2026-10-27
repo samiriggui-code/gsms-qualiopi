@@ -93,15 +93,14 @@ func newIMResourceStorageFixture(t *testing.T) *imResourceStorageFixture {
 	}).Error)
 	for i, owner := range []uint64{7, 7, 9} {
 		backend := &types.StorageBackend{
-			ID: fmt.Sprintf("s3-%d", i), TenantID: owner, Name: fmt.Sprintf("S3 %d", i), Provider: "s3",
+			ID: fmt.Sprintf("oss-%d", i), TenantID: owner, Name: fmt.Sprintf("OSS %d", i), Provider: "oss",
 			Config: types.StorageBackendConfig{
-				Endpoint: server.URL, Region: "us-east-1", BucketName: fmt.Sprintf("bucket-%d", i),
+				Endpoint: server.URL, Region: "cn-hangzhou", BucketName: fmt.Sprintf("bucket-%d", i),
 				AccessKeyID: fmt.Sprintf("instance-key-%d", i), SecretAccessKey: "test-only-secret",
-				ForcePathStyle: true,
 			},
 		}
 		require.NoError(t, storageRepo.Create(context.Background(), backend))
-		physical := fmt.Sprintf("storage://%s/s3://bucket-%d/%d/exports/image.png", backend.ID, i, owner)
+		physical := fmt.Sprintf("storage://%s/oss://bucket-%d/%d/exports/image.png", backend.ID, i, owner)
 		ref, err := catalog.Register(context.Background(), owner, physical,
 			interfaces.ResourceRegistration{Kind: "image", OriginalName: "image.png"})
 		require.NoError(t, err)
@@ -139,7 +138,7 @@ func (s *resourceKBLookup) GetKnowledgeBaseByIDOnly(ctx context.Context, id stri
 
 func (f *imResourceStorageFixture) context() context.Context {
 	return withIMIdentity(context.Background(), &IMChannel{TenantID: f.tenant.ID},
-		&IncomingMessage{Platform: PlatformTelegram, UserID: "test-user"})
+		&IncomingMessage{Platform: PlatformWeCom, UserID: "test-user"})
 }
 
 func (f *imResourceStorageFixture) checkSignedImages(t *testing.T, content string) {
@@ -152,8 +151,8 @@ func (f *imResourceStorageFixture) checkSignedImages(t *testing.T, content strin
 		require.NoError(t, err)
 		require.Equal(t, strings.TrimPrefix(f.baseURL, "http://"), u.Host)
 		require.Contains(t, u.Path, fmt.Sprintf("bucket-%d/", i))
-		require.Contains(t, u.Query().Get("X-Amz-Credential"), fmt.Sprintf("instance-key-%d/", i))
-		require.NotEmpty(t, u.Query().Get("X-Amz-Signature"))
+		require.Contains(t, u.Query().Get("x-oss-credential"), fmt.Sprintf("instance-key-%d/", i))
+		require.NotEmpty(t, u.Query().Get("x-oss-signature"))
 	}
 }
 
@@ -173,7 +172,10 @@ func TestIMDeliveryDoesNotSignUnsharedResourcesAcrossPlatformsAndModes(t *testin
 
 func checkIMDeliveryModes(t *testing.T, f *imResourceStorageFixture, check func(*testing.T, string)) {
 	t.Helper()
-	platforms := []Platform{PlatformSlack, PlatformTelegram, PlatformMattermost}
+	platforms := []Platform{
+		PlatformWeCom, PlatformFeishu, PlatformLark, PlatformDingtalk,
+		PlatformSlack, PlatformTelegram, PlatformMattermost, PlatformWeChat, PlatformQQBot, PlatformYunzhijia,
+	}
 	modes := []string{"stream", "full", "full without progress", "stream start failure", "stream finalize failure"}
 	for _, platform := range platforms {
 		for _, mode := range modes {
@@ -226,14 +228,14 @@ func TestIMResourceStoragePreservesShortLinksAndRejectsUnavailableInstances(t *t
 	require.NotContains(t, out, "resource://")
 
 	t.Setenv("APP_EXTERNAL_URL", "")
-	require.NoError(t, f.db.Model(&types.StorageBackend{}).Where("id = ?", "s3-0").
+	require.NoError(t, f.db.Model(&types.StorageBackend{}).Where("id = ?", "oss-0").
 		Update("status", types.StorageBackendStatusDisabled).Error)
-	require.NoError(t, f.db.Where("id = ?", "s3-1").Delete(&types.StorageBackend{}).Error)
+	require.NoError(t, f.db.Where("id = ?", "oss-1").Delete(&types.StorageBackend{}).Error)
 	out = cleanIMContent(ctx, f.answer, s.newOutboundFileServiceResolver(f.tenant, nil, nil))
 	require.Contains(t, out, f.refs[0])
 	require.Contains(t, out, f.refs[1])
 	require.NotContains(t, out, f.refs[2], "the available shared instance still resolves")
-	require.Contains(t, out, "X-Amz-Signature=")
+	require.Contains(t, out, "x-oss-signature=")
 }
 
 type resourceStreamingSession struct {
@@ -286,7 +288,7 @@ func TestIMStreamUpdatesUseResourceStorageBeforeCompletion(t *testing.T) {
 	ctx, cancel := context.WithTimeout(f.context(), 5*time.Second)
 	defer cancel()
 	err := s.handleMessageStream(ctx,
-		&IncomingMessage{Platform: PlatformTelegram, UserID: "test-user", Content: "Show the images"},
+		&IncomingMessage{Platform: PlatformWeCom, UserID: "test-user", Content: "Show the images"},
 		&types.Session{ID: "test-session"}, nil, nil, nil, nil, adapter, adapter, "test-user", f.tenant)
 	require.NoError(t, err)
 	require.Positive(t, adapter.updates)

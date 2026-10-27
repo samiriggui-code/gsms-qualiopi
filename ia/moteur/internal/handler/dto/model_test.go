@@ -358,7 +358,8 @@ func TestNewModelResponseReportsEmbeddingInputModalities(t *testing.T) {
 		model *types.Model
 		image bool
 	}{
-		{"catalog multimodal", embedding("jina", "jina-embeddings-v4", nil), true},
+		{"catalog multimodal", embedding("volcengine", "doubao-embedding-vision-251215", nil), true},
+		{"catalog pattern", embedding("aliyun", "qwen3-vl-embedding", nil), true},
 		{"catalog text only", embedding("openai", "text-embedding-3-small", nil), false},
 		{"row declares image", embedding("openai", "my-clip", declare("text", "image")), true},
 		{"row narrows catalog", embedding("jina", "jina-embeddings-v4", declare("text")), false},

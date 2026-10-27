@@ -95,7 +95,7 @@ func TestIMResourceAccessRechecksSharingWithCachedStorage(t *testing.T) {
 	resolver := s.newOutboundFileServiceResolver(f.tenant, agent, nil)
 	content := "![shared](" + f.refs[2] + ")"
 	first := cleanIMContent(f.context(), content, resolver)
-	require.Contains(t, first, "X-Amz-Signature=")
+	require.Contains(t, first, "x-oss-signature=")
 	require.NoError(t, f.db.Where("id = ?", "share").Delete(&types.KnowledgeBaseShare{}).Error)
 	require.Equal(t, content, cleanIMContent(f.context(), content, resolver),
 		"a cached storage client must not bypass a revoked share on the next stream update")

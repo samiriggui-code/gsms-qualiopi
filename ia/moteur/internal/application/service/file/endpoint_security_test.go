@@ -1,6 +1,7 @@
 package file
 
 import (
+	"context"
 	"testing"
 )
 
@@ -13,6 +14,20 @@ func TestStorageClientsRejectUnsafeEndpointAtConstruction(t *testing.T) {
 		},
 		"s3": func() error {
 			_, err := newS3Client(endpoint, "ak", "sk", "bucket", "region", "", true)
+			return err
+		},
+		"obs": func() error {
+			return CheckObsConnectivity(context.Background(), endpoint, "region", "ak", "sk", "bucket")
+		},
+		"oss": func() error {
+			_, err := newOSSClient(endpoint, "region", "ak", "sk")
+			return err
+		},
+		"tos": func() error {
+			return CheckTosConnectivity(context.Background(), endpoint, "region", "ak", "sk", "bucket")
+		},
+		"ks3": func() error {
+			_, err := newKS3Client(endpoint, "region", "ak", "sk")
 			return err
 		},
 	}

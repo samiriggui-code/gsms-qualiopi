@@ -14,36 +14,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func configureIMGlobalS3(t *testing.T, f *imResourceStorageFixture) interfaces.FileService {
+func configureIMGlobalOSS(t *testing.T, f *imResourceStorageFixture) interfaces.FileService {
 	t.Helper()
 	for name, value := range map[string]string{
-		"STORAGE_TYPE": "s3", "S3_ENDPOINT": f.baseURL, "S3_REGION": "us-east-1",
-		"S3_BUCKET_NAME": "global-artifacts", "S3_ACCESS_KEY": "global-key", "S3_SECRET_KEY": "test-secret",
-		"S3_PATH_PREFIX": "",
+		"STORAGE_TYPE": "oss", "OSS_ENDPOINT": f.baseURL, "OSS_REGION": "cn-hangzhou",
+		"OSS_BUCKET_NAME": "global-artifacts", "OSS_ACCESS_KEY": "global-key", "OSS_SECRET_KEY": "test-secret",
+		"OSS_PATH_PREFIX": "", "OSS_TEMP_BUCKET_NAME": "", "OSS_TEMP_REGION": "",
 	} {
 		t.Setenv(name, value)
 	}
 	repo := repository.NewStorageBackendRepository(f.db)
 	f.catalog = appsvc.NewResourceCatalogWithStorage(repository.NewResourceRepository(f.db), repo)
 	f.storage = appsvc.NewStorageBackendService(repo, f.db, f.catalog)
-	driver, err := filesvc.NewS3FileService(f.baseURL, "global-key", "test-secret",
-		"global-artifacts", "us-east-1", "weknora/")
+	driver, err := filesvc.NewOssFileService(f.baseURL, "cn-hangzhou", "global-key", "test-secret",
+		"global-artifacts", "weknora/")
 	require.NoError(t, err)
 	f.global = filesvc.NewGlobalResourceCatalogFileService(driver, f.catalog)
 	return driver
 }
 
 func TestIMGlobalResourcesKeepTheirActualStorage(t *testing.T) {
-	for _, workspaceProvider := range []string{"local", "s3"} {
+	for _, workspaceProvider := range []string{"local", "oss"} {
 		for _, origin := range []string{"artifact", "temporary document", "legacy artifact"} {
 			t.Run(workspaceProvider+"/"+origin, func(t *testing.T) {
 				f := newIMResourceStorageFixture(t)
-				driver := configureIMGlobalS3(t, f)
+				driver := configureIMGlobalOSS(t, f)
 				backend := &types.StorageBackend{
 					ID: "workspace-default", TenantID: 7, Name: "Workspace default", Provider: workspaceProvider,
 					LegacyAlias: true,
 					Config: types.StorageBackendConfig{
-						Endpoint: f.baseURL, Region: "us-east-1", BucketName: "workspace-bucket",
+						Endpoint: f.baseURL, Region: "cn-hangzhou", BucketName: "workspace-bucket",
 						AccessKeyID: "workspace-key", SecretAccessKey: "workspace-secret",
 					},
 				}
@@ -73,8 +73,8 @@ func TestIMGlobalResourcesKeepTheirActualStorage(t *testing.T) {
 					u, err := url.Parse(strings.TrimSuffix(strings.TrimPrefix(out, "![report]("), ")"))
 					require.NoError(t, err)
 					require.Contains(t, u.Path, "global-artifacts/weknora/7/exports/")
-					require.Contains(t, u.Query().Get("X-Amz-Credential"), "global-key/")
-					require.NotEmpty(t, u.Query().Get("X-Amz-Signature"))
+					require.Contains(t, u.Query().Get("x-oss-credential"), "global-key/")
+					require.NotEmpty(t, u.Query().Get("x-oss-signature"))
 				}
 				check()
 				resource, err = f.catalog.Resolve(f.context(), ref)
@@ -99,14 +99,14 @@ func TestIMGlobalResourcesKeepTheirActualStorage(t *testing.T) {
 
 func TestIMLegacyResourceDoesNotGuessBetweenEndpoints(t *testing.T) {
 	f := newIMResourceStorageFixture(t)
-	driver := configureIMGlobalS3(t, f)
+	driver := configureIMGlobalOSS(t, f)
 	legacy := filesvc.NewResourceCatalogFileService(driver, f.catalog)
 	ref, err := legacy.SaveBytes(f.context(), []byte("legacy content"), 7, "image.png", false)
 	require.NoError(t, err)
 	require.NoError(t, f.db.Create(&types.StorageBackend{
-		ID: "ambiguous", TenantID: 7, Name: "Same bucket elsewhere", Provider: "s3",
+		ID: "ambiguous", TenantID: 7, Name: "Same bucket elsewhere", Provider: "oss",
 		Config: types.StorageBackendConfig{
-			Endpoint: "https://another.example", Region: "us-east-1", BucketName: "global-artifacts",
+			Endpoint: "https://another.example", Region: "cn-hangzhou", BucketName: "global-artifacts",
 			AccessKeyID: "different-key", SecretAccessKey: "different-secret",
 		},
 	}).Error)

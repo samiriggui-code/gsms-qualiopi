@@ -26,20 +26,27 @@ func (s *envConnectionTestService) TestConnection(
 	return "test-version", nil
 }
 
-func TestEnvStoreConnectionSettings(t *testing.T) {
-	t.Setenv("RETRIEVE_DRIVER", "postgres")
+func TestQdrantEnvStoreConnectionSettings(t *testing.T) {
+	t.Setenv("RETRIEVE_DRIVER", "qdrant")
+	t.Setenv("QDRANT_HOST", "vectors.example")
+	t.Setenv("QDRANT_PORT", "7443")
+	t.Setenv("QDRANT_API_KEY", "secret")
+	t.Setenv("QDRANT_USE_TLS", "true")
 
 	svc := &envConnectionTestService{}
 	h := NewVectorStoreHandler(nil, svc)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/vector-stores/__env_postgres__/test", nil)
-	c.Params = gin.Params{{Key: "id", Value: "__env_postgres__"}}
+	c.Request = httptest.NewRequest(http.MethodPost, "/vector-stores/__env_qdrant__/test", nil)
+	c.Params = gin.Params{{Key: "id", Value: "__env_qdrant__"}}
 	c.Set(types.TenantIDContextKey.String(), uint64(1))
 	h.TestStoreByID(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, svc.called)
-	assert.Equal(t, types.PostgresRetrieverEngineType, svc.engine)
-	assert.Equal(t, types.ConnectionConfig{UseDefaultConnection: true}, svc.config)
+	assert.Equal(t, types.QdrantRetrieverEngineType, svc.engine)
+	assert.Equal(t, types.ConnectionConfig{
+		Host: "vectors.example", Port: 7443, APIKey: "secret", UseTLS: true,
+	}, svc.config)
+	assert.NotContains(t, w.Body.String(), "secret")
 }

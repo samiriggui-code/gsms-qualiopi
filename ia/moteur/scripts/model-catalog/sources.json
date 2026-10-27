@@ -13,8 +13,20 @@
       "anthropic": "anthropic",
       "gemini": "google",
       "deepseek": "deepseek",
+      "zhipu": "zhipuai",
+      "aliyun": "alibaba-cn",
+      "volcengine": "volcengine",
+      "moonshot": "moonshotai-cn",
+      "minimax": "minimax-cn",
+      "mimo": "xiaomi",
+      "siliconflow": "siliconflow-cn",
+      "modelscope": "modelscope",
+      "qiniu": "qiniu-ai",
+      "longcat": "longcat",
+      "novita": "novita-ai",
       "nvidia": "nvidia",
-      "openrouter": "openrouter"
+      "openrouter": "openrouter",
+      "requesty": "requesty"
     }
   }
 }

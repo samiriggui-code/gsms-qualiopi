@@ -28,7 +28,7 @@ type resyncStreamConnector struct {
 	failFetch    bool
 }
 
-func (c *resyncStreamConnector) Type() string { return types.ConnectorTypeNotion }
+func (c *resyncStreamConnector) Type() string { return types.ConnectorTypeFeishu }
 func (c *resyncStreamConnector) Validate(context.Context, *types.DataSourceConfig) error {
 	return nil
 }
@@ -93,7 +93,7 @@ func newResyncHarness(
 ) (*DataSourceService, *types.DataSource, *resyncDSRepo, *types.SyncLog) {
 	t.Helper()
 	cfg := &types.DataSourceConfig{
-		Type:        types.ConnectorTypeNotion,
+		Type:        types.ConnectorTypeFeishu,
 		Credentials: map[string]interface{}{"app_id": "cli-x", "app_secret": "sec"},
 		ResourceIDs: []string{"space1"},
 		Settings:    settings,
@@ -106,7 +106,7 @@ func newResyncHarness(
 		TenantID:        1,
 		KnowledgeBaseID: "kb-1",
 		Name:            "Feishu Legacy",
-		Type:            types.ConnectorTypeNotion,
+		Type:            types.ConnectorTypeFeishu,
 		Config:          configJSON,
 		SyncMode:        types.SyncModeIncremental,
 		Status:          types.DataSourceStatusActive,

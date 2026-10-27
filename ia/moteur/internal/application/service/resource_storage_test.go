@@ -13,9 +13,9 @@ import (
 
 func TestGlobalResourceBindingSurvivesCredentialAndLocationChanges(t *testing.T) {
 	for name, value := range map[string]string{
-		"STORAGE_TYPE": "s3", "S3_ENDPOINT": "https://s3.example", "S3_REGION": "region",
-		"S3_BUCKET_NAME": "first-bucket", "S3_ACCESS_KEY": "first-key", "S3_SECRET_KEY": "secret",
-		"S3_PATH_PREFIX": "",
+		"STORAGE_TYPE": "oss", "OSS_ENDPOINT": "https://oss.example", "OSS_REGION": "region",
+		"OSS_BUCKET_NAME": "first-bucket", "OSS_ACCESS_KEY": "first-key", "OSS_SECRET_KEY": "secret",
+		"OSS_PATH_PREFIX": "", "OSS_TEMP_BUCKET_NAME": "", "OSS_TEMP_REGION": "",
 	} {
 		t.Setenv(name, value)
 	}
@@ -29,14 +29,14 @@ func TestGlobalResourceBindingSurvivesCredentialAndLocationChanges(t *testing.T)
 	ctx := context.Background()
 	catalog := newCatalog()
 	first, err := catalog.RegisterGlobal(ctx, 7,
-		"s3://first-bucket/7/exports/a.png", interfaces.ResourceRegistration{})
+		"oss://first-bucket/7/exports/a.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 	resource, err := catalog.ResolveStorageBinding(ctx, first)
 	require.NoError(t, err)
 	firstID := resource.StorageBackendID
 	require.NotEmpty(t, firstID)
 
-	t.Setenv("S3_ACCESS_KEY", "rotated-key")
+	t.Setenv("OSS_ACCESS_KEY", "rotated-key")
 	catalog = newCatalog()
 	resource, err = catalog.ResolveStorageBinding(ctx, first)
 	require.NoError(t, err)
@@ -47,10 +47,10 @@ func TestGlobalResourceBindingSurvivesCredentialAndLocationChanges(t *testing.T)
 	require.False(t, backend.LegacyAlias)
 	require.Equal(t, types.StorageBackendSourceEnv, backend.Source)
 
-	t.Setenv("S3_BUCKET_NAME", "second-bucket")
+	t.Setenv("OSS_BUCKET_NAME", "second-bucket")
 	catalog = newCatalog()
 	second, err := catalog.RegisterGlobal(ctx, 7,
-		"s3://second-bucket/7/exports/b.png", interfaces.ResourceRegistration{})
+		"oss://second-bucket/7/exports/b.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 	resource, err = catalog.ResolveStorageBinding(ctx, second)
 	require.NoError(t, err)
@@ -120,7 +120,7 @@ func TestGlobalLocalWritesIgnoreWorkspacePathPrefix(t *testing.T) {
 func TestLegacyResourceBindingNeverOverwritesExistingBinding(t *testing.T) {
 	catalog, db := newResourceCatalogForTest(t)
 	ctx := context.Background()
-	ref, err := catalog.Register(ctx, 7, "s3://bucket/7/exports/a.png", interfaces.ResourceRegistration{})
+	ref, err := catalog.Register(ctx, 7, "oss://bucket/7/exports/a.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 	resource, err := catalog.Resolve(ctx, ref)
 	require.NoError(t, err)

@@ -186,7 +186,7 @@ func TestCreateRetrieveEngineForKB_UnboundMissingTenant(t *testing.T) {
 
 func TestCreateRetrieveEngineForKB_StoreBound(t *testing.T) {
 	esEngine := &fakeEngine{
-		engineType: fakeEngineTypeA,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.KeywordsRetrieverType, types.VectorRetrieverType},
 	}
 	registry := registryWithStores(t,
@@ -210,7 +210,7 @@ func TestCreateRetrieveEngineForKB_StoreBound(t *testing.T) {
 
 func TestCreateRetrieveEngineForKB_CrossTenant(t *testing.T) {
 	esEngine := &fakeEngine{
-		engineType: fakeEngineTypeA,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 	}
 	registry := registryWithStores(t,
@@ -318,7 +318,7 @@ func TestCreateRetrieveEngineFromPayload_LegacyUnbound(t *testing.T) {
 
 func TestCreateRetrieveEngineFromPayload_Bound(t *testing.T) {
 	qdrantEngine := &fakeEngine{
-		engineType: fakeEngineTypeB,
+		engineType: types.QdrantRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 	}
 	registry := registryWithStores(t,
@@ -338,7 +338,7 @@ func TestCreateRetrieveEngineFromPayload_Bound(t *testing.T) {
 }
 
 func TestCreateRetrieveEngineFromPayload_TamperedCrossTenant(t *testing.T) {
-	esEngine := &fakeEngine{engineType: fakeEngineTypeA,
+	esEngine := &fakeEngine{engineType: types.ElasticsearchRetrieverEngineType,
 		support: []types.RetrieverType{types.VectorRetrieverType}}
 	registry := registryWithStores(t,
 		map[string]*fakeEngine{"store-A": esEngine}, nil)
@@ -362,7 +362,7 @@ func TestCreateRetrieveEngineFromPayload_TamperedCrossTenant(t *testing.T) {
 // guards against accidental shared state being introduced later.
 func TestFactoryParallelInvocation(t *testing.T) {
 	esEngine := &fakeEngine{
-		engineType: fakeEngineTypeA,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 	}
 	registry := registryWithStores(t,
@@ -396,7 +396,7 @@ func TestFactoryParallelInvocation(t *testing.T) {
 func TestVerifyBinding(t *testing.T) {
 	ctx := context.Background()
 	esEngine := &fakeEngine{
-		engineType: fakeEngineTypeA,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 	}
 

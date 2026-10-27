@@ -16,6 +16,7 @@ func TestTenantResponse_ViewerOmitsSecrets(t *testing.T) {
 	s := string(body)
 	assert.NotContains(t, s, "tenant-api-key-123")
 	assert.NotContains(t, s, "legacy-search-secret-999")
+	assert.NotContains(t, s, "wk-app-secret-def")
 	assert.NotContains(t, s, "parser-secret-123")
 	assert.NotContains(t, s, "minio-secret-789")
 	assert.NotContains(t, s, "web_search_config")
@@ -63,6 +64,12 @@ func sampleSecretTenant() *types.Tenant {
 		WebSearchConfig: &types.WebSearchConfig{
 			APIKey:   "legacy-search-secret-999",
 			ProxyURL: "http://proxy.internal:8080",
+		},
+		Credentials: &types.CredentialsConfig{
+			WeKnoraCloud: &types.WeKnoraCloudCredentials{
+				AppID:     "wk-app-id-abc",
+				AppSecret: "wk-app-secret-def",
+			},
 		},
 		ParserEngineConfig: &types.ParserEngineConfig{
 			MinerUAPIKey:          "parser-secret-123",

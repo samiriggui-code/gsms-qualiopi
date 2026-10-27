@@ -17,7 +17,7 @@ const (
 
 	// objectStorageTransferTimeout is the fallback when the caller did not
 	// set a deadline (asynq workers and the main HTTP server both omit one).
-	// Long enough for a slow 40 MB PUT; short enough that a stalled body
+	// Long enough for a slow 40 MB COS PUT; short enough that a stalled body
 	// cannot pin a worker forever.
 	objectStorageTransferTimeout = 30 * time.Minute
 
@@ -55,7 +55,8 @@ func objectStorageTransport() *http.Transport {
 }
 
 // objectStorageHTTPClient is the client for the SDKs that take a whole
-// http.Client (S3).
+// http.Client (S3, KS3, OBS, OSS). COS wraps objectStorageTransport in its
+// own signing transport.
 func objectStorageHTTPClient() *http.Client {
 	return utils.NewSSRFSafeHTTPClientWithTransport(objectStorageHTTPClientConfig(), objectStorageTransport())
 }

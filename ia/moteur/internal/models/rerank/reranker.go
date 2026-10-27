@@ -10,6 +10,7 @@ import (
 	"github.com/Tencent/WeKnora/internal/logger"
 	"github.com/Tencent/WeKnora/internal/models/api"
 	"github.com/Tencent/WeKnora/internal/models/api/cohererank"
+	"github.com/Tencent/WeKnora/internal/models/api/dashscoperank"
 	"github.com/Tencent/WeKnora/internal/models/api/nimrerank"
 	"github.com/Tencent/WeKnora/internal/models/api/pineconerank"
 	"github.com/Tencent/WeKnora/internal/models/api/teirank"
@@ -17,7 +18,8 @@ import (
 
 	// modelruntime.Resolve answers from the vendor catalog, which is empty until
 	// the vendor packages have run their init. Without this import every row
-	// resolves to the generic vendor and loses its native protocol.
+	// resolves to the generic vendor: LKEAP and Volcengine would lose their
+	// signed clients and Aliyun its native protocol.
 	"github.com/Tencent/WeKnora/internal/types"
 )
 
@@ -197,12 +199,18 @@ func newReranker(config *RerankerConfig) (Reranker, error) {
 	switch resolved.RerankAPI {
 	case api.RerankCohere:
 		client = cohererank.New(cohererank.Config{Endpoint: endpoint, Settings: resolved.Rerank})
+	case api.RerankDashScope:
+		client = dashscoperank.New(dashscoperank.Config{Endpoint: endpoint, Settings: resolved.Rerank})
 	case api.RerankNIM:
 		client = nimrerank.New(nimrerank.Config{Endpoint: endpoint, Settings: resolved.Rerank})
 	case api.RerankPinecone:
 		client = pineconerank.New(pineconerank.Config{Endpoint: endpoint, Settings: resolved.Rerank})
 	case api.RerankTEI:
 		client = teirank.New(teirank.Config{Endpoint: endpoint, Settings: resolved.Rerank})
+	case api.RerankTencentLKEAP:
+		client, err = newLKEAPClient(config, resolved)
+	case api.RerankVolcengineKnowledge:
+		client, err = newVolcengineClient(config, resolved)
 	default:
 		return nil, fmt.Errorf("unsupported rerank api %q for provider %s", resolved.RerankAPI, vendor.ID)
 	}

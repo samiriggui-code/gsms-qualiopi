@@ -8,12 +8,12 @@ import (
 )
 
 func TestStorageBackendPathRoundTrip(t *testing.T) {
-	path := BuildStorageBackendPath("backend-a", "s3://bucket/7/file.pdf")
+	path := BuildStorageBackendPath("backend-a", "cos://bucket/region/7/file.pdf")
 	id, inner, ok := ParseStorageBackendPath(path)
 	require.True(t, ok)
 	assert.Equal(t, "backend-a", id)
-	assert.Equal(t, "s3://bucket/7/file.pdf", inner)
-	assert.Equal(t, "s3", ParseProviderScheme(path))
+	assert.Equal(t, "cos://bucket/region/7/file.pdf", inner)
+	assert.Equal(t, "cos", ParseProviderScheme(path))
 }
 
 func TestSharesStorageBackendWithUsesConcreteInstance(t *testing.T) {

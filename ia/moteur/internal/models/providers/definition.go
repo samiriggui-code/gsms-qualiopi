@@ -24,10 +24,12 @@ const (
 	AuthGoogleAPIKey AuthStyle = "x-goog-api-key"
 	// AuthNone sends nothing (local deployments).
 	AuthNone AuthStyle = "none"
+	// AuthSigned delegates to the vendor's Signer hook (WeKnora Cloud).
+	AuthSigned AuthStyle = "signed"
 )
 
 // ExtraField describes one vendor-specific configuration input the model
-// editor renders dynamically (Azure api-version, ...).
+// editor renders dynamically (Azure api-version, LKEAP secret key, ...).
 type ExtraField struct {
 	Key         string            `json:"key"`
 	Label       string            `json:"label"`
@@ -47,10 +49,12 @@ type ExtraField struct {
 
 // CredentialLabel renames the primary credential input for one vendor.
 //
-// Most vendors take an API key and need none of this. A vendor whose primary
-// credential is something else says what the field is called rather than the
-// editor hardcoding a table of vendor ids, which is what this whole layer
-// exists to avoid.
+// Most vendors take an API key and need none of this. LKEAP and Volcengine
+// authenticate their rerank API with a CAM / IAM identity pair instead, where
+// the first field is a SecretId / AccessKeyId — calling it "API Key" leads
+// operators to paste an `sk-` token that can never authenticate. The vendor
+// says what the field is called rather than the editor hardcoding a table of
+// vendor ids, which is what this whole layer exists to avoid.
 type CredentialLabel struct {
 	Label        string            `json:"label"`
 	Labels       map[string]string `json:"labels,omitempty"`
@@ -133,8 +137,9 @@ type EndpointRequest struct {
 	ModelType types.ModelType
 	API       api.API
 	// EmbeddingAPI is the resolved embedding protocol on an embedding
-	// request, for vendors that serve several embedding protocols on
-	// different paths under one base URL.
+	// request. Aliyun and Volcengine each serve their text and multimodal
+	// embeddings on different paths under one base URL, so the hook has to
+	// know which one the model speaks.
 	EmbeddingAPI api.EmbeddingAPI
 	Extra        map[string]string
 }
@@ -195,6 +200,9 @@ type Definition struct {
 	// pair after URL inference ran (OpenAI uses Responses on its own host
 	// and Chat Completions on relays). Returning "" keeps the current choice.
 	PreferAPI func(baseURL string, spec models.ModelSpec) api.API
+	// Signer, when set (AuthSigned), builds the request signer from the
+	// stored credentials.
+	Signer func(creds api.Credentials) api.AuthFunc
 	// Validate checks a configuration before it is saved or used. Nil means
 	// the default check (key required when RequiresAuth; model name required).
 	Validate func(cfg *Config) error
@@ -279,6 +287,11 @@ func (v *Definition) AuthFunc(protocol api.API, creds api.Credentials) api.AuthF
 		return api.HeaderAuth("x-goog-api-key", creds.APIKey)
 	case AuthNone:
 		return api.NoAuth()
+	case AuthSigned:
+		if v.Signer != nil {
+			return v.Signer(creds)
+		}
+		return api.NoAuth()
 	default:
 		return api.BearerAuth(creds.APIKey)
 	}
@@ -302,7 +315,7 @@ func defaultValidate(v *Definition, cfg *Config) error {
 	if cfg == nil {
 		return fmt.Errorf("config is nil")
 	}
-	if v.RequiresAuth && strings.TrimSpace(cfg.APIKey) == "" {
+	if v.RequiresAuth && v.Auth != AuthSigned && strings.TrimSpace(cfg.APIKey) == "" {
 		return fmt.Errorf("API key is required for %s", v.Name)
 	}
 	if v.ID == GenericID && strings.TrimSpace(cfg.BaseURL) == "" {

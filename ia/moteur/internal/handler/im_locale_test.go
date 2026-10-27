@@ -44,7 +44,7 @@ func TestCreateIMChannelRejectsUnsupportedLocale(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/agents/agent-1/im-channels",
-		strings.NewReader(`{"platform":"slack","locale":"fr-FR"}`),
+		strings.NewReader(`{"platform":"feishu","locale":"fr-FR"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(context.WithValue(req.Context(), types.TenantIDContextKey, uint64(42)))

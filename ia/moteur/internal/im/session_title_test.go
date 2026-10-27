@@ -31,7 +31,7 @@ func TestBuildUserSessionTitle(t *testing.T) {
 		{
 			name: "group with username",
 			msg: &IncomingMessage{
-				Platform: "slack",
+				Platform: "feishu",
 				UserName: "李四",
 				ChatType: ChatTypeGroup,
 				ChatID:   "oc_aaaaaaaaaaaaaaaa",
@@ -41,7 +41,7 @@ func TestBuildUserSessionTitle(t *testing.T) {
 		{
 			name: "direct message with username",
 			msg: &IncomingMessage{
-				Platform: "slack",
+				Platform: "feishu",
 				UserName: "李四",
 				ChatType: ChatTypeDirect,
 			},
@@ -50,7 +50,7 @@ func TestBuildUserSessionTitle(t *testing.T) {
 		{
 			name: "group without username falls back to user id",
 			msg: &IncomingMessage{
-				Platform: "telegram",
+				Platform: "wecom",
 				UserID:   "WeCom_ZhangSan",
 				ChatType: ChatTypeGroup,
 				ChatID:   "wc_group_1234",
@@ -93,7 +93,7 @@ func TestBuildThreadSessionTitle(t *testing.T) {
 		{
 			name: "thread without chat id",
 			msg: &IncomingMessage{
-				Platform: "slack",
+				Platform: "feishu",
 				ThreadID: "om_thread_abcdefgh",
 			},
 			want: "thread abcdefgh",
@@ -117,7 +117,7 @@ func TestIMInitialSessionTitle(t *testing.T) {
 		{
 			name: "text message starts untitled so it gets a content-based title later",
 			msg: &IncomingMessage{
-				Platform: "slack",
+				Platform: "feishu",
 				UserName: "李四",
 				ChatType: ChatTypeDirect,
 				Content:  "如何配置单点登录?",
@@ -127,7 +127,7 @@ func TestIMInitialSessionTitle(t *testing.T) {
 		{
 			name: "whitespace-only content falls back to the identity title",
 			msg: &IncomingMessage{
-				Platform: "slack",
+				Platform: "feishu",
 				UserName: "李四",
 				ChatType: ChatTypeDirect,
 				Content:  "   ",
@@ -137,7 +137,7 @@ func TestIMInitialSessionTitle(t *testing.T) {
 		{
 			name: "non-text message (no content) falls back to the identity title",
 			msg: &IncomingMessage{
-				Platform: "telegram",
+				Platform: "wecom",
 				UserID:   "WeCom_ZhangSan",
 				ChatType: ChatTypeGroup,
 				ChatID:   "wc_group_1234",

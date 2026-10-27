@@ -14,7 +14,7 @@ func TestSummarizeIMChannel_OmitsCredentials(t *testing.T) {
 		ID:          "ch-1",
 		TenantID:    1,
 		AgentID:     "agent-1",
-		Platform:    "slack",
+		Platform:    "feishu",
 		Name:        "support",
 		Locale:      "ko-KR",
 		Credentials: types.JSON(`{"app_secret":"top-secret"}`),

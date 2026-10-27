@@ -14,6 +14,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/Tencent/WeKnora/internal/models"
 	modelruntime "github.com/Tencent/WeKnora/internal/models/runtime"
 	"github.com/Tencent/WeKnora/internal/types"
 	"github.com/stretchr/testify/assert"
@@ -57,6 +58,10 @@ func newUpstream(t *testing.T) *upstream {
 	t.Cleanup(server.Close)
 	u.url = server.URL
 
+	// LKEAP's SDK always calls the public API host; point it here.
+	savedEndpoint, savedScheme := lkeapEndpoint, lkeapScheme
+	lkeapEndpoint, lkeapScheme = strings.TrimPrefix(server.URL, "http://"), "HTTP"
+	t.Cleanup(func() { lkeapEndpoint, lkeapScheme = savedEndpoint, savedScheme })
 	return u
 }
 
@@ -67,7 +72,7 @@ func texts(v any) []string {
 		switch d := item.(type) {
 		case string:
 			out = append(out, d)
-		case map[string]any: // NIM passages
+		case map[string]any: // NIM passages, Volcengine datas
 			if image, ok := d["image"].(string); ok {
 				// An image scores by its decoded size, so a test can tell
 				// which image a score belongs to.
@@ -92,6 +97,16 @@ func logit(doc string) float64       { return float64(utf8.RuneCountInString(doc
 func answer(r *http.Request, body map[string]any) string {
 	var parts []string
 	switch {
+	case r.Header.Get("X-TC-Action") == "RunRerank": // LKEAP: scores in input order
+		for _, doc := range texts(body["Docs"]) {
+			parts = append(parts, fmt.Sprint(probability(doc)))
+		}
+		return `{"Response":{"ScoreList":[` + strings.Join(parts, ",") + `],"RequestId":"r"}}`
+	case strings.HasSuffix(r.URL.Path, "/api/knowledge/service/rerank"): // Volcengine
+		for _, doc := range texts(body["datas"]) {
+			parts = append(parts, fmt.Sprint(probability(doc)))
+		}
+		return `{"code":0,"message":"success","data":{"scores":[` + strings.Join(parts, ",") + `]}}`
 	case strings.HasSuffix(r.URL.Path, "/reranking"): // NIM
 		docs := texts(body["passages"])
 		for i := len(docs) - 1; i >= 0; i-- {
@@ -111,6 +126,12 @@ func answer(r *http.Request, body map[string]any) string {
 			parts = append(parts, fmt.Sprintf(`{"index":%d,"score":%v}`, i, probability(docs[i])))
 		}
 		return `[` + strings.Join(parts, ",") + `]`
+	case strings.Contains(r.URL.Path, "/text-rerank"): // DashScope
+		docs := texts(body["input"].(map[string]any)["documents"])
+		for i := len(docs) - 1; i >= 0; i-- {
+			parts = append(parts, fmt.Sprintf(`{"index":%d,"relevance_score":%v}`, i, probability(docs[i])))
+		}
+		return `{"output":{"results":[` + strings.Join(parts, ",") + `]}}`
 	case r.Header.Get("X-Pinecone-Api-Version") != "": // Pinecone Inference
 		docs := texts(body["documents"])
 		for i := len(docs) - 1; i >= 0; i-- {
@@ -203,6 +224,22 @@ func TestRerankWireFormatPerVendor(t *testing.T) {
 			wantBody: cohere("rerank-v3.5", three, nil),
 		},
 		{
+			name: "zhipu on its full rerank URL", provider: "zhipu", model: "rerank", base: "/api/paas/v4/rerank",
+			wantPath: "/api/paas/v4/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: cohere("rerank", three, map[string]any{"return_documents": true}),
+		},
+		{
+			name: "zhipu splits at 128 documents", provider: "zhipu", model: "rerank", base: "/api/paas/v4/rerank",
+			docs: documents(129), wantRequests: 2,
+			wantPath: "/api/paas/v4/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: cohere("rerank", documents(128), map[string]any{"return_documents": true}),
+		},
+		{
+			name: "siliconflow", provider: "siliconflow", model: "BAAI/bge-reranker-v2-m3", base: "/v1",
+			wantPath: "/v1/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: cohere("BAAI/bge-reranker-v2-m3", three, nil),
+		},
+		{
 			name: "pinecone native objects and version", provider: "pinecone", model: "bge-reranker-v2-m3",
 			wantPath: "/rerank", wantAuth: [2]string{"Api-Key", "k"}, wantVersion: "2026-07",
 			wantBody: map[string]any{
@@ -213,6 +250,20 @@ func TestRerankWireFormatPerVendor(t *testing.T) {
 				"top_n": float64(3), "rank_fields": []any{"text"}, "return_documents": false,
 				"parameters": map[string]any{"truncate": "END"},
 			},
+		},
+		{
+			name: "qianfan splits at 64 documents", provider: "qianfan", model: "bce-reranker-base", base: "/v2",
+			docs: documents(65), wantRequests: 2,
+			wantPath: "/v2/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: cohere("bce-reranker-base", documents(64), nil),
+		},
+		{
+			name: "gpustack sends the row's truncation budget and answers logits", provider: "gpustack",
+			model: "bge-reranker-v2-m3", base: "/v1",
+			extra:      map[string]string{models.ExtraTruncatePromptTokens: "256"},
+			cohereLogs: true,
+			wantPath:   "/v1/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: cohere("bge-reranker-v2-m3", three, map[string]any{"truncate_prompt_tokens": float64(256)}),
 		},
 		{
 			name: "generic", provider: "generic", model: "bge-reranker-v2-m3", base: "/v1",
@@ -233,6 +284,11 @@ func TestRerankWireFormatPerVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "novita", provider: "novita", model: "baai/bge-reranker-v2-m3", base: "/openai/v1",
+			wantPath: "/openai/v1/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: cohere("baai/bge-reranker-v2-m3", three, nil),
+		},
+		{
 			name: "openrouter", provider: "openrouter", model: "cohere/rerank-v3.5", base: "/api/v1",
 			wantPath: "/api/v1/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
 			wantBody: cohere("cohere/rerank-v3.5", three, nil),
@@ -241,6 +297,23 @@ func TestRerankWireFormatPerVendor(t *testing.T) {
 			name: "litellm on the proxy root", provider: "litellm", model: "cohere/rerank-v3.5",
 			wantPath: "/rerank", wantAuth: [2]string{"Authorization", "Bearer k"},
 			wantBody: cohere("cohere/rerank-v3.5", three, nil),
+		},
+		{
+			name: "weknoracloud signs its own path", provider: "weknoracloud", model: "rerank",
+			appID: "app", appSecret: "s",
+			wantPath: "/api/v1/rerank", wantAuth: [2]string{"X-APPID", "app"},
+			wantBody: cohere("rerank", three, nil),
+		},
+		{
+			name: "aliyun wraps input and parameters", provider: "aliyun", model: "gte-rerank-v2",
+			base:     "/api/v1/services/rerank/text-rerank/text-rerank",
+			wantPath: "/api/v1/services/rerank/text-rerank/text-rerank",
+			wantAuth: [2]string{"Authorization", "Bearer k"},
+			wantBody: map[string]any{
+				"model":      "gte-rerank-v2",
+				"input":      map[string]any{"query": query, "documents": anyStrings(three)},
+				"parameters": map[string]any{"return_documents": true, "top_n": float64(3)},
+			},
 		},
 		{
 			name: "nvidia sends passages and answers logits", provider: "nvidia",
@@ -254,6 +327,26 @@ func TestRerankWireFormatPerVendor(t *testing.T) {
 				},
 				"truncate": "END",
 			},
+		},
+		{
+			name: "volcengine through the Knowledge Service SDK", provider: "volcengine", model: "doubao-seed-rerank",
+			appSecret: "secret-test",
+			wantPath:  "/api/knowledge/service/rerank", wantAuth: [2]string{"Authorization", "Credential=k/"},
+			wantBody: map[string]any{
+				"rerank_model":       "doubao-seed-rerank",
+				"rerank_instruction": volcInstruction,
+				"datas": []any{
+					map[string]any{"query": query, "content": "a"},
+					map[string]any{"query": query, "content": "bbb"},
+					map[string]any{"query": query, "content": "cc"},
+				},
+			},
+		},
+		{
+			name: "lkeap through the Tencent Cloud SDK", provider: "lkeap", model: "lke-reranker-base",
+			appSecret: "secret-test",
+			wantPath:  "/", wantAuth: [2]string{"Authorization", "Credential=k/"},
+			wantBody: map[string]any{"Query": query, "Docs": anyStrings(three), "Model": "lke-reranker-base"},
 		},
 	}
 

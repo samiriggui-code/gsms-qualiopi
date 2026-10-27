@@ -71,17 +71,20 @@ func TestBuildConfigResponse_ShareReceiverAdminSeesPresenceOnly(t *testing.T) {
 		Parameters: types.ModelParameters{BaseURL: "https://owner-private.example.com"},
 	}}
 	kb := &types.KnowledgeBase{TenantID: 7}
-	legacy := &kb.StorageConfig //nolint:staticcheck // old KBs still carry the legacy storage config
-	legacy.Provider = "minio"
+	legacy := &kb.StorageConfig //nolint:staticcheck // old KBs still carry the legacy COS config
+	legacy.Provider = "cos"
 	legacy.BucketName = "owner-bucket"
-	legacy.PathPrefix = "owner-prefix"
+	legacy.Region = "ap-owner"
+	legacy.AppID = "owner-app"
+	legacy.SecretID = "id"
+	legacy.SecretKey = "key"
 
 	config := h.buildConfigResponse(ctx, models, kb, false)
 	body, err := json.Marshal(config)
 	require.NoError(t, err)
-	for _, detail := range []string{"owner-private.example.com", "owner-bucket", "owner-prefix"} {
+	for _, detail := range []string{"owner-private.example.com", "owner-bucket", "ap-owner", "owner-app"} {
 		assert.NotContains(t, string(body), detail)
 	}
-	_, ok := config["multimodal"].(map[string]interface{})["minio"].(map[string]interface{})
-	assert.True(t, ok, "the provider entry stays, only its location fields are stripped")
+	cos := config["multimodal"].(map[string]interface{})["cos"].(map[string]interface{})
+	assert.Equal(t, map[string]bool{"secretId": true, "secretKey": true}, cos["credentials"])
 }

@@ -70,7 +70,7 @@ func TestCreateKnowledgeFromFileGitLabPreservesSourcePaths(t *testing.T) {
 	require.ErrorAs(t, err, &dupErr)
 	require.Equal(t, nested.ID, duplicate.ID, "a retry must match this path's own knowledge")
 
-	for _, channel := range []string{"", types.ConnectorTypeNotion} {
+	for _, channel := range []string{"", types.ConnectorTypeFeishu} {
 		_, err := create(channel, "ds-3", "another/README.md")
 		require.ErrorAs(t, err, &dupErr, "other import channels retain content deduplication")
 	}

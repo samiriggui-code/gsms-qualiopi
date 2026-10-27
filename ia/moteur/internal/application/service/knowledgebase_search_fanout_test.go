@@ -66,7 +66,7 @@ func TestHasMixedEngineTypes(t *testing.T) {
 		}, false},
 		{"two different", []*types.RetrieveResult{
 			{RetrieverEngineType: types.PostgresRetrieverEngineType},
-			{RetrieverEngineType: types.SQLiteRetrieverEngineType},
+			{RetrieverEngineType: types.ElasticsearchRetrieverEngineType},
 		}, true},
 		{"empty + nonempty engine", []*types.RetrieveResult{
 			{RetrieverEngineType: ""},
@@ -85,7 +85,15 @@ func TestIsKnownEngineType(t *testing.T) {
 	t.Parallel()
 	known := []types.RetrieverEngineType{
 		types.PostgresRetrieverEngineType,
+		types.ElasticsearchRetrieverEngineType,
+		types.ElasticFaissRetrieverEngineType,
+		types.MilvusRetrieverEngineType,
+		types.QdrantRetrieverEngineType,
+		types.WeaviateRetrieverEngineType,
 		types.SQLiteRetrieverEngineType,
+		types.InfinityRetrieverEngineType,
+		types.TencentVectorDBRetrieverEngineType,
+		types.DorisRetrieverEngineType,
 	}
 	for _, k := range known {
 		if !isKnownEngineType(k) {
@@ -588,7 +596,7 @@ func TestRetrieveFromStores_MixedEngine_Normalizes(t *testing.T) {
 	// so vector scores pass through clamp01, which only floors a negative
 	// cosine at 0 and guards NaN/Inf.
 	fakeES := &fakeRetrieveEngineService{
-		engineType: types.SQLiteRetrieverEngineType,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 		canned:     []*types.IndexWithScore{{ChunkID: "es1", Score: 1.0}}, // top cosine
 	}
@@ -621,7 +629,7 @@ func TestRetrieveFromStores_MixedEngine_Normalizes(t *testing.T) {
 	// (below PG 0.8, so PG out-ranks ES — the property the old cosine-shift
 	// test asserted, restated for the passthrough policy).
 	fakeES2 := &fakeRetrieveEngineService{
-		engineType: types.SQLiteRetrieverEngineType,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 		canned:     []*types.IndexWithScore{{ChunkID: "es2", Score: 0.3}},
 	}
@@ -649,7 +657,7 @@ func TestRetrieveFromStores_MixedEngine_Normalizes(t *testing.T) {
 	// to be shifted to (0.3 + 1) / 2 = 0.65 and out-rank a PG hit at 0.6),
 	// and a negative cosine is floored at 0.
 	fakeMilvus := &fakeRetrieveEngineService{
-		engineType: types.SQLiteRetrieverEngineType,
+		engineType: types.MilvusRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 		canned: []*types.IndexWithScore{
 			{ChunkID: "mv1", Score: 0.3},
@@ -684,7 +692,7 @@ func TestRetrieveFromStores_KeywordPassthroughOnMixed(t *testing.T) {
 	// types, the keyword score is NOT rescaled (BM25 unbounded — RRF
 	// fusion handles via rank).
 	fakeES := &fakeRetrieveEngineService{
-		engineType: types.SQLiteRetrieverEngineType,
+		engineType: types.ElasticsearchRetrieverEngineType,
 		support:    []types.RetrieverType{types.VectorRetrieverType},
 		canned:     []*types.IndexWithScore{{ChunkID: "v1", Score: 1.0}},
 	}

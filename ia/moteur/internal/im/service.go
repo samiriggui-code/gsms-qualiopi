@@ -1126,6 +1126,9 @@ func (s *Service) reloadChannelFromDB(channelID, reason string) {
 // the leader lock and opens the connection; other instances periodically
 // retry so they can take over if the leader dies.
 func (s *Service) StartChannel(channel *IMChannel) error {
+	if err := validateChannelTransport(channel); err != nil {
+		return err
+	}
 	if s.stopped.Load() {
 		return fmt.Errorf("im service is stopped")
 	}
@@ -3248,6 +3251,9 @@ func relocalizeBuiltinChannelAgentNames(ctx context.Context, rows []ChannelWithA
 // CreateChannel creates a new IM channel and optionally starts it.
 // Returns a duplicate_bot error if the bot identity is already used by another channel.
 func (s *Service) CreateChannel(channel *IMChannel) error {
+	if err := validateChannelTransport(channel); err != nil {
+		return err
+	}
 	if err := s.checkDuplicateBot(channel, ""); err != nil {
 		return err
 	}
@@ -3307,6 +3313,9 @@ func (s *Service) SetChannelKnowledgeBaseID(ctx context.Context, channel *IMChan
 // UpdateChannel updates a channel and restarts it if needed.
 // Returns a duplicate_bot error if the bot identity is already used by another channel.
 func (s *Service) UpdateChannel(channel *IMChannel) error {
+	if err := validateChannelTransport(channel); err != nil {
+		return err
+	}
 	if err := s.checkDuplicateBot(channel, channel.ID); err != nil {
 		return err
 	}
@@ -3493,6 +3502,14 @@ func fileExtension(filename string) string {
 // imPlatformToChannel maps an IM platform identifier to a Knowledge.Channel constant.
 func imPlatformToChannel(platform string) string {
 	switch strings.ToLower(platform) {
+	case "wechat":
+		return types.ChannelWechat
+	case "wecom", "wxwork":
+		return types.ChannelWecom
+	case "feishu", "lark":
+		return types.ChannelFeishu
+	case "dingtalk":
+		return types.ChannelDingtalk
 	case "slack":
 		return types.ChannelSlack
 	default:
