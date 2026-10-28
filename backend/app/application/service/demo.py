@@ -380,13 +380,50 @@ def _clear_demo_program_values(db: Session) -> int:
     return n
 
 
+# Formation d'exemple → fiche du catalogue qui la remplace quand l'offre a été importée (import-gsms-school).
+CATALOGUE_TWINS = {"SSIAP1": "SSIAP1-INI", "SST": "SST-INI", "MAC-SST": "SST-MAC"}
+
+
+def merge_demo_programs(db: Session) -> list[str]:
+    """Sur une base où le catalogue est importé, les formations d'exemple feraient doublon : tout ce qui les
+    référence (sessions, préinscriptions, documents…) passe à la fiche du catalogue, puis elles sont retirées.
+    Le trou planté I01 de la formation SST d'exemple n'existe alors pas : la fiche du catalogue n'est jamais dégradée."""
+    import app.types.registry  # noqa: F401 (toutes les tables connues, pour suivre les clés étrangères)
+    from app.database.db import Base
+    from app.types.qualiopi_capa import CapaAction
+    from app.types.qualiopi_evaluation import ControlResult, ControlResultHistory, Finding
+
+    program_table = t.Program.__table__
+    merged: list[str] = []
+    for demo_code, twin_code in CATALOGUE_TWINS.items():
+        demo = db.scalar(select(t.Program).where(t.Program.code == demo_code, t.Program.created_by == ACTOR))
+        twin = db.scalar(select(t.Program).where(t.Program.code == twin_code))
+        if demo is None or twin is None:
+            continue
+        for table in Base.metadata.tables.values():
+            if table is program_table or table.name in ("program_certification", "program_trainer"):
+                continue  # propres à la fiche : ceux de la formation d'exemple partent avec elle
+            for fk in table.foreign_keys:
+                if fk.column.table is program_table:
+                    db.execute(table.update().where(fk.parent == demo.id).values({fk.parent.name: twin.id}))
+        findings = select(Finding.id).where(Finding.target_id == demo.id)
+        db.execute(delete(CapaAction).where(CapaAction.finding_id.in_(findings)))
+        db.execute(delete(Finding).where(Finding.target_id == demo.id))
+        for model in (ControlResult, ControlResultHistory):
+            db.execute(delete(model).where(model.target_id == demo.id))
+        db.delete(demo)
+        merged.append(f"{demo_code} → {twin_code}")
+    db.flush()
+    return merged
+
+
 def complete_demo(db: Session, corriger: bool = False) -> dict:
     """Complète une démo déjà installée (adresses des formateurs, photos, identités et téléphones fictifs, vignettes
     et rubriques des fiches formation) sans rien remplacer ; `corriger` réattribue aussi les photos d'exemple
     (voir complete_demo_photos)."""
     return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db, corriger),
             "identites": complete_demo_identities(db), "vignettes": complete_program_images(db, PROGRAM_CODES),
-            "fiches": complete_demo_programs(db)}
+            "fiches": complete_demo_programs(db), "fusions": merge_demo_programs(db)}
 
 
 def seed_demo(db: Session, today: date | None = None) -> dict:

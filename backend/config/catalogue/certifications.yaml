@@ -106,3 +106,9 @@ formations:
   guide-file-serre-file: *reglementaire
   ari: *reglementaire
   ssi: *reglementaire
+
+# Formations d'exemple de seed-demo (sans fiche catalogue), repérées par leur code.
+par_code:
+  SSIAP1: *ssiap1
+  SST: *sst
+  MAC-SST: *sst

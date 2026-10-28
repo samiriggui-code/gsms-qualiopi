@@ -231,8 +231,10 @@ def complete_certifications(db: Session, report: list[str]) -> list[str]:
     « à déterminer » ; la vérification et l'habilitation restent à attester par une personne."""
     data = yaml.safe_load(CERTIFICATIONS.read_text(encoding="utf-8"))
     touched: list[str] = []
-    for slug, c in data["formations"].items():
-        p = db.scalar(select(t.Program).where(t.Program.catalog_slug == slug))
+    targets = [(t.Program.catalog_slug == slug, c) for slug, c in data["formations"].items()]
+    targets += [(t.Program.code == code, c) for code, c in (data.get("par_code") or {}).items()]
+    for where, c in targets:
+        p = db.scalar(select(t.Program).where(where))
         if p is None:
             continue
         cert = db.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == p.id))

@@ -360,3 +360,24 @@ def test_fiches_formation_de_demo_completees_puis_videes(db: Session) -> None:
     assert epi.access_delay is None and epi.accessibility_info is None and epi.duration_hours is None
     assert ssi.access_delay == "Saisi par l'organisme" and ssi.price_eur is None
     assert not [n for p in (epi, ssi) for n in p.review_notes or [] if n.get("source") == "démo"]
+
+
+def test_formations_d_exemple_fusionnees_dans_le_catalogue(db: Session) -> None:
+    """Catalogue importé : pas de doublon SSIAP1 / SSIAP1-INI ; les sessions d'exemple passent à la fiche du catalogue
+    et repartent avec retirer-demo, la fiche reste."""
+    from app.application.service.demo import remove_demo
+    from app.application.service.training.import_school import import_gsms_school
+    from app.types import training as t
+    from tests.conftest import V9
+
+    import_referential(db, V9)
+    import_gsms_school(db)
+    seed_demo(db, today=TODAY)
+    codes = set(db.scalars(select(t.Program.code)))
+    assert not codes & {"SSIAP1", "SST", "MAC-SST"} and {"SSIAP1-INI", "SST-INI", "SST-MAC"} <= codes
+    ssiap = db.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI"))
+    assert db.scalar(select(func.count()).select_from(t.TrainingSession).where(t.TrainingSession.program_id == ssiap.id)) == 2
+    remove_demo(db)
+    db.flush()
+    assert db.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI")) is not None
+    assert not db.scalar(select(func.count()).select_from(t.TrainingSession))

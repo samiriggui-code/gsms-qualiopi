@@ -102,7 +102,7 @@ def test_demo_photos_de_l_equipe_et_des_stagiaires(client, demo: Session) -> Non
     assert out["photos"] == sum(v is not None for v in expected.values()) - (expected[chosen.id] is not None)
     assert out["adresses"] == [] and out["vignettes"] == [] and chosen.photo_url == "media/photos/choisie.png"
     assert all(p.photo_url == expected[p.id] for p in people if p is not chosen)
-    assert complete_demo(demo) == {"adresses": [], "photos": 0, "identites": 0, "vignettes": [], "fiches": []}
+    assert complete_demo(demo) == {"adresses": [], "photos": 0, "identites": 0, "vignettes": [], "fiches": [], "fusions": []}
 
     # Ancienne attribution (photos d'exemple sans tenir compte du genre) : corrigée, jamais une photo choisie à la main.
     for i, p in enumerate(people):
