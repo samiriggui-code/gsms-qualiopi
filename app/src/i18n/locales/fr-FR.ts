@@ -524,6 +524,19 @@ export default {
       allerA: "Aller à la date",
       duree: "Durée",
       nJours: "{n} jours",
+      uneSemaine: "1 semaine",
+      deuxSemaines: "2 semaines",
+      indicateurs: "Indicateurs de la période",
+      file: { titre: "À traiter", aide: "alertes calculées par le moteur, jamais bloquantes" },
+      diagramme: {
+        titre: "Diagramme de la semaine",
+        matin: "Matin",
+        apresMidi: "Ap.-midi",
+        demiJournees: "{n} demi-journées",
+        legendeCouleur: "Couleur : la formation",
+        legendeAlerte: "Alerte haute",
+        legendeDemiJournees: "Barres placées à la demi-journée ; horaires exacts au survol",
+      },
       periode: "Du {du} au {au}",
       filtres: {
         formateur: "Formateur",
@@ -553,6 +566,7 @@ export default {
       videAide: "Aucune session visible ne tombe sur ces dates avec ces filtres.",
       conflits: {
         titre: "Conflits signalés",
+        aucun: "Aucun conflit signalé sur la période.",
         avec: "avec {sessions}",
         types: {
           FORMATEUR: "Même formateur",
@@ -621,6 +635,10 @@ export default {
         duAu: "du {du} au {au}",
         ouvrirSession: "Ouvrir la session",
         ouvrirEmargement: "Ouvrir l’émargement",
+        titre: "Session sélectionnée",
+        fermer: "Fermer la session",
+        aucun: "Aucune session sélectionnée",
+        aucunAide: "Choisissez une barre du diagramme ou une alerte pour afficher la session ici.",
       },
     },
     assistantIa: {

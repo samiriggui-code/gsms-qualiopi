@@ -19,7 +19,9 @@ def get_planning(db: DB, user: SessionsReader, du: date | None = None, au: date 
                  lieu: Annotated[str | None, Query(max_length=200)] = None,
                  programme: Annotated[str | None, Query(max_length=36)] = None, annulees: bool = False) -> dict:
     """Créneaux des sessions visibles du `du` au `au` (93 jours au plus ; par défaut 31 jours à partir d'aujourd'hui),
-    avec les conflits de formateur ou de salle signalés pour information."""
+    avec les conflits de formateur ou de salle signalés pour information ; par session, remplissage, salle rapprochée
+    des lieux et échéances évaluées par le moteur ; alertes calculées (gravité, message, lien) ; occupation par
+    formateur et par salle."""
     start, end = planning.period(du, au)
     return planning.planning(db, user, start, end, formateur=formateur, lieu=lieu, programme=programme, annulees=annulees)
 

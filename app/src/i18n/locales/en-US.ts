@@ -524,6 +524,19 @@ export default {
       allerA: "Go to date",
       duree: "Length",
       nJours: "{n} days",
+      uneSemaine: "1 week",
+      deuxSemaines: "2 weeks",
+      indicateurs: "Period indicators",
+      file: { titre: "To handle", aide: "alerts computed by the engine, never blocking" },
+      diagramme: {
+        titre: "Week chart",
+        matin: "AM",
+        apresMidi: "PM",
+        demiJournees: "{n} half-days",
+        legendeCouleur: "Colour: the training",
+        legendeAlerte: "High alert",
+        legendeDemiJournees: "Bars placed by half-day; exact times on hover",
+      },
       periode: "From {du} to {au}",
       filtres: {
         formateur: "Trainer",
@@ -553,6 +566,7 @@ export default {
       videAide: "No visible session falls on these dates with these filters.",
       conflits: {
         titre: "Flagged conflicts",
+        aucun: "No conflict reported for this period.",
         avec: "with {sessions}",
         types: {
           FORMATEUR: "Same trainer",
@@ -621,6 +635,10 @@ export default {
         duAu: "from {du} to {au}",
         ouvrirSession: "Open the session",
         ouvrirEmargement: "Open attendance",
+        titre: "Selected session",
+        fermer: "Close the session",
+        aucun: "No session selected",
+        aucunAide: "Pick a bar in the chart or an alert to show the session here.",
       },
     },
     assistantIa: {

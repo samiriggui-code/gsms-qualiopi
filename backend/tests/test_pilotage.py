@@ -128,6 +128,162 @@ def test_planning_annulees_exclues_par_defaut(client, db: Session) -> None:  # n
     assert all(f["type"] != "FORMATEUR" for f in with_cancelled["conflits"])  # une session annulée ne crée pas de conflit
 
 
+# ── Planning de pilotage : remplissage, salle, échéances, alertes, ressources ────
+
+
+def _service(db: Session, user, today: date, **kw) -> dict:  # noqa: ANN001
+    from app.application.service.pilotage.planning import planning
+    return planning(db, user, D, D + timedelta(days=13), today=today, **kw)
+
+
+def _codes(body: dict, ref: str) -> dict[str, str]:
+    return {a["code"]: a["gravite"] for a in body["alertes"] if ref in {s["reference"] for s in a["sessions"]}}
+
+
+def test_planning_sessions_salle_rapprochee_et_capacite(client, db: Session) -> None:  # noqa: ANN001
+    w = _world(db)
+    site = t.Premises(code="NORD", name="Site Nord", kind="SITE")
+    db.add(site)
+    db.flush()
+    db.add_all([t.Premises(code="NORD-S1", name="Salle 1", kind="SALLE", parent_id=site.id, capacity=1),
+                t.Premises(code="SUD-S2", name="Salle 2", kind="SALLE", capacity=30)])
+    db.commit()
+    _, h = make_user(db, "gestion")
+    body = _plan(client, h)
+    views = {v["reference"]: v for v in body["sessions"]}
+    a = views["PL-A"]
+    assert a["inscrits"] == 2 and a["capacite"] == 10 and a["places_restantes"] == 8
+    assert a["salle_lieu"]["nom"] == "Salle 1" and a["salle_lieu"]["capacite"] == 1
+    assert a["formation"]["intitule"] == "Sauveteur secouriste du travail" and a["formateur"]["nom"] == "Julie Martin"
+    assert views["PL-C"]["salle_lieu"]["code"] == "NORD-S1", "casse et espaces ignorés"
+    assert views["PL-B"]["salle_lieu"]["code"] == "SUD-S2" and views["PL-D"]["salle_lieu"] is None
+    assert _codes(body, "PL-A")["SURCAPACITE_SALLE"] == "HAUTE"
+    assert _codes(body, "PL-C")["CAPACITE_SALLE"] == "BASSE", "capacité prévue 10 pour une salle de 1"
+    slot = next(c for c in body["creneaux"] if c["session"]["reference"] == "PL-A")
+    assert slot["salle_lieu"]["code"] == "NORD-S1" and slot["alerte_max"] == "HAUTE" and slot["alertes"]
+    assert set(slot) >= {"effectif", "capacite", "conflits", "programme", "formateur"}, "champs existants conservés"
+    # conflits repris en alertes : certain = haute, sans horaires = moyenne ; lien vers le formateur ou la salle
+    conflicts = {a["code"]: a for a in body["alertes"] if a["code"].startswith("CONFLIT_")}
+    assert conflicts["CONFLIT_FORMATEUR"]["gravite"] == "HAUTE"
+    assert conflicts["CONFLIT_FORMATEUR"]["lien"] == {"cible": "FORMATEUR", "id": w["tr1"].id, "onglet": None}
+    assert conflicts["CONFLIT_SALLE"]["gravite"] == "MOYENNE" and conflicts["CONFLIT_SALLE"]["lien"]["cible"] == "SALLE"
+    counts = body["compteurs"]["alertes_par_gravite"]
+    assert sum(counts.values()) == body["compteurs"]["alertes"] == len(body["alertes"])
+    assert [a["gravite"] for a in body["alertes"]] == sorted((a["gravite"] for a in body["alertes"]),
+                                                             key=("HAUTE", "MOYENNE", "BASSE").index)
+
+
+def test_planning_titres_du_formateur_a_la_date_du_creneau(db: Session) -> None:
+    w = _world(db)
+    db.add_all([
+        # Julie : carte expirée la veille, renouvelée ensuite : le titre récent fait foi, aucune alerte
+        t.TrainerQualification(trainer_id=w["tr1"].id, kind="CARTE_PRO_FORMATEUR_CNAPS", label="Carte CNAPS", valid_until=D - timedelta(days=1)),
+        t.TrainerQualification(trainer_id=w["tr1"].id, kind="CARTE_PRO_FORMATEUR_CNAPS", label="Carte CNAPS", valid_until=D + timedelta(days=900)),
+        # Julie : SST expiré la veille du créneau
+        t.TrainerQualification(trainer_id=w["tr1"].id, kind="FORMATEUR_SST", label="Formateur SST", valid_until=D - timedelta(days=1)),
+        # Paul : SSIAP 3 valide au créneau, expire peu après
+        t.TrainerQualification(trainer_id=w["tr2"].id, kind="SSIAP3", label="SSIAP 3", valid_until=D + timedelta(days=20)),
+    ])
+    db.commit()
+    user, _ = make_user(db, "gestion")
+    body = _service(db, user, today=D - timedelta(days=1))
+    expired = [a for a in body["alertes"] if a["code"] == "TITRE_EXPIRE"]
+    assert {a["sessions"][0]["reference"] for a in expired} == {"PL-A", "PL-B"}
+    assert all("Formateur SST" in a["message"] and a["lien"]["cible"] == "FORMATEUR" for a in expired)
+    assert not any("CNAPS" in a["message"] for a in body["alertes"])
+    soon = {a["sessions"][0]["reference"] for a in body["alertes"] if a["code"] == "TITRE_A_RENOUVELER"}
+    assert soon == {"PL-C", "PL-D"}
+    assert not any(a["code"] == "TITRE_A_RENOUVELER" for a in _service(db, user, today=D + timedelta(days=30))["alertes"]), \
+        "créneaux passés : plus rien à renouveler pour eux"
+
+
+def test_planning_emargement_non_tenu_sur_creneau_passe(db: Session) -> None:
+    from datetime import datetime, timezone
+    w = _world(db)
+    a = w["a"]
+    morning = next(sl for sl in a.attendance_slots if sl.period == "MATIN")
+    e1, e2 = a.enrollments
+    db.add_all([t.AttendanceSignature(slot_id=morning.id, enrollment_id=e1.id, present=True,
+                                      signed_at=datetime(2025, 3, 10, 9, 5, tzinfo=timezone.utc)),
+                t.AttendanceSignature(slot_id=morning.id, enrollment_id=e2.id, present=False, note="malade")])
+    db.commit()
+    user, _ = make_user(db, "gestion")
+    before = _service(db, user, today=D)
+    assert not any(x["code"].startswith("EMARGEMENT") for x in before["alertes"]), "rien avant la fin du jour"
+    body = _service(db, user, today=D + timedelta(days=1))
+    codes = {x["code"]: x for x in body["alertes"] if x["sessions"][0]["reference"] == "PL-A"}
+    afternoon = next(sl for sl in a.attendance_slots if sl.period == "APRES_MIDI")
+    assert codes["EMARGEMENT_NON_TENU"]["creneaux"] == [afternoon.id] and codes["EMARGEMENT_NON_TENU"]["gravite"] == "HAUTE"
+    assert codes["EMARGEMENT_NON_CONTRE_VALIDE"]["creneaux"] == [morning.id]
+    assert codes["EMARGEMENT_NON_TENU"]["lien"] == {"cible": "EMARGEMENT", "id": a.id, "onglet": None}
+    assert not any(x["code"].startswith("EMARGEMENT") for x in body["alertes"] if x["sessions"][0]["reference"] == "PL-C"), \
+        "aucun stagiaire attendu"
+    late = _service(db, user, today=D + timedelta(days=8))
+    assert "EMARGEMENT_NON_PREPARE" in _codes(late, "PL-D"), "session entière commencée, aucune demi-journée"
+    morning.trainer_signed_at = datetime(2025, 3, 10, 12, 5, tzinfo=timezone.utc)
+    db.commit()
+    assert "EMARGEMENT_NON_CONTRE_VALIDE" not in _codes(_service(db, user, today=D + timedelta(days=1)), "PL-A")
+
+
+def test_planning_sessions_a_venir_sans_formateur_ni_salle(db: Session) -> None:
+    w = _world(db)
+    e = t.TrainingSession(reference="PL-E", program_id=w["p"].id, start_date=D + timedelta(days=2), end_date=D + timedelta(days=2),
+                          capacity=1, status="PLANIFIEE")
+    f = t.TrainingSession(reference="PL-F", program_id=w["p"].id, start_date=D + timedelta(days=3), end_date=D + timedelta(days=3),
+                          location="Site client", trainer_id=w["tr1"].id, status="PLANIFIEE")
+    db.add_all([e, f])
+    db.flush()
+    learners = [t.Learner(first_name=f"E{i}", last_name="Test") for i in range(2)]
+    db.add_all(learners)
+    db.flush()
+    db.add_all([t.Enrollment(session_id=e.id, learner_id=x.id) for x in learners])
+    db.commit()
+    user, _ = make_user(db, "gestion")
+    body = _service(db, user, today=D)
+    assert _codes(body, "PL-E") == {"SANS_FORMATEUR": "MOYENNE", "SANS_SALLE": "MOYENNE", "SURCAPACITE_SESSION": "HAUTE"}
+    assert _codes(body, "PL-F") == {"SANS_SALLE": "BASSE"}
+    view = next(v for v in body["sessions"] if v["reference"] == "PL-E")
+    assert view["places_restantes"] == 0 and view["formateur"] is None
+    past = _service(db, user, today=D + timedelta(days=10))
+    assert "SANS_FORMATEUR" not in _codes(past, "PL-E"), "session passée : plus une alerte de préparation"
+
+
+def test_planning_echeances_du_moteur(db: Session) -> None:
+    from app.application.service.qualiopi.schedule.service import refresh_schedule
+    w = _world(db)
+    user, _ = make_user(db, "gestion")
+    assert all(v["echeances"] == [] and v["echeances_evaluees_le"] is None for v in _service(db, user, today=D)["sessions"])
+    refresh_schedule(db, [w["a"]], today=D + timedelta(days=60))  # le moteur évalue ; le planning relit
+    db.commit()
+    body = _service(db, user, today=D + timedelta(days=60))
+    a = next(v for v in body["sessions"] if v["reference"] == "PL-A")
+    keys = [m["cle"] for m in a["echeances"]]
+    assert "J-15.convention" in keys and a["echeances_evaluees_le"]
+    conv = next(m for m in a["echeances"] if m["cle"] == "J-15.convention")
+    assert conv["etat"] == "EN_RETARD" and conv["libelle"] == "Convention signée" and conv["echeance"] == (D - timedelta(days=15)).isoformat()
+    assert next(m for m in a["echeances"] if m["cle"] == "J-10.convocation")["indicateurs"] == [9]
+    alert = next(x for x in body["alertes"] if x["code"] == "ECHEANCE_EN_RETARD")
+    assert alert["sessions"][0]["reference"] == "PL-A" and alert["lien"]["onglet"] == "parcours"
+
+
+def test_planning_ressources_et_portee(client, db: Session) -> None:  # noqa: ANN001
+    w = _world(db)
+    _, h = make_user(db, "gestion")
+    res = _plan(client, h)["ressources"]
+    julie = next(r for r in res["formateurs"] if r["nom"] == "Julie Martin")
+    assert julie["creneaux"] == 3 and julie["jours"] == [{"jour": D.isoformat(), "creneaux": 3, "sessions": ["PL-A", "PL-B"]}]
+    rooms = {r["cle"]: r for r in res["salles"]}
+    assert rooms["site nord|salle 1"]["creneaux"] == 3, "PL-A (deux demi-journées) et PL-C dans la même salle"
+    assert rooms[None]["salle"] is None and rooms[None]["jours"][0]["sessions"] == ["PL-D"]
+    user, hp = make_user(db, "formateur", email="paul2@test.local")
+    w["tr2"].user_id = user.id
+    db.commit()
+    body = _plan(client, hp)
+    seen = {s["reference"] for a in body["alertes"] for s in a["sessions"]}
+    assert seen <= {"PL-C", "PL-D"} and {v["reference"] for v in body["sessions"]} == {"PL-C", "PL-D"}
+    assert [r["nom"] for r in body["ressources"]["formateurs"]] == ["Paul Durand"]
+
+
 # ── Évaluations des acquis ───────────────────────────────────────────────────────
 
 
