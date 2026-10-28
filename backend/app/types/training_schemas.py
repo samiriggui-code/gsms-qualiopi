@@ -54,6 +54,13 @@ class EvaluationStep(BaseModel):
     kind: str | None = Field(default=None, max_length=60)
 
 
+class AccessCondition(BaseModel):
+    """Condition d'accès affichée sur la fiche (âge minimum, niveau de français, autorisation…)."""
+
+    label: str = Field(min_length=1, max_length=80)
+    value: str = Field(min_length=1, max_length=300)
+
+
 class ProgramIn(BaseModel):
     code: str | None = None
     title: str | None = None
@@ -80,6 +87,11 @@ class ProgramIn(BaseModel):
     teaching_means: str | None = None
     catalog_slug: str | None = None
     review_notes: list[dict] | None = None
+    outcomes: list[str] | None = None
+    trainees_min: int | None = Field(default=None, ge=1)
+    trainees_max: int | None = Field(default=None, ge=1)
+    access_conditions: list[AccessCondition] | None = None
+    badge: str | None = Field(default=None, max_length=60)
     track: Literal["SURETE", "INCENDIE", "HABILITATION", "SST", "ENTREPRISE", "AUTRES"] | None = None
     pathway: Literal["INITIAL", "MAC", "RAN", "AUTRE"] | None = None
     evaluation_steps: list[EvaluationStep] | None = None

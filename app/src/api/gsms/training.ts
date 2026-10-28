@@ -144,6 +144,11 @@ export interface Program {
   delivery_mode: string | null
   certification_alignment: string | null
   public_info_reviewed_on: string | null
+  outcomes: string[]
+  trainees_min: number | null
+  trainees_max: number | null
+  access_conditions: { label: string; value: string }[]
+  badge: string | null
   [extra: string]: unknown
 }
 

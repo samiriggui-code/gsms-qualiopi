@@ -12,6 +12,8 @@
           <div><dt>{{ t('gsms.formations.colCode') }}</dt><dd>{{ sheet.program.code }}</dd></div>
           <div><dt>{{ t('gsms.formations.colDuree') }}</dt><dd>{{ hours(sheet.program.duration_hours) }}</dd></div>
           <div><dt>{{ t('gsms.formations.prix') }}</dt><dd>{{ euros(sheet.program.price_eur) }}</dd></div>
+          <div v-if="sheet.program.badge"><dt>{{ t('gsms.formations.champs.badge') }}</dt><dd><span class="badge">{{ sheet.program.badge }}</span></dd></div>
+          <div><dt>{{ t('gsms.formations.effectif') }}</dt><dd>{{ effectif }}</dd></div>
           <div><dt>{{ t('gsms.formations.modalite') }}</dt><dd>{{ (sheet.program.delivery_mode && sheet.delivery_modes[sheet.program.delivery_mode]) || '—' }}</dd></div>
           <div><dt>{{ t('gsms.formations.relueLe') }}</dt><dd>{{ fmtDate(sheet.program.public_info_reviewed_on) }}</dd></div>
         </dl>
@@ -65,7 +67,13 @@
       <div v-if="VOLETS[tab]" class="rubriques">
         <section v-for="r in VOLETS[tab]" :key="r.field" class="panel rubrique" :class="{ 'rubrique--large': r.wide }">
           <h3 class="title">{{ t(`gsms.formations.champs.${r.field}`) }}</h3>
-          <template v-if="r.list">
+          <template v-if="r.pairs">
+            <dl v-if="sheet.program.access_conditions.length" class="kv conditions">
+              <div v-for="(c, i) in sheet.program.access_conditions" :key="i"><dt>{{ c.label }}</dt><dd>{{ c.value }}</dd></div>
+            </dl>
+            <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
+          </template>
+          <template v-else-if="r.list">
             <ul v-if="listOf(r.field).length" class="plain bullets rubrique-text"><li v-for="(x, i) in listOf(r.field)" :key="i">{{ x }}</li></ul>
             <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
           </template>
@@ -234,8 +242,8 @@ import { fmtDate, fmtDateTime } from '@/components/gsms/format'
 import { euros, hours } from './display'
 import { modulesToText, textToModules } from './moduleText'
 
-type ListField = 'objectives' | 'skills' | 'prerequisites'
-interface Rubrique { field: string, list?: boolean, wide?: boolean }
+type ListField = 'objectives' | 'skills' | 'prerequisites' | 'outcomes'
+interface Rubrique { field: string, list?: boolean, pairs?: boolean, wide?: boolean }
 /** Rubriques rédigées, rangées par volet ; une rubrique `wide` prend toute la largeur. */
 const VOLETS: Record<string, Rubrique[]> = {
   presentation: [
@@ -244,6 +252,8 @@ const VOLETS: Record<string, Rubrique[]> = {
     { field: 'skills', list: true },
     { field: 'audience' },
     { field: 'prerequisites', list: true },
+    { field: 'outcomes', list: true },
+    { field: 'access_conditions', pairs: true },
   ],
   pedagogie: [{ field: 'teaching_methods' }, { field: 'evaluation_methods' }, { field: 'teaching_means', wide: true }],
   acces: [{ field: 'access_delay' }, { field: 'accessibility_info' }],
@@ -292,6 +302,11 @@ const missingIn = (volet: string) => (sheet.value?.missing ?? []).filter((m) => 
 const missingByVolet = computed(() => TABS
   .map((volet) => ({ volet, label: tabs.value.find((x) => x.value === volet)?.label ?? volet, fields: missingIn(volet).map((m) => m.label) }))
   .filter((g) => g.fields.length))
+const effectif = computed(() => {
+  const p = sheet.value?.program
+  if (!p?.trainees_min && !p?.trainees_max) return '—'
+  return t('gsms.formations.effectifValeur', { min: p.trainees_min ?? '—', max: p.trainees_max ?? '—' })
+})
 const listOf = (field: string) => (sheet.value?.program[field as ListField] as string[] | undefined) ?? []
 
 interface ReviewNote { champ?: string, message: string, source?: string }
@@ -344,12 +359,18 @@ const editFields = computed<ActionField[]>(() => {
       options: options(sheet.value?.delivery_modes ?? {}), initial: p?.delivery_mode },
     { name: 'duration_hours', label: t('gsms.formations.dureeHeures'), type: 'number', section: presentation, half: true, initial: num(p?.duration_hours) },
     { name: 'price_eur', label: t('gsms.formations.prixEuros'), type: 'number', section: presentation, half: true, initial: num(p?.price_eur) },
+    { name: 'trainees_min', label: champ('trainees_min'), type: 'number', section: presentation, half: true, initial: p?.trainees_min ?? undefined },
+    { name: 'trainees_max', label: champ('trainees_max'), type: 'number', section: presentation, half: true, initial: p?.trainees_max ?? undefined },
+    { name: 'badge', label: champ('badge'), section: presentation, half: true, maxlength: 60, initial: p?.badge },
     { name: 'public_info_reviewed_on', label: t('gsms.formations.relueLe'), type: 'date', section: presentation, half: true, initial: p?.public_info_reviewed_on },
     { name: 'content', label: champ('content'), type: 'textarea', section: presentation, initial: p?.content },
     { name: 'objectives', label: champ('objectivesUneParLigne'), type: 'textarea', section: presentation, initial: p?.objectives.join('\n') },
     { name: 'skills', label: champ('skillsUneParLigne'), type: 'textarea', section: presentation, initial: p?.skills.join('\n') },
     { name: 'audience', label: champ('audience'), type: 'textarea', section: presentation, initial: p?.audience },
     { name: 'prerequisites', label: champ('prerequisitesUneParLigne'), type: 'textarea', section: presentation, initial: p?.prerequisites.join('\n') },
+    { name: 'access_conditions', label: champ('access_conditions'), type: 'textarea', section: presentation, help: t('gsms.formations.conditionsAide'),
+      initial: (p?.access_conditions ?? []).map((c) => `${c.label} : ${c.value}`).join('\n') },
+    { name: 'outcomes', label: champ('outcomesUneParLigne'), type: 'textarea', section: presentation, initial: p?.outcomes.join('\n') },
     { name: 'modules', label: champ('modules'), type: 'textarea', section: programme, help: t('gsms.formations.modulesAide'),
       initial: modulesToText(p?.modules ?? []) },
     { name: 'teaching_methods', label: champ('teaching_methods'), type: 'textarea', section: pedagogie, initial: p?.teaching_methods },
@@ -399,10 +420,17 @@ async function done() {
 /** Objectifs, compétences et prérequis se saisissent un par ligne ; l'API attend des listes. */
 function saveProgram(values: Record<string, unknown>) {
   const body = { ...values }
-  for (const key of ['objectives', 'skills', 'prerequisites'] as const) {
+  for (const key of ['objectives', 'skills', 'prerequisites', 'outcomes'] as const) {
     if (key in body) body[key] = String(body[key] ?? '').split('\n').map((s) => s.trim()).filter(Boolean)
   }
   if ('modules' in body) body.modules = textToModules(String(body.modules ?? ''))
+  // « Libellé : valeur », une condition par ligne
+  if ('access_conditions' in body) {
+    body.access_conditions = String(body.access_conditions ?? '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+      const i = l.indexOf(':')
+      return i > 0 ? { label: l.slice(0, i).trim(), value: l.slice(i + 1).trim() } : { label: t('gsms.formations.condition'), value: l }
+    }).filter((c) => c.label && c.value)
+  }
   return updateProgram(id.value, body)
 }
 
@@ -464,6 +492,8 @@ async function createDossier() {
 }
 .rubrique .title { margin-bottom: 8px; }
 .rubrique--large { grid-column: 1 / -1; }
+.conditions { margin: 0; }
+.badge { padding: 1px 8px; border-radius: var(--td-radius-small); background: var(--td-brand-color-light); color: var(--td-brand-color); font-size: var(--app-text-sm); font-weight: 600; }
 .manques {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 16px; padding: 10px 14px;
   border: 1px solid var(--td-error-color-3); border-radius: var(--td-radius-medium); color: var(--td-text-color-primary);

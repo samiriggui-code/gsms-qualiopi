@@ -201,6 +201,12 @@ class Program(TimestampMixin, Base):
     # Épreuves et attestations, dans l'ordre : [{"title", "description", "kind"}] ; evaluation_methods reste le résumé.
     evaluation_steps: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     image_url: Mapped[str | None] = mapped_column(String(MEDIA_PATH_MAX))  # vignette, chemin de la médiathèque
+    # Rubriques de la fiche vitrine : débouchés, effectif par session, conditions d'accès [{"label", "value"}], badge.
+    outcomes: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
+    trainees_min: Mapped[int | None] = mapped_column(Integer)
+    trainees_max: Mapped[int | None] = mapped_column(Integer)
+    access_conditions: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    badge: Mapped[str | None] = mapped_column(String(60))
 
 
 TRACKS = {"SURETE": "Sûreté", "INCENDIE": "Incendie", "HABILITATION": "Habilitation électrique",

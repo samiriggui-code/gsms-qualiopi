@@ -174,7 +174,8 @@ def test_landing_sans_texte_de_remplissage() -> None:
     data = load()
     assert "landing_fiches" in data["sources"]
     for c in data["complements_landing"]:
-        assert set(c) <= {"catalog_slug", "modules", "teaching_methods", "prerequisites", "audience", "content", "review_notes"}
+        assert set(c) <= {"catalog_slug", "modules", "teaching_methods", "prerequisites", "audience", "content", "outcomes",
+                          "trainees_min", "trainees_max", "access_conditions", "badge", "review_notes"}
         text = str({k: v for k, v in c.items() if k != "review_notes"})
         assert not any(w in text for w in ("Approfondissement", "Conformité avec", "Sur devis", "exemple.fr", "%  ")), c
         for key in ("modules", "teaching_methods", "prerequisites", "audience", "content"):
@@ -240,3 +241,17 @@ def test_redaction_gsms_complete_sans_rien_remplacer(demo: Session) -> None:
         "teaching_means"]
     notes = len(br.review_notes)
     assert import_gsms_school(demo)["completees"] == [] and len(br.review_notes) == notes, "idempotent"
+
+
+def test_rubriques_vitrine_reprises_de_la_landing(demo: Session) -> None:
+    import_gsms_school(demo)
+    ovt = demo.scalar(select(t.Program).where(t.Program.code == "OVT"))
+    assert ovt.outcomes == ["Opérateur PC", "Agent de télésurveillance", "Opérateur vidéoprotection"]
+    assert (ovt.trainees_min, ovt.trainees_max, ovt.badge) == (4, 12, "Titre Pro")
+    casier = next(c["value"] for c in ovt.access_conditions if c["label"] == "Casier judiciaire")
+    assert "vierge" not in casier.lower(), "le CNAPS examine la compatibilité du casier, pas son absence"
+    ssiap = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI"))
+    assert "Casier judiciaire" not in [c["label"] for c in ssiap.access_conditions]
+    guide = demo.scalar(select(t.Program).where(t.Program.code == "GUIDE-FILE"))
+    assert not any("certifié" in o for o in guide.outcomes)
+    assert any(n["champ"] == "outcomes" and "à relire" in n["message"] for n in ovt.review_notes)

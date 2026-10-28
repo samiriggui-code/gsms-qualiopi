@@ -39,7 +39,9 @@ COMPLETABLE = {"track": "filière", "pathway": "parcours", "skills": "compétenc
 
 # Rubriques que la landing peut compléter quand elles sont vides.
 LANDING_FIELDS = {"modules": "modules", "teaching_methods": "méthodes pédagogiques", "prerequisites": "prérequis",
-                  "audience": "public visé", "content": "description"}
+                  "audience": "public visé", "content": "description", "outcomes": "débouchés",
+                  "trainees_min": "effectif minimum", "trainees_max": "effectif maximum",
+                  "access_conditions": "conditions d'accès", "badge": "badge"}
 
 # Rubriques rédigées par GSMS d'après les textes officiels (config/catalogue/redaction-gsms.yaml), là où ni la vitrine
 # ni la landing ne disent rien : remplies seulement si elles sont vides, chacune avec sa note « à relire ».
@@ -67,7 +69,9 @@ def without_filler(key: str, value: object) -> object:
                 for m in value or [] if not is_filler(m["title"])]
         return kept or None
     if isinstance(value, list):
-        return [v for v in value if not is_filler(v)] or None
+        return [v for v in value if not (isinstance(v, str) and is_filler(v))] or None
+    if not isinstance(value, str):
+        return value or None
     return None if not value or is_filler(value) else value
 
 

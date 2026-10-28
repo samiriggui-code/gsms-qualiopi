@@ -2474,3 +2474,527 @@ complements_landing:
   review_notes:
   - champ: content
     message: 'Description reprise de la landing et reformulée, à relire : la landing la disait « obligatoire pour l''obtention de la carte professionnelle CNAPS », alors que d''autres titres ou certifications y donnent aussi accès ; la répartition 50 % / 50 % est déjà dans les méthodes pédagogiques.'
+
+# Rubriques vitrine relevées le 28/10/2026 dans landing/content/fiches.json : débouchés, effectif par session,
+# conditions d'accès (âge, français, autorisation, casier) et badge. Formulations trompeuses corrigées (voir notes) ;
+# taux de réussite et de satisfaction, blocs de financement et étapes de certification génériques non repris.
+- catalog_slug: tfp-aps
+  outcomes:
+  - Agent de prévention
+  - Agent de sécurité mobile
+  - Agent de contrôle
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Autorisation
+    value: Autorisation préalable ou carte professionnelle du CNAPS
+  - label: Casier judiciaire
+    value: Compatible avec l'enquête administrative du CNAPS
+  badge: CNAPS
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; la landing
+      indiquait un casier « vierge » : le CNAPS examine la compatibilité du casier, pas son absence.'
+- catalog_slug: mac-aps
+  outcomes:
+  - Renouvellement carte CNAPS
+  - Maintien de l'employabilité
+  - Conformité métier
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Autorisation
+    value: Carte professionnelle du CNAPS en cours de validité
+  - label: Casier judiciaire
+    value: Compatible avec l'enquête administrative du CNAPS
+  badge: Renouvellement
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; la landing
+      indiquait un casier « vierge » : le CNAPS examine la compatibilité du casier, pas son absence.'
+- catalog_slug: asra-d
+  outcomes:
+  - Agent ASRA D
+  - Mission renforcée
+  - Employabilité spécialisée
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Autorisation
+    value: Autorisation préalable ou carte professionnelle du CNAPS
+  - label: Casier judiciaire
+    value: Compatible avec l'enquête administrative du CNAPS
+  badge: Sécurité renforcée
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; la landing
+      indiquait un casier « vierge » : le CNAPS examine la compatibilité du casier, pas son absence.'
+- catalog_slug: ovt
+  outcomes:
+  - Opérateur PC
+  - Agent de télésurveillance
+  - Opérateur vidéoprotection
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Autorisation
+    value: Autorisation préalable ou carte professionnelle du CNAPS
+  - label: Casier judiciaire
+    value: Compatible avec l'enquête administrative du CNAPS
+  badge: Titre Pro
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; la landing
+      indiquait un casier « vierge » : le CNAPS examine la compatibilité du casier, pas son absence.'
+- catalog_slug: mac-ovt
+  outcomes:
+  - Renouvellement carte CNAPS
+  - Maintien de l'employabilité
+  - Mise à jour technique
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Autorisation
+    value: Carte professionnelle du CNAPS en cours de validité
+  - label: Casier judiciaire
+    value: Compatible avec l'enquête administrative du CNAPS
+  badge: Recyclage
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; la landing
+      indiquait un casier « vierge » : le CNAPS examine la compatibilité du casier, pas son absence.'
+- catalog_slug: asc-cynophile
+  outcomes:
+  - Agent cynophile qualifié
+  - Maître-chien opérationnel
+  - Titre ASC
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Autorisation
+    value: Autorisation préalable ou carte professionnelle du CNAPS
+  - label: Casier judiciaire
+    value: Compatible avec l'enquête administrative du CNAPS
+  badge: Titre ASC
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; la landing
+      indiquait un casier « vierge » : le CNAPS examine la compatibilité du casier, pas son absence.'
+- catalog_slug: h0-b0
+  outcomes:
+  - Habilitation H0/B0
+  - Sécurité électrique
+  - Prévention risques
+  trainees_min: 6
+  trainees_max: 15
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  badge: Non-électricien
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: bs-be-manoeuvre
+  outcomes:
+  - Habilitation BS/BE
+  - Interventions simples
+  - Poste technique
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  badge: Manœuvres
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: br
+  outcomes:
+  - Habilitation BR
+  - Maintenance électrique
+  - Expertise technique
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  badge: Intervention
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: ssiap-1-initial
+  outcomes:
+  - Agent SSIAP 1
+  - Poste ERP/IGH
+  - Évolution incendie
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  badge: ERP / IGH
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-1-recyclage
+  outcomes:
+  - Validité diplôme maintenue
+  - Maintien de l'employabilité
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Diplôme
+    value: Diplôme SSIAP correspondant (ou équivalence)
+  badge: MAC
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-1-ran
+  outcomes:
+  - Diplôme réactivé
+  - Retour à l'emploi
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Diplôme
+    value: Diplôme SSIAP correspondant (ou équivalence)
+  badge: Remise à niveau
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-2-initial
+  outcomes:
+  - Chef d'équipe incendie
+  - Encadrement opérationnel
+  - Pilotage quotidien
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  badge: Chef d'équipe
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-2-recyclage
+  outcomes:
+  - Validité diplôme maintenue
+  - Maintien des compétences
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Diplôme
+    value: Diplôme SSIAP correspondant (ou équivalence)
+  badge: MAC
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-2-ran
+  outcomes:
+  - Diplôme réactivé
+  - Expertise renforcée
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Diplôme
+    value: Diplôme SSIAP correspondant (ou équivalence)
+  badge: Remise à niveau
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-3-initial
+  outcomes:
+  - Chef de service SSIAP
+  - Responsable sécurité incendie
+  - Fonction management
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  badge: Chef de service
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-3-recyclage
+  outcomes:
+  - Validité diplôme maintenue
+  - Mise à jour réglementaire
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Diplôme
+    value: Diplôme SSIAP correspondant (ou équivalence)
+  badge: MAC
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: ssiap-3-ran
+  outcomes:
+  - Diplôme réactivé
+  - Maîtrise réglementaire
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Niveau B1 (comprendre, lire et écrire des consignes)
+  - label: Diplôme
+    value: Diplôme SSIAP correspondant (ou équivalence)
+  badge: Remise à niveau
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; casier
+      « vierge » de la landing non repris : aucune exigence de ce type pour le SSIAP.'
+- catalog_slug: sst-initial
+  outcomes:
+  - Certificat SST
+  - Réflexes secours
+  - Culture prévention
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 16 ans
+  - label: Français
+    value: Comprendre le français à l'oral
+  badge: INRS
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: mac-sst
+  outcomes:
+  - Certificat maintenu
+  - Compétences à jour
+  - Conformité entreprise
+  trainees_min: 6
+  trainees_max: 15
+  access_conditions:
+  - label: Âge minimum
+    value: 16 ans
+  - label: Français
+    value: Comprendre le français à l'oral
+  badge: Recyclage
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: stu
+  outcomes:
+  - Certificat STU
+  - Expertise tactique
+  - Gestion de crise
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 16 ans
+  - label: Français
+    value: Comprendre le français à l'oral
+  badge: Tactique
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: sst-entreprise
+  outcomes:
+  - Salariés SST operationnels
+  - Conformité secourisme
+  - Meilleure réactivité accident
+  trainees_min: 6
+  trainees_max: 15
+  access_conditions:
+  - label: Âge minimum
+    value: 16 ans
+  - label: Français
+    value: Comprendre le français à l'oral
+  badge: Secourisme
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: guide-file-serre-file
+  outcomes:
+  - Guide-file formé
+  - Serre-file formé
+  - Sécurité évacuation
+  trainees_min: 8
+  trainees_max: 18
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Évacuation
+  review_notes:
+  - champ: outcomes
+    message: 'Débouchés, effectif, conditions d''accès et badge repris de la landing (accents rétablis), à relire ; « guide-file
+      / serre-file certifié » devient « formé » : il n''existe pas de certification.'
+- catalog_slug: ari
+  outcomes:
+  - Intervenant ARI
+  - Sécurité en milieu enfumé
+  - Maîtrise technique
+  trainees_min: 6
+  trainees_max: 15
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Protection
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: manipulation-extincteur
+  outcomes:
+  - Aptitude extincteurs
+  - Réactivité incendie
+  - Bons réflexes
+  trainees_min: 10
+  trainees_max: 20
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Incendie
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: esi
+  outcomes:
+  - Équipier ESI
+  - Sauvetage complexe
+  - Maîtrise des secours
+  trainees_min: 6
+  trainees_max: 15
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Intervention
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: ssi
+  outcomes:
+  - Exploitant SSI
+  - Gestion des alarmes
+  - Conformité technique
+  trainees_min: 6
+  trainees_max: 15
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Technique
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: cssi
+  outcomes:
+  - Coordonnateur SSI
+  - Expertise réglementaire
+  - Pilotage projet
+  trainees_min: 4
+  trainees_max: 12
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Coordination
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: evacuation-incendie
+  outcomes:
+  - Référent évacuation
+  - Maîtrise des procédures
+  - Sécurité des personnes
+  trainees_min: 8
+  trainees_max: 18
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: Sécurité
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
+- catalog_slug: epi
+  outcomes:
+  - Équipier EPI
+  - Première intervention
+  - Culture sécurité
+  trainees_min: 8
+  trainees_max: 18
+  access_conditions:
+  - label: Âge minimum
+    value: 18 ans
+  - label: Français
+    value: Lire et comprendre le français
+  badge: 1ère Intervention
+  review_notes:
+  - champ: outcomes
+    message: Débouchés, effectif, conditions d'accès et badge repris de la landing (accents rétablis), à relire.
