@@ -215,7 +215,6 @@
   <ActionDialog v-if="sheet" v-model:visible="certVisible" :title="t('gsms.formations.certificationVisee')" :intro="t('gsms.formations.certAide')"
     :fields="certFields" :run="(v) => putProgramCertification(id, v)" @done="done" />
   <ActionDialog v-if="sheet" v-model:visible="editVisible" :title="t('gsms.formations.completer')" :intro="t('gsms.formations.completerAide')"
-    width="min(880px, calc(100vw - 32px))"
     :fields="editFields" :run="saveProgram" @done="done" />
 </template>
 
@@ -355,29 +354,29 @@ const editFields = computed<ActionField[]>(() => {
   // Un champ par rubrique de la fiche, rangé dans la section du volet où elle s'affiche.
   return [
     { name: 'title', label: champ('title'), section: presentation, initial: p?.title, required: true, maxlength: 250 },
-    { name: 'delivery_mode', label: t('gsms.formations.modalite'), type: 'select', section: presentation, half: true,
+    { name: 'delivery_mode', label: t('gsms.formations.modalite'), type: 'select', section: presentation, quarter: true,
       options: options(sheet.value?.delivery_modes ?? {}), initial: p?.delivery_mode },
-    { name: 'duration_hours', label: t('gsms.formations.dureeHeures'), type: 'number', section: presentation, half: true, initial: num(p?.duration_hours) },
-    { name: 'price_eur', label: t('gsms.formations.prixEuros'), type: 'number', section: presentation, half: true, initial: num(p?.price_eur) },
-    { name: 'trainees_min', label: champ('trainees_min'), type: 'number', section: presentation, half: true, initial: p?.trainees_min ?? undefined },
-    { name: 'trainees_max', label: champ('trainees_max'), type: 'number', section: presentation, half: true, initial: p?.trainees_max ?? undefined },
-    { name: 'badge', label: champ('badge'), section: presentation, half: true, maxlength: 60, initial: p?.badge },
-    { name: 'public_info_reviewed_on', label: t('gsms.formations.relueLe'), type: 'date', section: presentation, half: true, initial: p?.public_info_reviewed_on },
+    { name: 'duration_hours', label: t('gsms.formations.dureeHeures'), type: 'number', section: presentation, quarter: true, initial: num(p?.duration_hours) },
+    { name: 'price_eur', label: t('gsms.formations.prixEuros'), type: 'number', section: presentation, quarter: true, initial: num(p?.price_eur) },
+    { name: 'trainees_min', label: champ('trainees_min'), type: 'number', section: presentation, quarter: true, initial: p?.trainees_min ?? undefined },
+    { name: 'trainees_max', label: champ('trainees_max'), type: 'number', section: presentation, quarter: true, initial: p?.trainees_max ?? undefined },
+    { name: 'badge', label: champ('badge'), section: presentation, quarter: true, maxlength: 60, initial: p?.badge },
+    { name: 'public_info_reviewed_on', label: t('gsms.formations.relueLe'), type: 'date', section: presentation, quarter: true, initial: p?.public_info_reviewed_on },
     { name: 'content', label: champ('content'), type: 'textarea', section: presentation, initial: p?.content },
-    { name: 'objectives', label: champ('objectivesUneParLigne'), type: 'textarea', section: presentation, initial: p?.objectives.join('\n') },
-    { name: 'skills', label: champ('skillsUneParLigne'), type: 'textarea', section: presentation, initial: p?.skills.join('\n') },
-    { name: 'audience', label: champ('audience'), type: 'textarea', section: presentation, initial: p?.audience },
-    { name: 'prerequisites', label: champ('prerequisitesUneParLigne'), type: 'textarea', section: presentation, initial: p?.prerequisites.join('\n') },
-    { name: 'access_conditions', label: champ('access_conditions'), type: 'textarea', section: presentation, help: t('gsms.formations.conditionsAide'),
+    { name: 'objectives', label: champ('objectivesUneParLigne'), type: 'textarea', section: presentation, half: true, initial: p?.objectives.join('\n') },
+    { name: 'skills', label: champ('skillsUneParLigne'), type: 'textarea', section: presentation, half: true, initial: p?.skills.join('\n') },
+    { name: 'audience', label: champ('audience'), type: 'textarea', section: presentation, half: true, initial: p?.audience },
+    { name: 'prerequisites', label: champ('prerequisitesUneParLigne'), type: 'textarea', section: presentation, half: true, initial: p?.prerequisites.join('\n') },
+    { name: 'access_conditions', label: champ('access_conditions'), type: 'textarea', section: presentation, half: true, help: t('gsms.formations.conditionsAide'),
       initial: (p?.access_conditions ?? []).map((c) => `${c.label} : ${c.value}`).join('\n') },
-    { name: 'outcomes', label: champ('outcomesUneParLigne'), type: 'textarea', section: presentation, initial: p?.outcomes.join('\n') },
+    { name: 'outcomes', label: champ('outcomesUneParLigne'), type: 'textarea', section: presentation, half: true, initial: p?.outcomes.join('\n') },
     { name: 'modules', label: champ('modules'), type: 'textarea', section: programme, help: t('gsms.formations.modulesAide'),
       initial: modulesToText(p?.modules ?? []) },
-    { name: 'teaching_methods', label: champ('teaching_methods'), type: 'textarea', section: pedagogie, initial: p?.teaching_methods },
-    { name: 'evaluation_methods', label: champ('evaluation_methods'), type: 'textarea', section: pedagogie, initial: p?.evaluation_methods },
+    { name: 'teaching_methods', label: champ('teaching_methods'), type: 'textarea', section: pedagogie, half: true, initial: p?.teaching_methods },
+    { name: 'evaluation_methods', label: champ('evaluation_methods'), type: 'textarea', section: pedagogie, half: true, initial: p?.evaluation_methods },
     { name: 'teaching_means', label: champ('teaching_means'), type: 'textarea', section: pedagogie, initial: p?.teaching_means },
-    { name: 'access_delay', label: champ('access_delay'), type: 'textarea', section: acces, maxlength: 200, initial: p?.access_delay },
-    { name: 'accessibility_info', label: champ('accessibility_info'), type: 'textarea', section: acces, initial: p?.accessibility_info },
+    { name: 'access_delay', label: champ('access_delay'), type: 'textarea', section: acces, half: true, maxlength: 200, initial: p?.access_delay },
+    { name: 'accessibility_info', label: champ('accessibility_info'), type: 'textarea', section: acces, half: true, initial: p?.accessibility_info },
     { name: 'certification_alignment', label: champ('certification_alignment'), type: 'textarea', section: certification, initial: p?.certification_alignment },
   ]
 })
