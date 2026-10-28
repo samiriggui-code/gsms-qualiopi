@@ -255,3 +255,20 @@ def test_rubriques_vitrine_reprises_de_la_landing(demo: Session) -> None:
     guide = demo.scalar(select(t.Program).where(t.Program.code == "GUIDE-FILE"))
     assert not any("certifié" in o for o in guide.outcomes)
     assert any(n["champ"] == "outcomes" and "à relire" in n["message"] for n in ovt.review_notes)
+
+
+def test_certifications_relevees_sans_attester_la_verification(demo: Session) -> None:
+    import_gsms_school(demo)
+    ssiap = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP2-INI"))
+    cert = demo.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == ssiap.id))
+    assert (cert.basis, cert.code, str(cert.registration_end)) == ("RS", "RS5642", "2026-12-31") and ssiap.is_certifying
+    assert cert.checked_on is None and cert.habilitation == "A_VERIFIER", "la vérification reste humaine"
+    sst = demo.scalar(select(t.Program).where(t.Program.code == "SST-INI"))
+    sst_cert = demo.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == sst.id))
+    assert sst_cert.basis == "NON_CERTIFIANTE" and "inactive" in next(
+        n["message"] for n in sst.review_notes if n["champ"] == "certification")
+    # Une certification saisie n'est jamais remplacée.
+    cert.basis, cert.code = "RNCP", "RNCP00000"
+    demo.flush()
+    import_gsms_school(demo)
+    assert (cert.basis, cert.code) == ("RNCP", "RNCP00000")

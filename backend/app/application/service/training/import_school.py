@@ -12,6 +12,7 @@ Enfin, la rédaction GSMS (DRAFTS) remplit objectifs, compétences, évaluation,
 from __future__ import annotations
 
 import re
+from datetime import date
 
 import yaml
 from sqlalchemy import select
@@ -46,6 +47,8 @@ LANDING_FIELDS = {"modules": "modules", "teaching_methods": "méthodes pédagogi
 # Rubriques rédigées par GSMS d'après les textes officiels (config/catalogue/redaction-gsms.yaml), là où ni la vitrine
 # ni la landing ne disent rien : remplies seulement si elles sont vides, chacune avec sa note « à relire ».
 DRAFTS = BACKEND_DIR / "config" / "catalogue" / "redaction-gsms.yaml"
+CERTIFICATIONS = BACKEND_DIR / "config" / "catalogue" / "certifications.yaml"
+CERT_FIELDS = ("basis", "code", "title", "certifier", "registration_end", "source_url")
 DRAFT_FIELDS = {"objectives": "objectifs", "skills": "compétences visées", "evaluation_methods": "modalités d'évaluation",
                 "teaching_means": "moyens pédagogiques et techniques"}
 # Textes génériques des fiches de la landing, identiques d'une formation à l'autre : aucune information réelle.
@@ -123,7 +126,8 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
                                      status="A_REDIGER", note=note, created_by=actor))
         created.append(p.code)
 
-    for code in [*complete_from_landing(db, data, report), *complete_from_drafts(db, report)]:
+    for code in [*complete_from_landing(db, data, report), *complete_from_drafts(db, report),
+                 *complete_certifications(db, report)]:
         if code not in completed and code not in created:
             completed.append(code)
     for code in complete_program_images(db, [f["code"] for f in data["formations"]]):
@@ -218,5 +222,37 @@ def complete_from_drafts(db: Session, report: list[str]) -> list[str]:
             touched.append(p.code)
             labels = {**DRAFT_FIELDS, "modules": "détail des modules"}
             report.append(f"Formation {p.code} complétée par la rédaction GSMS : {', '.join(labels[k] for k in filled)}")
+    db.flush()
+    return touched
+
+
+def complete_certifications(db: Session, report: list[str]) -> list[str]:
+    """Certification visée relevée sur France compétences (certifications.yaml), posée sur une certification encore
+    « à déterminer » ; la vérification et l'habilitation restent à attester par une personne."""
+    data = yaml.safe_load(CERTIFICATIONS.read_text(encoding="utf-8"))
+    touched: list[str] = []
+    for slug, c in data["formations"].items():
+        p = db.scalar(select(t.Program).where(t.Program.catalog_slug == slug))
+        if p is None:
+            continue
+        cert = db.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == p.id))
+        if cert is None:
+            cert = t.ProgramCertification(program_id=p.id, created_by="import GSMS School")
+            db.add(cert)
+        elif cert.basis != "A_DETERMINER" or cert.code:
+            continue
+        for key in CERT_FIELDS:
+            value = c.get(key)
+            setattr(cert, key, date.fromisoformat(value) if key == "registration_end" and value else value)
+        if c["basis"] in ("RNCP", "RS") and not p.is_certifying:
+            p.is_certifying = True
+            p.rncp_code = p.rncp_code or c["code"]
+        if c.get("alignment") and not p.certification_alignment:
+            p.certification_alignment = c["alignment"]
+        message = f"Certification relevée sur France compétences le {data['releve_le']}, à vérifier sur la fiche officielle"
+        p.review_notes = [*(p.review_notes or []), {"champ": "certification", "message": message + (
+            f" : {c['note']}" if c.get("note") else "."), "source": data["source"]}]
+        touched.append(p.code)
+        report.append(f"Formation {p.code} : certification {c.get('code') or c['basis']} renseignée")
     db.flush()
     return touched
