@@ -143,7 +143,7 @@ def import_gsms_school() -> None:
 def ia_prepare(renew: bool) -> None:
     from app.application.service.ia.assistants import ensure_assistants
     from app.application.service.ia.documents import sync_org_documents
-    from app.application.service.ia.espace import ensure_mcp_service, ensure_referential_kb
+    from app.application.service.ia.espace import REFERENTIALS, ensure_mcp_service, ensure_referential_kb
     from app.application.service.ia.session import IAUnavailable, open_service_session
 
     try:
@@ -155,7 +155,8 @@ def ia_prepare(renew: bool) -> None:
     with session_factory()() as db:
         set_actor(db, "cli")
         for title, step in (("Serveur MCP", lambda: ensure_mcp_service(db, token, renew=renew)),
-                            ("Base de connaissances", lambda: ensure_referential_kb(token)),
+                            *((f"Base « {ref.name} »", lambda ref=ref: ensure_referential_kb(token, ref))
+                              for ref in REFERENTIALS),
                             ("Documents de l'organisme", lambda: sync_org_documents(db, token)),
                             ("Assistants", lambda: ensure_assistants(token))):
             print(f"{title} :")

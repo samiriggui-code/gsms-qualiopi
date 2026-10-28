@@ -1,4 +1,4 @@
-"""Préparation de l'espace WeKnora de l'organisme : serveur MCP du moteur Qualiopi et base « Référentiel Qualiopi ».
+"""Préparation de l'espace WeKnora de l'organisme : serveur MCP du moteur Qualiopi et bases des référentiels.
 
 Deux opérations idempotentes, appelées avec le jeton du compte de service WeKnora (voir `session.py`) :
 
@@ -7,8 +7,8 @@ Deux opérations idempotentes, appelées avec le jeton du compte de service WeKn
   Un service désactivé par un administrateur dans WeKnora reste désactivé. Chaque outil d'action du serveur
   (`mcp_outils.ACTION_TOOLS`) y reçoit « approbation toujours requise » : le moteur suspend l'appel jusqu'au clic
   « Approuver » de la personne dans la conversation. Seules les approbations manquantes sont posées.
-- `ensure_referential_kb` : crée la base de connaissances et y dépose les textes officiels des indicateurs
-  (`referentials/qualiopi/v*/source/*.md`). Lourde (indexation par le moteur, qui exige un modèle d'embedding) :
+- `ensure_referential_kb` : crée une base de connaissances par référentiel (REFERENTIALS : Qualiopi, CNAPS pour la
+  sécurité privée, sécurité incendie) et y dépose ses textes officiels (`referentials/<dossier>/**/source/*.md`). Lourde (indexation par le moteur, qui exige un modèle d'embedding) :
   elle n'est lancée que par la commande `ia-preparer`, qui dit ce qui a été fait et ce qui manque.
 """
 
@@ -47,6 +47,31 @@ MCP_USAGE = (
 KB_NAME = "Référentiel Qualiopi"
 KB_DESCRIPTION = ("Textes officiels des indicateurs du référentiel national qualité (versions 9 et 10), tels que "
                   "livrés avec GSMS Qualiopi (dossiers referentials/qualiopi/v*/source).")
+
+
+@dataclass(frozen=True)
+class Referential:
+    """Base de connaissances d'un référentiel : textes officiels livrés dans referentials/<folder>/**/source."""
+
+    name: str
+    description: str
+    folder: str
+
+
+QUALIOPI = Referential(KB_NAME, KB_DESCRIPTION, "qualiopi")
+CNAPS = Referential(
+    "Référentiel CNAPS — sécurité privée",
+    "Textes officiels de la sécurité privée (compétence du CNAPS) : livre VI du code de la sécurité intérieure (carte "
+    "professionnelle, autorisations d'accès à la formation, organismes de formation), code de déontologie, cahier des "
+    "charges de la formation initiale et formation continue (MAC). Livrés avec GSMS Qualiopi (referentials/cnaps).",
+    "cnaps")
+INCENDIE = Referential(
+    "Référentiel sécurité incendie",
+    "Textes officiels de la sécurité incendie : arrêté du 2 mai 2005 (SSIAP 1, 2 et 3, recyclage et remise à niveau, "
+    "examens) et code du travail (consignes et exercices incendie, secouristes). Livrés avec GSMS Qualiopi "
+    "(referentials/incendie).",
+    "incendie")
+REFERENTIALS = (QUALIOPI, CNAPS, INCENDIE)
 
 
 @dataclass
@@ -168,13 +193,22 @@ def _ensure_approvals(service_id: str, token: str, report: Report) -> None:
 # ── Base de connaissances « Référentiel Qualiopi » ──────────────────────────────
 
 
-def referential_sources() -> list[tuple[str, str]]:
-    """(titre, contenu) des textes officiels livrés : un document par indicateur et par version."""
-    root = get_settings().referentials_dir / "qualiopi"
-    out = []
-    for path in sorted(root.glob("v*/source/*.md"), key=lambda p: (p.parts[-3], p.name)):
-        out.append((_title(path), path.read_text(encoding="utf-8")))
-    return out
+def referential_sources(ref: Referential = QUALIOPI) -> list[tuple[str, str]]:
+    """(titre, contenu) des textes officiels livrés : pour Qualiopi un document par indicateur et par version, pour
+    les autres référentiels un document par fichier, titré par son en-tête (`titre:`)."""
+    root = get_settings().referentials_dir / ref.folder
+    if ref is QUALIOPI:
+        paths = sorted(root.glob("v*/source/*.md"), key=lambda p: (p.parts[-3], p.name))
+        return [(_title(path), path.read_text(encoding="utf-8")) for path in paths]
+    return [(_front_title(path), path.read_text(encoding="utf-8")) for path in sorted(root.glob("source/*.md"))]
+
+
+def _front_title(path: Path) -> str:
+    """Titre de l'en-tête YAML (`titre: "…"`), sinon le nom du fichier."""
+    for line in path.read_text(encoding="utf-8").splitlines()[1:12]:
+        if line.startswith("titre:"):
+            return line.partition(":")[2].strip().strip('"')[:250]
+    return path.stem.partition("-")[2].replace("-", " ") or path.stem
 
 
 def _title(path: Path) -> str:
@@ -228,7 +262,7 @@ def _all_knowledge(kb_id: str, token: str) -> list[dict]:
         page += 1
 
 
-def ensure_referential_kb(token: str) -> Report:
+def ensure_referential_kb(token: str, ref: Referential = QUALIOPI) -> Report:
     report = Report()
     embeddings = _embedding_models(token)
     if embeddings == 0:
@@ -236,21 +270,21 @@ def ensure_referential_kb(token: str) -> Report:
                                "pas être indexés pour la recherche. À ajouter dans Paramètres › Modèles du moteur IA, "
                                "puis relancer « python -m app.cmd.cli ia-preparer ».")
     bases = _data(*call("GET", "/api/v1/knowledge-bases", token=token), "Liste des bases de connaissances") or []
-    kb = next((b for b in bases if b.get("name") == KB_NAME), None)
+    kb = next((b for b in bases if b.get("name") == ref.name), None)
     if kb is None:
-        status, body = call("POST", "/api/v1/knowledge-bases", {"name": KB_NAME, "description": KB_DESCRIPTION}, token=token)
+        status, body = call("POST", "/api/v1/knowledge-bases", {"name": ref.name, "description": ref.description}, token=token)
         if not (_ok(status, body) and (body.get("data") or {}).get("id")):
-            report.problems.append(f"Base « {KB_NAME} » non créée : {message_of(body)} (HTTP {status})")
+            report.problems.append(f"Base « {ref.name} » non créée : {message_of(body)} (HTTP {status})")
             return report
         kb = body["data"]
-        report.done.append(f"Base « {KB_NAME} » créée")
+        report.done.append(f"Base « {ref.name} » créée")
     else:
-        report.done.append(f"Base « {KB_NAME} » déjà présente")
+        report.done.append(f"Base « {ref.name} » déjà présente")
 
     existing = {k.get("title"): k for k in _all_knowledge(kb["id"], token)}
-    sources = referential_sources()
+    sources = referential_sources(ref)
     if not sources:
-        report.problems.append("Aucun texte officiel trouvé dans referentials/qualiopi/v*/source")
+        report.problems.append(f"Aucun texte officiel trouvé dans referentials/{ref.folder}")
     created, refused = 0, []
     for title, content in sources:
         if title in existing:
@@ -272,7 +306,7 @@ def ensure_referential_kb(token: str) -> Report:
     if not kb.get("embedding_model_id"):
         _attach_models(kb, token, report)
     if not kb.get("embedding_model_id"):
-        report.problems.append(f"La base « {KB_NAME} » n'a pas de modèle d'embedding : à choisir dans ses réglages "
+        report.problems.append(f"La base « {ref.name} » n'a pas de modèle d'embedding : à choisir dans ses réglages "
                                "du moteur IA ; les documents seront alors réindexés au prochain « ia-preparer »")
     failed = [k for k in existing.values() if k.get("parse_status") == "failed" and k.get("id")]
     if failed and kb.get("embedding_model_id"):
@@ -284,5 +318,6 @@ def ensure_referential_kb(token: str) -> Report:
     if failed:
         msg = failed[0].get("error_message") or "sans motif"
         report.problems.append(f"{len(failed)} document(s) en échec d'indexation dans le moteur IA (ex. : {msg})")
-    report.done.append("Aucun guide de lecture n'est livré dans le dépôt : seuls les textes officiels sont déposés")
+    if ref is QUALIOPI:
+        report.done.append("Aucun guide de lecture n'est livré dans le dépôt : seuls les textes officiels sont déposés")
     return report

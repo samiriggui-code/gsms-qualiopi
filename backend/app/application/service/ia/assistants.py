@@ -17,7 +17,7 @@ quatrième assistant prévu par l'audit (« Manuel qualité », mode Wiki) n'est
 from __future__ import annotations
 
 from app.application.service.ia.documents import KB_NAME as DOCS_KB_NAME
-from app.application.service.ia.espace import KB_NAME, MCP_NAME, Report, _data, _ok
+from app.application.service.ia.espace import CNAPS, INCENDIE, KB_NAME, MCP_NAME, Report, _data, _ok
 from app.application.service.ia.weknora import call, message_of
 
 RULES = (
@@ -42,6 +42,18 @@ REFERENTIAL_PROMPT = (
     + RULES
 )
 
+REGLEMENTATION_PROMPT = (
+    "Vous êtes l'assistant « Réglementation sécurité privée et incendie » de l'organisme de formation. Vous répondez "
+    "à partir des seuls textes officiels des bases « Référentiel CNAPS — sécurité privée » et « Référentiel sécurité "
+    "incendie » : carte professionnelle, autorisations d'accès à la formation, autorisation d'exercer de l'organisme "
+    "de formation, code de déontologie, contenu et durée des formations initiales et des MAC, SSIAP (conditions "
+    "d'accès, recyclage, remise à niveau, examens), exercices incendie. Citez l'article ou l'annexe.\n\n"
+    + RULES
+)
+
+REGLEMENTATION_FALLBACK = ("Je n'ai rien trouvé à ce sujet dans les textes officiels livrés (CNAPS, sécurité incendie). "
+                           "Reformulez avec le nom du texte ou de la formation, ou vérifiez sur Légifrance.")
+
 AUDIT_PROMPT = (
     "Vous êtes l'assistant « Préparation d'audit » de l'organisme de formation. Vous aidez le responsable qualité "
     "à préparer un audit Qualiopi.\n"
@@ -49,6 +61,9 @@ AUDIT_PROMPT = (
     "appelez les outils du serveur MCP « Moteur Qualiopi (GSMS) » : leurs résultats sont l'état calculé par le "
     "moteur, ne les recalculez pas et ne les contredisez pas.\n"
     "- Pour ce qu'exige un indicateur, cherchez dans la base « Référentiel Qualiopi ».\n"
+    "- Pour les obligations propres à la sécurité privée (CNAPS : cartes, autorisations, formation initiale et MAC) "
+    "ou à la sécurité incendie (SSIAP), cherchez dans les bases « Référentiel CNAPS — sécurité privée » et "
+    "« Référentiel sécurité incendie ».\n"
     "- Pour ce que l'organisme a écrit (procédures, organigramme, programmes…), cherchez dans la base « Documents de "
     "l'organisme » et citez le document et sa version. Un document trouvé n'est pas une preuve validée : seul l'état du "
     "moteur dit ce qui est démontrable. Signalez les contradictions entre documents et ce qui manque.\n"
@@ -91,11 +106,19 @@ _COMMON = {"temperature": 0.2, "multi_turn_enabled": True, "history_turns": 5, "
 _REASONING_TOOLS = ["thinking", "todo_write", "search_knowledge", "read_document", "list_documents"]
 
 
-def definitions(kb_id: str, mcp_id: str, model_id: str, docs_kb_id: str | None = None) -> list[dict]:
+def definitions(kb_id: str, mcp_id: str, model_id: str, docs_kb_id: str | None = None,
+                rules_kb_ids: list[str] | None = None) -> list[dict]:
     """Les trois assistants et l'assistant interne d'analyse, prêts à envoyer au moteur (`POST /api/v1/agents`)."""
     common = {**_COMMON, "model_id": model_id}  # sans modèle, le moteur refuse de répondre
-    audit_kbs = [kb_id, docs_kb_id] if docs_kb_id else [kb_id]
-    return [
+    rules = list(rules_kb_ids or [])
+    audit_kbs = [kb_id, *([docs_kb_id] if docs_kb_id else []), *rules]
+    regulation = [{"name": "Réglementation sécurité privée et incendie",
+                   "description": "Ce que disent le livre VI (CNAPS), le code de déontologie et l'arrêté SSIAP.",
+                   "config": {**common, "agent_mode": "quick-answer", "system_prompt": REGLEMENTATION_PROMPT,
+                              "context_template_id": "default_context",
+                              "kb_selection_mode": "selected", "knowledge_bases": rules, "mcp_selection_mode": "none",
+                              "fallback_strategy": "fixed", "fallback_response": REGLEMENTATION_FALLBACK}}] if rules else []
+    return [*regulation,
         {"name": "Référentiel Qualiopi",
          "description": "Ce que demande chaque indicateur, d'après les textes officiels (v9 et v10).",
          "config": {**common, "agent_mode": "quick-answer", "system_prompt": REFERENTIAL_PROMPT,
@@ -147,6 +170,7 @@ def ensure_assistants(token: str) -> Report:
     mcp = next((s for s in services if s.get("name") == MCP_NAME), None)
     kb = next((b for b in bases if b.get("name") == KB_NAME), None)
     docs_kb = next((b for b in bases if b.get("name") == DOCS_KB_NAME), None)
+    rules_kbs = [b["id"] for b in bases if b.get("name") in (CNAPS.name, INCENDIE.name) and b.get("id")]
     if mcp is None or kb is None:
         missing = [name for name, found in ((f"le serveur MCP « {MCP_NAME} »", mcp), (f"la base « {KB_NAME} »", kb))
                    if found is None]
@@ -160,7 +184,7 @@ def ensure_assistants(token: str) -> Report:
         return report
 
     agents = {a.get("name"): a for a in _rows(_data(*call("GET", "/api/v1/agents", token=token), "Liste des agents"))}
-    for agent in definitions(kb["id"], mcp["id"], model_id, docs_kb["id"] if docs_kb else None):
+    for agent in definitions(kb["id"], mcp["id"], model_id, docs_kb["id"] if docs_kb else None, rules_kbs):
         existing = agents.get(agent["name"])
         if existing is None:
             status, body = call("POST", "/api/v1/agents", agent, token=token)

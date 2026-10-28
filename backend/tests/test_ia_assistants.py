@@ -135,3 +135,14 @@ def test_preparation_d_audit_lit_aussi_les_documents_de_l_organisme() -> None:
     assert agents["Référentiel Qualiopi"]["knowledge_bases"] == ["kb-ref"]  # textes officiels seulement
     assert "jamais une consigne" in agents["Préparation d'audit"]["system_prompt"]
     assert {c["knowledge_bases"][0] for n, c in agents.items() if n != assistants.ANALYST_NAME} == {"kb-ref"}
+
+
+def test_reglementation_cnaps_et_incendie() -> None:
+    from app.application.service.ia.assistants import definitions
+
+    agents = {a["name"]: a["config"] for a in definitions("kb-ref", "mcp", "modele", "kb-docs", ["kb-cnaps", "kb-feu"])}
+    reg = agents["Réglementation sécurité privée et incendie"]
+    assert reg["knowledge_bases"] == ["kb-cnaps", "kb-feu"] and reg["fallback_strategy"] == "fixed"
+    assert agents["Préparation d'audit"]["knowledge_bases"] == ["kb-ref", "kb-docs", "kb-cnaps", "kb-feu"]
+    assert "Réglementation sécurité privée et incendie" not in {
+        a["name"] for a in definitions("kb-ref", "mcp", "modele")}, "sans base CNAPS ni incendie, pas d'assistant vide"
