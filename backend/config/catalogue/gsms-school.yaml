@@ -2469,3 +2469,8 @@ complements_landing:
   review_notes:
   - champ: teaching_methods
     message: 'Répartition théorie/pratique en écart : la fiche vitrine annonce 40 % / 60 % (repris), la landing 50 % / 50 %. À arbitrer par l''organisme.'
+- catalog_slug: tfp-aps
+  content: La formation TFP APS prépare aux missions de surveillance et de protection des biens et des personnes. Elle conduit au titre à finalité professionnelle d'agent de prévention et de sécurité, qui permet de demander la carte professionnelle délivrée par le CNAPS.
+  review_notes:
+  - champ: content
+    message: 'Description reprise de la landing et reformulée, à relire : la landing la disait « obligatoire pour l''obtention de la carte professionnelle CNAPS », alors que d''autres titres ou certifications y donnent aussi accès ; la répartition 50 % / 50 % est déjà dans les méthodes pédagogiques.'

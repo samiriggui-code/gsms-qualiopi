@@ -6,6 +6,7 @@ n'est jamais remplacée, tout ce qui est créé garde sa source, et les lieux et
 Une formation déjà importée n'est que complétée, sur les rubriques encore vides (COMPLETABLE).
 Les compléments relevés sur la landing (complements_landing) complètent aussi une formation d'une autre origine
 (TFP APS), sur LANDING_FIELDS seulement ; un texte de remplissage (FILLER) n'est jamais repris.
+Enfin, la rédaction GSMS (DRAFTS) remplit objectifs, compétences, moyens et détail vide des modules, toujours « à relire ».
 """
 
 from __future__ import annotations
@@ -38,7 +39,13 @@ COMPLETABLE = {"track": "filière", "pathway": "parcours", "skills": "compétenc
 
 # Rubriques que la landing peut compléter quand elles sont vides.
 LANDING_FIELDS = {"modules": "modules", "teaching_methods": "méthodes pédagogiques", "prerequisites": "prérequis",
-                  "audience": "public visé"}
+                  "audience": "public visé", "content": "description"}
+
+# Rubriques rédigées par GSMS d'après les textes officiels (config/catalogue/redaction-gsms.yaml), là où ni la vitrine
+# ni la landing ne disent rien : remplies seulement si elles sont vides, chacune avec sa note « à relire ».
+DRAFTS = BACKEND_DIR / "config" / "catalogue" / "redaction-gsms.yaml"
+DRAFT_FIELDS = {"objectives": "objectifs", "skills": "compétences visées",
+                "teaching_means": "moyens pédagogiques et techniques"}
 # Textes génériques des fiches de la landing, identiques d'une formation à l'autre : aucune information réelle.
 FILLER = re.compile(
     r"^Approfondissement des objectifs du module|^Conformité avec le référentiel et les objectifs pédagogiques"
@@ -112,7 +119,7 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
                                      status="A_REDIGER", note=note, created_by=actor))
         created.append(p.code)
 
-    for code in complete_from_landing(db, data, report):
+    for code in [*complete_from_landing(db, data, report), *complete_from_drafts(db, report)]:
         if code not in completed and code not in created:
             completed.append(code)
     for code in complete_program_images(db, [f["code"] for f in data["formations"]]):
@@ -172,5 +179,40 @@ def complete_from_landing(db: Session, data: dict, report: list[str]) -> list[st
             touched.append(p.code)
             what = ", ".join(LANDING_FIELDS[k] for k in filled) or "points à arbitrer"
             report.append(f"Formation {p.code} complétée par la landing : {what}")
+    db.flush()
+    return touched
+
+
+def load_drafts() -> dict:
+    return yaml.safe_load(DRAFTS.read_text(encoding="utf-8"))
+
+
+def complete_from_drafts(db: Session, report: list[str]) -> list[str]:
+    """Remplit les rubriques vides et le détail vide des modules depuis la rédaction GSMS ; ne remplace rien."""
+    data = load_drafts()
+    touched: list[str] = []
+    for d in data["formations"]:
+        p = db.scalar(select(t.Program).where(t.Program.catalog_slug == d["catalog_slug"]))
+        if p is None:
+            continue
+        filled = [key for key in DRAFT_FIELDS if d.get(key) and not getattr(p, key)]
+        for key in filled:
+            setattr(p, key, d[key])
+        details = d.get("module_details") or {}
+        modules = [{**m, "details": details[m["code"]]} if not m.get("details") and m.get("code") in details else m
+                   for m in p.modules or []]
+        if modules != (p.modules or []):
+            p.modules = modules
+            filled.append("modules")
+        known = {(n.get("champ"), n.get("message")) for n in p.review_notes or []}
+        notes = [{"champ": key, "message": f"Rédigé par GSMS d'après {d['textes']} : à relire et à valider par le "
+                  "responsable pédagogique avant publication.", "source": data["source"]} for key in filled]
+        added = [n for n in notes if (n["champ"], n["message"]) not in known]
+        if added:
+            p.review_notes = [*(p.review_notes or []), *added]
+        if filled:
+            touched.append(p.code)
+            labels = {**DRAFT_FIELDS, "modules": "détail des modules"}
+            report.append(f"Formation {p.code} complétée par la rédaction GSMS : {', '.join(labels[k] for k in filled)}")
     db.flush()
     return touched

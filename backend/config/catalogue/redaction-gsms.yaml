@@ -1,0 +1,441 @@
+# Rubriques des fiches formation rédigées par GSMS (28/10/2026), là où ni la fiche vitrine de GSMS School ni la landing
+# ne donnaient d'information : objectifs, compétences visées, moyens pédagogiques et techniques, détail des modules des
+# recyclages et remises à niveau SSIAP (la landing n'y avait que du texte de remplissage).
+# Appliqué par import-gsms-school (complete_from_drafts) aux seules rubriques vides, chacune avec une note « à relire ».
+# Rien ici n'est une obligation nouvelle : les textes cités sont la base de la rédaction, pas une citation.
+# Les moyens techniques reprennent l'inventaire du centre (equipements de gsms-school.yaml, « à vérifier sur place ») ;
+# ce qui n'y figure pas est signalé « à préciser par l'organisme », jamais supposé.
+# Non traités ici, car propres à l'organisme : accessibilité (référent handicap) et délai d'accès.
+source: Rédaction GSMS du 28/10/2026 (config/catalogue/redaction-gsms.yaml)
+
+moyens:
+  incendie_ssiap: &incendie_ssiap >-
+    Salle de cours équipée (vidéoprojecteur, écran interactif) et poste de QCM pour les évaluations. Plateau technique
+    incendie : système de sécurité incendie de catégorie A opérationnel, SSI et tableau de signalisation pédagogiques,
+    parcours de ronde SSIAP à anomalies configurables, aire feu avec générateur de flammes au gaz, générateur de fumée
+    froide, extincteurs d'exercice (eau pulvérisée, CO2) et modules RIA pédagogiques. Matériel relevé dans l'inventaire
+    du centre, à vérifier sur place.
+  incendie_ssiap_cadre: &incendie_ssiap_cadre >-
+    Salle de cours équipée (vidéoprojecteur, écran interactif, sonorisation) et poste de QCM pour les évaluations ;
+    études de cas sur dossiers d'établissements (plans, notices de sécurité, registres). Plateau technique : système de
+    sécurité incendie de catégorie A opérationnel et SSI pédagogique, poste central de sécurité pédagogique. Matériel
+    relevé dans l'inventaire du centre, à vérifier sur place ; dossiers d'étude de cas à constituer par l'organisme.
+  incendie_entreprise: &incendie_entreprise >-
+    Salle de cours équipée d'un vidéoprojecteur. Aire feu avec générateur de flammes au gaz, extincteurs d'exercice
+    (eau pulvérisée, CO2, poudre), modules RIA pédagogiques et générateur de fumée froide ; lot d'équipements de
+    protection individuelle pédagogique. En intra-entreprise, exercices sur le site du client avec ses propres moyens.
+    Matériel relevé dans l'inventaire du centre, à vérifier sur place.
+  evacuation: &evacuation >-
+    Salle de cours équipée d'un vidéoprojecteur ; plans d'évacuation et consignes de l'établissement. Générateur de
+    fumée froide et extincteurs d'exercice pour les mises en situation. En intra-entreprise, exercice sur le site du
+    client, avec ses plans et son système d'alarme. Matériel relevé dans l'inventaire du centre, à vérifier sur place.
+  ari: &ari >-
+    Salle de cours équipée d'un vidéoprojecteur ; générateur de fumée froide pour la progression en milieu enfumé.
+    Appareils respiratoires isolants d'exercice : non relevés dans l'inventaire du centre, à préciser par l'organisme
+    (nombre, bouteilles, contrôles).
+  ssi: &ssi >-
+    Salle de cours équipée d'un vidéoprojecteur ; SSI pédagogique (centrale incendie), tableau de signalisation
+    pédagogique et SSI de catégorie A opérationnel du plateau SSIAP pour les manipulations. Matériel relevé dans
+    l'inventaire du centre, à vérifier sur place.
+  surete: &surete >-
+    Salle de cours équipée (vidéoprojecteur, écran interactif) et poste de QCM. Plateau sûreté : poste central de
+    sécurité pédagogique, vidéosurveillance pédagogique (3 caméras), centrale d'alarme intrusion, parcours de ronde
+    avec pointeaux, émetteurs-récepteurs radio (PTI/DATI), registres (consignes, clés, badges, visiteurs), armoire à
+    clés, magnétomètres et gants de palpation. Secourisme : mannequins (adulte, enfant, nourrisson) et défibrillateurs
+    de formation. Incendie : extincteurs d'exercice. Matériel relevé dans l'inventaire du centre, à vérifier sur place.
+  video: &video >-
+    Salle de cours équipée (vidéoprojecteur, écran interactif). Poste central de sécurité pédagogique avec
+    vidéosurveillance pédagogique (3 caméras), centrale d'alarme intrusion, poste de main courante et de rapport
+    d'anomalies, émetteurs-récepteurs radio. Matériel relevé dans l'inventaire du centre, à vérifier sur place ; mur
+    d'images et logiciel de supervision vidéo (VMS) non relevés dans l'inventaire, à préciser par l'organisme.
+  asra: &asra >-
+    Salle de cours équipée d'un vidéoprojecteur ; salle ou plateau dégagé pour les techniques d'intervention. Armes de
+    catégorie D d'entraînement (bâtons, tonfas, aérosols inertes) et protections : non relevées dans l'inventaire du
+    centre, à préciser par l'organisme.
+  cyno: &cyno >-
+    Salle de cours équipée d'un vidéoprojecteur. Terrain d'entraînement, équipements de mordant et de protection et
+    matériel de détection : non relevés dans l'inventaire du centre, à préciser par l'organisme.
+  secourisme: &secourisme >-
+    Salle de cours équipée d'un vidéoprojecteur ; mannequins de secourisme (adulte, enfant, nourrisson),
+    défibrillateurs de formation, mallettes de premiers secours et matériel de simulation de plaies. Matériel relevé
+    dans l'inventaire du centre, à vérifier sur place.
+  secourisme_intra: &secourisme_intra >-
+    Formation dans les locaux du client : mannequins de secourisme (adulte, enfant, nourrisson), défibrillateurs de
+    formation et mallettes de premiers secours apportés par le formateur ; cas concrets construits sur les situations
+    de travail du client. Matériel relevé dans l'inventaire du centre, à vérifier sur place.
+  stu: &stu >-
+    Salle de cours équipée d'un vidéoprojecteur ; mannequins de secourisme, défibrillateurs de formation, générateur
+    de fumée froide et engins fumigènes pédagogiques pour les simulations sous stress. Garrots tourniquets et
+    pansements compressifs d'entraînement : non relevés dans l'inventaire du centre, à préciser par l'organisme.
+  electrique: &electrique >-
+    Salle de cours équipée d'un vidéoprojecteur ; supports illustrant la norme NF C 18-510. Matériel de mise en
+    situation électrique (armoire ou maquette pédagogique, vérificateur d'absence de tension, équipements de
+    protection électriques) : non relevé dans l'inventaire du centre, à préciser par l'organisme.
+
+formations:
+
+# --- Sûreté ---------------------------------------------------------------------------------------------------------
+- catalog_slug: tfp-aps
+  textes: le référentiel du titre à finalité professionnelle APS (Livre VI du code de la sécurité intérieure)
+  objectives:
+  - Exercer les missions de surveillance et de gardiennage d'un agent de prévention et de sécurité dans le cadre légal et déontologique.
+  - Contrôler les accès, réaliser une inspection visuelle des bagages et une palpation de sécurité.
+  - Prévenir et gérer les situations conflictuelles et réagir face à un risque terroriste.
+  - Porter les premiers secours et appliquer les consignes en cas d'incendie ou d'alarme.
+  skills:
+  - Appliquer le cadre juridique de la sécurité privée et le code de déontologie
+  - Réaliser des rondes de surveillance et tenir une main courante
+  - Contrôler les accès, filtrer et palper dans le respect des droits des personnes
+  - Désamorcer un conflit par la communication
+  - Exploiter les moyens électroniques de sécurité et traiter une alarme
+  - Alerter et faciliter l'intervention des secours et des forces de l'ordre
+  teaching_means: *surete
+- catalog_slug: mac-aps
+  textes: le programme du maintien et de l'actualisation des compétences des agents de prévention et de sécurité (Livre VI du code de la sécurité intérieure)
+  objectives:
+  - Actualiser ses connaissances du cadre juridique et déontologique de la sécurité privée.
+  - Réviser les techniques de gestion des conflits et d'inspection-filtrage.
+  - Renforcer sa vigilance et ses réflexes face au risque terroriste.
+  - Remettre à jour ses gestes de secours.
+  teaching_means: *surete
+- catalog_slug: asra-d
+  textes: le Livre VI du code de la sécurité intérieure et la réglementation des armes de catégorie D
+  objectives:
+  - Connaître le cadre légal de la détention, du port et de l'usage des armes de catégorie D par un agent de sécurité.
+  - Manier un bâton, un tonfa et un aérosol de défense en sécurité.
+  - Adapter sa réponse à la menace en respectant la gradation de la force.
+  - Rendre compte de son intervention, par écrit et à l'oral.
+  teaching_means: *asra
+- catalog_slug: ovt
+  textes: le référentiel du titre professionnel visé (CCP 1 à 3 de la fiche)
+  objectives:
+  - Exploiter un système de vidéoprotection pour sécuriser des personnes et des biens.
+  - Traiter les alarmes reçues en télésurveillance et organiser la levée de doute.
+  - Coordonner les intervenants, les secours et les forces de l'ordre.
+  - Tenir la main courante et rédiger les rapports dans le respect de la réglementation sur les données personnelles.
+  teaching_means: *video
+- catalog_slug: mac-ovt
+  textes: le programme du maintien et de l'actualisation des compétences des opérateurs en vidéoprotection (Livre VI du code de la sécurité intérieure)
+  objectives:
+  - Actualiser ses connaissances juridiques sur la sécurité privée et la vidéoprotection.
+  - Mettre à jour ses pratiques face à l'évolution des menaces.
+  - Maîtriser les évolutions des outils de vidéoprotection et de leurs interconnexions.
+  - Appliquer les bons réflexes face au risque terroriste.
+  teaching_means: *video
+- catalog_slug: asc-cynophile
+  textes: le référentiel du titre d'agent de sécurité cynophile et le Livre VI du code de la sécurité intérieure
+  objectives:
+  - Exercer les missions de sécurité en binôme avec un chien dans le cadre légal et déontologique.
+  - Assurer l'obéissance, la sociabilité et le bien-être du chien en mission.
+  - Maîtriser le chien en situation de légitime défense.
+  - Mener une recherche de détection avec le chien et en rendre compte.
+  teaching_means: *cyno
+
+# --- Incendie : SSIAP (arrêté du 2 mai 2005 modifié) -----------------------------------------------------------------
+- catalog_slug: ssiap-1-initial
+  textes: l'arrêté du 2 mai 2005 modifié (annexe de la formation SSIAP 1)
+  objectives:
+  - Prévenir les incendies et sensibiliser les occupants d'un ERP ou d'un IGH.
+  - Assurer l'entretien élémentaire des moyens de secours et réaliser les rondes.
+  - Alerter et accueillir les secours, intervenir sur un début d'incendie.
+  - Participer à l'évacuation du public et à l'assistance aux personnes.
+  teaching_means: *incendie_ssiap
+- catalog_slug: ssiap-1-recyclage
+  textes: l'arrêté du 2 mai 2005 modifié (annexe du recyclage SSIAP 1)
+  objectives:
+  - Actualiser ses connaissances de la réglementation incendie des ERP et IGH.
+  - Revoir la mise en œuvre des moyens de secours.
+  - Maintenir ses réflexes d'intervention face aux différents sinistres.
+  teaching_means: *incendie_ssiap
+  module_details:
+    UV1:
+    - Évolutions de la réglementation incendie applicable aux ERP et aux IGH.
+    - 'Rappel des principes de prévention : classement, dégagements, cloisonnement, accessibilité.'
+    UV2:
+    - Agents extincteurs et moyens d'extinction (extincteurs, robinets d'incendie armés, colonnes).
+    - 'Système de sécurité incendie : lecture du tableau, actions sur alarme et dérangement.'
+    UV3:
+    - Conduite à tenir face aux différents types de sinistres.
+    - Mise en œuvre d'un extincteur sur feu réel ou simulé ; évacuation et assistance aux personnes.
+- catalog_slug: ssiap-1-ran
+  textes: l'arrêté du 2 mai 2005 modifié (annexe de la remise à niveau SSIAP 1)
+  objectives:
+  - Remettre à niveau ses connaissances fondamentales en sécurité incendie.
+  - Revoir l'exploitation du poste de sécurité et le traitement des alarmes.
+  - Retrouver la pratique des moyens de secours et des rondes.
+  teaching_means: *incendie_ssiap
+  module_details:
+    UV1:
+    - Le feu, ses conséquences et le comportement au feu des matériaux.
+    - 'Principes de la réglementation ERP et IGH : classement, dégagements, désenfumage.'
+    UV2:
+    - Agents extincteurs, extincteurs et robinets d'incendie armés ; manipulation sur feu.
+    - Entretien élémentaire des moyens de secours et rondes de sécurité.
+    UV3:
+    - Exploitation du poste de sécurité et du système de sécurité incendie.
+    - Traitement d'une alarme, appel et accueil des secours, main courante.
+- catalog_slug: ssiap-2-initial
+  textes: l'arrêté du 2 mai 2005 modifié (annexe de la formation SSIAP 2)
+  objectives:
+  - Diriger une équipe de sécurité incendie et organiser son travail.
+  - Faire appliquer les règles de sécurité incendie et suivre l'entretien des moyens de secours.
+  - Diriger le poste de sécurité en cas de sinistre et coordonner l'intervention.
+  - Rendre compte à sa hiérarchie et rédiger les documents du service.
+  skills:
+  - Encadrer et former les agents de sécurité incendie
+  - Organiser les rondes et le contrôle des moyens de secours
+  - Diriger le poste central de sécurité pendant un sinistre
+  - Coordonner l'évacuation et l'accueil des secours
+  - Rédiger comptes rendus et notes de service
+  teaching_means: *incendie_ssiap
+- catalog_slug: ssiap-2-recyclage
+  textes: l'arrêté du 2 mai 2005 modifié (annexe du recyclage SSIAP 2)
+  objectives:
+  - Actualiser ses connaissances réglementaires et managériales de chef d'équipe.
+  - Revoir la conduite de l'équipe pendant une intervention.
+  - S'entraîner à commander en situation de crise depuis le poste de sécurité.
+  skills:
+  - Animer et encadrer l'équipe de sécurité
+  - Diriger une intervention et l'évacuation
+  - Gérer le poste de sécurité en situation dégradée
+  teaching_means: *incendie_ssiap
+  module_details:
+    UV1:
+    - Évolutions de la réglementation incendie et de l'organisation du service de sécurité.
+    - 'Encadrement de l''équipe : consignes, plannings, formation des agents.'
+    UV2:
+    - Organisation de l'intervention et de l'évacuation, accueil des secours.
+    - Exploitation du système de sécurité incendie en situation de sinistre.
+    UV3:
+    - Mises en situation de commandement depuis le poste de sécurité.
+    - Compte rendu à la hiérarchie après intervention.
+- catalog_slug: ssiap-2-ran
+  textes: l'arrêté du 2 mai 2005 modifié (annexe de la remise à niveau SSIAP 2)
+  objectives:
+  - Remettre à niveau ses connaissances de chef d'équipe de sécurité incendie.
+  - Retrouver la maîtrise du poste de sécurité et du traitement des alarmes.
+  - Revoir la tactique d'intervention et la conduite de l'équipe.
+  skills:
+  - Encadrer l'équipe de sécurité incendie
+  - Diriger le poste de sécurité et traiter les alarmes
+  - Conduire une intervention et une évacuation
+  teaching_means: *incendie_ssiap
+  module_details:
+    UV1:
+    - Rôle et missions du chef d'équipe, organisation du service de sécurité.
+    - 'Gestion de l''équipe : consignes, formation et contrôle des agents.'
+    UV2:
+    - Exploitation du système de sécurité incendie et du poste de sécurité.
+    - Traitement des alarmes, appel et accueil des secours.
+    UV3:
+    - Tactique d'intervention sur un début d'incendie, évacuation des occupants.
+    - Mises en situation de commandement et compte rendu.
+- catalog_slug: ssiap-3-initial
+  textes: l'arrêté du 2 mai 2005 modifié (annexe de la formation SSIAP 3)
+  objectives:
+  - Diriger le service de sécurité incendie d'un ERP ou d'un IGH.
+  - Conseiller le chef d'établissement sur la réglementation et les travaux.
+  - Préparer les commissions de sécurité et suivre les prescriptions.
+  - Gérer les risques, les contrats de maintenance et le budget du service.
+  skills:
+  - Appliquer la réglementation incendie et accessibilité des ERP et IGH
+  - Analyser un dossier technique et une notice de sécurité
+  - Préparer et suivre une commission de sécurité
+  - Manager le service de sécurité et son budget
+  - Suivre les contrats de maintenance et les vérifications
+  teaching_means: *incendie_ssiap_cadre
+- catalog_slug: ssiap-3-recyclage
+  textes: l'arrêté du 2 mai 2005 modifié (annexe du recyclage SSIAP 3)
+  objectives:
+  - Actualiser ses connaissances de la réglementation incendie et accessibilité.
+  - Mettre à jour sa gestion des risques et des situations de crise.
+  - Tirer les enseignements de sinistres récents pour son établissement.
+  skills:
+  - Intégrer les évolutions réglementaires au fonctionnement du service
+  - Évaluer les risques de son établissement
+  - Analyser un sinistre et en tirer des mesures de prévention
+  teaching_means: *incendie_ssiap_cadre
+  module_details:
+    UV1:
+    - Évolutions des textes applicables aux ERP et IGH, dont l'accessibilité.
+    - Incidences sur le fonctionnement du service de sécurité et des commissions.
+    UV2:
+    - Évaluation des risques de l'établissement et plans de prévention.
+    - Organisation du service en situation de crise.
+    UV3:
+    - 'Étude de sinistres récents : causes, propagation, conséquences.'
+    - Enseignements et mesures de prévention à proposer au chef d'établissement.
+- catalog_slug: ssiap-3-ran
+  textes: l'arrêté du 2 mai 2005 modifié (annexe de la remise à niveau SSIAP 3)
+  objectives:
+  - Remettre à niveau ses connaissances de chef de service de sécurité incendie.
+  - Préparer les commissions de sécurité et appliquer les règles d'accessibilité.
+  - Suivre les contrats de maintenance et organiser le service.
+  skills:
+  - Appliquer la réglementation incendie et accessibilité
+  - Préparer une commission de sécurité
+  - Gérer les contrats de maintenance et les vérifications
+  - Organiser le service de sécurité
+  teaching_means: *incendie_ssiap_cadre
+  module_details:
+    UV1:
+    - Réglementation de l'accessibilité des ERP aux personnes handicapées.
+    - 'Commissions de sécurité : rôle, préparation des visites, suivi des prescriptions.'
+    UV2:
+    - Contrats de maintenance et vérifications périodiques des installations.
+    - Suivi du registre de sécurité.
+    UV3:
+    - 'Organisation du service : effectifs, consignes, planning, budget.'
+    - Relations avec le chef d'établissement et les intervenants extérieurs.
+
+# --- Incendie en entreprise ----------------------------------------------------------------------------------------
+- catalog_slug: epi
+  textes: le code du travail (articles R. 4227-38 et R. 4227-39 sur les consignes et exercices incendie) et la règle APSAD R6
+  objectives:
+  - Identifier les causes et les modes de propagation d'un feu.
+  - Donner l'alarme et l'alerte selon les consignes de l'établissement.
+  - Éteindre un début d'incendie avec l'extincteur ou le robinet d'incendie armé adapté.
+  - Participer à l'évacuation des occupants.
+  skills:
+  - Reconnaître les classes de feux et choisir l'agent extincteur
+  - Mettre en œuvre un extincteur et un RIA
+  - Appliquer les consignes d'alarme et d'alerte
+  - Se protéger des fumées
+  teaching_means: *incendie_entreprise
+- catalog_slug: esi
+  textes: le code du travail (articles R. 4227-38 et R. 4227-39) et la règle APSAD R6
+  objectives:
+  - Connaître son rôle d'équipier de seconde intervention dans l'organisation de sécurité de l'établissement.
+  - Intervenir en équipe sur un incendie avec les moyens de l'établissement.
+  - Progresser en atmosphère enfumée avec un appareil respiratoire isolant.
+  - Utiliser les installations fixes d'extinction et préparer l'arrivée des secours publics.
+  skills:
+  - Intervenir en équipe sur un incendie
+  - Mettre en œuvre les installations fixes d'extinction
+  - Progresser en milieu enfumé sous ARI
+  - Accueillir et renseigner les secours publics
+  teaching_means: *incendie_entreprise
+- catalog_slug: manipulation-extincteur
+  textes: le code du travail (article R. 4227-39 sur les exercices incendie)
+  objectives:
+  - Reconnaître les classes de feux et l'agent extincteur adapté.
+  - Utiliser un extincteur en sécurité sur un départ de feu.
+  - Appliquer les consignes d'alerte et d'évacuation.
+  skills:
+  - Choisir l'extincteur adapté au feu
+  - Mettre en œuvre un extincteur
+  - Donner l'alerte
+  teaching_means: *incendie_entreprise
+- catalog_slug: evacuation-incendie
+  textes: le code du travail (articles R. 4227-38 et R. 4227-39 sur les consignes et exercices d'évacuation)
+  objectives:
+  - Comprendre les dangers des fumées et de la panique.
+  - Connaître les consignes, les cheminements et le point de rassemblement de l'établissement.
+  - Assurer le rôle de guide-file ou de serre-file.
+  - Participer à un exercice d'évacuation.
+  skills:
+  - Appliquer les consignes d'évacuation
+  - Guider les occupants vers le point de rassemblement
+  - Vérifier l'évacuation complète d'une zone
+  teaching_means: *evacuation
+- catalog_slug: guide-file-serre-file
+  textes: le code du travail (articles R. 4227-38 et R. 4227-39 sur les consignes et exercices d'évacuation)
+  objectives:
+  - Connaître le rôle du guide-file et du serre-file lors d'une évacuation.
+  - Repérer les cheminements, les issues et le point de rassemblement.
+  - Conduire ou contrôler l'évacuation d'une zone et rendre compte.
+  skills:
+  - Guider un groupe vers le point de rassemblement
+  - Vérifier qu'une zone est entièrement évacuée
+  - Rendre compte au responsable de l'évacuation
+  teaching_means: *evacuation
+- catalog_slug: ari
+  textes: le code du travail (équipements de protection individuelle) et les notices des fabricants d'ARI
+  objectives:
+  - Connaître les dangers des fumées et des atmosphères toxiques.
+  - Contrôler, mettre en œuvre et porter un appareil respiratoire isolant.
+  - Progresser en sécurité en milieu enfumé et participer à une reconnaissance.
+  skills:
+  - Vérifier un ARI avant usage
+  - S'équiper et évoluer sous ARI
+  - Progresser en binôme en milieu enfumé
+  teaching_means: *ari
+- catalog_slug: ssi
+  textes: les normes NF S 61-931 et suivantes (systèmes de sécurité incendie)
+  objectives:
+  - Comprendre le rôle et la composition d'un système de sécurité incendie.
+  - Lire les informations de la centrale et identifier une alarme, un dérangement ou une mise hors service.
+  - Réaliser les manipulations d'exploitation correspondant à son niveau d'accès.
+  skills:
+  - Identifier la catégorie d'un SSI
+  - Exploiter le tableau de signalisation
+  - Gérer une alarme restreinte et une alarme générale
+  teaching_means: *ssi
+- catalog_slug: cssi
+  textes: les normes NF S 61-931 et suivantes (systèmes de sécurité incendie, mission de coordination SSI)
+  objectives:
+  - Situer la mission de coordinateur SSI dans un projet de construction ou de rénovation.
+  - Concevoir le zonage de mise en sécurité et rédiger le dossier d'identité SSI.
+  - Coordonner les intervenants et conduire la réception technique du SSI.
+  skills:
+  - Appliquer les normes relatives aux SSI
+  - Définir les zones d'alarme, de désenfumage et de compartimentage
+  - Rédiger un dossier d'identité SSI
+  - Conduire la réception technique d'un SSI
+  teaching_means: *incendie_ssiap_cadre
+
+# --- Habilitation électrique (norme NF C 18-510) -------------------------------------------------------------------
+- catalog_slug: h0-b0
+  textes: la norme NF C 18-510
+  objectives:
+  - Connaître les dangers de l'électricité et les zones d'environnement électrique.
+  - Réaliser des opérations d'ordre non électrique en sécurité au voisinage d'installations.
+  - Appliquer la conduite à tenir en cas d'accident ou d'incendie d'origine électrique.
+  teaching_means: *electrique
+- catalog_slug: bs-be-manoeuvre
+  textes: la norme NF C 18-510
+  objectives:
+  - Identifier les risques électriques liés aux interventions élémentaires et aux manœuvres.
+  - Réaliser des interventions simples (remplacement, raccordement) en sécurité.
+  - Effectuer des manœuvres de réarmement ou de mise en marche selon les consignes.
+  - Appliquer la conduite à tenir en cas d'accident d'origine électrique.
+  teaching_means: *electrique
+- catalog_slug: br
+  textes: la norme NF C 18-510
+  objectives:
+  - Analyser les risques d'une intervention de dépannage ou de raccordement en basse tension.
+  - Mettre en sécurité un circuit et réaliser une consignation pour son propre compte.
+  - Choisir et utiliser les équipements de protection adaptés.
+  - Appliquer la conduite à tenir en cas d'accident d'origine électrique.
+  teaching_means: *electrique
+
+# --- Secourisme (documents de référence de l'INRS) ----------------------------------------------------------------
+- catalog_slug: sst-initial
+  textes: le référentiel de compétences SST de l'INRS
+  objectives:
+  - Intervenir efficacement face à une situation d'accident du travail.
+  - Protéger, examiner, faire alerter et secourir une victime.
+  - Repérer les dangers d'une situation de travail et contribuer à la prévention dans l'entreprise.
+  teaching_means: *secourisme
+- catalog_slug: mac-sst
+  textes: le référentiel de compétences SST de l'INRS
+  objectives:
+  - Maintenir ses compétences de sauveteur secouriste du travail.
+  - Actualiser ses gestes de secours au regard des évolutions des procédures.
+  - Renforcer sa contribution à la prévention des risques dans l'entreprise.
+  teaching_means: *secourisme
+- catalog_slug: sst-entreprise
+  textes: le référentiel de compétences SST de l'INRS
+  objectives:
+  - Intervenir efficacement face à une situation d'accident du travail dans son entreprise.
+  - Protéger, examiner, faire alerter et secourir une victime.
+  - Repérer les dangers propres à son activité et proposer des actions de prévention.
+  teaching_means: *secourisme_intra
+- catalog_slug: stu
+  textes: les protocoles de secourisme tactique (SAFE, MARCH)
+  objectives:
+  - Évaluer une situation hostile et assurer sa propre sécurité avant d'intervenir.
+  - Contrôler une hémorragie massive par garrot et pansement compressif.
+  - Appliquer les protocoles SAFE et MARCH et extraire une victime.
+  - Coordonner son action avec les forces de l'ordre et les secours.
+  teaching_means: *stu
