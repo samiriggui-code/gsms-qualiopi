@@ -146,3 +146,12 @@ def test_reglementation_cnaps_et_incendie() -> None:
     assert agents["Préparation d'audit"]["knowledge_bases"] == ["kb-ref", "kb-docs", "kb-cnaps", "kb-feu"]
     assert "Réglementation sécurité privée et incendie" not in {
         a["name"] for a in definitions("kb-ref", "mcp", "modele")}, "sans base CNAPS ni incendie, pas d'assistant vide"
+
+
+def test_textes_cnaps_et_incendie_livres() -> None:
+    from app.application.service.ia.espace import CNAPS, INCENDIE, referential_sources
+
+    for ref, attendu in ((CNAPS, "déontologie"), (INCENDIE, "2 mai 2005")):
+        sources = referential_sources(ref)
+        assert len(sources) >= 10 and all(content.startswith("---\ntitre:") for _, content in sources), ref.name
+        assert any(attendu in title for title, _ in sources), ref.name
