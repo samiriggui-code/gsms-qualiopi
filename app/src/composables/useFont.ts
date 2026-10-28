@@ -29,6 +29,7 @@ import {
 // the font stack still works — the browser just falls back to yahei on
 // its own. Only truly unknown keys fall through to DEFAULT_SANS.
 export type FontKey =
+  | 'inter'
   | 'system'
   // Mac
   | 'pingfang'
@@ -63,6 +64,9 @@ const MONO_KEY = 'font_mono'
 const SIZE_KEY = 'font_size'
 
 export const SANS_STACKS: Record<FontKey, string> = {
+  // GSMS : Inter, servie localement (@fontsource-variable/inter), police par défaut de l'application
+  inter:
+    '"Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
   system:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
   // Mac
@@ -147,9 +151,9 @@ export function detectPlatform(): Platform {
 }
 
 const SANS_KEYS_BY_PLATFORM: Record<Platform, FontKey[]> = {
-  mac: ['system', 'pingfang', 'georgia', 'sans-serif'],
-  windows: ['system', 'yahei', 'times', 'sans-serif'],
-  linux: ['system', 'noto-cjk', 'dejavu-serif', 'sans-serif'],
+  mac: ['inter', 'system', 'pingfang', 'georgia', 'sans-serif'],
+  windows: ['inter', 'system', 'yahei', 'times', 'sans-serif'],
+  linux: ['inter', 'system', 'noto-cjk', 'dejavu-serif', 'sans-serif'],
 }
 
 const MONO_KEYS_BY_PLATFORM: Record<Platform, MonoFontKey[]> = {
@@ -168,7 +172,7 @@ export function visibleMonoKeys(platform: Platform = detectPlatform()): MonoFont
   return MONO_KEYS_BY_PLATFORM[platform]
 }
 
-const DEFAULT_SANS: FontKey = 'system'
+const DEFAULT_SANS: FontKey = 'inter'
 const DEFAULT_MONO: MonoFontKey = 'system'
 const DEFAULT_SIZE: FontSizeKey = 'normal'
 

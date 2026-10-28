@@ -8241,6 +8241,7 @@ export default {
       sansPreview: 'The quick brown fox jumps — Aa Gg Oo 0123',
       monoPreview: 'const msg = \'Hello\'; // 0O1l',
       sans: {
+        inter: "Inter (app font)",
         system: 'System Default',
         pingfang: 'PingFang SC',
         georgia: 'Georgia (Serif)',

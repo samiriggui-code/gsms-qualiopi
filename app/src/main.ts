@@ -5,12 +5,14 @@ import router from "./router";
 import TDesign from "tdesign-vue-next";
 // 引入组件库的少量全局样式变量
 import "tdesign-vue-next/dist/tdesign.css";
+import "@fontsource-variable/inter";
 import "@fontsource/almarai/300.css";
 import "@fontsource/almarai/400.css";
 import "@fontsource/almarai/700.css";
 import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 import "@/assets/theme/theme.css";
+import "@/assets/theme/premium.css";
 import "@/assets/theme/tdesign-overrides.less";
 import "@/assets/dropdown-menu.less";
 import "@/components/css/chat-hljs-dark.less";

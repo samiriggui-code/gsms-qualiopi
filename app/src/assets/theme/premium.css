@@ -1,0 +1,104 @@
+/* Finition (28/10/2026), chargée après theme.css : mêmes jetons TDesign, valeurs plus fines. Rien n'est propre à
+   une page ; la sobriété des couleurs de theme.css (rouge = alerte, vert = satisfaisant) est inchangée.
+   - Police Inter (variable, servie localement : la CSP du back-office interdit les polices externes), chiffres
+     tabulaires dans les tableaux et les compteurs ;
+   - gris froids et légers, bordures plus discrètes, fond de page à peine teinté ;
+   - arrondis cohérents (4 / 6 / 8 / 12 / 16 px) et ombres douces en couches ;
+   - focus clavier visible partout, survols et transitions courtes. */
+
+:root:root,
+:root:root[theme-mode="light"] {
+  --app-font-family: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --app-font-family-display: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --td-gray-color-1: #f5f6f8;
+  --td-gray-color-2: #eef0f3;
+  --td-gray-color-3: #e4e7ec;
+  --td-gray-color-4: #d6dae1;
+  --td-gray-color-5: #bcc2cc;
+  --td-gray-color-6: #98a0ad;
+  --td-gray-color-7: #7a8291;
+  --td-gray-color-8: #636b7a;
+  --td-gray-color-9: #4b5262;
+  --td-gray-color-10: #3a404d;
+  --td-gray-color-11: #2b303b;
+  --td-gray-color-12: #1f232b;
+  --td-gray-color-13: #171a20;
+  --td-gray-color-14: #101216;
+
+  --td-bg-color-page: #f6f7f9;
+  --td-bg-color-sidebar: #fafbfc;
+  --td-bg-color-container-hover: #f4f5f8;
+  --td-bg-color-container-active: #eceef2;
+  --td-bg-color-secondarycontainer: #f4f5f8;
+  --td-bg-color-secondarycontainer-hover: #eceef2;
+  --td-component-stroke: #e9ebef;
+  --td-component-border: #dcdfe5;
+
+  --td-font-gray-1: rgba(16, 24, 40, 0.92);
+  --td-font-gray-2: rgba(16, 24, 40, 0.64);
+  --td-font-gray-3: rgba(16, 24, 40, 0.44);
+  --td-font-gray-4: rgba(16, 24, 40, 0.28);
+
+  --td-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --td-shadow-2: 0 2px 4px -2px rgba(16, 24, 40, 0.05), 0 8px 16px -4px rgba(16, 24, 40, 0.09);
+  --td-shadow-3: 0 4px 8px -4px rgba(16, 24, 40, 0.06), 0 24px 48px -12px rgba(16, 24, 40, 0.18);
+}
+
+:root:root[theme-mode="dark"] {
+  --app-font-family: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --app-font-family-display: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --td-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --td-shadow-2: 0 2px 4px -2px rgba(0, 0, 0, 0.3), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+  --td-shadow-3: 0 4px 8px -4px rgba(0, 0, 0, 0.35), 0 24px 48px -12px rgba(0, 0, 0, 0.55);
+}
+
+:root {
+  --td-radius-small: 4px;
+  --td-radius-default: 6px;
+  --td-radius-medium: 8px;
+  --td-radius-large: 12px;
+  --td-radius-extraLarge: 16px;
+  --app-radius-lg: 12px;
+  --app-radius-xl: 16px;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { letter-spacing: -0.011em; }
+
+/* Chiffres alignés : tableaux, compteurs, montants. */
+.t-table td,
+.t-table th,
+.t-tag,
+.t-pagination { font-variant-numeric: tabular-nums; }
+
+/* Boutons : graisse intermédiaire (Inter variable la permet), transitions courtes. */
+.t-button { font-weight: 500; transition: background-color var(--app-motion-instant) ease, border-color var(--app-motion-instant) ease, box-shadow var(--app-motion-instant) ease, color var(--app-motion-instant) ease; }
+.t-button--variant-base.t-button--theme-primary { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+
+/* Champs : bordure discrète, anneau de focus net. */
+.t-input,
+.t-textarea__inner,
+.t-select-input .t-input { transition: border-color var(--app-motion-instant) ease, box-shadow var(--app-motion-instant) ease; }
+.t-input--focused,
+.t-textarea__inner:focus,
+.t-is-focused .t-input { box-shadow: 0 0 0 3px var(--td-brand-color-focus) !important; }
+
+/* Focus clavier visible sur tout élément interactif sans style propre. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
+
+/* Dialogues et tiroirs : coins et ombre de premier plan. */
+.t-dialog { border-radius: var(--td-radius-extraLarge); box-shadow: var(--td-shadow-3); }
+.t-drawer__content-wrapper { box-shadow: var(--td-shadow-3); }
+
+/* En-têtes de tableau : petites capitales lisibles plutôt que gras uniforme. */
+.t-table th { font-size: var(--app-text-xs); font-weight: 600; letter-spacing: 0.02em; color: var(--td-text-color-secondary); }
