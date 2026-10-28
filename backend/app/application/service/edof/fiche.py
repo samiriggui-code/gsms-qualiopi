@@ -194,3 +194,20 @@ def public_preview(v: t.ProgramVersion) -> dict:
         # Le badge CPF ne s'affiche que si une personne a constaté la publication de l'offre sur EDOF.
         "mention_cpf": None,
     }
+
+
+def funding_view(db: Session, p: t.Program) -> list[dict]:
+    """Financements cochés sur la fiche, avec leur logo ; le CPF sans certification RNCP ou RS est signalé."""
+    cert = certification_of(db, p.id)
+    certifying = cert is not None and cert.basis in ("RNCP", "RS")
+    out = []
+    for code in p.funding_channels or []:
+        channel = t.FUNDING_CHANNELS.get(code)
+        if channel is None:
+            continue
+        alert = None
+        if code == "CPF" and not certifying:
+            alert = ("Formation sans certification RNCP ou RS enregistrée : elle n'est pas éligible au CPF à ce titre. "
+                     "Retirer le CPF de la fiche, ou renseigner la certification visée.")
+        out.append({"code": code, **channel, "alert": alert})
+    return out

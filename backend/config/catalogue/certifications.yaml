@@ -112,3 +112,7 @@ par_code:
   SSIAP1: *ssiap1
   SST: *sst
   MAC-SST: *sst
+
+# Financements présentés par la landing, identiques pour les 32 fiches (fundingChannels de landing/content/fiches.json).
+# Repris sur une fiche sans financement ; le CPF n'est gardé que pour une certification RNCP ou RS.
+financements_landing: [CPF, FRANCE_TRAVAIL, ENTREPRISE, PERSONNEL]

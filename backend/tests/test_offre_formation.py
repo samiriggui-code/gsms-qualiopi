@@ -272,3 +272,18 @@ def test_certifications_relevees_sans_attester_la_verification(demo: Session) ->
     demo.flush()
     import_gsms_school(demo)
     assert (cert.basis, cert.code) == ("RNCP", "RNCP00000")
+
+
+def test_financements_sans_cpf_pour_une_formation_non_certifiante(client, demo: Session) -> None:  # noqa: ANN001
+    import_gsms_school(demo)
+    demo.commit()
+    _, h = make_user(demo, "gestion")
+    ssiap = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI"))
+    sst = demo.scalar(select(t.Program).where(t.Program.code == "SST-INI"))
+    assert ssiap.funding_channels[0] == "CPF" and "CPF" not in sst.funding_channels
+    # CPF coché à la main sur une formation non certifiante : l'API le garde et le signale.
+    r = client.patch(f"{API}/programs/{sst.id}", json={"funding_channels": ["CPF", "ENTREPRISE"]}, headers=h)
+    assert r.status_code == 200, r.text
+    funding = {f["code"]: f for f in client.get(f"{API}/fiches/{sst.id}", headers=h).json()["funding"]}
+    assert funding["CPF"]["alert"] and funding["ENTREPRISE"]["alert"] is None
+    assert funding["ENTREPRISE"]["logo"] == "media/formations/opco.png"

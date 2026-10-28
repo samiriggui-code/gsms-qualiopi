@@ -35,7 +35,9 @@
                   <t-radio v-for="o in f.options" :key="String(o.value)" :value="o.value">{{ o.label }}</t-radio>
                 </t-radio-group>
                 <t-switch v-else-if="f.type === 'switch'" v-model="values[f.name]" />
-                <GsmsPhotoField v-else-if="f.type === 'photo'" v-model="values[f.name]" :name="photoName(f)"
+                <t-checkbox-group v-else-if="f.type === 'checkboxes'" v-model="values[f.name]" class="action-dialog__radios"
+                  :options="f.options as any" />
+                <GsmsPhotoField v-else-if="f.type === 'photo'" v-model="values[f.name]" :name="photoName(f)" :library="f.library" :square="f.square"
                   @busy="(b: boolean) => (photoBusy[f.name] = b)" />
                 <t-input v-else v-model="values[f.name]" :maxlength="f.maxlength" :placeholder="f.placeholder ?? ''"
                   :type="f.inputType" :autocomplete="f.autocomplete" />
@@ -87,7 +89,7 @@ export interface ActionField {
   name: string
   label?: string
   /** `photo` : GsmsPhotoField (chemin de la médiathèque) ; `switch` : booléen. */
-  type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio' | 'switch' | 'photo'
+  type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio' | 'switch' | 'photo' | 'checkboxes'
   options?: { label: string; value: string | number | boolean }[]
   initial?: unknown
   /**
@@ -110,6 +112,9 @@ export interface ActionField {
   show?: (values: Record<string, any>) => boolean
   /** Champ photo : noms des champs qui donnent les initiales de l'aperçu (ex. prénom et nom). */
   avatarFrom?: string[]
+  /** Champ photo : choix de la médiathèque et aperçu carré (vignette, logo). */
+  library?: readonly string[]
+  square?: boolean
 }
 
 const props = withDefaults(defineProps<{
@@ -200,7 +205,8 @@ watch(() => props.visible, (v) => {
   for (const k of Object.keys(values)) delete values[k]
   for (const k of Object.keys(photoBusy)) delete photoBusy[k]
   for (const f of normalizedFields.value) {
-    values[f.name] = f.initial ?? (f.type === 'number' ? undefined : f.type === 'switch' ? false : f.type === 'photo' ? null : '')
+    values[f.name] = f.initial ?? (f.type === 'number' ? undefined : f.type === 'switch' ? false : f.type === 'photo' ? null
+      : f.type === 'checkboxes' ? [] : '')
   }
   if (props.danger) playSound('warning')
 }, { immediate: true })

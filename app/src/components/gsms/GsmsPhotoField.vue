@@ -1,7 +1,11 @@
 <template>
   <div class="photo-field">
     <div class="pf-row">
-      <GsmsPersonAvatar :name="name" :photo="modelValue" :size="72" />
+      <span v-if="square" class="pf-square">
+        <img v-if="modelValue" :src="mediaSrc(modelValue) || ''" alt="" />
+        <t-icon v-else name="image" size="28px" />
+      </span>
+      <GsmsPersonAvatar v-else :name="name" :photo="modelValue" :size="72" />
       <div class="pf-side">
         <div class="pf-actions">
           <t-button size="small" variant="outline" :loading="uploading" :disabled="disabled" @click="pick">
@@ -15,14 +19,14 @@
             {{ t('gsms.photo.retirer') }}
           </t-button>
         </div>
-        <p class="pf-help">{{ t('gsms.photo.aide') }}</p>
+        <p class="pf-help">{{ square ? t('gsms.photo.aideLogo') : t('gsms.photo.aide') }}</p>
       </div>
       <input ref="fileInput" type="file" class="pf-input" :accept="PHOTO_TYPES.join(',')" tabindex="-1" aria-hidden="true" @change="onFile" />
     </div>
     <p v-if="localProblem" class="pf-error" role="alert">{{ localProblem }}</p>
     <GsmsRefusal v-if="error" :error="error" inline />
     <div v-if="libraryOpen" :id="gridId" class="pf-grid" role="listbox" :aria-label="t('gsms.photo.mediatheque')">
-      <button v-for="p in AVATAR_LIBRARY" :key="p" type="button" role="option" class="pf-item" :class="{ 'is-selected': p === modelValue }"
+      <button v-for="p in library ?? AVATAR_LIBRARY" :key="p" type="button" role="option" class="pf-item" :class="{ 'is-selected': p === modelValue }"
         :aria-selected="p === modelValue" :aria-label="t('gsms.photo.choisirN', { n: p.split('/').pop() })" @click="choose(p)">
         <img :src="mediaSrc(p) || ''" alt="" loading="lazy" decoding="async" />
       </button>
@@ -44,7 +48,13 @@ import { mediaSrc } from './media'
 import { AVATAR_LIBRARY, PHOTO_TYPES, photoProblem } from './photo'
 import { uploadPhoto } from '@/api/gsms/medias'
 
-withDefaults(defineProps<{ modelValue?: string | null; name?: string | null; disabled?: boolean }>(),
+withDefaults(defineProps<{
+  modelValue?: string | null; name?: string | null; disabled?: boolean
+  /** Choix proposés dans la médiathèque (par défaut : photos de personnes). */
+  library?: readonly string[]
+  /** Aperçu carré (vignette ou logo) au lieu de l'avatar rond d'une personne. */
+  square?: boolean
+}>(),
   { modelValue: null, name: null, disabled: false })
 const emit = defineEmits<{ 'update:modelValue': [string | null]; busy: [boolean] }>()
 const { t } = useI18n()
@@ -131,5 +141,11 @@ async function onFile(ev: Event) {
 }
 @media (max-width: 479.98px) {
   .pf-row { align-items: flex-start; }
+}
+.pf-square {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 72px; height: 72px;
+  overflow: hidden; border: 1px solid var(--td-component-stroke); border-radius: var(--app-radius-md);
+  background: var(--td-bg-color-secondarycontainer); color: var(--td-text-color-placeholder);
+  img { width: 100%; height: 100%; object-fit: contain; }
 }
 </style>

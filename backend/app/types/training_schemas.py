@@ -92,6 +92,7 @@ class ProgramIn(BaseModel):
     trainees_max: int | None = Field(default=None, ge=1)
     access_conditions: list[AccessCondition] | None = None
     badge: str | None = Field(default=None, max_length=60)
+    funding_channels: list[Literal["CPF", "FRANCE_TRAVAIL", "ENTREPRISE", "PERSONNEL"]] | None = None
     track: Literal["SURETE", "INCENDIE", "HABILITATION", "SST", "ENTREPRISE", "AUTRES"] | None = None
     pathway: Literal["INITIAL", "MAC", "RAN", "AUTRE"] | None = None
     evaluation_steps: list[EvaluationStep] | None = None

@@ -67,7 +67,23 @@
       <div v-if="VOLETS[tab]" class="rubriques">
         <section v-for="r in VOLETS[tab]" :key="r.field" class="panel rubrique" :class="{ 'rubrique--large': r.wide }">
           <h3 class="title">{{ t(`gsms.formations.champs.${r.field}`) }}</h3>
-          <template v-if="r.pairs">
+          <template v-if="r.funding">
+            <ul v-if="sheet.funding.length" class="plain financements">
+              <li v-for="f in sheet.funding" :key="f.code" class="financement" :class="{ 'financement--alerte': f.alert }">
+                <span class="financement__logo">
+                  <img v-if="f.logo" :src="mediaSrc(f.logo) || ''" alt="" />
+                  <t-icon v-else name="wallet" size="22px" />
+                </span>
+                <span class="financement__texte">
+                  <strong>{{ f.label }}</strong>
+                  <span class="muted">{{ f.detail }}</span>
+                  <span v-if="f.alert" class="financement__alerte" role="note"><t-icon name="error-circle" size="14px" /> {{ f.alert }}</span>
+                </span>
+              </li>
+            </ul>
+            <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
+          </template>
+          <template v-else-if="r.pairs">
             <dl v-if="sheet.program.access_conditions.length" class="kv conditions">
               <div v-for="(c, i) in sheet.program.access_conditions" :key="i"><dt>{{ c.label }}</dt><dd>{{ c.value }}</dd></div>
             </dl>
@@ -240,9 +256,11 @@ import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { fmtDate, fmtDateTime } from '@/components/gsms/format'
 import { euros, hours } from './display'
 import { modulesToText, textToModules } from './moduleText'
+import { FORMATION_LIBRARY } from '@/components/gsms/photo'
+import { mediaSrc } from '@/components/gsms/media'
 
 type ListField = 'objectives' | 'skills' | 'prerequisites' | 'outcomes'
-interface Rubrique { field: string, list?: boolean, pairs?: boolean, wide?: boolean }
+interface Rubrique { field: string, list?: boolean, pairs?: boolean, funding?: boolean, wide?: boolean }
 /** Rubriques rédigées, rangées par volet ; une rubrique `wide` prend toute la largeur. */
 const VOLETS: Record<string, Rubrique[]> = {
   presentation: [
@@ -253,6 +271,7 @@ const VOLETS: Record<string, Rubrique[]> = {
     { field: 'prerequisites', list: true },
     { field: 'outcomes', list: true },
     { field: 'access_conditions', pairs: true },
+    { field: 'funding_channels', funding: true, wide: true },
   ],
   pedagogie: [{ field: 'teaching_methods' }, { field: 'evaluation_methods' }, { field: 'teaching_means', wide: true }],
   acces: [{ field: 'access_delay' }, { field: 'accessibility_info' }],
@@ -362,6 +381,11 @@ const editFields = computed<ActionField[]>(() => {
     { name: 'trainees_max', label: champ('trainees_max'), type: 'number', section: presentation, quarter: true, initial: p?.trainees_max ?? undefined },
     { name: 'badge', label: champ('badge'), section: presentation, quarter: true, maxlength: 60, initial: p?.badge },
     { name: 'public_info_reviewed_on', label: t('gsms.formations.relueLe'), type: 'date', section: presentation, quarter: true, initial: p?.public_info_reviewed_on },
+    { name: 'image_url', label: champ('image_url'), type: 'photo', section: presentation, half: true, square: true,
+      library: FORMATION_LIBRARY, initial: p?.image_url ?? null },
+    { name: 'funding_channels', label: champ('funding_channels'), type: 'checkboxes', section: presentation, half: true,
+      help: t('gsms.formations.financementsAide'), initial: [...(p?.funding_channels ?? [])],
+      options: Object.entries(sheet.value?.funding_channels ?? {}).map(([value, c]) => ({ value, label: c.label })) },
     { name: 'content', label: champ('content'), type: 'textarea', section: presentation, initial: p?.content },
     { name: 'objectives', label: champ('objectivesUneParLigne'), type: 'textarea', section: presentation, half: true, initial: p?.objectives.join('\n') },
     { name: 'skills', label: champ('skillsUneParLigne'), type: 'textarea', section: presentation, half: true, initial: p?.skills.join('\n') },
@@ -492,6 +516,19 @@ async function createDossier() {
 .rubrique .title { margin-bottom: 8px; }
 .rubrique--large { grid-column: 1 / -1; }
 .conditions { margin: 0; }
+.financements { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.financement {
+  display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--td-component-stroke);
+  border-radius: var(--app-radius-md); background: var(--td-bg-color-container);
+  &--alerte { border-color: var(--td-error-color-3); }
+}
+.financement__logo {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 56px; height: 40px;
+  border-radius: var(--app-radius-sm); background: var(--td-bg-color-secondarycontainer); color: var(--td-text-color-secondary);
+  overflow: hidden; img { width: 100%; height: 100%; object-fit: contain; }
+}
+.financement__texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--app-text-md); line-height: 20px; }
+.financement__alerte { display: flex; gap: 4px; align-items: flex-start; color: var(--td-error-color); font-size: var(--app-text-sm); }
 .badge { padding: 1px 8px; border-radius: var(--td-radius-small); background: var(--td-brand-color-light); color: var(--td-brand-color); font-size: var(--app-text-sm); font-weight: 600; }
 .manques {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 16px; padding: 10px 14px;

@@ -149,8 +149,12 @@ export interface Program {
   trainees_max: number | null
   access_conditions: { label: string; value: string }[]
   badge: string | null
+  funding_channels: string[]
   [extra: string]: unknown
 }
+
+/** Financement présenté sur la fiche, avec son logo ; `alert` : incohérence signalée par l'API (CPF sans certification). */
+export interface ProgramFunding { code: string; label: string; detail: string; logo: string | null; alert: string | null }
 
 export interface ProgramCertification {
   basis: string
@@ -206,6 +210,8 @@ export interface ProgramSheet {
   certification: ProgramCertification | null
   certification_bases: Record<string, string>
   habilitations: Record<string, string>
+  funding: ProgramFunding[]
+  funding_channels: Record<string, { label: string; detail: string; logo: string | null }>
   delivery_modes: Record<string, string>
   roles: Record<string, string>
   trainers: ProgramTrainer[]

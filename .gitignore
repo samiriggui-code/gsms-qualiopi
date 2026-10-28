@@ -19,3 +19,9 @@ Research/
 
 # Réglages Claude Code propres à la machine (permissions locales)
 .claude/settings.local.json
+
+# Supports de cours déposés en local (droits d'auteur, données de stagiaires) : jamais dans le dépôt public.
+app/public/media/Cours formateur APS/
+
+# Contenus pédagogiques de l'organisme (cours, QCM, évaluations) : propriété de l'organisme, jamais dans le dépôt public.
+pedagogie/
