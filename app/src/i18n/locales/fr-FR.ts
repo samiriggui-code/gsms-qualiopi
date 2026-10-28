@@ -1517,6 +1517,13 @@ export default {
       aRelireAide: "Points relevés lors de la reprise des fiches : valeurs reprises ou rédigées à relire, écarts à arbitrer. À traiter avant de valider la fiche.",
       aucunPointARelire: "Aucun point à relire.",
       ficheEnGeneral: "Fiche",
+      dureeHeures: "Durée (heures)",
+      prixEuros: "Tarif (euros)",
+      modulesAide: "Une ligne par module : code | intitulé | heures (facultatives), par exemple « UV1 | Secourisme | 14 ». Puis le contenu du module, une ligne par point, commençant par « - ».",
+      ficheComplete: "Toutes les rubriques sont renseignées.",
+      rubriquesManquantesN: "1 rubrique à compléter | {n} rubriques à compléter",
+      pointsARelire: "1 point à relire | {n} points à relire",
+      validerApres: "La validation sera possible une fois les rubriques complétées.",
     },
     edof: {
       titre: "Référencement CPF",

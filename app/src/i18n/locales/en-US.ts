@@ -1517,6 +1517,13 @@ export default {
       aRelireAide: "Points raised when the sheets were imported: values taken over or drafted to review, discrepancies to settle. To handle before validating the sheet.",
       aucunPointARelire: "Nothing to review.",
       ficheEnGeneral: "Sheet",
+      dureeHeures: "Duration (hours)",
+      prixEuros: "Price (euros)",
+      modulesAide: "One line per module: code | title | hours (optional), e.g. “UV1 | First aid | 14”. Then the module content, one line per point, starting with “-”.",
+      ficheComplete: "All sections are filled in.",
+      rubriquesManquantesN: "1 section to complete | {n} sections to complete",
+      pointsARelire: "1 point to review | {n} points to review",
+      validerApres: "Validation will be possible once the sections are completed.",
     },
     edof: {
       titre: "CPF listing",

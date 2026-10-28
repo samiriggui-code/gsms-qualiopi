@@ -329,11 +329,64 @@ def complete_demo_identities(db: Session) -> int:
     return changed
 
 
+DEMO_FICHES = BACKEND_DIR / "config" / "catalogue" / "demo-fiches.yaml"
+DEMO_NOTE_SOURCE = "démo"
+
+
+def complete_demo_programs(db: Session) -> list[str]:
+    """Rubriques des fiches que seul l'organisme peut renseigner (délai d'accès, accessibilité, tarif…) : valeurs
+    fictives de demo-fiches.yaml sur les seules rubriques vides, chacune avec une note « démo » que retirer-demo suit."""
+    data = yaml.safe_load(DEMO_FICHES.read_text(encoding="utf-8"))
+    touched: list[str] = []
+    for program in db.scalars(select(t.Program).where(t.Program.code.in_(data["programmes"]))):
+        values = data["programmes"][program.code]
+        filled = [key for key, value in values.items() if value not in (None, "", []) and not getattr(program, key)]
+        for key in filled:
+            setattr(program, key, values[key])
+        if filled:
+            program.review_notes = [*(program.review_notes or []),
+                                    *({"champ": key, "message": data["note"], "source": DEMO_NOTE_SOURCE} for key in filled)]
+            touched.append(program.code)
+    touched.extend(c for c in _assign_demo_trainers(db, data["intervenants"]["par_formation"]) if c not in touched)
+    db.flush()
+    return touched
+
+
+def _assign_demo_trainers(db: Session, by_code: dict[str, list[str]]) -> list[str]:
+    """Formations sans intervenant : formateurs de l'équipe de démo (jamais un formateur saisi ou importé)."""
+    trainers = {f"{x.first_name} {x.last_name}": x for x in db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR))}
+    staffed = set(db.scalars(select(t.ProgramTrainer.program_id)))
+    done: list[str] = []
+    for program in db.scalars(select(t.Program).where(t.Program.code.in_(by_code), t.Program.id.not_in(staffed))):
+        names = [n for n in by_code[program.code] if n in trainers]
+        for name in names:
+            db.add(t.ProgramTrainer(program_id=program.id, trainer_id=trainers[name].id, role="FORMATEUR"))
+        if names:
+            done.append(program.code)
+    return done
+
+
+def _clear_demo_program_values(db: Session) -> int:
+    """Vide les rubriques remplies par complete_demo_programs sur les formations qui ne sont pas d'exemple."""
+    n = 0
+    for program in db.scalars(select(t.Program).where(t.Program.created_by != ACTOR)):
+        demo = [x for x in program.review_notes or [] if x.get("source") == DEMO_NOTE_SOURCE]
+        if not demo:
+            continue
+        for x in demo:
+            setattr(program, x["champ"], [] if isinstance(getattr(program, x["champ"]), list) else None)
+        program.review_notes = [x for x in program.review_notes if x.get("source") != DEMO_NOTE_SOURCE]
+        n += 1
+    return n
+
+
 def complete_demo(db: Session, corriger: bool = False) -> dict:
     """Complète une démo déjà installée (adresses des formateurs, photos, identités et téléphones fictifs, vignettes
-    des formations) sans rien remplacer ; `corriger` réattribue aussi les photos d'exemple (voir complete_demo_photos)."""
+    et rubriques des fiches formation) sans rien remplacer ; `corriger` réattribue aussi les photos d'exemple
+    (voir complete_demo_photos)."""
     return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db, corriger),
-            "identites": complete_demo_identities(db), "vignettes": complete_program_images(db, PROGRAM_CODES)}
+            "identites": complete_demo_identities(db), "vignettes": complete_program_images(db, PROGRAM_CODES),
+            "fiches": complete_demo_programs(db)}
 
 
 def seed_demo(db: Session, today: date | None = None) -> dict:
@@ -872,6 +925,8 @@ def remove_demo(db: Session) -> dict[str, int]:
     def count(name: str, n: int) -> None:
         if n:
             removed[name] = removed.get(name, 0) + n
+
+    count("fiche_formation_demo", _clear_demo_program_values(db))
 
     targets = [*db.scalars(select(t.TrainingSession.id).where(t.TrainingSession.created_by == ACTOR)),
                *db.scalars(select(t.Program.id).where(t.Program.created_by == ACTOR))]

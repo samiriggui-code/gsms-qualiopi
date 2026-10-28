@@ -1,0 +1,137 @@
+# Valeurs de démonstration des fiches formation (fictives) : ce que seul l'organisme peut dire (délai d'accès,
+# accessibilité, tarif, durée manquante) et les rubriques des formations d'exemple de seed-demo.
+# Appliquées par complete_demo_programs aux seules rubriques vides, chacune avec une note « démo » ; retirer-demo
+# les vide de nouveau sur les formations importées (les formations d'exemple partent entières).
+# Référente handicap : Émilie Bernard, de l'équipe de démo (config/organisme/equipe.yaml).
+note: Valeur de démonstration (fictive) à remplacer par celle de l'organisme avant toute mise en service.
+
+modeles:
+  accessibilite: &accessibilite >-
+    Locaux du centre de Bobigny accessibles aux personnes à mobilité réduite (accès de plain-pied, ascenseur,
+    sanitaires adaptés). Référente handicap : Émilie Bernard, joignable avant l'inscription pour étudier les
+    adaptations possibles (rythme, supports, aménagement des épreuves). Lorsque l'aptitude exigée par la formation ou
+    l'examen ne peut pas être aménagée, orientation vers les partenaires du handicap (Agefiph, Cap emploi).
+  accessibilite_physique: &accessibilite_physique >-
+    Locaux du centre de Bobigny accessibles aux personnes à mobilité réduite. Les mises en situation pratiques
+    demandent une aptitude physique (port d'équipements, déplacements, gestes d'intervention) : la référente handicap,
+    Émilie Bernard, étudie avant l'inscription les adaptations possibles et, à défaut, oriente vers les partenaires du
+    handicap (Agefiph, Cap emploi).
+  accessibilite_intra: &accessibilite_intra >-
+    Formation dans les locaux du client : l'accessibilité est vérifiée avec lui à la préparation de la session. Les
+    besoins d'adaptation sont étudiés avant la session avec la référente handicap, Émilie Bernard.
+  delai_initial: &delai_initial >-
+    Inscription jusqu'à 15 jours avant le début de la session, dossier complet et autorisation préalable du CNAPS
+    obtenue ; entrée sur la session suivante au-delà.
+  delai_incendie: &delai_incendie >-
+    Inscription jusqu'à 10 jours avant le début de la session, dossier complet (certificat médical, attestation de
+    secourisme) ; sessions programmées chaque mois.
+  delai_recyclage: &delai_recyclage >-
+    Inscription jusqu'à 7 jours avant le début de la session, sur présentation du diplôme ou de la carte en cours de
+    validité.
+  delai_court: &delai_court >-
+    Session interentreprises : inscription jusqu'à 7 jours avant. Session intra-entreprise : organisée sous 3 à
+    4 semaines après l'accord sur la convention, selon les disponibilités.
+  delai_intra: &delai_intra >-
+    Session organisée sous 3 à 4 semaines après l'accord sur la convention, selon les disponibilités du client et du
+    formateur.
+
+programmes:
+  # Sûreté
+  TFP-APS: { access_delay: *delai_initial, accessibility_info: *accessibilite_physique }
+  MAC-APS: { access_delay: *delai_recyclage, accessibility_info: *accessibilite_physique, duration_hours: 31 }
+  ASRA-D: { access_delay: *delai_initial, accessibility_info: *accessibilite_physique, duration_hours: 35 }
+  OVT: { access_delay: *delai_initial, accessibility_info: *accessibilite }
+  MAC-OVT: { access_delay: *delai_recyclage, accessibility_info: *accessibilite }
+  ASC-CYNO: { access_delay: *delai_initial, accessibility_info: *accessibilite_physique, price_eur: 3900 }
+  # Incendie SSIAP
+  SSIAP1-INI: { access_delay: *delai_incendie, accessibility_info: *accessibilite_physique }
+  SSIAP1-MAC: { access_delay: *delai_recyclage, accessibility_info: *accessibilite_physique }
+  SSIAP1-RAN: { access_delay: *delai_recyclage, accessibility_info: *accessibilite_physique }
+  SSIAP2-INI: { access_delay: *delai_incendie, accessibility_info: *accessibilite_physique }
+  SSIAP2-MAC: { access_delay: *delai_recyclage, accessibility_info: *accessibilite_physique }
+  SSIAP2-RAN: { access_delay: *delai_recyclage, accessibility_info: *accessibilite_physique }
+  SSIAP3-INI: { access_delay: *delai_incendie, accessibility_info: *accessibilite }
+  SSIAP3-MAC: { access_delay: *delai_recyclage, accessibility_info: *accessibilite }
+  SSIAP3-RAN: { access_delay: *delai_recyclage, accessibility_info: *accessibilite }
+  # Incendie en entreprise
+  EPI: { access_delay: *delai_court, accessibility_info: *accessibilite_physique, duration_hours: 4 }
+  ESI: { access_delay: *delai_court, accessibility_info: *accessibilite_physique, price_eur: 250 }
+  EXTINCTEUR: { access_delay: *delai_court, accessibility_info: *accessibilite_physique, price_eur: 90 }
+  EVACUATION: { access_delay: *delai_court, accessibility_info: *accessibilite, duration_hours: 3, price_eur: 120 }
+  GUIDE-FILE: { access_delay: *delai_court, accessibility_info: *accessibilite }
+  ARI: { access_delay: *delai_court, accessibility_info: *accessibilite_physique, price_eur: 290 }
+  SSI: { access_delay: *delai_court, accessibility_info: *accessibilite, price_eur: 220 }
+  CSSI: { access_delay: *delai_incendie, accessibility_info: *accessibilite }
+  # Habilitation électrique
+  H0B0: { access_delay: *delai_court, accessibility_info: *accessibilite }
+  BS-BE: { access_delay: *delai_court, accessibility_info: *accessibilite }
+  BR: { access_delay: *delai_court, accessibility_info: *accessibilite }
+  # Secourisme
+  SST-INI: { access_delay: *delai_court, accessibility_info: *accessibilite_physique }
+  SST-MAC: { access_delay: *delai_recyclage, accessibility_info: *accessibilite_physique }
+  SST-ENT: { access_delay: *delai_intra, accessibility_info: *accessibilite_intra, price_eur: 1290 }
+  STU: { access_delay: *delai_court, accessibility_info: *accessibilite_physique }
+  # Formations d'exemple de seed-demo
+  SSIAP1:
+    access_delay: *delai_incendie
+    accessibility_info: *accessibilite_physique
+    audience: Agents de sécurité et personnes souhaitant exercer en service de sécurité incendie d'ERP ou d'IGH
+    delivery_mode: PRESENTIEL
+    skills: ['Prévenir les incendies et sensibiliser les occupants', 'Entretenir les moyens de secours', 'Alerter et accueillir les secours', 'Évacuer le public']
+    teaching_means: Salle de cours équipée et plateau technique incendie (SSI pédagogique, aire feu, extincteurs d'exercice).
+  SST:  # sans accessibilité : trou planté I01.public-info de la démo (PLANTED_GAPS), à laisser vide
+    access_delay: *delai_court
+    audience: Tout salarié
+    delivery_mode: PRESENTIEL
+    skills: ['Protéger, examiner, faire alerter', 'Secourir une victime', 'Contribuer à la prévention']
+    teaching_means: Salle de cours, mannequins de secourisme et défibrillateurs de formation.
+  MAC-SST:
+    access_delay: *delai_recyclage
+    accessibility_info: *accessibilite_physique
+    audience: Sauveteurs secouristes du travail certifiés
+    delivery_mode: PRESENTIEL
+    skills: ['Actualiser les gestes de secours', 'Maintenir sa capacité d''intervention']
+    teaching_means: Salle de cours, mannequins de secourisme et défibrillateurs de formation.
+
+# Intervenants des formations, parmi les formateurs de l'équipe de démo (selon leur spécialité). Une formation qui a
+# déjà un intervenant n'est pas touchée ; les affectations partent avec les formateurs de démo (retirer-demo).
+intervenants:
+  sûreté: &surete_int [Laurent Dubois, Olivier Gauthier]
+  ssiap: &ssiap_int [Sandrine Moreau, Jean-Claude Renard]
+  incendie: &incendie_int [Sandrine Moreau]
+  secourisme: &secourisme_int [Marc Perrin]
+  prevention: &prevention_int [Nadia Khelifi]
+  par_formation:
+    TFP-APS: *surete_int
+    MAC-APS: *surete_int
+    ASRA-D: [Olivier Gauthier]
+    OVT: [Laurent Dubois]
+    MAC-OVT: [Laurent Dubois]
+    ASC-CYNO: *surete_int
+    SSIAP1: *ssiap_int
+    SSIAP1-INI: *ssiap_int
+    SSIAP1-MAC: *ssiap_int
+    SSIAP1-RAN: *ssiap_int
+    SSIAP2-INI: *ssiap_int
+    SSIAP2-MAC: *ssiap_int
+    SSIAP2-RAN: *ssiap_int
+    SSIAP3-INI: [Jean-Claude Renard]
+    SSIAP3-MAC: [Jean-Claude Renard]
+    SSIAP3-RAN: [Jean-Claude Renard]
+    CSSI: [Jean-Claude Renard]
+    SSI: [Jean-Claude Renard]
+    EPI: *incendie_int
+    ESI: *incendie_int
+    EXTINCTEUR: *incendie_int
+    EVACUATION: *incendie_int
+    GUIDE-FILE: *incendie_int
+    ARI: *incendie_int
+    SST: *secourisme_int
+    MAC-SST: *secourisme_int
+    SST-INI: *secourisme_int
+    SST-MAC: *secourisme_int
+    SST-ENT: *secourisme_int
+    STU: *secourisme_int
+    H0B0: *prevention_int
+    BS-BE: *prevention_int
+    BR: *prevention_int

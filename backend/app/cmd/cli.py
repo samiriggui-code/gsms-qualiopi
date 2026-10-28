@@ -7,6 +7,8 @@
   python -m app.cmd.cli retirer-demo                   retire toutes les données d'exemple + réévaluation
   python -m app.cmd.cli equipe-demo                    démo installée avant l'équipe de la landing : anciens formateurs
                                                    et personnel de démo remplacés par l'équipe (photos corrigées)
+  python -m app.cmd.cli completer-demo                 démo installée : remplit délai d'accès, accessibilité, tarifs…
+                                                   des fiches formation (valeurs fictives, notées « démo »)
   python -m app.cmd.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
   python -m app.cmd.cli import-gsms-school             offre reprise de GSMS School (29 formations, lieux, équipements)
   python -m app.cmd.cli ia-preparer [--renouveler-jeton]
@@ -86,6 +88,18 @@ def remove_demo() -> None:
         return
     print("Données d'exemple retirées : " + ", ".join(f"{k} {v}" for k, v in removed.items()) + ".")
     print(f"Réévaluation : {result['results']} résultats de contrôle.")
+
+
+def complete_demo_cli() -> None:
+    from app.application.service.demo import complete_demo
+
+    with session_factory()() as db:
+        set_actor(db, "cli")
+        out = complete_demo(db)
+        result = refresh_all(db, trigger="completer-demo")
+        db.commit()
+    print(f"Fiches formation complétées : {', '.join(out['fiches']) or 'aucune'} ; réévaluation : {result['results']} "
+          "résultats de contrôle.")
 
 
 def team_demo() -> None:
@@ -171,6 +185,7 @@ def main() -> None:
     sub.add_parser("seed-demo")
     sub.add_parser("retirer-demo")
     sub.add_parser("equipe-demo")
+    sub.add_parser("completer-demo")
     sub.add_parser("import-formssi")
     sub.add_parser("import-gsms-school")
     ia = sub.add_parser("ia-preparer")
@@ -190,6 +205,8 @@ def main() -> None:
         remove_demo()
     elif args.cmd == "equipe-demo":
         team_demo()
+    elif args.cmd == "completer-demo":
+        complete_demo_cli()
     elif args.cmd == "ia-preparer":
         ia_prepare(args.renouveler_jeton)
 

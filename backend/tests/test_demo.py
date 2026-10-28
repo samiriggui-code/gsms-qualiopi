@@ -330,3 +330,33 @@ def test_identites_et_telephones_fictifs_de_la_demo(demo: Session) -> None:
     demo.flush()
     assert complete_demo_identities(demo) == 1 and learners[0].city == "Ville saisie" and learners[1].birth_date
     assert complete_demo_identities(demo) == 0
+
+
+def test_fiches_formation_de_demo_completees_puis_videes(db: Session) -> None:
+    """Délai d'accès, accessibilité, tarifs : valeurs fictives notées « démo » sur les rubriques vides, retirées
+    par remove_demo ; une valeur saisie n'est jamais touchée, et le trou planté de la fiche SST reste."""
+    from app.application.service.demo import complete_demo_programs, remove_demo
+    from app.types import training as t
+    from tests.conftest import V9
+
+    import_referential(db, V9)
+    epi = t.Program(code="EPI", title="EPI importée", created_by="import")
+    ssi = t.Program(code="SSI", title="SSI importée", created_by="import", access_delay="Saisi par l'organisme")
+    db.add_all([epi, ssi])
+    db.flush()
+    seed_demo(db, today=TODAY)
+    assert epi.access_delay and epi.accessibility_info and epi.duration_hours == 4
+    assert {n["champ"] for n in epi.review_notes if n["source"] == "démo"} == {"access_delay", "accessibility_info",
+                                                                               "duration_hours"}
+    assert ssi.access_delay == "Saisi par l'organisme" and ssi.price_eur == 220
+    sst = db.scalar(select(t.Program).where(t.Program.code == "SST"))
+    assert sst.access_delay and sst.skills and not sst.accessibility_info, "trou planté I01 conservé"
+    assert db.scalar(select(func.count()).select_from(t.ProgramTrainer).where(t.ProgramTrainer.program_id == epi.id)) == 1
+    assert complete_demo_programs(db) == [], "idempotent"
+
+    remove_demo(db)
+    db.expire_all()
+    assert not db.scalar(select(func.count()).select_from(t.ProgramTrainer)), "affectations parties avec la démo"
+    assert epi.access_delay is None and epi.accessibility_info is None and epi.duration_hours is None
+    assert ssi.access_delay == "Saisi par l'organisme" and ssi.price_eur is None
+    assert not [n for p in (epi, ssi) for n in p.review_notes or [] if n.get("source") == "démo"]

@@ -19,21 +19,29 @@
       <section class="side-section">
         <h3>{{ t('gsms.formations.etatFiche') }}</h3>
         <p class="muted">{{ versionText }}</p>
-        <template v-if="sheet.missing.length">
-          <p class="muted manque-titre">{{ t('gsms.formations.rubriquesManquantes') }}</p>
-          <ul class="plain manque-liens">
-            <li v-for="m in sheet.missing" :key="m.field">
-              <button type="button" class="link-btn" @click="tab = voletOf(m.field)">{{ m.label }}</button>
+        <!-- Rubriques manquantes (liste de l'API), regroupées par volet ; un clic ouvre le volet -->
+        <p v-if="!sheet.missing.length" class="etat-ok"><t-icon name="check-circle" size="16px" />{{ t('gsms.formations.ficheComplete') }}</p>
+        <template v-else>
+          <p class="etat-manque"><t-icon name="error-circle" size="16px" />{{ t('gsms.formations.rubriquesManquantesN', { n: sheet.missing.length }, sheet.missing.length) }}</p>
+          <ul class="plain manque-volets">
+            <li v-for="g in missingByVolet" :key="g.volet">
+              <button type="button" class="link-btn" @click="tab = g.volet">{{ g.label }}</button>
+              <span class="muted"> : {{ g.fields.join(', ') }}</span>
             </li>
           </ul>
         </template>
+        <p v-if="reviewNotes.length" class="etat-relire">
+          <button type="button" class="link-btn" @click="tab = 'relire'">{{ t('gsms.formations.pointsARelire', { n: reviewNotes.length }, reviewNotes.length) }}</button>
+        </p>
         <div class="gates">
-          <GsmsActionGate :decision="sheet.capabilities.validate" show-reason :pending="busy === 'validate'" @run="validateVisible = true">
-            {{ t('gsms.formations.validerVersion') }}
-          </GsmsActionGate>
-          <GsmsActionGate :decision="sheet.capabilities.edit" variant="outline" @run="editVisible = true">
+          <GsmsActionGate :decision="sheet.capabilities.edit" :variant="sheet.missing.length ? 'base' : 'outline'" @run="editVisible = true">
             {{ t('gsms.formations.completer') }}
           </GsmsActionGate>
+          <GsmsActionGate :decision="sheet.capabilities.validate" :show-reason="!sheet.missing.length" :variant="sheet.missing.length ? 'outline' : 'base'"
+            :pending="busy === 'validate'" @run="validateVisible = true">
+            {{ t('gsms.formations.validerVersion') }}
+          </GsmsActionGate>
+          <p v-if="sheet.missing.length && !sheet.capabilities.validate?.allowed" class="muted">{{ t('gsms.formations.validerApres') }}</p>
         </div>
       </section>
       <section v-if="sheet.dossier || canCreateDossier" class="side-section">
@@ -199,6 +207,7 @@
   <ActionDialog v-if="sheet" v-model:visible="certVisible" :title="t('gsms.formations.certificationVisee')" :intro="t('gsms.formations.certAide')"
     :fields="certFields" :run="(v) => putProgramCertification(id, v)" @done="done" />
   <ActionDialog v-if="sheet" v-model:visible="editVisible" :title="t('gsms.formations.completer')" :intro="t('gsms.formations.completerAide')"
+    width="min(880px, calc(100vw - 32px))"
     :fields="editFields" :run="saveProgram" @done="done" />
 </template>
 
@@ -223,6 +232,7 @@ import { downloadFile } from '@/api/gsms/files'
 import { useGsmsAccessStore } from '@/stores/gsmsAccess'
 import { fmtDate, fmtDateTime } from '@/components/gsms/format'
 import { euros, hours } from './display'
+import { modulesToText, textToModules } from './moduleText'
 
 type ListField = 'objectives' | 'skills' | 'prerequisites'
 interface Rubrique { field: string, list?: boolean, wide?: boolean }
@@ -278,6 +288,10 @@ const tabs = computed(() => [
 ])
 const voletOf = (field: string) => VOLET_OF[field] ?? 'presentation'
 const missingIn = (volet: string) => (sheet.value?.missing ?? []).filter((m) => voletOf(m.field) === volet)
+/** Rubriques manquantes regroupées par volet, dans l'ordre des volets. */
+const missingByVolet = computed(() => TABS
+  .map((volet) => ({ volet, label: tabs.value.find((x) => x.value === volet)?.label ?? volet, fields: missingIn(volet).map((m) => m.label) }))
+  .filter((g) => g.fields.length))
 const listOf = (field: string) => (sheet.value?.program[field as ListField] as string[] | undefined) ?? []
 
 interface ReviewNote { champ?: string, message: string, source?: string }
@@ -316,19 +330,34 @@ const certFields = computed<ActionField[]>(() => {
 })
 const editFields = computed<ActionField[]>(() => {
   const p = sheet.value?.program
+  const presentation = t('gsms.formations.ongletPresentation')
+  const programme = t('gsms.formations.ongletProgramme')
+  const pedagogie = t('gsms.formations.ongletPedagogie')
+  const acces = t('gsms.formations.ongletAcces')
+  const certification = t('gsms.formations.ongletCertification')
+  const num = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v))
+  const champ = (f: string) => t(`gsms.formations.champs.${f}`)
+  // Un champ par rubrique de la fiche, rangé dans la section du volet où elle s'affiche.
   return [
-    { name: 'content', label: t('gsms.formations.champs.content'), type: 'textarea', initial: p?.content },
-    { name: 'objectives', label: t('gsms.formations.champs.objectivesUneParLigne'), type: 'textarea', initial: p?.objectives.join('\n') },
-    { name: 'skills', label: t('gsms.formations.champs.skillsUneParLigne'), type: 'textarea', initial: p?.skills.join('\n') },
-    { name: 'audience', label: t('gsms.formations.champs.audience'), type: 'textarea', initial: p?.audience },
-    { name: 'prerequisites', label: t('gsms.formations.champs.prerequisitesUneParLigne'), type: 'textarea', initial: p?.prerequisites.join('\n') },
-    { name: 'delivery_mode', label: t('gsms.formations.modalite'), type: 'select', options: options(sheet.value?.delivery_modes ?? {}), initial: p?.delivery_mode },
-    { name: 'teaching_methods', label: t('gsms.formations.champs.teaching_methods'), type: 'textarea', initial: p?.teaching_methods },
-    { name: 'teaching_means', label: t('gsms.formations.champs.teaching_means'), type: 'textarea', initial: p?.teaching_means },
-    { name: 'evaluation_methods', label: t('gsms.formations.champs.evaluation_methods'), type: 'textarea', initial: p?.evaluation_methods },
-    { name: 'access_delay', label: t('gsms.formations.champs.access_delay'), initial: p?.access_delay },
-    { name: 'accessibility_info', label: t('gsms.formations.champs.accessibility_info'), type: 'textarea', initial: p?.accessibility_info },
-    { name: 'certification_alignment', label: t('gsms.formations.champs.certification_alignment'), type: 'textarea', initial: p?.certification_alignment },
+    { name: 'title', label: champ('title'), section: presentation, initial: p?.title, required: true, maxlength: 250 },
+    { name: 'delivery_mode', label: t('gsms.formations.modalite'), type: 'select', section: presentation, half: true,
+      options: options(sheet.value?.delivery_modes ?? {}), initial: p?.delivery_mode },
+    { name: 'duration_hours', label: t('gsms.formations.dureeHeures'), type: 'number', section: presentation, half: true, initial: num(p?.duration_hours) },
+    { name: 'price_eur', label: t('gsms.formations.prixEuros'), type: 'number', section: presentation, half: true, initial: num(p?.price_eur) },
+    { name: 'public_info_reviewed_on', label: t('gsms.formations.relueLe'), type: 'date', section: presentation, half: true, initial: p?.public_info_reviewed_on },
+    { name: 'content', label: champ('content'), type: 'textarea', section: presentation, initial: p?.content },
+    { name: 'objectives', label: champ('objectivesUneParLigne'), type: 'textarea', section: presentation, initial: p?.objectives.join('\n') },
+    { name: 'skills', label: champ('skillsUneParLigne'), type: 'textarea', section: presentation, initial: p?.skills.join('\n') },
+    { name: 'audience', label: champ('audience'), type: 'textarea', section: presentation, initial: p?.audience },
+    { name: 'prerequisites', label: champ('prerequisitesUneParLigne'), type: 'textarea', section: presentation, initial: p?.prerequisites.join('\n') },
+    { name: 'modules', label: champ('modules'), type: 'textarea', section: programme, help: t('gsms.formations.modulesAide'),
+      initial: modulesToText(p?.modules ?? []) },
+    { name: 'teaching_methods', label: champ('teaching_methods'), type: 'textarea', section: pedagogie, initial: p?.teaching_methods },
+    { name: 'evaluation_methods', label: champ('evaluation_methods'), type: 'textarea', section: pedagogie, initial: p?.evaluation_methods },
+    { name: 'teaching_means', label: champ('teaching_means'), type: 'textarea', section: pedagogie, initial: p?.teaching_means },
+    { name: 'access_delay', label: champ('access_delay'), type: 'textarea', section: acces, maxlength: 200, initial: p?.access_delay },
+    { name: 'accessibility_info', label: champ('accessibility_info'), type: 'textarea', section: acces, initial: p?.accessibility_info },
+    { name: 'certification_alignment', label: champ('certification_alignment'), type: 'textarea', section: certification, initial: p?.certification_alignment },
   ]
 })
 
@@ -373,6 +402,7 @@ function saveProgram(values: Record<string, unknown>) {
   for (const key of ['objectives', 'skills', 'prerequisites'] as const) {
     if (key in body) body[key] = String(body[key] ?? '').split('\n').map((s) => s.trim()).filter(Boolean)
   }
+  if ('modules' in body) body.modules = textToModules(String(body.modules ?? ''))
   return updateProgram(id.value, body)
 }
 
@@ -439,8 +469,11 @@ async function createDossier() {
   border: 1px solid var(--td-error-color-3); border-radius: var(--td-radius-medium); color: var(--td-text-color-primary);
   font-size: var(--app-text-sm); .t-icon { color: var(--td-error-color); }
 }
-.manque-titre { margin-top: 10px; }
-.manque-liens { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; }
+.etat-ok, .etat-manque { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; font-size: var(--app-text-sm); font-weight: 500; }
+.etat-ok { color: var(--td-success-color); }
+.etat-manque { color: var(--td-error-color); }
+.manque-volets { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 0; font-size: var(--app-text-sm); }
+.etat-relire { margin: 8px 0 0; font-size: var(--app-text-sm); }
 .modules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none;
   @media (max-width: 720px) { grid-template-columns: minmax(0, 1fr); } }
 .module-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 8px; }

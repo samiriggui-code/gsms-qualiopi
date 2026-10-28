@@ -6,7 +6,7 @@ n'est jamais remplacée, tout ce qui est créé garde sa source, et les lieux et
 Une formation déjà importée n'est que complétée, sur les rubriques encore vides (COMPLETABLE).
 Les compléments relevés sur la landing (complements_landing) complètent aussi une formation d'une autre origine
 (TFP APS), sur LANDING_FIELDS seulement ; un texte de remplissage (FILLER) n'est jamais repris.
-Enfin, la rédaction GSMS (DRAFTS) remplit objectifs, compétences, moyens et détail vide des modules, toujours « à relire ».
+Enfin, la rédaction GSMS (DRAFTS) remplit objectifs, compétences, évaluation, moyens et détail vide des modules (« à relire »).
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ LANDING_FIELDS = {"modules": "modules", "teaching_methods": "méthodes pédagogi
 # Rubriques rédigées par GSMS d'après les textes officiels (config/catalogue/redaction-gsms.yaml), là où ni la vitrine
 # ni la landing ne disent rien : remplies seulement si elles sont vides, chacune avec sa note « à relire ».
 DRAFTS = BACKEND_DIR / "config" / "catalogue" / "redaction-gsms.yaml"
-DRAFT_FIELDS = {"objectives": "objectifs", "skills": "compétences visées",
+DRAFT_FIELDS = {"objectives": "objectifs", "skills": "compétences visées", "evaluation_methods": "modalités d'évaluation",
                 "teaching_means": "moyens pédagogiques et techniques"}
 # Textes génériques des fiches de la landing, identiques d'une formation à l'autre : aucune information réelle.
 FILLER = re.compile(

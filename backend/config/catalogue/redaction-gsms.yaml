@@ -291,6 +291,7 @@ formations:
 # --- Incendie en entreprise ----------------------------------------------------------------------------------------
 - catalog_slug: epi
   textes: le code du travail (articles R. 4227-38 et R. 4227-39 sur les consignes et exercices incendie) et la règle APSAD R6
+  evaluation_methods: 'Évaluation formative pendant les exercices : choix de l''agent extincteur, mise en œuvre d''un extincteur et d''un RIA sur feu réel ou simulé, application des consignes d''alarme. Attestation de formation remise en fin de stage.'
   objectives:
   - Identifier les causes et les modes de propagation d'un feu.
   - Donner l'alarme et l'alerte selon les consignes de l'établissement.
@@ -304,6 +305,7 @@ formations:
   teaching_means: *incendie_entreprise
 - catalog_slug: esi
   textes: le code du travail (articles R. 4227-38 et R. 4227-39) et la règle APSAD R6
+  evaluation_methods: 'Évaluation formative pendant les mises en situation en équipe : intervention sur un feu, progression en milieu enfumé, mise en œuvre des installations fixes. Attestation de formation remise en fin de stage.'
   objectives:
   - Connaître son rôle d'équipier de seconde intervention dans l'organisation de sécurité de l'établissement.
   - Intervenir en équipe sur un incendie avec les moyens de l'établissement.
@@ -317,6 +319,7 @@ formations:
   teaching_means: *incendie_entreprise
 - catalog_slug: manipulation-extincteur
   textes: le code du travail (article R. 4227-39 sur les exercices incendie)
+  evaluation_methods: 'Évaluation pratique : chaque stagiaire choisit l''extincteur adapté et éteint un feu sur bac ou simulateur, observé par le formateur. Attestation de formation remise en fin de stage.'
   objectives:
   - Reconnaître les classes de feux et l'agent extincteur adapté.
   - Utiliser un extincteur en sécurité sur un départ de feu.
@@ -328,6 +331,7 @@ formations:
   teaching_means: *incendie_entreprise
 - catalog_slug: evacuation-incendie
   textes: le code du travail (articles R. 4227-38 et R. 4227-39 sur les consignes et exercices d'évacuation)
+  evaluation_methods: 'Évaluation pendant l''exercice d''évacuation : application des consignes, guidage des occupants, vérification des locaux et compte rendu au point de rassemblement. Attestation de formation remise en fin de stage.'
   objectives:
   - Comprendre les dangers des fumées et de la panique.
   - Connaître les consignes, les cheminements et le point de rassemblement de l'établissement.
@@ -340,6 +344,7 @@ formations:
   teaching_means: *evacuation
 - catalog_slug: guide-file-serre-file
   textes: le code du travail (articles R. 4227-38 et R. 4227-39 sur les consignes et exercices d'évacuation)
+  evaluation_methods: 'Évaluation pendant l''exercice d''évacuation : reconnaissance des cheminements, guidage ou contrôle d''une zone, compte rendu au responsable. Attestation de formation remise en fin de stage.'
   objectives:
   - Connaître le rôle du guide-file et du serre-file lors d'une évacuation.
   - Repérer les cheminements, les issues et le point de rassemblement.
@@ -351,6 +356,7 @@ formations:
   teaching_means: *evacuation
 - catalog_slug: ari
   textes: le code du travail (équipements de protection individuelle) et les notices des fabricants d'ARI
+  evaluation_methods: 'Évaluation pratique : contrôle de l''appareil avant usage, équipement dans le temps imparti et progression en binôme en milieu enfumé, observés par le formateur. Attestation de formation remise en fin de stage.'
   objectives:
   - Connaître les dangers des fumées et des atmosphères toxiques.
   - Contrôler, mettre en œuvre et porter un appareil respiratoire isolant.
@@ -362,6 +368,7 @@ formations:
   teaching_means: *ari
 - catalog_slug: ssi
   textes: les normes NF S 61-931 et suivantes (systèmes de sécurité incendie)
+  evaluation_methods: 'Questionnaire sur la composition et les catégories de SSI, puis manipulations sur le SSI pédagogique (lecture des informations, alarme restreinte, alarme générale). Attestation de formation remise en fin de stage.'
   objectives:
   - Comprendre le rôle et la composition d'un système de sécurité incendie.
   - Lire les informations de la centrale et identifier une alarme, un dérangement ou une mise hors service.
@@ -373,6 +380,7 @@ formations:
   teaching_means: *ssi
 - catalog_slug: cssi
   textes: les normes NF S 61-931 et suivantes (systèmes de sécurité incendie, mission de coordination SSI)
+  evaluation_methods: 'Études de cas évaluées pendant la formation (zonage, dossier d''identité SSI) et questionnaire final sur la réglementation et les normes. Attestation de formation remise en fin de stage.'
   objectives:
   - Situer la mission de coordinateur SSI dans un projet de construction ou de rénovation.
   - Concevoir le zonage de mise en sécurité et rédiger le dossier d'identité SSI.
