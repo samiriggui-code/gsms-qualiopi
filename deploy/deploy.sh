@@ -150,6 +150,10 @@ for _ in $(seq 1 60); do
 done
 
 if [[ -n "$IA_OLLAMA" ]]; then
+  if ! grep -q '^OPENROUTER_API_KEY=.' ia/.env; then
+    echo "Attention : OPENROUTER_API_KEY absent de ia/.env. Le modèle de discussion par défaut (Mistral par OpenRouter," >&2
+    echo "ia/config/builtin_models.vps-ollama.yaml) ne répondra pas ; renseignez la clé puis : docker compose up -d --force-recreate ia-app" >&2
+  fi
   echo "Modèles du LLM local (téléchargés une seule fois, plusieurs Go)…"
   docker compose exec -T ollama ollama pull qwen2.5:3b
   docker compose exec -T ollama ollama pull bge-m3

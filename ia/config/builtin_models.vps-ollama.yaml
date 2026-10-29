@@ -1,11 +1,26 @@
-# Modèles du moteur IA sur un serveur sans carte graphique (VPS) : Ollama du service « ollama »
-# (deploy/docker-compose.ia-ollama.yml), sans clé ni envoi de données à l'extérieur. Petits modèles, réponses lentes
-# sur processeur ; un client qui veut mieux branche un fournisseur par API (option). Relu à chaque démarrage du moteur.
+# Modèles du moteur IA sur un serveur sans carte graphique (VPS), déploiement « --ia-ollama ».
+#
+# - Discussion par défaut : modèle distant par OpenRouter (Mistral Small). Sur processeur, qwen2.5:3b mettait 10 à
+#   22 minutes par question et 30 minutes par résumé de document ; il reste déclaré, en secours, sans être le défaut.
+#   Clé dans ia/.env (jamais dans git) : OPENROUTER_API_KEY=…
+#   Les questions et les passages retrouvés partent chez le fournisseur ; les réponses des outils MCP peuvent nommer
+#   des stagiaires : à valider (RGPD) avec l'organisme avant un usage sur des données réelles.
+# - Embeddings : bge-m3 en local (service « ollama ») ; l'identifiant ne change pas, les bases indexées restent valables.
+# Relu à chaque démarrage du moteur ; une entrée retirée du fichier est retirée du moteur.
 builtin_models:
+  - id: gsms-api-chat
+    type: KnowledgeQA
+    source: remote
+    is_default: true
+    name: mistralai/mistral-small-2603
+    parameters:
+      base_url: https://openrouter.ai/api/v1
+      api_key: ${OPENROUTER_API_KEY}
+      provider: openrouter
   - id: gsms-vps-chat
     type: KnowledgeQA
     source: local
-    is_default: true
+    is_default: false
     name: qwen2.5:3b
   - id: gsms-vps-embedding
     type: Embedding
