@@ -40,15 +40,24 @@ def test_adresse_du_client() -> None:
 
 def test_connexion_echecs_par_identifiant(client, db: Session, monkeypatch) -> None:  # noqa: ANN001
     make_user(db, "qualite", "q@test.local")
-    monkeypatch.setattr(auth.LOGIN_ECHECS_PAR_COMPTE, "maximum", 3)
-    for i in range(3):
-        assert _login(client, "q@test.local", ip=f"203.0.113.{i}").status_code == 401
-    # Même le bon mot de passe est refusé tant que la fenêtre court, quelle que soit l'adresse.
-    r = _login(client, "Q@test.local", "mot-de-passe-test", ip="203.0.113.50")
+    monkeypatch.setattr(auth.LOGIN_ECHECS_PAR_COMPTE_ET_ADRESSE, "maximum", 3)
+    for _ in range(3):
+        assert _login(client, "q@test.local", ip="203.0.113.7").status_code == 401
+    # Depuis cette adresse, même le bon mot de passe attend la fin de la fenêtre…
+    r = _login(client, "Q@test.local", "mot-de-passe-test", ip="203.0.113.7")
     assert r.status_code == 429
     assert r.json()["detail"] == auth.TROP_DE_TENTATIVES and int(r.headers["retry-after"]) > 0
-    # Un autre compte n'est pas concerné.
-    assert _login(client, "autre@test.local", ip="203.0.113.50").status_code == 401
+    # … mais un tiers ne bloque pas l'utilisateur ailleurs, et un autre compte n'est pas concerné.
+    assert _login(client, "q@test.local", "mot-de-passe-test", ip="203.0.113.50").status_code == 200
+    assert _login(client, "autre@test.local", ip="203.0.113.7").status_code == 401
+
+
+def test_connexion_attaque_repartie_plafonnee_par_compte(client, db: Session, monkeypatch) -> None:  # noqa: ANN001
+    make_user(db, "qualite", "q@test.local")
+    monkeypatch.setattr(auth.LOGIN_ECHECS_PAR_COMPTE, "maximum", 4)
+    for i in range(4):
+        assert _login(client, "q@test.local", ip=f"203.0.113.{i}").status_code == 401
+    assert _login(client, "q@test.local", "mot-de-passe-test", ip="203.0.113.99").status_code == 429
 
 
 def test_connexion_reussie_efface_les_echecs(client, db: Session, monkeypatch) -> None:  # noqa: ANN001

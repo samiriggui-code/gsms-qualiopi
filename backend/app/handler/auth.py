@@ -53,9 +53,11 @@ class TokenOut(BaseModel):
     user: UserOut
 
 
-# Débit de la connexion (app/common/limites.py) : toutes les tentatives par adresse, les échecs par identifiant.
+# Débit de la connexion (app/common/limites.py) : toutes les tentatives par adresse, les échecs par identifiant et adresse.
 LOGIN_PAR_ADRESSE = Limite(30, 600.0)
-LOGIN_ECHECS_PAR_COMPTE = Limite(10, 900.0)
+LOGIN_ECHECS_PAR_COMPTE_ET_ADRESSE = Limite(10, 900.0)
+# Plafond par compte, toutes adresses : freine une attaque répartie sans permettre de bloquer un compte en 10 essais.
+LOGIN_ECHECS_PAR_COMPTE = Limite(50, 900.0)
 TROP_DE_TENTATIVES = "Trop de tentatives de connexion : réessayez dans quelques minutes."
 # Empreinte factice : un e-mail inconnu coûte le même calcul bcrypt qu'un compte réel (pas d'énumération au temps de réponse).
 _EMPREINTE_FACTICE = hash_password(secrets.token_urlsafe(16))
@@ -65,15 +67,20 @@ _EMPREINTE_FACTICE = hash_password(secrets.token_urlsafe(16))
 def login(body: LoginIn, request: Request, db: DB) -> TokenOut:
     email = body.email.lower().strip()
     ip = client_ip(request)
-    attente = max(LOGIN_PAR_ADRESSE.attente(ip), LOGIN_ECHECS_PAR_COMPTE.attente(email))
+    # Échecs comptés par compte ET adresse : un tiers ne peut pas bloquer la connexion d'un utilisateur depuis ailleurs.
+    echecs = f"{email}|{ip}"
+    attente = max(LOGIN_PAR_ADRESSE.attente(ip), LOGIN_ECHECS_PAR_COMPTE_ET_ADRESSE.attente(echecs),
+                  LOGIN_ECHECS_PAR_COMPTE.attente(email))
     if attente:
         raise trop_de_demandes(TROP_DE_TENTATIVES, attente)
     LOGIN_PAR_ADRESSE.compter(ip)
     user = db.scalar(select(User).where(User.email == email))
     password_ok = verify_password(body.password, user.password_hash if user is not None else _EMPREINTE_FACTICE)
     if user is None or not user.is_active or not password_ok:
+        LOGIN_ECHECS_PAR_COMPTE_ET_ADRESSE.compter(echecs)
         LOGIN_ECHECS_PAR_COMPTE.compter(email)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Identifiants invalides")
+    LOGIN_ECHECS_PAR_COMPTE_ET_ADRESSE.oublier(echecs)
     LOGIN_ECHECS_PAR_COMPTE.oublier(email)
     return TokenOut(access_token=create_token(user), user=UserOut.model_validate(user))
 
