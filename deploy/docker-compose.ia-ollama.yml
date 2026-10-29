@@ -1,0 +1,29 @@
+# Moteur IA avec un LLM local sur le serveur (Ollama, processeur seul) : ajouté par deploy.sh avec --ia-ollama.
+# Mémoire plafonnée pour ne pas gêner les autres applications du serveur ; modèles gardés dans le volume ollama-models.
+# Après le premier démarrage : docker compose exec ollama ollama pull qwen2.5:3b && … pull bge-m3 (fait par deploy.sh).
+services:
+  ollama:
+    image: ollama/ollama:0.12.6
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 10m
+      OLLAMA_NUM_PARALLEL: "1"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 10g
+  ia-app:
+    environment:
+      BUILTIN_MODELS_CONFIG: /app/gsms-config/builtin_models.vps-ollama.yaml
+      OLLAMA_BASE_URL: http://ollama:11434
+      SSRF_WHITELIST_EXTRA: api,ollama
+    volumes:
+      - ./ia/config:/app/gsms-config:ro
+    depends_on:
+      ollama:
+        condition: service_started
+
+volumes:
+  ollama-models:

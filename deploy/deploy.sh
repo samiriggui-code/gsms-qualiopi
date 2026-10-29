@@ -3,6 +3,7 @@
 #
 #   ./deploy/deploy.sh formssi.global-it-ss.com            installe ou met à jour
 #   ./deploy/deploy.sh formssi.global-it-ss.com --demo     première installation avec l'organisme de démonstration
+#   ./deploy/deploy.sh formssi.global-it-ss.com --ia-ollama  moteur IA avec un LLM local (Ollama, processeur seul)
 #
 # À lancer depuis la racine du dépôt cloné. Le premier lancement crée .env avec des secrets tirés au hasard
 # (jamais committé) ; les lancements suivants le conservent et ne font que reconstruire et redémarrer.
@@ -12,9 +13,16 @@
 set -euo pipefail
 
 DOMAIN="${1:-}"
-DEMO="${2:-}"
+DEMO=""; IA_OLLAMA=""
+for arg in "${@:2}"; do
+  case "$arg" in
+    --demo) DEMO="--demo" ;;
+    --ia-ollama) IA_OLLAMA=1 ;;
+    *) echo "Option inconnue : $arg" >&2; exit 1 ;;
+  esac
+done
 if [[ -z "$DOMAIN" || "$DOMAIN" == -* ]]; then
-  echo "Usage : $0 <nom-de-domaine> [--demo]" >&2
+  echo "Usage : $0 <nom-de-domaine> [--demo] [--ia-ollama]" >&2
   exit 1
 fi
 cd "$(dirname "$0")/.."
@@ -66,6 +74,23 @@ ENV
   echo ".env créé (secrets générés, lisible par vous seul)."
 fi
 set_env DOMAIN "$DOMAIN"
+grep -q '^PUBLIC_URL=' .env || set_env PUBLIC_URL "https://$DOMAIN"
+
+# ── Moteur IA : secrets tirés au hasard à la première installation (ia/.env, jamais committé) ──────────
+hex() { openssl rand -hex "$1"; }
+if [[ ! -f ia/.env ]]; then
+  umask 077
+  ia_pg="$(secret)"; ia_redis="$(secret)"; ia_neo4j="$(secret)"
+  sed -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$ia_pg|" -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$ia_pg|" \
+      -e "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=$ia_redis|" -e "s|^NEO4J_PASSWORD=.*|NEO4J_PASSWORD=$ia_neo4j|" \
+      -e "s|^JWT_SECRET=.*|JWT_SECRET=$(hex 32)|" -e "s|^SYSTEM_AES_KEY=.*|SYSTEM_AES_KEY=$(hex 16)|" \
+      -e "s|^SYSTEM_SIGNING_KEY=.*|SYSTEM_SIGNING_KEY=$(hex 32)|" ia/.env.example > ia/.env
+  set_env IA_REDIS_PASSWORD "$ia_redis"
+  set_env IA_NEO4J_PASSWORD "$ia_neo4j"
+  echo "ia/.env créé (secrets du moteur IA générés, lisible par vous seul)."
+fi
+grep -q '^WEKNORA_SERVICE_EMAIL=.' .env || set_env WEKNORA_SERVICE_EMAIL "ia-service@$DOMAIN"
+grep -q '^WEKNORA_SERVICE_PASSWORD=.' .env || set_env WEKNORA_SERVICE_PASSWORD "$(secret)"
 
 # ── Publication HTTPS : Traefik déjà présent, ou Caddy ────────────────────────────────────────────────
 traefik="$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /traefik/ {print $1; exit}')"
@@ -100,7 +125,7 @@ if [[ -n "$traefik" ]]; then
   set_env TRAEFIK_NETWORK "$network"
   set_env TRAEFIK_ENTRYPOINT "$entrypoint"
   set_env TRAEFIK_CERTRESOLVER "$resolver"
-  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:$traefik_file"
+  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:$traefik_file${IA_OLLAMA:+:deploy/docker-compose.ia-ollama.yml}"
 else
   if ss -ltn 2>/dev/null | grep -qE '[:.]80[[:space:]]' && ! docker ps --format '{{.Names}}' | grep -q 'caddy'; then
     echo "Le port 80 est déjà utilisé par un programme autre que Traefik :" >&2
@@ -109,7 +134,7 @@ else
     exit 1
   fi
   echo "HTTPS par Caddy (ports 80 et 443)."
-  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:deploy/docker-compose.caddy.yml"
+  set_env COMPOSE_FILE "docker-compose.yml:deploy/docker-compose.prod.yml:deploy/docker-compose.caddy.yml${IA_OLLAMA:+:deploy/docker-compose.ia-ollama.yml}"
 fi
 
 docker compose up -d --build --remove-orphans
@@ -122,9 +147,18 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+if [[ -n "$IA_OLLAMA" ]]; then
+  echo "Modèles du LLM local (téléchargés une seule fois, plusieurs Go)…"
+  docker compose exec -T ollama ollama pull qwen2.5:3b
+  docker compose exec -T ollama ollama pull bge-m3
+fi
+
 # Première mise en service (une seule fois) : référentiels Qualiopi, ou organisme de démonstration.
 if [[ ! -f .gsms-initialise ]]; then
   if [[ "$DEMO" == "--demo" ]]; then
+    # Catalogue d'abord : la démo rattache ensuite ses sessions aux vraies fiches (pas de doublon).
+    docker compose exec -T api python -m app.cmd.cli import-formssi
+    docker compose exec -T api python -m app.cmd.cli import-gsms-school
     docker compose exec -T api python -m app.cmd.cli seed-demo
   else
     docker compose exec -T api python -m app.cmd.cli import-referential qualiopi/v9

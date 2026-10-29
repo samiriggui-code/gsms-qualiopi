@@ -1,0 +1,17 @@
+# Modèles du moteur IA sur un serveur sans carte graphique (VPS) : Ollama du service « ollama »
+# (deploy/docker-compose.ia-ollama.yml), sans clé ni envoi de données à l'extérieur. Petits modèles, réponses lentes
+# sur processeur ; un client qui veut mieux branche un fournisseur par API (option). Relu à chaque démarrage du moteur.
+builtin_models:
+  - id: gsms-vps-chat
+    type: KnowledgeQA
+    source: local
+    is_default: true
+    name: qwen2.5:3b
+  - id: gsms-vps-embedding
+    type: Embedding
+    source: local
+    is_default: true
+    name: bge-m3:latest
+    parameters:
+      embedding_parameters:
+        dimension: 1024
