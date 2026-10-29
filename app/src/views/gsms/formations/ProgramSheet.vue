@@ -176,17 +176,7 @@
             </li>
           </ul>
         </section>
-        <section class="panel">
-          <h3 class="title">{{ t('gsms.formations.ressources') }}</h3>
-          <p v-if="!sheet.resources.length" class="muted">{{ t('gsms.formations.aucuneRessource') }}</p>
-          <ul v-else class="rows">
-            <li v-for="r in sheet.resources" :key="r.id" class="row">
-              <span class="row-main">{{ r.title }}</span>
-              <span class="muted">{{ [r.kind, r.module_code, r.origin].filter(Boolean).join(' · ') }}</span>
-              <GsmsStatusTag :code="r.status" />
-            </li>
-          </ul>
-        </section>
+        <ProgramContents :program-id="id" :resources="sheet.resources" :can-edit="!!sheet.capabilities.edit?.allowed" @changed="load" />
       </template>
 
       <!-- Versions validées : programme imprimable -->
@@ -246,6 +236,7 @@ import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
 import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
 import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
 import FormationThumb from './FormationThumb.vue'
+import ProgramContents from './ProgramContents.vue'
 import {
   attestProgramVerification, getProgramPedagogy, getProgramSheet, programmePath, putProgramCertification, updateProgram,
   validateProgramVersion, type ProgramPedagogy, type ProgramSheet,

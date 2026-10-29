@@ -193,8 +193,17 @@ export interface ProgramResource {
   rights: string
   status: string
   note: string | null
+  file_name?: string | null
+  mime_type?: string | null
+  source_ref?: string | null
   [extra: string]: unknown
 }
+
+/** Chemin du fichier d'un contenu (GET /fiches/{id}/ressources/{rid}/fichier, empreinte vérifiée par l'API). */
+export const programResourceFilePath = (id: string, resourceId: string) => `/fiches/${enc(id)}/ressources/${enc(resourceId)}/fichier`
+/** PATCH /fiches/{id}/ressources/{rid} (`sessions.write`) : statut, droits, note. */
+export const updateProgramResource = (id: string, resourceId: string, body: Record<string, unknown>) =>
+  http.patch<{ id: string }>(`/fiches/${enc(id)}/ressources/${enc(resourceId)}`, body)
 
 export interface ProgramVersion {
   id: string

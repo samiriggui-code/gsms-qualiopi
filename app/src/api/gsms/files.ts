@@ -54,3 +54,16 @@ export async function postForm<T>(path: string, form: FormData): Promise<T> {
   if (!response.ok) await failure(response)
   return (await response.json()) as T
 }
+
+
+/** Lit un fichier texte de l'API (cours en Markdown, banque de QCM en YAML), avec le jeton. */
+export async function fetchText(path: string): Promise<string> {
+  let response: Response
+  try {
+    response = await fetch(`${API_PREFIX}${path}`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError(0, "L'API ne répond pas : vérifiez la connexion ou que le serveur est démarré")
+  }
+  if (!response.ok) await failure(response)
+  return response.text()
+}
