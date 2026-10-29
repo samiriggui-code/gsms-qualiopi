@@ -1,5 +1,5 @@
 # Moteur IA avec un LLM local sur le serveur (Ollama, processeur seul) : ajouté par deploy.sh avec --ia-ollama.
-# Mémoire plafonnée pour ne pas gêner les autres applications du serveur ; modèles gardés dans le volume ollama-models.
+# Processeur et mémoire plafonnés pour ne pas gêner les autres applications du serveur ; modèles gardés dans le volume ollama-models.
 # Après le premier démarrage : docker compose exec ollama ollama pull qwen2.5:3b && … pull bge-m3 (fait par deploy.sh).
 services:
   ollama:
@@ -13,6 +13,8 @@ services:
     deploy:
       resources:
         limits:
+          # 5 cœurs sur 8 : l'indexation ne doit pas ralentir l'application ni les autres sites du serveur.
+          cpus: "5"
           memory: 10g
   ia-app:
     environment:

@@ -328,3 +328,23 @@ def test_client_du_moteur_ia_reponses_mal_formees_et_coupures(monkeypatch) -> No
     monkeypatch.setattr(weknora.urllib.request, "urlopen", reset)
     with pytest.raises(weknora.IAUnavailable):
         weknora.call("GET", "/x")
+
+
+def test_modeles_attribues_avant_le_depot_des_documents(monkeypatch) -> None:  # noqa: ANN001
+    """Base neuve créée sans modèle d'embedding (cas réel du VPS) : les modèles sont attribués avant le premier dépôt,
+    sinon chaque document échoue (« model ID cannot be empty »)."""
+    ws = FakeWorkspace()
+    ws.models.append({"id": "chat", "type": "KnowledgeQA"})
+
+    def call(method, path, payload=None, token=None, **kw):  # noqa: ANN001, ANN003, ANN202
+        out = ws(method, path, payload, token, **kw)
+        if method == "POST" and path == "/api/v1/knowledge-bases":
+            ws.bases[-1]["embedding_model_id"] = ""
+        return out
+
+    monkeypatch.setattr(espace, "call", call)
+    report = espace.ensure_referential_kb("jeton-weknora", espace.CNAPS)
+    assert report.ok, report.problems
+    first_put = ws.calls.index(next(c for c in ws.calls if c[1].startswith("/api/v1/initialization/config/")))
+    first_doc = ws.calls.index(next(c for c in ws.calls if c[1].endswith("/knowledge/manual")))
+    assert first_put < first_doc

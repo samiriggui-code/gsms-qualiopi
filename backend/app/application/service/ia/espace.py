@@ -281,6 +281,9 @@ def ensure_referential_kb(token: str, ref: Referential = QUALIOPI) -> Report:
     else:
         report.done.append(f"Base « {ref.name} » déjà présente")
 
+    # Modèles d'abord : un document déposé dans une base sans modèle d'embedding échoue (« model ID cannot be empty »).
+    if not kb.get("embedding_model_id"):
+        _attach_models(kb, token, report)
     existing = {k.get("title"): k for k in _all_knowledge(kb["id"], token)}
     sources = referential_sources(ref)
     if not sources:
@@ -303,8 +306,6 @@ def ensure_referential_kb(token: str, ref: Referential = QUALIOPI) -> Report:
         report.done.append(f"{already} document(s) déjà présent(s), laissés tels quels")
     if refused:
         report.problems.append(f"{len(refused)} document(s) refusé(s) par le moteur IA, par exemple « {refused[0]} »")
-    if not kb.get("embedding_model_id"):
-        _attach_models(kb, token, report)
     if not kb.get("embedding_model_id"):
         report.problems.append(f"La base « {ref.name} » n'a pas de modèle d'embedding : à choisir dans ses réglages "
                                "du moteur IA ; les documents seront alors réindexés au prochain « ia-preparer »")
