@@ -196,6 +196,23 @@ def ensure_assistants(token: str) -> Report:
             report.done.append(f"Assistant « {agent['name']} » {verb}")
         else:
             report.problems.append(f"Assistant « {agent['name']} » non {verb} : {message_of(body)} (HTTP {status})")
+    _give_builtin_agents_a_model(agents, model_id, token, report)
     if docs_kb is None:
         report.done.append(f"Base « {DOCS_KB_NAME} » absente : « Préparation d'audit » ne lit que le référentiel")
     return report
+
+
+def _give_builtin_agents_a_model(agents: dict, model_id: str, token: str, report: Report) -> None:
+    """Agents intégrés du moteur (builtin-…) créés sans modèle de conversation : l'écran affiche « Configuration
+    requise » et ils ne répondent pas. On leur donne le modèle par défaut ; un modèle déjà choisi n'est pas touché."""
+    for agent in agents.values():
+        config = agent.get("config") or {}
+        if not str(agent.get("id", "")).startswith("builtin-") or config.get("model_id"):
+            continue
+        status, body = call("PUT", f"/api/v1/agents/{agent['id']}", {"config": {**config, "model_id": model_id}},
+                            token=token)
+        if _ok(status, body):
+            report.done.append(f"Agent intégré « {agent.get('name') or agent['id']} » : modèle de conversation attribué")
+        else:
+            report.problems.append(f"Agent intégré « {agent.get('name') or agent['id']} » sans modèle : "
+                                   f"{message_of(body)} (HTTP {status})")
