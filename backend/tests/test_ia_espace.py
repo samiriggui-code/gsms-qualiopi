@@ -370,3 +370,18 @@ def test_modele_de_resume_choisi_pour_les_nouvelles_bases(monkeypatch) -> None: 
     monkeypatch.setattr(get_settings(), "weknora_summary_model_id", "distant-mistral")
     assert espace.ensure_referential_kb("jeton-weknora", espace.INCENDIE).ok
     assert sent == ["distant-mistral"]
+
+
+def test_titres_longs_sans_doublon(monkeypatch) -> None:  # noqa: ANN001
+    """Le moteur tronque les titres longs : un second passage ne doit pas redéposer le document."""
+    ws = FakeWorkspace()
+    monkeypatch.setattr(espace, "call", ws)
+    titles = [title for title, _ in espace.referential_sources(espace.INCENDIE)]
+    assert all(len(title) <= espace.TITLE_MAX for title in titles)
+    assert espace.ensure_referential_kb("jeton-weknora", espace.INCENDIE).ok
+    [kb] = ws.bases
+    for doc in ws.knowledge[kb["id"]]:  # titres stockés tronqués par le moteur
+        doc["title"] = doc["title"][:160]
+    count = len(ws.knowledge[kb["id"]])
+    espace.ensure_referential_kb("jeton-weknora", espace.INCENDIE)
+    assert len(ws.knowledge[kb["id"]]) == count

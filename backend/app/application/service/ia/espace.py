@@ -203,11 +203,23 @@ def referential_sources(ref: Referential = QUALIOPI) -> list[tuple[str, str]]:
     return [(_front_title(path), path.read_text(encoding="utf-8")) for path in sorted(root.glob("source/*.md"))]
 
 
+TITLE_MAX = 180
+# Le moteur IA tronque les titres trop longs : un document se reconnaît au début de son titre, pas au titre entier.
+TITLE_KEY = 150
+
+
+def _short(title: str) -> str:
+    """Titre de 180 caractères au plus, coupé sur un mot."""
+    if len(title) <= TITLE_MAX:
+        return title
+    return title[:TITLE_MAX - 1].rsplit(" ", 1)[0].rstrip(" ,;:—-") + "…"
+
+
 def _front_title(path: Path) -> str:
     """Titre de l'en-tête YAML (`titre: "…"`), sinon le nom du fichier."""
     for line in path.read_text(encoding="utf-8").splitlines()[1:12]:
         if line.startswith("titre:"):
-            return line.partition(":")[2].strip().strip('"')[:250]
+            return _short(line.partition(":")[2].strip().strip('"'))
     return path.stem.partition("-")[2].replace("-", " ") or path.stem
 
 
@@ -285,19 +297,19 @@ def ensure_referential_kb(token: str, ref: Referential = QUALIOPI) -> Report:
     # Modèles d'abord : un document déposé dans une base sans modèle d'embedding échoue (« model ID cannot be empty »).
     if not kb.get("embedding_model_id"):
         _attach_models(kb, token, report)
-    existing = {k.get("title"): k for k in _all_knowledge(kb["id"], token)}
+    existing = {(k.get("title") or "")[:TITLE_KEY]: k for k in _all_knowledge(kb["id"], token)}
     sources = referential_sources(ref)
     if not sources:
         report.problems.append(f"Aucun texte officiel trouvé dans referentials/{ref.folder}")
     created, refused = 0, []
     for title, content in sources:
-        if title in existing:
+        if title[:TITLE_KEY] in existing:
             continue
         status, body = call("POST", f"/api/v1/knowledge-bases/{kb['id']}/knowledge/manual",
                             {"title": title, "content": content, "status": "publish"}, token=token)
         if _ok(status, body):
             created += 1
-            existing[title] = body.get("data") or {"title": title}
+            existing[title[:TITLE_KEY]] = body.get("data") or {"title": title}
         else:
             refused.append(f"{title} : {message_of(body)} (HTTP {status})")
     if created:
