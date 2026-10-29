@@ -90,7 +90,9 @@ if [[ ! -f ia/.env ]]; then
   echo "ia/.env créé (secrets du moteur IA générés, lisible par vous seul)."
 fi
 grep -q '^WEKNORA_SERVICE_EMAIL=.' .env || set_env WEKNORA_SERVICE_EMAIL "ia-service@$DOMAIN"
-grep -q '^WEKNORA_SERVICE_PASSWORD=.' .env || set_env WEKNORA_SERVICE_PASSWORD "$(secret)"
+# WeKnora : 8 à 32 caractères, au moins une lettre et un chiffre (inscription refusée en 400 sinon).
+ia_password() { printf 'a1%s' "$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-30)"; }
+grep -q '^WEKNORA_SERVICE_PASSWORD=.' .env || set_env WEKNORA_SERVICE_PASSWORD "$(ia_password)"
 
 # ── Publication HTTPS : Traefik déjà présent, ou Caddy ────────────────────────────────────────────────
 traefik="$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /traefik/ {print $1; exit}')"
