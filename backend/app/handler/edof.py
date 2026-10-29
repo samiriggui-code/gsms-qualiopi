@@ -233,6 +233,17 @@ def update_resource(program_id: str, resource_id: str, body: ResourceIn, db: DB,
     return {"id": r.id}
 
 
+@router.get("/fiches/{program_id}/ressources/{resource_id}/fichier")
+def resource_file(program_id: str, resource_id: str, db: DB, _: ProgramReader) -> Response:
+    """Fichier du contenu, relu avec son empreinte ; une ressource déclarée sans fichier n'en a pas."""
+    r = db.get(t.ProgramResource, resource_id)
+    if r is None or r.program_id != program_id or not r.storage_path:
+        raise NotFoundError("Fichier du contenu introuvable")
+    content = storage.read(r.storage_path, r.sha256)
+    return Response(content, media_type=f"{r.mime_type}; charset=utf-8" if r.mime_type else None,
+                    headers={"Content-Disposition": content_disposition(r.file_name or "contenu", inline=True)})
+
+
 @router.delete("/fiches/{program_id}/ressources/{resource_id}", status_code=204)
 def delete_resource(program_id: str, resource_id: str, db: DB, _: ProgramWriter) -> None:
     r = db.get(t.ProgramResource, resource_id)

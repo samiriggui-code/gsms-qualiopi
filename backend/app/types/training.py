@@ -317,6 +317,11 @@ class ProgramResource(TimestampMixin, Base):
     rights_note: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="BROUILLON")
     note: Mapped[str | None] = mapped_column(Text)
+    # Fichier du contenu dans le stockage de GSMS (empreinte vérifiée à la lecture) ; vide pour une ressource déclarée.
+    file_name: Mapped[str | None] = mapped_column(String(250))
+    mime_type: Mapped[str | None] = mapped_column(String(80))
+    storage_path: Mapped[str | None] = mapped_column(String(400))
+    sha256: Mapped[str | None] = mapped_column(String(64))
 
 
 class ProgramVersion(TimestampMixin, Base):

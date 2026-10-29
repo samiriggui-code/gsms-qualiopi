@@ -287,3 +287,32 @@ def test_financements_sans_cpf_pour_une_formation_non_certifiante(client, demo: 
     funding = {f["code"]: f for f in client.get(f"{API}/fiches/{sst.id}", headers=h).json()["funding"]}
     assert funding["CPF"]["alert"] and funding["ENTREPRISE"]["alert"] is None
     assert funding["ENTREPRISE"]["logo"] == "media/formations/opco.png"
+
+
+def test_dossier_pedagogique_importe_en_ressources(client, demo: Session, tmp_path) -> None:  # noqa: ANN001
+    from app.application.service.training.pedagogie import import_pedagogie
+
+    import_gsms_school(demo)
+    root = tmp_path / "ssiap-1-initial"
+    for folder in ("01-cours-initial", "02-qcm", "06-ressources-sources"):
+        (root / folder).mkdir(parents=True)
+    (root / "01-cours-initial" / "A06-deontologie.md").write_text(
+        '---\nmodule: "Respecter la déontologie professionnelle"\n---\n# Déontologie\nR631-1…', encoding="utf-8")
+    (root / "02-qcm" / "banque.yaml").write_text("questions: []\n", encoding="utf-8")
+    (root / "06-ressources-sources" / "ancien.md").write_text("# Ancien support\n", encoding="utf-8")
+    out = import_pedagogie(demo, "ssiap-1-initial", root)
+    demo.commit()
+    assert len(out["crees"]) == 2, "les sources brutes ne sont jamais importées"
+    tfp = demo.scalar(select(t.Program).where(t.Program.catalog_slug == "ssiap-1-initial"))
+    cours = demo.scalar(select(t.ProgramResource).where(t.ProgramResource.module_code == "A06"))
+    assert (cours.title, cours.kind, cours.status, cours.rights) == (
+        "Respecter la déontologie professionnelle", "COURS", "BROUILLON", "PROPRIETAIRE")
+    _, h = make_user(demo, "lecture")
+    r = client.get(f"{API}/fiches/{tfp.id}/ressources/{cours.id}/fichier", headers=h)
+    assert r.status_code == 200 and "R631-1" in r.text and r.headers["content-type"].startswith("text/markdown")
+    # Validé puis modifié : repasse en brouillon ; inchangé : rien ne bouge.
+    cours.status = "VALIDE"
+    demo.commit()
+    assert import_pedagogie(demo, "ssiap-1-initial", root)["inchanges"] == 2
+    (root / "01-cours-initial" / "A06-deontologie.md").write_text("# Déontologie v2\n", encoding="utf-8")
+    assert import_pedagogie(demo, "ssiap-1-initial", root)["mis_a_jour"] and cours.status == "BROUILLON"

@@ -63,6 +63,31 @@ def store(content: bytes, mime: str) -> StoredFile:
     return StoredFile(sha256=digest, size=len(content), relative_path=relative)
 
 
+TEXT_TYPES = ("text/markdown", "application/yaml", "text/plain")
+
+
+def store_text(content: bytes, mime: str) -> StoredFile:
+    """Contenu texte produit par l'organisme (cours en Markdown, banque de QCM en YAML), jamais un envoi d'utilisateur :
+    type parmi TEXT_TYPES et UTF-8 valide ; même rangement par empreinte que store()."""
+    if mime not in TEXT_TYPES:
+        raise UploadRefused(f"Type texte non accepté : {mime}")
+    if not content or len(content) > MAX_BYTES:
+        raise UploadRefused("Contenu texte vide ou trop lourd")
+    try:
+        content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise UploadRefused("Contenu texte non UTF-8") from exc
+    digest = hashlib.sha256(content).hexdigest()
+    relative = f"{digest[:2]}/{digest}"
+    target = Path(get_settings().documents_dir) / relative
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_suffix(".part")
+        tmp.write_bytes(content)
+        tmp.replace(target)
+    return StoredFile(sha256=digest, size=len(content), relative_path=relative)
+
+
 def read(relative_path: str, expected_sha256: str | None = None) -> bytes:
     root = Path(get_settings().documents_dir).resolve()
     path = (root / relative_path).resolve()
