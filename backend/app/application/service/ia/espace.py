@@ -236,7 +236,8 @@ def _default_model(token: str, kind: str) -> str | None:
 def _attach_models(kb: dict, token: str, report: Report) -> None:
     """Base créée avant tout modèle : on lui donne les modèles par défaut, en gardant son découpage."""
     name = kb.get("name") or KB_NAME
-    embedding, chat = _default_model(token, "Embedding"), _default_model(token, "KnowledgeQA")
+    embedding = _default_model(token, "Embedding")
+    chat = get_settings().weknora_summary_model_id or _default_model(token, "KnowledgeQA")
     if not (embedding and chat):
         return
     chunking = kb.get("chunking_config") or {}

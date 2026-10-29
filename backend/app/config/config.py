@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     weknora_service_email: str = ""
     weknora_service_password: str = ""
     weknora_service_name: str = "GSMS Qualiopi"
+    # Modèle de résumé des documents attribué aux bases créées par ia-preparer (id d'un modèle du moteur IA, par
+    # exemple un modèle distant) ; vide : le modèle de discussion par défaut. Un petit LLM local sur processeur est
+    # trop lent pour résumer.
+    weknora_summary_model_id: str = ""
     # Serveur MCP de l'API, tel que le moteur IA le joint (même réseau compose : service « api »).
     ia_mcp_url: str = "http://api:8000/api/v1/mcp"
     # Compte technique GSMS au nom duquel l'assistant IA lit le moteur Qualiopi (rôle « assistant_ia »).
