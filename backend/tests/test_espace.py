@@ -5,8 +5,8 @@ from datetime import timedelta
 import pytest
 from sqlalchemy.orm import Session
 
-from app.journey import espace
-from app.questionnaires.service import LinkClosed
+from app.application.service.journey import espace
+from app.application.service.questionnaires.service import LinkClosed
 from tests.conftest import find_session, make_user
 
 

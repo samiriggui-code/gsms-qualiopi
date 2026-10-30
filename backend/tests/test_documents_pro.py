@@ -5,11 +5,11 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.editions.models import Project
-from app.events.models import OutboxEvent
-from app.platform.settings import ConfigurationService
-from app.qualiopi.engine import scope_of
-from app.training import models as t
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.qualiopi.engine import scope_of
+from app.types import training as t
+from app.types.editions import Project
+from app.types.event import OutboxEvent
 from tests.conftest import make_user
 
 BASE = "/api/v1/editions"
@@ -171,3 +171,28 @@ def test_synthese_de_l_accueil(client, db: Session) -> None:
     assert s["total"] == 1 and s["statuts"]["BROUILLON"] == 1
     assert len(s["valides_par_mois"]) == 6 and s["alertes"][0]["niveau"] == "warning"
     assert db.scalar(select(Project)).reference == "DEV-SECU69-001"
+
+
+def test_chaine_css_ne_sort_pas_du_bloc_style() -> None:
+    from app.common.rendu_a4 import css_string
+
+    out = str(css_string('Org</style><script>alert("x")</script> & \\ fin\nligne'))
+    assert "<" not in out and ">" not in out and "&" not in out
+    assert out == 'Org\\3c /style\\3e \\3c script\\3e alert(\\"x\\")\\3c /script\\3e  \\26  \\\\ fin ligne'
+
+
+def test_synthese_six_mois_calendaires(client, db: Session, monkeypatch) -> None:  # noqa: ANN001
+    """Les six derniers mois de la courbe sont des mois calendaires consécutifs, février compris."""
+    from datetime import date
+
+    from app.handler import editions
+
+    class Mars(date):
+        @classmethod
+        def today(cls) -> date:
+            return date(2027, 3, 28)
+
+    monkeypatch.setattr(editions, "date", Mars)
+    _, h = make_user(db, "admin")
+    s = client.get(f"{BASE}/synthese", headers=h).json()
+    assert [m["mois"] for m in s["valides_par_mois"]] == ["2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"]

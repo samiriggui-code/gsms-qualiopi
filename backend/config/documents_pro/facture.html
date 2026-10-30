@@ -1,0 +1,81 @@
+{% extends "_base_a4.html" %}
+{# Facture ou avoir. Mentions : CGI, annexe II, art. 242 nonies A ; code de commerce, art. L441-9 (docs/facturation/SOURCES.md). #}
+{% block contenu %}
+<div class="eyebrow">{{ piece.type }}</div>
+<h1>{{ piece.type }} n° {{ piece.numero }}</h1>
+<div class="meta">
+  <span><b>Date d'émission</b> {{ piece.date }}</span>
+  {% if piece.prestation_au %}<span><b>Prestation</b> {% if piece.prestation_du and piece.prestation_du != piece.prestation_au %}du {{ piece.prestation_du }} au {{ piece.prestation_au }}{% else %}le {{ piece.prestation_au }}{% endif %}</span>{% endif %}
+  {% if piece.echeance %}<span><b>Échéance</b> {{ piece.echeance }}</span>{% endif %}
+  {% if piece.bon_commande %}<span><b>Bon de commande</b> {{ piece.bon_commande }}</span>{% endif %}
+</div>
+{% if piece.facture_origine %}
+<p class="small"><b>Rectifie la facture n° {{ piece.facture_origine.numero }} du {{ piece.facture_origine.date }}.</b>{% if piece.motif %} Motif : {{ piece.motif }}{% endif %}</p>
+{% endif %}
+
+<div class="parties">
+  <div class="partie">
+    <span class="muted small">Organisme de formation</span>
+    <b>{{ organisme.nom }}</b>
+    {% if organisme.forme %}{{ organisme.forme }}<br>{% endif %}
+    {% if organisme.adresse %}{{ organisme.adresse }}<br>{% endif %}
+    {% if organisme.telephone %}{{ organisme.telephone }}<br>{% endif %}
+    {% if organisme.email %}{{ organisme.email }}<br>{% endif %}
+    {% if organisme.siret %}SIRET {{ organisme.siret }}<br>{% endif %}
+    {% if organisme.tva %}N° TVA {{ organisme.tva }}{% endif %}
+  </div>
+  <div class="partie">
+    <span class="muted small">Client</span>
+    <b>{{ client.nom }}</b>
+    {% if client.adresse %}{{ client.adresse }}<br>{% endif %}
+    {% if client.code_postal or client.ville %}{{ client.code_postal or "" }} {{ client.ville or "" }}<br>{% endif %}
+    {% if client.siret %}SIRET {{ client.siret }}{% endif %}
+  </div>
+</div>
+
+<h2>{{ piece.titre }}</h2>
+<p class="small muted">Opérations : prestations de services.</p>
+<table>
+  <thead><tr><th>Désignation</th><th class="num">Quantité</th><th class="num">Prix unitaire HT</th><th class="num">Remise</th><th class="num">TVA</th><th class="num">Montant HT</th></tr></thead>
+  <tbody>
+  {% for l in lignes %}
+    <tr>
+      <td><b>{{ l.libelle }}</b>{% if l.detail %}<br><span class="small">{{ l.detail }}</span>{% endif %}</td>
+      <td class="num">{{ l.quantite }} {{ l.unite }}</td>
+      <td class="num">{{ l.prix }}</td>
+      <td class="num">{{ l.remise or "" }}</td>
+      <td class="num">{{ l.tva }}</td>
+      <td class="num">{{ l.montant }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Aucune ligne.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<table class="totaux">
+  {% for g in taux %}
+  <tr><td>{% if g.taux %}Base HT à {{ g.taux }}{% else %}Base HT exonérée{% endif %}</td><td class="num">{{ g.base }}</td></tr>
+  {% if g.taux %}<tr><td>TVA {{ g.taux }}</td><td class="num">{{ g.tva }}</td></tr>{% endif %}
+  {% endfor %}
+  <tr><td>Total HT</td><td class="num">{{ totaux.ht }}</td></tr>
+  <tr><td>Total TVA</td><td class="num">{{ totaux.tva }}</td></tr>
+  <tr class="ttc"><td>{% if piece.echeance %}Net à payer TTC{% else %}Total TTC{% endif %}</td><td class="num">{{ totaux.ttc }}</td></tr>
+</table>
+{% if mention_tva %}<p class="small muted" style="text-align:right">{{ mention_tva }}</p>{% endif %}
+
+{% if piece.echeance %}
+<h2>Règlement</h2>
+<p>À régler au plus tard le {{ piece.echeance }}.</p>
+{% if conditions %}{% for para in conditions.split("\n") if para.strip() %}<p>{{ para }}</p>{% endfor %}{% endif %}
+{% if banque %}<p>{{ banque }}</p>{% endif %}
+{% if professionnel %}
+<p class="small">{{ escompte }}. En cas de retard de paiement, pénalités exigibles dès le lendemain de l'échéance : {{ penalites }} ; indemnité forfaitaire pour frais de recouvrement de 40 € (code de commerce, art. L441-10).</p>
+{% endif %}
+{% endif %}
+
+<div class="legal">
+  {% if organisme.nda %}Déclaration d'activité enregistrée sous le numéro {{ organisme.nda }}. Cet enregistrement ne vaut pas agrément de l'État.<br>{% endif %}
+  {% if mentions %}{{ mentions }}<br>{% endif %}
+  {% if empreinte_note %}{{ empreinte_note }}{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+/* Marque Global-IT-SS : source unique des couleurs et polices du template.
+   Guide de marque : dégradé #0051FF → #00FFFF, noir et blanc ; Montserrat 700 (titres), Almarai 300 (texte).
+   Repris de GlobalITSS/frontend/src/app/globals.css (contrastes WCAG AA).
+   La landing (--wk-*) et le cockpit (--td-*) se branchent sur ces variables. */
+
+:root {
+  --gitss-blue: #0051ff;
+  --gitss-cyan: #00ffff;
+  /* Variante du dégradé pour les surfaces qui portent du texte blanc (blanc ≥ 4,6:1). */
+  --gitss-deep: #0040e0;
+  --gitss-mid: #0066ff;
+  --gitss-gradient: linear-gradient(90deg, var(--gitss-blue), var(--gitss-cyan));
+  --gitss-gradient-text: linear-gradient(90deg, var(--gitss-deep), var(--gitss-mid));
+
+  --gitss-background: #f6f8fc;
+  --gitss-foreground: #0a0f1c;
+  --gitss-card: #ffffff;
+  --gitss-muted: #eef2f9;
+  --gitss-muted-foreground: #4f5a6e;
+  --gitss-border: #e2e8f2;
+  --gitss-input: #cfd7e6;
+  --gitss-primary: #0051ff;
+  --gitss-primary-hover: #0043d6;
+  --gitss-primary-foreground: #ffffff;
+  --gitss-secondary: #e9f0ff;
+  --gitss-accent-text: #0047e0;
+  --gitss-destructive: #c81e1e;
+  --gitss-ring: #0051ff;
+
+  --gitss-font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --gitss-font-sans: "Almarai", ui-sans-serif, system-ui, sans-serif;
+  --gitss-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --gitss-radius: 8px;
+  --gitss-shadow-sm: 0 1px 2px rgba(10, 15, 28, .04), 0 2px 8px -2px rgba(10, 15, 28, .06);
+  --gitss-shadow-md: 0 2px 4px rgba(10, 15, 28, .04), 0 12px 32px -8px rgba(10, 15, 28, .12);
+}
+
+/* Thème sombre : la landing utilise html.dark, le cockpit theme-mode="dark" (TDesign). */
+html.dark,
+:root[theme-mode="dark"] {
+  --gitss-background: #04060c;
+  --gitss-foreground: #f4f7ff;
+  --gitss-card: #0a0f1c;
+  --gitss-muted: #0e1526;
+  --gitss-muted-foreground: #a3aec6;
+  --gitss-border: rgba(255, 255, 255, .1);
+  --gitss-input: rgba(255, 255, 255, .18);
+  --gitss-secondary: #111c38;
+  --gitss-accent-text: #5ce1ff;
+  --gitss-destructive: #ff6b6b;
+  --gitss-ring: #4dd8ff;
+  --gitss-shadow-md: 0 12px 40px -12px rgba(0, 0, 0, .6);
+}

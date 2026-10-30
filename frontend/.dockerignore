@@ -1,6 +1,0 @@
-node_modules
-.next
-e2e-results
-e2e-report
-.env*
-!.env.example

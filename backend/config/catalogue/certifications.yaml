@@ -1,0 +1,114 @@
+# Certification visée par chaque formation, relevée le 28/10/2026 sur les fiches officielles de France compétences
+# (francecompetences.fr/recherche). Appliquée par import-gsms-school (complete_certifications) à une certification
+# encore « à déterminer », jamais à une certification saisie. La vérification (checked_on) et l'habilitation restent
+# à attester par une personne : relire la fiche officielle et la liste des organismes habilités du certificateur.
+releve_le: '2026-10-28'
+source: Fiches France compétences consultées le 28/10/2026
+non_certifiante: &non_certifiante
+  basis: NON_CERTIFIANTE
+  alignment: Formation non certifiante au sens du RNCP et du répertoire spécifique ; une attestation de formation est
+    remise en fin de stage.
+
+modeles:
+  aps: &aps
+    basis: RNCP
+    code: RNCP36648
+    title: Agent de prévention et de sécurité
+    certifier: Association pour le développement de la formation professionnelle dans la branche sécurité privée (ADEF) ;
+      CPNE des entreprises de prévention et sécurité
+    registration_end: '2027-07-01'
+    source_url: https://www.francecompetences.fr/recherche/rncp/36648/
+    note: Plusieurs fiches RNCP « Agent de prévention et de sécurité » coexistent (RNCP36648, 37035, 41394, 42158…), une
+      par certificateur ; la bonne est celle du certificateur dont l'organisme est partenaire. À confirmer.
+  ssiap1: &ssiap1
+    basis: RS
+    code: RS5641
+    title: Service de sécurité incendie et d'assistance aux personnes (SSIAP) niveau 1
+    certifier: Ministère de l'Intérieur et des Outre-mer
+    registration_end: '2026-12-31'
+    source_url: https://www.francecompetences.fr/recherche/rs/5641/
+    note: Enregistrement au répertoire spécifique jusqu'au 31/12/2026 ; vérifier son renouvellement.
+  ssiap2: &ssiap2
+    basis: RS
+    code: RS5642
+    title: Service de sécurité incendie et d'assistance aux personnes (SSIAP) niveau 2
+    certifier: Ministère de l'Intérieur et des Outre-mer
+    registration_end: '2026-12-31'
+    source_url: https://www.francecompetences.fr/recherche/rs/5642/
+    note: Enregistrement au répertoire spécifique jusqu'au 31/12/2026 ; vérifier son renouvellement.
+  ssiap3: &ssiap3
+    basis: RS
+    code: RS5643
+    title: Service de sécurité incendie et d'assistance aux personnes (SSIAP) niveau 3
+    certifier: Ministère de l'Intérieur et des Outre-mer
+    registration_end: '2026-12-31'
+    source_url: https://www.francecompetences.fr/recherche/rs/5643/
+    note: Enregistrement au répertoire spécifique jusqu'au 31/12/2026 ; vérifier son renouvellement.
+  sst: &sst
+    <<: *non_certifiante
+    title: Certificat de sauveteur secouriste du travail (INRS)
+    certifier: INRS (certificat délivré dans le dispositif de l'INRS)
+    source_url: https://www.francecompetences.fr/recherche/rs/5801/
+    note: La fiche RS5801 est inactive depuis le 26/01/2023 ; le SST n'est plus éligible au CPF à ce titre (la landing
+      l'annonce éligible). Le certificat INRS reste délivré par un organisme habilité par l'INRS.
+  electrique: &electrique
+    <<: *non_certifiante
+    note: Les anciennes fiches RS d'habilitation électrique (RS1657…) sont inactives ; aucune fiche active trouvée. Le
+      titre d'habilitation est délivré par l'employeur à l'issue de la formation (norme NF C 18-510).
+  reglementaire: &reglementaire
+    <<: *non_certifiante
+    note: Formation réglementaire sans certification enregistrée ; aucune fiche active trouvée sur France compétences.
+
+formations:
+  tfp-aps: *aps
+  asc-cynophile:
+    basis: RNCP
+    code: RNCP40271
+    title: Agent de sécurité cynophile
+    certifier: Association pour le développement de la formation professionnelle dans la branche sécurité privée (ADEF) ;
+      CPNEFP de la prévention sécurité
+    registration_end: '2028-02-28'
+    source_url: https://www.francecompetences.fr/recherche/rncp/40271/
+  ovt:
+    basis: RNCP
+    code: RNCP37879
+    title: TP - Opérateur en vidéoprotection et en télésurveillance
+    certifier: Ministère du Travail, du Plein emploi et de l'Insertion
+    registration_end: '2028-03-15'
+    source_url: https://www.francecompetences.fr/recherche/rncp/37879/
+  mac-aps: { <<: *reglementaire, note: "Stage de maintien et d'actualisation des compétences exigé pour le renouvellement de la carte professionnelle ; pas une certification enregistrée." }
+  mac-ovt: { <<: *reglementaire, note: "Stage de maintien et d'actualisation des compétences exigé pour le renouvellement de la carte professionnelle ; pas une certification enregistrée." }
+  asra-d: *reglementaire
+  ssiap-1-initial: *ssiap1
+  ssiap-1-recyclage: *ssiap1
+  ssiap-1-ran: *ssiap1
+  ssiap-2-initial: *ssiap2
+  ssiap-2-recyclage: *ssiap2
+  ssiap-2-ran: *ssiap2
+  ssiap-3-initial: *ssiap3
+  ssiap-3-recyclage: *ssiap3
+  ssiap-3-ran: *ssiap3
+  sst-initial: *sst
+  mac-sst: *sst
+  sst-entreprise: *sst
+  stu: *reglementaire
+  cssi:
+    <<: *non_certifiante
+    note: L'ancienne fiche RNCP30383 « Coordonnateur des systèmes de sécurité incendie » est inactive depuis le
+      17/04/2023 ; aucune fiche active trouvée.
+  h0-b0: *electrique
+  bs-be-manoeuvre: *electrique
+  br: *electrique
+  epi: *reglementaire
+  esi: *reglementaire
+  manipulation-extincteur: *reglementaire
+  evacuation-incendie: *reglementaire
+  guide-file-serre-file: *reglementaire
+  ari: *reglementaire
+  ssi: *reglementaire
+
+# Formations d'exemple de seed-demo (sans fiche catalogue), repérées par leur code.
+par_code:
+  SSIAP1: *ssiap1
+  SST: *sst
+  MAC-SST: *sst

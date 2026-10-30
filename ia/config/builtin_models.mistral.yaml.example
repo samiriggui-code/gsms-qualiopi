@@ -1,0 +1,26 @@
+# Modèles du moteur IA chez Mistral (hébergement UE), pour la production : PAS ENCORE ESSAYÉ.
+# Copier en ia/config/builtin_models.yaml, mettre la clé dans ia/.env (MISTRAL_API_KEY=…, jamais dans git), puis
+# déclarer BUILTIN_MODELS_CONFIG=/app/gsms-config/builtin_models.yaml pour ia-app. Le connecteur « generic » est
+# celui des API compatibles OpenAI : à vérifier par un premier appel réel avant toute mise en service.
+builtin_models:
+  - id: gsms-mistral-chat
+    type: KnowledgeQA
+    source: remote
+    is_default: true
+    name: mistral-small-latest
+    parameters:
+      base_url: https://api.mistral.ai/v1
+      api_key: ${MISTRAL_API_KEY}
+      provider: generic
+  - id: gsms-mistral-embedding
+    type: Embedding
+    source: remote
+    is_default: true
+    name: mistral-embed
+    parameters:
+      base_url: https://api.mistral.ai/v1
+      api_key: ${MISTRAL_API_KEY}
+      provider: generic
+      embedding_parameters:
+        dimension: 1024
+        truncate_prompt_tokens: 0

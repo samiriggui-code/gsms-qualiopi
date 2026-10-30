@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from app.platform.features import set_feature
+from app.application.service.platform.features import set_feature
 from tests.conftest import make_user
 
 

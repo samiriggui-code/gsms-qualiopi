@@ -1,0 +1,22 @@
+# POSTE DE DÉVELOPPEMENT SEULEMENT — jamais en production (VPS) :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d ia-app
+# - modèles du moteur IA : l'Ollama local (ia/config/builtin_models.dev-ollama.yaml), sans clé ; ou, avec
+#   IA_MODELES_DEV=builtin_models.dev-openrouter.yaml (.env de la racine), génération par OpenRouter et embeddings locaux ;
+# - sandbox Docker du moteur IA (skills, artefacts) : il reçoit le socket Docker, c'est-à-dire l'accès root à la
+#   machine. Acceptable sur un poste de test, refusé sur un serveur qui porte des données de stagiaires.
+services:
+  ia-app:
+    environment:
+      BUILTIN_MODELS_CONFIG: /app/gsms-config/${IA_MODELES_DEV:-builtin_models.dev-ollama.yaml}
+      OLLAMA_BASE_URL: http://ollama:11434
+      SSRF_WHITELIST_EXTRA: api,ollama
+      WEKNORA_SANDBOX_DOCKER_ENABLED: "true"
+    volumes:
+      - ./ia/config:/app/gsms-config:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [default, ollama]
+
+networks:
+  ollama:
+    external: true
+    name: gitss_WeKnora-network

@@ -4,17 +4,17 @@ import hashlib
 import re
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.events.models import OutboxEvent
-from app.platform.features import set_feature
-from app.platform.settings import ConfigurationService
-from app.questionnaires import service
-from app.questionnaires.models import Invitation
-from app.relances.models import Message
-from app.relances.planner import plan
-from app.training import models as t
+from app.application.service.platform.features import set_feature
+from app.application.service.platform.settings import ConfigurationService
+from app.application.service.questionnaires import service
+from app.application.service.relances.planner import plan
+from app.types import training as t
+from app.types.event import OutboxEvent
+from app.types.questionnaires import Invitation
+from app.types.relances import Message
 from tests.conftest import find_session, make_user
 from tests.test_relances import outbox  # noqa: F401  (fixture)
 
@@ -151,3 +151,42 @@ def test_prerequis_de_la_formation_demandes_quand_il_y_en_a(demo: Session) -> No
                             "Secourisme SST ou PSC1 en cours de validité ?")
     service.submit(demo, service.link(inv).rsplit("/", 1)[1], BESOIN | {"prerequis": False}, today=inv.created_at.date())
     assert e.positioning.prerequisites_met is False
+
+
+def test_double_envoi_simultane_une_seule_reponse(demo: Session) -> None:
+    """Deux envois concurrents du même lien : le second attend le verrou du premier, puis voit la réponse."""
+    import threading
+
+    from app.database import db as core_db
+
+    s = find_session(demo, "SST-2026-04")
+    e = next(x for x in s.enrollments if x.status != "ANNULE")
+    token = service.link(service.get_or_create(demo, e, "SATISFACTION_CHAUD", s.end_date)).rsplit("/q/", 1)[1]
+    demo.commit()
+    answers = {"note_globale": 4, "objectifs": 5, "animation": 5, "organisation": 3, "recommandation": True}
+    first, second = core_db.session_factory()(), core_db.session_factory()()
+    outcome: list[object] = []
+
+    def concurrent() -> None:
+        try:
+            service.submit(second, token, answers, today=s.end_date)
+            second.commit()
+            outcome.append("enregistré")
+        except Exception as exc:  # noqa: BLE001
+            second.rollback()
+            outcome.append(exc)
+
+    try:
+        service.submit(first, token, answers, today=s.end_date)  # verrou posé, transaction ouverte
+        worker = threading.Thread(target=concurrent)
+        worker.start()
+        worker.join(timeout=1.0)
+        assert worker.is_alive(), "le second envoi doit attendre la fin du premier"
+        first.commit()
+        worker.join(timeout=10)
+        assert len(outcome) == 1 and isinstance(outcome[0], service.LinkClosed), outcome
+    finally:
+        first.close()
+        second.close()
+    assert demo.scalar(select(func.count()).select_from(t.SatisfactionSurvey).where(
+        t.SatisfactionSurvey.enrollment_id == e.id, t.SatisfactionSurvey.audience == "APPRENANT_CHAUD")) == 1

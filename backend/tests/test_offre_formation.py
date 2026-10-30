@@ -3,8 +3,14 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.training import models as t
-from app.training.import_school import import_gsms_school, load
+from app.application.service.training.import_school import (
+    import_gsms_school,
+    is_filler,
+    load,
+    load_drafts,
+    without_filler,
+)
+from app.types import training as t
 from tests.conftest import make_user
 
 API = "/api/v1"
@@ -21,7 +27,10 @@ def test_import_gsms_school_idempotent_et_prudent(demo: Session) -> None:
     assert ssiap.success_rate is None and ssiap.satisfaction_rate is None, "aucun taux écrit en dur n'est repris"
     assert any(n["champ"] == "success_rate" for n in ssiap.review_notes)
     mac = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1-MAC"))
-    assert mac.modules == [] and any(n["champ"] == "modules" for n in mac.review_notes)
+    assert [m["title"] for m in mac.modules] == ["Actualisation réglementaire", "Moyens de secours", "Mises en situation d'urgence"]
+    assert all(m["details"] and not any(is_filler(d) for d in m["details"]) for m in mac.modules), \
+        "le détail de remplissage de la landing n'est pas repris ; celui rédigé par GSMS l'est"
+    assert sum(n["champ"] == "modules" for n in mac.review_notes) == 3, "à rédiger + intitulés + rédaction à relire"
     cyno = demo.scalar(select(t.Program).where(t.Program.code == "ASC-CYNO"))
     assert cyno.modules[0] | {"details": []} == {"code": "UV1", "title": "Législation et réglementations cynophiles", "details": [], "hours": 35}
     assert "SI.Groupe" not in str([p.evaluation_methods for p in demo.scalars(select(t.Program))])
@@ -35,7 +44,7 @@ def test_import_gsms_school_idempotent_et_prudent(demo: Session) -> None:
     assert ext.premises_id == phoenix.id and ext.quantity == 6 and ext.status == "A_VERIFIER"
 
     again = import_gsms_school(demo)
-    assert again["formations"] == [] and again["lieux"] == [] and again["equipements"] == 0
+    assert again["formations"] == [] and again["lieux"] == [] and again["equipements"] == 0 and again["completees"] == []
     assert demo.scalar(select(func.count()).select_from(t.Program).where(t.Program.catalog_slug.is_not(None))) == 29
 
 
@@ -64,7 +73,8 @@ def test_lieux_et_equipements(client, demo: Session) -> None:  # noqa: ANN001
     assert r.status_code == 201, r.text
     row = r.json()
     assert row["premises_name"] == "Salle A" and row["check_overdue"] and row["category_label"] == "Secourisme"
-    assert client.get(f"{API}/premises", headers=hl).json()[0]["equipment"] == 1
+    listed = {r["id"]: r for r in client.get(f"{API}/premises", headers=hl).json()}
+    assert listed[salle["id"]]["equipment"] == 1
 
 
 def test_resultats_mesures_et_publication(client, demo: Session) -> None:  # noqa: ANN001
@@ -118,7 +128,8 @@ def test_import_complete_une_formation_deja_importee_sans_rien_remplacer(demo: S
     assert (ssiap.track, ssiap.pathway) == ("INCENDIE", "INITIAL") and ssiap.evaluation_steps
     assert ssiap.skills == ["Saisie par la direction"], "une valeur saisie n'est jamais remplacée"
     ssiap2 = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP2-INI"))
-    assert ssiap2.skills == [] and any(n["champ"] == "skills" for n in ssiap2.review_notes)
+    assert ssiap2.skills and any(n["champ"] == "skills" and "Rédigé par GSMS" in n["message"]
+                                 for n in ssiap2.review_notes), "compétences absentes de la vitrine : rédaction GSMS"
     assert import_gsms_school(demo)["completees"] == []
 
 
@@ -150,3 +161,114 @@ def test_liste_des_sessions_porte_la_filiere(client, demo: Session) -> None:  # 
     ssiap = next(r for r in rows if r["program_code"] == "SSIAP1")
     assert ssiap["program_track"] == "INCENDIE" and ssiap["program_track_label"] == "Incendie"
     assert "program_slug" in ssiap
+
+
+def test_landing_sans_texte_de_remplissage() -> None:
+    assert is_filler("Approfondissement des objectifs du module « Moyens de secours ».")
+    assert is_filler("Conformité avec le référentiel et les objectifs pédagogiques du parcours.")
+    assert is_filler("Parcours « OVT » : pièces et niveau demandés au bulletin d'inscription.")
+    assert is_filler("Être majeur (18 ans révolus) ou dérogation conforme au référentiel.") and is_filler("Bloc 4")
+    assert not is_filler("Casier judiciaire vierge (enquête administrative)")
+    assert without_filler("modules", [{"code": "UV1", "title": "Bloc 5", "details": []}]) is None
+    assert without_filler("prerequisites", ["Bloc 4", "Diplôme SSIAP 1"]) == ["Diplôme SSIAP 1"]
+    data = load()
+    assert "landing_fiches" in data["sources"]
+    for c in data["complements_landing"]:
+        assert set(c) <= {"catalog_slug", "modules", "teaching_methods", "prerequisites", "audience", "content", "outcomes",
+                          "trainees_min", "trainees_max", "access_conditions", "badge", "review_notes"}
+        text = str({k: v for k, v in c.items() if k != "review_notes"})
+        assert not any(w in text for w in ("Approfondissement", "Conformité avec", "Sur devis", "exemple.fr", "%  ")), c
+        for key in ("modules", "teaching_methods", "prerequisites", "audience", "content"):
+            if key in c:
+                assert without_filler(key, c[key]) == c[key], c["catalog_slug"]
+                assert any(n["champ"] == key and "à relire" in n["message"] for n in c["review_notes"])
+
+
+def test_landing_complete_sans_rien_remplacer(demo: Session) -> None:
+    import_gsms_school(demo)
+    ovt = demo.scalar(select(t.Program).where(t.Program.code == "OVT"))
+    assert ovt.teaching_methods.startswith("Répartition annoncée sur la vitrine (landing) : 50 % théorie")
+    assert any(n["champ"] == "teaching_methods" and "à relire" in n["message"] for n in ovt.review_notes)
+    mac_aps = demo.scalar(select(t.Program).where(t.Program.code == "MAC-APS"))
+    assert "20% théorie, 80% pratique" in mac_aps.teaching_methods, "la fiche vitrine reste, l'écart est noté"
+    assert any(n["champ"] == "teaching_methods" and "écart" in n["message"] for n in mac_aps.review_notes)
+    # Saisie par la direction, puis base importée avant la landing : rubriques vides sauf celle saisie.
+    ssiap2 = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP2-MAC"))
+    ssiap2.modules = [{"code": "M1", "title": "Saisi par la direction", "details": []}]
+    ssiap3 = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP3-MAC"))
+    ssiap3.modules = []
+    ssiap3.review_notes = [n for n in ssiap3.review_notes if "à relire" not in n["message"]]
+    ssiap2.review_notes = [n for n in ssiap2.review_notes if "à relire" not in n["message"]]
+    demo.flush()
+    out = import_gsms_school(demo)
+    assert "SSIAP3-MAC" in out["completees"] and "SSIAP2-MAC" not in out["completees"]
+    assert ssiap2.modules == [{"code": "M1", "title": "Saisi par la direction", "details": []}], "jamais remplacé"
+    assert not any("à relire" in n["message"] for n in ssiap2.review_notes), "pas de note sur une valeur non reprise"
+    assert [m["code"] for m in ssiap3.modules] == ["UV1", "UV2", "UV3"]
+    notes = len(ssiap3.review_notes)
+    assert import_gsms_school(demo)["completees"] == [] and len(ssiap3.review_notes) == notes, "idempotent"
+
+
+def test_redaction_gsms_signalee_et_sans_promesse() -> None:
+    data = load_drafts()
+    slugs = {f["catalog_slug"] for f in load()["formations"]} | {"tfp-aps"}
+    for f in data["formations"]:
+        assert f["catalog_slug"] in slugs and f["textes"] and f["objectives"] and f["teaching_means"], f["catalog_slug"]
+        text = str(f)
+        assert not any(w in text for w in ("%", "taux", "obligatoire", "garanti")), f["catalog_slug"]
+        assert "accessibility_info" not in f and "access_delay" not in f, "propres à l'organisme, jamais rédigés ici"
+    assert all("inventaire" in m for m in data["moyens"].values()), "les moyens disent d'où vient le matériel"
+
+
+def test_redaction_gsms_complete_sans_rien_remplacer(demo: Session) -> None:
+    import_gsms_school(demo)
+    epi = demo.scalar(select(t.Program).where(t.Program.code == "EPI"))
+    assert epi.objectives and epi.skills and "Aire feu" in epi.teaching_means
+    assert {n["champ"] for n in epi.review_notes if "Rédigé par GSMS" in n["message"]} >= {"objectives", "skills",
+                                                                                            "teaching_means"}
+    ssiap1 = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1-MAC"))
+    assert all(m["details"] for m in ssiap1.modules), "détail des recyclages SSIAP rédigé"
+    assert any(n["champ"] == "modules" and "Rédigé par GSMS" in n["message"] for n in ssiap1.review_notes)
+    # Une rubrique saisie par l'organisme n'est jamais remplacée, ni annotée.
+    br = demo.scalar(select(t.Program).where(t.Program.code == "BR"))
+    br.objectives = ["Saisi par la direction"]
+    br.teaching_means = None
+    br.review_notes = [n for n in br.review_notes if "Rédigé par GSMS" not in n["message"]]
+    demo.flush()
+    out = import_gsms_school(demo)
+    assert "BR" in out["completees"] and br.objectives == ["Saisi par la direction"]
+    assert br.teaching_means and [n["champ"] for n in br.review_notes if "Rédigé par GSMS" in n["message"]] == [
+        "teaching_means"]
+    notes = len(br.review_notes)
+    assert import_gsms_school(demo)["completees"] == [] and len(br.review_notes) == notes, "idempotent"
+
+
+def test_rubriques_vitrine_reprises_de_la_landing(demo: Session) -> None:
+    import_gsms_school(demo)
+    ovt = demo.scalar(select(t.Program).where(t.Program.code == "OVT"))
+    assert ovt.outcomes == ["Opérateur PC", "Agent de télésurveillance", "Opérateur vidéoprotection"]
+    assert (ovt.trainees_min, ovt.trainees_max, ovt.badge) == (4, 12, "Titre Pro")
+    casier = next(c["value"] for c in ovt.access_conditions if c["label"] == "Casier judiciaire")
+    assert "vierge" not in casier.lower(), "le CNAPS examine la compatibilité du casier, pas son absence"
+    ssiap = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI"))
+    assert "Casier judiciaire" not in [c["label"] for c in ssiap.access_conditions]
+    guide = demo.scalar(select(t.Program).where(t.Program.code == "GUIDE-FILE"))
+    assert not any("certifié" in o for o in guide.outcomes)
+    assert any(n["champ"] == "outcomes" and "à relire" in n["message"] for n in ovt.review_notes)
+
+
+def test_certifications_relevees_sans_attester_la_verification(demo: Session) -> None:
+    import_gsms_school(demo)
+    ssiap = demo.scalar(select(t.Program).where(t.Program.code == "SSIAP2-INI"))
+    cert = demo.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == ssiap.id))
+    assert (cert.basis, cert.code, str(cert.registration_end)) == ("RS", "RS5642", "2026-12-31") and ssiap.is_certifying
+    assert cert.checked_on is None and cert.habilitation == "A_VERIFIER", "la vérification reste humaine"
+    sst = demo.scalar(select(t.Program).where(t.Program.code == "SST-INI"))
+    sst_cert = demo.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == sst.id))
+    assert sst_cert.basis == "NON_CERTIFIANTE" and "inactive" in next(
+        n["message"] for n in sst.review_notes if n["champ"] == "certification")
+    # Une certification saisie n'est jamais remplacée.
+    cert.basis, cert.code = "RNCP", "RNCP00000"
+    demo.flush()
+    import_gsms_school(demo)
+    assert (cert.basis, cert.code) == ("RNCP", "RNCP00000")

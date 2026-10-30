@@ -6,12 +6,12 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.events.models import OutboxEvent
-from app.qualiopi.capa import service as capa
-from app.qualiopi.engine import process_pending, refresh_all
-from app.qualiopi.evaluation.models import ControlResult, Finding
-from app.training import models as t
+from app.application.service.qualiopi.capa import service as capa
+from app.application.service.qualiopi.engine import process_pending, refresh_all
+from app.errors.errors import InvalidStateError
+from app.types import training as t
+from app.types.event import OutboxEvent
+from app.types.qualiopi_evaluation import ControlResult, Finding
 from tests.conftest import TODAY
 
 

@@ -125,16 +125,17 @@ done
 # Première mise en service (une seule fois) : référentiels Qualiopi, ou organisme de démonstration.
 if [[ ! -f .gsms-initialise ]]; then
   if [[ "$DEMO" == "--demo" ]]; then
-    docker compose exec -T api python -m app.cli seed-demo
+    docker compose exec -T api python -m app.cmd.cli seed-demo
   else
-    docker compose exec -T api python -m app.cli import-referential qualiopi/v9
-    docker compose exec -T api python -m app.cli import-referential qualiopi/v10
+    docker compose exec -T api python -m app.cmd.cli import-referential qualiopi/v9
+    docker compose exec -T api python -m app.cmd.cli import-referential qualiopi/v10
   fi
   date -u +%FT%TZ > .gsms-initialise
   echo
   echo "Créez maintenant le compte de direction (mot de passe demandé, 12 caractères minimum) :"
-  echo "  docker compose exec api python -m app.cli create-admin vous@exemple.fr \"Votre nom\""
+  echo "  docker compose exec api python -m app.cmd.cli create-admin vous@exemple.fr \"Votre nom\""
 fi
 
 echo
-echo "GSMS Qualiopi : https://$DOMAIN (le certificat HTTPS peut prendre une minute la première fois)."
+echo "GSMS Qualiopi : https://$DOMAIN/ (site public) et https://$DOMAIN/app/ (back-office)."
+echo "État de l'API : https://$DOMAIN/health (le certificat HTTPS peut prendre une minute la première fois)."

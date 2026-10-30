@@ -1,0 +1,1011 @@
+"""Jeu de données de démonstration avec des trous volontaires.
+
+Toutes les dates sont relatives à `today` : la démo reste cohérente quel que soit le jour.
+Chaque trou planté est listé dans PLANTED_GAPS avec le résultat que le moteur doit produire ;
+les tests vérifient que le moteur les trouve tous, et rien d'autre.
+
+Noms, organismes et codes sont fictifs. Sur une base qui a déjà un organisme (données importées),
+les exemples s'ajoutent à cet organisme sans le modifier ; `remove_demo` les retire tous.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import unicodedata
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
+
+import yaml
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from app.application.service.documents.dossier import find_item
+from app.application.service.documents.service import upload
+from app.application.service.platform.features import is_enabled
+from app.application.service.training.images import complete_program_images
+from app.common.journal import set_actor
+from app.config.config import BACKEND_DIR
+from app.errors.errors import ConflictError
+from app.types import training as t
+from app.types.funding import FundingCase
+from app.types.hr import StaffAbsence, StaffContract, StaffMember
+from app.types.invoicing import Invoice, Payment
+from app.types.preinscriptions import COMPLIANCE, Preinscription
+from app.types.qualiopi_audit import Sequence
+
+ACTOR = "démo"
+PROGRAM_CODES = ("SSIAP1", "SST", "MAC-SST")
+
+LEARNERS = [
+    ("Camille", "Durand"), ("Hugo", "Lefèvre"), ("Inès", "Moreau"), ("Lucas", "Garnier"),
+    ("Léa", "Faure"), ("Nathan", "Rousseau"), ("Chloé", "Blanc"), ("Yanis", "Guerin"),
+    ("Manon", "Muller"), ("Théo", "Henry"), ("Sarah", "Roussel"), ("Adam", "Nicolas"),
+    ("Jade", "Perrin"), ("Louis", "Morin"), ("Emma", "Mathieu"), ("Noah", "Clement"),
+    ("Lina", "Gauthier"), ("Raphaël", "Dumont"),
+]
+
+
+HOT_COMMENTS = {0: "Plateau technique très concret, exercices de feu réels appréciés.",
+                3: "Rythme soutenu le troisième jour ; supports clairs."}
+
+
+@dataclass(frozen=True)
+class Gap:
+    """Un trou planté et ce que le moteur doit en dire."""
+
+    control: str  # clé du contrôle
+    target: str  # référence de session, code formation, ou « organisme »
+    status: str  # état attendu
+    why: str
+
+
+PLANTED_GAPS = (
+    Gap("I01.public-info", "SST", "PREUVES_INSUFFISANTES", "rubrique accessibilité handicap absente"),
+    Gap("I02.results", "SST", "PREUVES_INSUFFISANTES", "aucun taux publié"),
+    Gap("I04.needs-analysis", "SST-2026-02", "PREUVES_INSUFFISANTES", "1 apprenant sur 3 sans analyse du besoin"),
+    Gap("I08.positioning-before-start", "SSIAP1-2026-01", "A_RISQUE", "Adam Nicolas sans positionnement (11/12)"),
+    Gap("I10.adaptations", "SST-2026-02", "PREUVES_INSUFFISANTES", "adaptation demandée, non traitée"),
+    Gap("I12.attendance", "SSIAP1-2026-01", "A_RISQUE", "une demi-journée non signée par Chloé Blanc"),
+    Gap("I12.dropouts", "SSIAP1-2026-01", "PREUVES_INSUFFISANTES", "abandon sans motif"),
+    Gap("I18.coordination-documents", "organisme", "PREUVES_INSUFFISANTES", "compte rendu de réunion pédagogique non déposé"),
+    Gap("I21.trainer-qualification", "SST-2026-02", "PREUVES_INSUFFISANTES", "qualification du formateur expirée avant le début"),
+    Gap("I24.watch-jobs", "organisme", "PREUVES_INSUFFISANTES", "veille métiers notée mais non exploitée"),
+    Gap("I25.watch-pedagogy", "organisme", "A_RISQUE", "veille pédagogique exploitée il y a plus d'un an"),
+    Gap("I26.disability-referent", "organisme", "PREUVES_INSUFFISANTES", "référent handicap sans coordonnées"),
+    Gap("I30.learner-surveys", "SSIAP1-2026-01", "A_RISQUE", "10 questionnaires à chaud sur 12"),
+    Gap("I31.complaints", "organisme", "PREUVES_INSUFFISANTES", "réclamation sans réponse depuis 20 jours"),
+    Gap("I32.improvement", "organisme", "PREUVES_INSUFFISANTES", "aucune action d'amélioration clôturée"),
+)
+
+
+@dataclass(frozen=True)
+class MilestoneGap:
+    """Un jalon d'échéancier planté et l'état attendu (anticipation, pas de constat)."""
+
+    session: str
+    key: str
+    status: str
+    why: str
+
+
+PLANTED_MILESTONES = (
+    MilestoneGap("SSIAP1-2026-01", "J-5.positionnement", "EN_RETARD", "Adam Nicolas sans positionnement"),
+    MilestoneGap("SSIAP1-2026-01", "J0.emargement", "EN_RETARD", "une demi-journée non signée par Chloé Blanc"),
+    MilestoneGap("SSIAP1-2026-01", "FIN.satisfaction-chaud", "EN_RETARD", "2 questionnaires à chaud manquants"),
+    MilestoneGap("SSIAP1-2026-01", "J+45.satisfaction-froid", "A_ECHEANCE", "questionnaires à froid dus dans 9 jours"),
+    MilestoneGap("SST-2026-02", "J-5.besoin", "EN_RETARD", "Louis Morin sans analyse du besoin"),
+    MilestoneGap("SST-2026-04", "J-15.convention", "EN_RETARD", "2 conventions sur 4 signées"),
+    MilestoneGap("SST-2026-04", "J-10.convocation", "EN_RETARD", "aucune convocation, départ dans 8 jours"),
+    MilestoneGap("SST-2026-04", "J-5.positionnement", "A_ECHEANCE", "1 positionnement sur 4, échéance dans 3 jours"),
+)
+
+
+def _at(d: date, hour: int) -> datetime:
+    return datetime.combine(d, time(hour), tzinfo=timezone.utc)
+
+
+def _doc(db: Session, kind: str, title: str, **kw) -> t.Document:  # noqa: ANN003
+    doc = t.Document(
+        kind=kind,
+        title=title,
+        status="EMIS",
+        sha256=hashlib.sha256(f"{kind}:{title}".encode()).hexdigest(),
+        created_by=ACTOR,
+        **kw,
+    )
+    db.add(doc)
+    db.flush()
+    return doc
+
+
+def _grid_yes(subject: str, code: str, sans_objet: tuple[str, ...] = ()) -> dict[str, str]:
+    """Grille de dépôt entièrement satisfaite (points listés : sans objet)."""
+    return {g.code: ("SANS_OBJET" if g.code in sans_objet else "OUI") for g in find_item(subject, code).grille}
+
+
+def _pdf(title: str) -> bytes:
+    """PDF d'une page avec du texte lisible (démo uniquement) : le moteur IA peut l'extraire et l'indexer.
+
+    Police standard Helvetica en WinAnsi : pas de dépendance, accents français compris."""
+    lines = [f"GSMS Qualiopi - document de démonstration : {title}",
+             "Pièce fictive créée par seed-demo, sans valeur de preuve.",
+             "À remplacer par le document réel de l'organisme avant la mise en service."]
+    esc = [x.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") for x in lines]
+    body = ("BT /F1 11 Tf 50 790 Td 16 TL " + " ".join(f"({x}) '" for x in esc) + " ET").encode("cp1252", "replace")
+    objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+               b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R "
+               b"/Resources << /Font << /F1 5 0 R >> >> >>",
+               b"<< /Length %d >>\nstream\n" % len(body) + body + b"\nendstream",
+               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"]
+    out, offsets = bytearray(b"%PDF-1.4\n"), []
+    for number, obj in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % number + obj + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
+    return bytes(out)
+
+
+def _slots(db: Session, s: t.TrainingSession, days: list[date]) -> list[t.AttendanceSlot]:
+    slots = []
+    for d in days:
+        for period in ("MATIN", "APRES_MIDI"):
+            sl = t.AttendanceSlot(session_id=s.id, day=d, period=period, created_by=ACTOR)
+            db.add(sl)
+            slots.append(sl)
+    db.flush()
+    return slots
+
+
+def _sign(db: Session, slot: t.AttendanceSlot, e: t.Enrollment, signed: bool = True) -> None:
+    hour = 9 if slot.period == "MATIN" else 14
+    db.add(t.AttendanceSignature(slot_id=slot.id, enrollment_id=e.id, present=True,
+                                 signed_at=_at(slot.day, hour) if signed else None, created_by=ACTOR))
+
+
+def _enroll(db: Session, s: t.TrainingSession, learner: t.Learner, status: str) -> t.Enrollment:
+    e = t.Enrollment(session_id=s.id, learner_id=learner.id, status=status, funding="OPCO", created_by=ACTOR)
+    db.add(e)
+    db.flush()
+    return e
+
+
+def demo_email(first: str, last: str) -> str:
+    """Adresse fictive d'une personne de la démo (domaine réservé exemple.fr), sans accents."""
+    local = unicodedata.normalize("NFKD", f"{first}.{last}".lower().replace(" ", "-")).encode("ascii", "ignore").decode()
+    return f"{local}@exemple.fr"
+
+
+def complete_demo_trainer_emails(db: Session) -> list[str]:
+    """Donne leur adresse fictive aux formateurs de la démo qui n'en ont pas (base installée avant leur ajout).
+
+    Seuls les formateurs créés par la démo sont touchés, et jamais une adresse déjà saisie."""
+    done = []
+    for trainer in db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR, t.Trainer.email.is_(None))):
+        trainer.email = demo_email(trainer.first_name, trainer.last_name)
+        done.append(trainer.email)
+    db.flush()
+    return done
+
+
+# Équipe de la landing (config/organisme/equipe.yaml) : formateurs et personnel de la démo, avec leur photo.
+EQUIPE = BACKEND_DIR / "config" / "organisme" / "equipe.yaml"
+AVATARS_DIR = "media/avatars/"
+
+
+def avatar(number: int) -> str:
+    return f"{AVATARS_DIR}300-{number}.png"
+
+
+def equipe() -> dict:
+    return yaml.safe_load(EQUIPE.read_text(encoding="utf-8"))
+
+
+# Genre des prénoms des stagiaires de la démo, écrit à la main (aucune déduction) : un prénom absent n'a pas de photo.
+GENRES = {
+    **dict.fromkeys(("Camille", "Inès", "Léa", "Chloé", "Manon", "Sarah", "Jade", "Emma", "Lina", "Nora", "Zoé"), "F"),
+    **dict.fromkeys(("Hugo", "Lucas", "Nathan", "Yanis", "Théo", "Adam", "Louis", "Noah", "Raphaël", "Paul", "Éric"), "H"),
+}
+
+
+# Volet de la landing → service du personnel (STAFF_SERVICES).
+SERVICES = {"direction": "DIRECTION", "pedagogique": "PEDAGOGIE", "rh": "RH"}
+
+
+def _member(db: Session, p: dict) -> t.Trainer | StaffMember | None:
+    model = t.Trainer if p["volet"] == "formateur" else StaffMember
+    return db.scalar(select(model).where(model.created_by == ACTOR, model.first_name == p["prenom"],
+                                         model.last_name == p["nom"]))
+
+
+def seed_team(db: Session) -> dict[str, t.Trainer | StaffMember]:
+    """Crée l'équipe de la landing : formateurs (spécialités = certifications affichées, aucun titre) et personnel
+    (volet du site). Présentés sur le site, avec la photo du fichier. Une personne déjà là n'est pas recréée."""
+    people: dict[str, t.Trainer | StaffMember] = {}
+    for p in equipe()["equipe"]:
+        found = _member(db, p)
+        if found is None:
+            common = {"first_name": p["prenom"], "last_name": p["nom"], "email": demo_email(p["prenom"], p["nom"]),
+                      "photo_url": avatar(p["photo"]), "site_visible": True, "site_title": p["fonction"],
+                      "site_bio": p["bio"], "created_by": ACTOR}
+            if p["volet"] == "formateur":
+                found = t.Trainer(**common, specialties=list(p["certifications"]))
+            else:
+                found = StaffMember(**common, kind="SALARIE", job_title=p["fonction"], service=SERVICES[p["volet"]])
+            db.add(found)
+        people[p["id"]] = found
+    db.flush()
+    return people
+
+
+def demo_photos(db: Session) -> dict[str, str | None]:
+    """Photo voulue pour chaque personne de la démo (id → chemin, ou None : initiales).
+
+    Équipe : la photo du fichier. Stagiaires (par nom, prénom) : les photos réservées aux stagiaires, selon le genre du
+    prénom, distinctes sauf le partage permis par le fichier ; ensuite, initiales."""
+    data = equipe()
+    out: dict[str, str | None] = {}
+    for p in data["equipe"]:
+        member = _member(db, p)
+        if member is not None:
+            out[member.id] = avatar(p["photo"])
+    # Chaque photo une fois dans l'ordre, puis (si le partage est permis) une deuxième fois, etc.
+    pools = {g: [n for _ in range(data["partage_max"][g]) for n in numbers] for g, numbers in data["stagiaires"].items()}
+    learners = db.scalars(select(t.Learner).where(t.Learner.created_by == ACTOR)
+                          .order_by(t.Learner.last_name, t.Learner.first_name, t.Learner.id))
+    for learner in learners:
+        pool = pools.get(GENRES.get(learner.first_name, ""), [])
+        out[learner.id] = avatar(pool.pop(0)) if pool else None
+    return out
+
+
+def complete_demo_photos(db: Session, corriger: bool = False) -> int:
+    """Donne leur photo aux personnes de la démo. Par défaut, seulement à celles qui n'en ont pas ; avec `corriger`,
+    remplace aussi une photo d'exemple (media/avatars/) mal attribuée. Une autre photo n'est jamais touchée, et rien
+    hors de la démo n'est modifié."""
+    wanted = demo_photos(db)
+    changed = 0
+    for model in (t.Trainer, StaffMember, t.Learner):
+        for person in db.scalars(select(model).where(model.created_by == ACTOR)):
+            target = wanted.get(person.id)
+            replaceable = person.photo_url is None or (corriger and person.photo_url.startswith(AVATARS_DIR))
+            if replaceable and person.photo_url != target:
+                person.photo_url = target
+                changed += 1
+    db.flush()
+    return changed
+
+
+# Identités fictives des stagiaires de la démo : rues inventées, communes d'Île-de-France, situations courantes.
+_RUES = ("rue des Coquelicots-Bleus", "allée du Verger-d'Hiver", "rue du Moulin-de-Pierre-Blanche", "impasse des Trois-Lanternes",
+         "rue de la Fontaine-aux-Merles", "avenue des Cèdres-Argentés", "rue du Clos-des-Hirondelles", "allée des Sept-Saules")
+_COMMUNES = (("93000", "Bobigny"), ("93100", "Montreuil"), ("93200", "Saint-Denis"), ("94000", "Créteil"),
+             ("94400", "Vitry-sur-Seine"), ("92000", "Nanterre"), ("95100", "Argenteuil"), ("91000", "Évry-Courcouronnes"),
+             ("77100", "Meaux"), ("78200", "Mantes-la-Jolie"), ("75011", "Paris"), ("75019", "Paris"))
+_NAISSANCES = (("Paris", "75", "France", "Française"), ("Lyon", "69", "France", "Française"), ("Lille", "59", "France", "Française"),
+               ("Créteil", "94", "France", "Française"), ("Marseille", "13", "France", "Française"),
+               ("Bobigny", "93", "France", "Française"), ("Casablanca", None, "Maroc", "Marocaine"),
+               ("Dakar", None, "Sénégal", "Sénégalaise"), ("Porto", None, "Portugal", "Portugaise"))
+_SITUATIONS = ("Demandeur d'emploi", "Salarié", "Reconversion professionnelle", "Salarié en CDD", "Intérimaire",
+               "Étudiant", "Demandeur d'emploi")
+
+
+def complete_demo_identities(db: Session) -> int:
+    """Identité et coordonnées fictives des personnes de la démo, seulement dans les champs vides.
+
+    Stagiaires : civilité selon le prénom (GENRES), naissance (19 à 55 ans), nationalité, adresse inventée en
+    Île-de-France, situation actuelle. Formateurs et personnel : téléphone fictif « 06 00 00 00 xx » (plage réservée
+    aux exemples, jamais un vrai numéro). Ordre stable (nom, prénom) : mêmes valeurs d'une installation à l'autre."""
+    year = date.today().year
+    changed = 0
+
+    def fill(obj: object, **values: object) -> None:
+        nonlocal changed
+        for key, value in values.items():
+            if getattr(obj, key) in (None, "") and value is not None:
+                setattr(obj, key, value)
+                changed += 1
+
+    learners = db.scalars(select(t.Learner).where(t.Learner.created_by == ACTOR)
+                          .order_by(t.Learner.last_name, t.Learner.first_name, t.Learner.id))
+    for i, learner in enumerate(learners):
+        city, department, country, nationality = _NAISSANCES[i % len(_NAISSANCES)]
+        postal_code, town = _COMMUNES[i % len(_COMMUNES)]
+        genre = GENRES.get(learner.first_name)
+        fill(learner, civility={"F": "MME", "H": "M"}.get(genre or ""),
+             birth_date=date(year - 19 - (i * 7) % 37, i % 12 + 1, (i * 5) % 28 + 1),
+             birth_city=city, birth_department=department, birth_country=country, nationality=nationality,
+             address=f"{(i * 13) % 90 + 2} {_RUES[i % len(_RUES)]}", postal_code=postal_code, city=town,
+             current_situation=_SITUATIONS[i % len(_SITUATIONS)])
+    people = [*db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR).order_by(t.Trainer.last_name, t.Trainer.first_name)),
+              *db.scalars(select(StaffMember).where(StaffMember.created_by == ACTOR)
+                          .order_by(StaffMember.last_name, StaffMember.first_name))]
+    for i, person in enumerate(people, start=1):
+        fill(person, phone=f"06 00 00 00 {i:02d}")
+    db.flush()
+    return changed
+
+
+DEMO_FICHES = BACKEND_DIR / "config" / "catalogue" / "demo-fiches.yaml"
+DEMO_NOTE_SOURCE = "démo"
+
+
+def complete_demo_programs(db: Session) -> list[str]:
+    """Rubriques des fiches que seul l'organisme peut renseigner (délai d'accès, accessibilité, tarif…) : valeurs
+    fictives de demo-fiches.yaml sur les seules rubriques vides, chacune avec une note « démo » que retirer-demo suit."""
+    data = yaml.safe_load(DEMO_FICHES.read_text(encoding="utf-8"))
+    touched: list[str] = []
+    for program in db.scalars(select(t.Program).where(t.Program.code.in_(data["programmes"]))):
+        values = data["programmes"][program.code]
+        filled = [key for key, value in values.items() if value not in (None, "", []) and not getattr(program, key)]
+        for key in filled:
+            setattr(program, key, values[key])
+        if filled:
+            program.review_notes = [*(program.review_notes or []),
+                                    *({"champ": key, "message": data["note"], "source": DEMO_NOTE_SOURCE} for key in filled)]
+            touched.append(program.code)
+    touched.extend(c for c in _assign_demo_trainers(db, data["intervenants"]["par_formation"]) if c not in touched)
+    db.flush()
+    return touched
+
+
+def _assign_demo_trainers(db: Session, by_code: dict[str, list[str]]) -> list[str]:
+    """Formations sans intervenant : formateurs de l'équipe de démo (jamais un formateur saisi ou importé)."""
+    trainers = {f"{x.first_name} {x.last_name}": x for x in db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR))}
+    staffed = set(db.scalars(select(t.ProgramTrainer.program_id)))
+    done: list[str] = []
+    for program in db.scalars(select(t.Program).where(t.Program.code.in_(by_code), t.Program.id.not_in(staffed))):
+        names = [n for n in by_code[program.code] if n in trainers]
+        for name in names:
+            db.add(t.ProgramTrainer(program_id=program.id, trainer_id=trainers[name].id, role="FORMATEUR"))
+        if names:
+            done.append(program.code)
+    return done
+
+
+def _clear_demo_program_values(db: Session) -> int:
+    """Vide les rubriques remplies par complete_demo_programs sur les formations qui ne sont pas d'exemple."""
+    n = 0
+    for program in db.scalars(select(t.Program).where(t.Program.created_by != ACTOR)):
+        demo = [x for x in program.review_notes or [] if x.get("source") == DEMO_NOTE_SOURCE]
+        if not demo:
+            continue
+        for x in demo:
+            setattr(program, x["champ"], [] if isinstance(getattr(program, x["champ"]), list) else None)
+        program.review_notes = [x for x in program.review_notes if x.get("source") != DEMO_NOTE_SOURCE]
+        n += 1
+    return n
+
+
+# Formation d'exemple → fiche du catalogue qui la remplace quand l'offre a été importée (import-gsms-school).
+CATALOGUE_TWINS = {"SSIAP1": "SSIAP1-INI", "SST": "SST-INI", "MAC-SST": "SST-MAC"}
+
+
+def merge_demo_programs(db: Session) -> list[str]:
+    """Sur une base où le catalogue est importé, les formations d'exemple feraient doublon : tout ce qui les
+    référence (sessions, préinscriptions, documents…) passe à la fiche du catalogue, puis elles sont retirées.
+    Le trou planté I01 de la formation SST d'exemple n'existe alors pas : la fiche du catalogue n'est jamais dégradée."""
+    import app.types.registry  # noqa: F401 (toutes les tables connues, pour suivre les clés étrangères)
+    from app.database.db import Base
+    from app.types.qualiopi_capa import CapaAction
+    from app.types.qualiopi_evaluation import ControlResult, ControlResultHistory, Finding
+
+    program_table = t.Program.__table__
+    merged: list[str] = []
+    for demo_code, twin_code in CATALOGUE_TWINS.items():
+        demo = db.scalar(select(t.Program).where(t.Program.code == demo_code, t.Program.created_by == ACTOR))
+        twin = db.scalar(select(t.Program).where(t.Program.code == twin_code))
+        if demo is None or twin is None:
+            continue
+        for table in Base.metadata.tables.values():
+            if table is program_table or table.name in ("program_certification", "program_trainer"):
+                continue  # propres à la fiche : ceux de la formation d'exemple partent avec elle
+            for fk in table.foreign_keys:
+                if fk.column.table is program_table:
+                    db.execute(table.update().where(fk.parent == demo.id).values({fk.parent.name: twin.id}))
+        findings = select(Finding.id).where(Finding.target_id == demo.id)
+        db.execute(delete(CapaAction).where(CapaAction.finding_id.in_(findings)))
+        db.execute(delete(Finding).where(Finding.target_id == demo.id))
+        for model in (ControlResult, ControlResultHistory):
+            db.execute(delete(model).where(model.target_id == demo.id))
+        db.delete(demo)
+        merged.append(f"{demo_code} → {twin_code}")
+    db.flush()
+    return merged
+
+
+def complete_demo(db: Session, corriger: bool = False) -> dict:
+    """Complète une démo déjà installée (adresses des formateurs, photos, identités et téléphones fictifs, vignettes
+    et rubriques des fiches formation) sans rien remplacer ; `corriger` réattribue aussi les photos d'exemple
+    (voir complete_demo_photos)."""
+    return {"adresses": complete_demo_trainer_emails(db), "photos": complete_demo_photos(db, corriger),
+            "identites": complete_demo_identities(db), "vignettes": complete_program_images(db, PROGRAM_CODES),
+            "fiches": complete_demo_programs(db), "fusions": merge_demo_programs(db)}
+
+
+def seed_demo(db: Session, today: date | None = None) -> dict:
+    """Installe les exemples. Sur une base vide, crée l'organisme de démonstration ; sinon les exemples
+    rejoignent l'organisme existant, qui n'est pas modifié. Refuse si les exemples sont déjà là."""
+    today = today or date.today()
+    set_actor(db, ACTOR)
+    if db.scalar(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR).limit(1)) is not None:
+        raise ConflictError("Les données d'exemple sont déjà installées")
+    taken = db.scalars(select(t.Program.code).where(t.Program.code.in_(PROGRAM_CODES))).all()
+    if taken:
+        raise ConflictError(f"Formation {', '.join(taken)} déjà présente : les exemples ne l'écrasent pas")
+
+    def d(days: int) -> date:
+        return today + timedelta(days=days)
+
+    org = db.scalar(select(t.Organization))
+    if org is None:
+        org = t.Organization(
+            name="Organisme de démonstration", nda_number="00 00 00000 00", siret="00000000000000",
+            action_categories=["AF"], disability_referent_name="Émilie Bernard", created_by=ACTOR,
+        )  # trou : référent handicap sans e-mail (I26)
+        db.add(org)
+        db.flush()
+    # Dossier qualité : organigramme et inventaire déposés ; trou I18 : pas de compte rendu de réunion pédagogique.
+    # Chaque pièce est déposée avec sa grille cochée, comme le ferait l'assistant qualité.
+    upload(db, subject="ORGANISME", subject_id=org.id, requirement="ORGANIGRAMME", content=_pdf("ORGANIGRAMME"),
+           filename="organigramme.pdf", mime="application/pdf", checklist=_grid_yes("ORGANISME", "ORGANIGRAMME"))
+    upload(db, subject="ORGANISME", subject_id=org.id, requirement="CATALOGUE_RESSOURCES", content=_pdf("CATALOGUE_RESSOURCES"),
+           filename="catalogue_ressources.pdf", mime="application/pdf",
+           checklist=_grid_yes("ORGANISME", "CATALOGUE_RESSOURCES", sans_objet=("DISTANCE",)),
+           note="Aucun module à distance au catalogue.")
+    db.add(t.PartnerNetwork(kind="HANDICAP", name="Réseau handicap du département", last_contact_on=d(-60), created_by=ACTOR))
+    db.add(t.WatchItem(domain="LEGALE", title="Réforme du financement de la formation", noted_on=d(-45),
+                       exploitation="Conditions générales mises à jour", exploited_on=d(-30), created_by=ACTOR))
+    db.add(t.WatchItem(domain="METIERS", title="Évolution du métier d'agent SSIAP", noted_on=d(-40), created_by=ACTOR))  # trou I24
+    db.add(t.WatchItem(domain="PEDAGOGIQUE", title="Classe inversée en sécurité incendie", noted_on=d(-520),
+                       exploitation="Module e-learning ajouté", exploited_on=d(-500), created_by=ACTOR))  # trou I25
+    db.add(t.Complaint(kind="RECLAMATION", stakeholder="ENTREPRISE", received_on=d(-20),
+                       description="Facture reçue sans l'attestation de présence.", created_by=ACTOR))  # trou I31
+
+    ssiap = t.Program(
+        code="SSIAP1", title="Agent de service de sécurité incendie (SSIAP 1)", action_category="AF",
+        track="INCENDIE", pathway="INITIAL",
+        is_certifying=True, rncp_code="RS00000", duration_hours=Decimal("70"), price_eur=Decimal("1200"),
+        prerequisites=["Aptitude médicale", "Secourisme SST ou PSC1 en cours de validité"],
+        objectives=["Prévenir les risques d'incendie dans un établissement recevant du public",
+                    "Intervenir face à un début d'incendie et évacuer le public"],
+        content="Le feu et ses conséquences ; sécurité incendie ; installations techniques ; rôle de l'agent.",
+        teaching_methods="Apports théoriques, exercices sur plateau technique, mises en situation.",
+        evaluation_methods="QCM et épreuve pratique devant jury.",
+        access_delay="Inscription jusqu'à 10 jours avant le démarrage",
+        accessibility_info="Locaux accessibles ; adaptations étudiées avec la référente handicap.",
+        certification_alignment="Correspondance module par module avec le référentiel de certification.",
+        public_info_reviewed_on=d(-30), success_rate=Decimal("92"), satisfaction_rate=Decimal("90"),
+        created_by=ACTOR,
+    )
+    sst = t.Program(
+        code="SST", title="Sauveteur secouriste du travail", action_category="AF", is_certifying=False,
+        track="SST", pathway="INITIAL",
+        duration_hours=Decimal("14"), price_eur=Decimal("250"),
+        prerequisites=["Aucun"], objectives=["Porter secours à une victime sur son lieu de travail"],
+        content="Protéger, examiner, alerter, secourir.",
+        teaching_methods="Démonstrations et cas pratiques.", evaluation_methods="Évaluation certificative continue.",
+        access_delay="Sous 15 jours", public_info_reviewed_on=d(-60), created_by=ACTOR,
+    )  # trous : accessibilité absente (I01), aucun taux publié (I02)
+    mac_sst = t.Program(
+        code="MAC-SST", title="Maintien et actualisation des compétences SST", action_category="AF",
+        is_certifying=False, track="SST", pathway="MAC", duration_hours=Decimal("7"), price_eur=Decimal("150"),
+        prerequisites=["Certificat SST obtenu ou actualisé depuis moins de 24 mois"],
+        objectives=["Actualiser les gestes de secours au regard des évolutions des procédures",
+                    "Maintenir sa capacité à intervenir face à une situation d'accident du travail"],
+        content="Retour d'expérience ; actualisation des gestes ; cas concrets ; prévention dans l'entreprise.",
+        teaching_methods="Cas concrets sur mannequins, échanges sur les pratiques.",
+        evaluation_methods="Évaluation continue sur cas concrets.",
+        access_delay="Sous 15 jours",
+        accessibility_info="Salles accessibles de plain-pied ; adaptations étudiées avec la référente handicap.",
+        public_info_reviewed_on=d(-20), satisfaction_rate=Decimal("94"), created_by=ACTOR,
+    )
+    db.add_all([ssiap, sst, mac_sst])
+
+    # Formateurs et personnel : l'équipe de la landing. Sessions selon les spécialités affichées : SSIAP pour
+    # Sandrine Moreau (SSIAP 3), SST pour Marc Perrin (formateur SST), MAC SST pour Nadia Khelifi (prévention).
+    team = seed_team(db)
+    sandrine, marc, nadia = team["sandrine-moreau"], team["marc-perrin"], team["nadia-khelifi"]
+    _team_scenarios(db, d, team)
+
+    learners = [t.Learner(first_name=f, last_name=n, email=f"{f.lower()}.{n.lower()}@exemple.fr", created_by=ACTOR) for f, n in LEARNERS]
+    db.add_all(learners)
+    db.flush()
+
+    # ── Session terminée : SSIAP1-2026-01 ────────────────────────────────────────
+    s1 = t.TrainingSession(reference="SSIAP1-2026-01", program_id=ssiap.id, start_date=d(-40), end_date=d(-36),
+                           location="Centre de Bobigny", room="Plateau technique", trainer_id=sandrine.id,
+                           capacity=14, status="TERMINEE", created_by=ACTOR)
+    db.add(s1)
+    db.flush()
+    slots1 = _slots(db, s1, [d(-40 + i) for i in range(5)])
+    for i, learner in enumerate(learners[:12]):
+        e = _enroll(db, s1, learner, "TERMINE")
+        db.add(t.NeedsAnalysis(enrollment_id=e.id, completed_on=d(-55), summary="Projet professionnel validé", created_by=ACTOR))
+        if i != 11:  # trou I08 : Adam Nicolas n'a pas de positionnement
+            db.add(t.Positioning(enrollment_id=e.id, method="QCM d'entrée", completed_on=d(-50), level="débutant",
+                                 prerequisites_met=True, created_by=ACTOR))
+        db.add(t.Convocation(enrollment_id=e.id, sent_on=d(-50), created_by=ACTOR))
+        db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-52), signed_on=d(-48), signed_by="Service RH de l'employeur", created_by=ACTOR))
+        for sl in slots1:
+            _sign(db, sl, e, signed=not (i == 6 and sl is slots1[3]))  # trou I12 : Chloé Blanc, 1 demi-journée
+        db.add(t.Assessment(enrollment_id=e.id, kind="SOMMATIVE", label="QCM final", assessed_on=d(-36),
+                            score=Decimal("15"), passed=True, created_by=ACTOR))
+        db.add(t.Assessment(enrollment_id=e.id, kind="EXAMEN", label="Épreuve pratique devant jury", assessed_on=d(-36),
+                            passed=True, created_by=ACTOR))
+        db.add(t.Certificate(enrollment_id=e.id, kind="CERTIFICAT", issued_on=d(-35), created_by=ACTOR))
+        if i < 10:  # trou I30 : 10 réponses à chaud sur 12
+            db.add(t.SatisfactionSurvey(session_id=s1.id, enrollment_id=e.id, audience="APPRENANT_CHAUD",
+                                        sent_on=d(-36), answered_on=d(-36), score=Decimal("4.5"),
+                                        comment=HOT_COMMENTS.get(i), created_by=ACTOR))
+    # trou I12 : abandon au 2e jour, sans motif
+    quit_ = _enroll(db, s1, learners[12], "ABANDON")
+    quit_.abandoned_on = d(-39)
+    db.add(t.NeedsAnalysis(enrollment_id=quit_.id, completed_on=d(-55), created_by=ACTOR))
+    for sl in slots1[:3]:
+        _sign(db, sl, quit_)
+
+    # ── Session en cours : SST-2026-02 ───────────────────────────────────────────
+    s2 = t.TrainingSession(reference="SST-2026-02", program_id=sst.id, start_date=d(-3), end_date=d(1),
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=marc.id, capacity=10,
+                           status="EN_COURS", created_by=ACTOR)
+    db.add(s2)
+    db.flush()
+    slots2 = _slots(db, s2, [d(-3), d(-2), d(-1), d(0), d(1)])
+    for i, learner in enumerate(learners[13:16]):
+        e = _enroll(db, s2, learner, "CONFIRME")
+        if i == 1:
+            db.add(t.NeedsAnalysis(enrollment_id=e.id, completed_on=d(-10), summary="Aucun besoin particulier", created_by=ACTOR))
+        if i == 2:  # trou I10 : adaptation demandée, pas traitée
+            db.add(t.NeedsAnalysis(enrollment_id=e.id, completed_on=d(-10), summary="Malentendance",
+                                   adaptation_required=True, adaptation_status="A_TRAITER", created_by=ACTOR))
+        # i == 0 : trou I04, aucune analyse du besoin
+        db.add(t.Positioning(enrollment_id=e.id, method="Entretien", completed_on=d(-8), prerequisites_met=True, created_by=ACTOR))
+        db.add(t.Convocation(enrollment_id=e.id, sent_on=d(-12), created_by=ACTOR))
+        db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-14), signed_on=d(-11), signed_by="Service RH de l'employeur", created_by=ACTOR))
+        for sl in slots2:
+            if sl.day <= today:
+                _sign(db, sl, e)
+
+    # ── Session à venir : SSIAP1-2026-03 (rien n'est encore exigible) ─────────────
+    s3 = t.TrainingSession(reference="SSIAP1-2026-03", program_id=ssiap.id, start_date=d(30), end_date=d(34),
+                           location="Centre de Bobigny", room="Plateau technique", trainer_id=sandrine.id, capacity=14,
+                           status="PLANIFIEE", created_by=ACTOR)
+    db.add(s3)
+    db.flush()
+    s3_enrollments = [_enroll(db, s3, learner, "INSCRIT") for learner in learners[16:18]]
+
+    # ── Session qui démarre dans 8 jours : SST-2026-04 ───────────────────────────
+    # Encore « planifiée » : aucun contrôle Qualiopi n'est exigible, seul l'échéancier alerte.
+    s4 = t.TrainingSession(reference="SST-2026-04", program_id=sst.id, start_date=d(8), end_date=d(9),
+                           location="Site client ACME", trainer_id=marc.id, capacity=8, status="PLANIFIEE",
+                           created_by=ACTOR)
+    db.add(s4)
+    db.flush()
+    acme = [t.Learner(first_name=f, last_name=n, email=f"{f.lower()}.{n.lower()}@acme.exemple", created_by=ACTOR)
+            for f, n in (("Paul", "Lambert"), ("Nora", "Fontaine"), ("Éric", "Chevalier"), ("Zoé", "Robin"))]
+    db.add_all(acme)
+    db.flush()
+    for i, learner in enumerate(acme):
+        e = _enroll(db, s4, learner, "INSCRIT")
+        db.add(t.NeedsAnalysis(enrollment_id=e.id, completed_on=d(-12), summary="Recueilli auprès de l'employeur", created_by=ACTOR))
+        if i < 2:
+            db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-20), signed_on=d(-16), signed_by="DRH ACME", created_by=ACTOR))
+        elif i == 2:
+            db.add(t.Agreement(enrollment_id=e.id, sent_on=d(-20), created_by=ACTOR))  # envoyée, pas signée
+        if i == 0:
+            db.add(t.Positioning(enrollment_id=e.id, method="Questionnaire en ligne", completed_on=d(-1), created_by=ACTOR))
+
+    # ── Deux sessions à venir dans la même salle, le même jour : le conflit visible au planning ─────
+    # Pas encore d'inscrit : aucun jalon de l'échéancier n'est dû.
+    s5 = t.TrainingSession(reference="SST-2026-05", program_id=sst.id, start_date=d(14), end_date=d(15),
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=marc.id, capacity=10,
+                           status="PLANIFIEE", created_by=ACTOR)
+    s6 = t.TrainingSession(reference="MAC-SST-2026-01", program_id=mac_sst.id, start_date=d(15), end_date=d(15),
+                           location="Centre de Bobigny", room="Salle 2", trainer_id=nadia.id, capacity=10,
+                           status="PLANIFIEE", created_by=ACTOR)
+    db.add_all([s5, s6])
+
+    _preinscriptions(db, today, ssiap, sst, s3, s3_enrollments[0])
+    db.flush()
+    company = _factures(db, today, s1)
+    _enquetes(db, d, s1)
+    _ressources(db, d)
+    _personnel(db, d, team)
+    complete_demo(db)
+    cases = _financements(db, today, {"s1": learners[0], "s2": learners[14], "s3": learners[17], "s4": acme[0]},
+                          [s1, s2, s3, s4], company)
+    return {"sessions": [s.reference for s in (s1, s2, s3, s4, s5, s6)], "programs": [ssiap.code, sst.code, mac_sst.code],
+            "gaps": len(PLANTED_GAPS), "milestones": len(PLANTED_MILESTONES), "funding_cases": cases}
+
+
+
+def _preinscriptions(db: Session, today: date, ssiap: t.Program, sst: t.Program, s3: t.TrainingSession,
+                     converted: t.Enrollment) -> None:
+    """Demandes reçues du site, une par statut : nouvelle, en cours, refusée (motif), convertie (inscrite à s3)."""
+    from app.application.service.qualiopi.common import next_reference
+
+    received = datetime.combine(today, time(9), tzinfo=timezone.utc)
+    common = {"civility": "M", "phone": "06 00 00 00 00", "birth_city": "Bobigny", "birth_department": "93",
+              "birth_country": "France", "nationality": "Française", "address": "1 rue de l'Exemple",
+              "postal_code": "93000", "city": "Bobigny", "compliance": dict.fromkeys(COMPLIANCE, True),
+              "source_context": "central-landing-cta", "created_by": ACTOR}
+    learner = converted.learner
+    rows = [
+        ("NOUVELLE", 1, {"civility": "MME", "first_name": "Sarah", "last_name": "Benali", "email": "sarah.benali@exemple.fr",
+                         "program": ssiap, "session_label": "Dates à convenir", "funding_mode": "CPF",
+                         "current_situation": "Demandeuse d'emploi", "motivation": "Reconversion dans la sécurité incendie."}),
+        ("EN_COURS", 4, {"first_name": "Mehdi", "last_name": "Caron", "email": "mehdi.caron@exemple.fr", "program": ssiap,
+                         "session_label": f"{s3.start_date:%d/%m/%Y} · {s3.location}", "funding_mode": "France Travail / AIF",
+                         "current_situation": "Agent de sécurité", "experience": "Deux ans en surveillance de site."}),
+        ("REFUSEE", 9, {"first_name": "Yanis", "last_name": "Perrin", "email": "yanis.perrin@exemple.fr", "program": sst,
+                        "funding_mode": "OPCO / employeur", "current_situation": "Salarié",
+                        "refusal_reason": "Formation demandée par l'employeur : orientée vers une session intra-entreprise."}),
+        ("CONVERTIE", 12, {"first_name": learner.first_name, "last_name": learner.last_name, "email": learner.email
+                           or f"{learner.first_name.lower()}.{learner.last_name.lower()}@exemple.fr", "program": ssiap,
+                           "session_label": f"{s3.start_date:%d/%m/%Y} · {s3.location}", "funding_mode": "OPCO / employeur",
+                           "current_situation": "Salarié", "session_id": s3.id, "learner_id": learner.id,
+                           "enrollment_id": converted.id}),
+    ]
+    for status, days_ago, data in rows:
+        program = data.pop("program")
+        at = received - timedelta(days=days_ago)
+        handled = {} if status == "NOUVELLE" else {"status_changed_at": at + timedelta(days=1), "handled_by": "Gestion (démo)"}
+        if status == "CONVERTIE":
+            handled["converted_at"] = handled["status_changed_at"]
+        db.add(Preinscription(**(common | data | handled), reference=next_reference(db, "PRE"), status=status,
+                              birth_date=date(1995, 3, 14), formation_slug=(program.catalog_slug or program.code.lower()),
+                              formation_name=program.title, program_id=program.id, consented_at=at, created_at=at))
+
+
+def _factures(db: Session, today: date, s1: t.TrainingSession) -> t.Company:
+    """Factures de la session passée SSIAP1-2026-01 : une payée, une payée partiellement, une en retard avec un avoir
+    partiel, un brouillon. Numérotées dans des séries à part (DEMO-FA, DEMO-AV) : la vraie numérotation de
+    l'organisme n'est jamais entamée, et `remove_demo` peut les retirer sans y laisser de trou."""
+    from app.application.service.invoicing import service as invoicing
+
+    company = t.Company(name="Sécurité Démo Services", code="DEMOSECU", siret="00000000000019",
+                        address="5 avenue de la Démonstration", postal_code="93000", city="Bobigny",
+                        contact_name="Mme Exemple", created_by=ACTOR)
+    db.add(company)
+    db.flush()
+    active = sorted((e for e in db.scalars(select(t.Enrollment).where(t.Enrollment.session_id == s1.id))
+                     if e.status != "ANNULE"), key=lambda e: e.learner.last_name)
+    d = lambda days: today + timedelta(days=days)  # noqa: E731
+
+    def facture(client: dict, enrollments: list[t.Enrollment], issued: int | None) -> Invoice:
+        inv = invoicing.create(db, **client, session_id=s1.id, enrollment_ids=[e.id for e in enrollments],
+                               actor=ACTOR, actor_id=None, today=d(issued or 0))
+        if issued is not None:
+            invoicing.issue(db, inv, ACTOR, None, d(issued), series="DEMO-FA")
+        return inv
+
+    paid = facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[:4], -35)
+    invoicing.record_payment(db, paid, amount_cents=paid.total_ttc_cents, received_on=d(-10), mode="VIREMENT",
+                             reference="VIR DEMOSECU", note=None, actor=ACTOR, actor_id=None)
+    partial = facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[4:8], -34)
+    invoicing.record_payment(db, partial, amount_cents=partial.total_ttc_cents // 2, received_on=d(-5), mode="CHEQUE",
+                             reference="Chèque n° 0000001", note="Premier versement", actor=ACTOR, actor_id=None)
+    learner = active[8].learner
+    late = facture({"client_kind": "STAGIAIRE", "learner_id": learner.id}, active[8:9], None)
+    invoicing.update(db, late, {"client_address": "1 rue de l'Exemple", "client_postal_code": "93000",
+                                "client_city": "Bobigny"}, None)
+    invoicing.issue(db, late, ACTOR, None, d(-33), series="DEMO-FA")
+    line = late.lines[0]
+    invoicing.credit(db, late, amounts={line.id: line.amount_ht_cents // 10}, reason="Geste commercial : une "
+                     "demi-journée reportée", actor=ACTOR, actor_id=None, today=d(-20), series="DEMO-AV")
+    facture({"client_kind": "ENTREPRISE", "company_id": company.id}, active[9:], None)
+    db.flush()
+    return company
+
+def _team_scenarios(db: Session, d, team: dict) -> None:  # noqa: ANN001
+    """Titres, CV et actions de développement des formateurs de la démo (dont le trou I21 sur Marc Perrin)."""
+    sandrine, marc = team["sandrine-moreau"], team["marc-perrin"]
+    db.add(t.TrainerQualification(trainer_id=sandrine.id, kind="SSIAP3", label="SSIAP 3", obtained_on=d(-900), valid_until=d(400),
+                                  document_id=_doc(db, "JUSTIFICATIF", "Diplôme SSIAP 3 — S. Moreau").id, created_by=ACTOR))
+    db.add(t.TrainerQualification(trainer_id=marc.id, kind="FORMATEUR_SST", label="Formateur SST", obtained_on=d(-800), valid_until=d(-10),
+                                  document_id=_doc(db, "JUSTIFICATIF", "Certificat formateur SST — M. Perrin").id,
+                                  created_by=ACTOR))  # trou I21 : expirée 7 jours avant le début de SST-2026-02
+    upload(db, subject="FORMATEUR", subject_id=sandrine.id, requirement="CV", content=_pdf("CV S. Moreau"),
+           filename="cv-sandrine-moreau.pdf", mime="application/pdf",
+           checklist=_grid_yes("FORMATEUR", "CV", sans_objet=("CARTE_FORMATEUR_CNAPS",)),
+           note="Formatrice incendie (SSIAP) : n'anime pas de formation aux activités privées de sécurité.")
+    db.add(t.StaffDevelopmentAction(trainer_id=sandrine.id, label="Recyclage pédagogique", planned_on=d(-120),
+                                    completed_on=d(-100), created_by=ACTOR))
+    _formateurs(db, d, team)
+
+
+# Formateur de chaque session de la démo (clé de l'équipe), selon les spécialités affichées sur la landing.
+SESSION_TRAINERS = {"SSIAP1-2026-01": "sandrine-moreau", "SSIAP1-2026-03": "sandrine-moreau", "SST-2026-02": "marc-perrin",
+                    "SST-2026-04": "marc-perrin", "SST-2026-05": "marc-perrin", "MAC-SST-2026-01": "nadia-khelifi"}
+
+
+def replace_demo_team(db: Session) -> dict:
+    """Démo installée avant l'équipe de la landing : ses anciens formateurs et son ancien personnel (acteur « démo »)
+    sont remplacés par l'équipe, les sessions de la démo passent aux nouveaux formateurs, les photos sont corrigées.
+
+    Rien hors de la démo n'est touché ; si une donnée saisie à côté dépend d'un ancien formateur de la démo, refus."""
+    from app.types.edof import Piece
+
+    set_actor(db, ACTOR)
+    data = equipe()
+    names = {(p["prenom"], p["nom"]): p["volet"] for p in data["equipe"]}
+    trainers = db.scalars(select(t.Trainer).where(t.Trainer.created_by == ACTOR)).all()
+    old = [tr for tr in trainers if names.get((tr.first_name, tr.last_name)) != "formateur"]
+    old_ids = [tr.id for tr in old]
+    old_staff = [m for m in db.scalars(select(StaffMember).where(StaffMember.created_by == ACTOR))
+                 if names.get((m.first_name, m.last_name)) in (None, "formateur") or m.trainer_id in old_ids]
+    s1 = db.scalar(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR,
+                                                   t.TrainingSession.reference == "SSIAP1-2026-01"))
+    if s1 is None:
+        raise ConflictError("Démo absente ou incomplète : installer les exemples (seed-demo)")
+    if old_ids:
+        foreign = [
+            *db.scalars(select(t.TrainingSession.reference).where(t.TrainingSession.trainer_id.in_(old_ids),
+                                                                  t.TrainingSession.created_by != ACTOR)),
+            *db.scalars(select(t.TrainerQualification.label).where(t.TrainerQualification.trainer_id.in_(old_ids),
+                                                                   t.TrainerQualification.created_by != ACTOR)),
+            *db.scalars(select(t.StaffDevelopmentAction.label).where(t.StaffDevelopmentAction.trainer_id.in_(old_ids),
+                                                                     t.StaffDevelopmentAction.created_by != ACTOR)),
+            *db.scalars(select(t.ProgramTrainer.id).where(t.ProgramTrainer.trainer_id.in_(old_ids))),
+        ]
+        if foreign:
+            raise ConflictError(f"Données saisies hors démo liées aux anciens formateurs : {', '.join(foreign)}")
+    today = s1.start_date + timedelta(days=40)  # date d'installation de la démo (SSIAP1-2026-01 commence à J-40)
+
+    def d(days: int) -> date:
+        return today + timedelta(days=days)
+
+    removed = {"formateurs": [tr.full_name for tr in old], "personnel": [m.full_name for m in old_staff]}
+    if old_ids:
+        docs = [q.document_id for q in db.scalars(select(t.TrainerQualification).where(
+            t.TrainerQualification.trainer_id.in_(old_ids))) if q.document_id]
+        db.execute(delete(t.TrainerQualification).where(t.TrainerQualification.trainer_id.in_(old_ids)))
+        db.execute(delete(t.StaffDevelopmentAction).where(t.StaffDevelopmentAction.trainer_id.in_(old_ids)))
+        kept = select(Piece.document_id).where(Piece.document_id.is_not(None))
+        db.execute(delete(t.Document).where(t.Document.created_by == ACTOR, ~t.Document.id.in_(kept), (
+            t.Document.id.in_(docs) | ((t.Document.entity_type == "FORMATEUR") & t.Document.entity_id.in_(old_ids)))))
+    for m in old_staff:
+        db.delete(m)
+    db.flush()
+    team = seed_team(db)
+    if old_ids:
+        for s in db.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == ACTOR)):
+            if s.reference in SESSION_TRAINERS:
+                s.trainer_id = team[SESSION_TRAINERS[s.reference]].id
+        db.flush()
+        for tr in old:
+            db.delete(tr)
+        _team_scenarios(db, d, team)
+    if not any(m.contracts for m in team.values() if isinstance(m, StaffMember)):
+        _personnel(db, d, team)
+    org = db.scalar(select(t.Organization).where(t.Organization.created_by == ACTOR))
+    if org is not None and org.disability_referent_name == "Nadia Roux":
+        org.disability_referent_name = "Émilie Bernard"
+    db.flush()
+    _drop_orphan_evidence(db)
+    return removed | complete_demo(db, corriger=True)
+
+
+def _formateurs(db: Session, d, team: dict) -> None:  # noqa: ANN001
+    """Titres et actions de développement : un titre à renouveler dans 45 jours (SSIAP 3 de Jean-Claude Renard), une
+    action réalisée et deux prévues. Seuls des titres que la landing affiche. Aucun ne change l'état des contrôles plantés."""
+    jean_claude = team["jean-claude-renard"]
+    doc = _doc(db, "JUSTIFICATIF", "SSIAP 3 — J.-C. Renard")
+    db.add(t.TrainerQualification(trainer_id=jean_claude.id, kind="SSIAP3", label="SSIAP 3", number="SSIAP3-DEMO-0001",
+                                  obtained_on=d(-1050), valid_until=d(45), document_id=doc.id, created_by=ACTOR))
+    db.add_all([
+        t.StaffDevelopmentAction(trainer_id=team["nadia-khelifi"].id, label="Accueil des personnes en situation de handicap",
+                                 planned_on=d(-45), completed_on=d(-40), created_by=ACTOR),
+        t.StaffDevelopmentAction(trainer_id=team["marc-perrin"].id, label="Maintien et actualisation des compétences de formateur SST",
+                                 planned_on=d(25), created_by=ACTOR),
+        t.StaffDevelopmentAction(trainer_id=team["sandrine-moreau"].id, label="Actualisation réglementaire ERP et IGH",
+                                 planned_on=d(20), created_by=ACTOR),
+    ])
+
+
+def _enquetes(db: Session, d, s1: t.TrainingSession) -> None:  # noqa: ANN001
+    """Appréciations des autres parties prenantes de la session passée : entreprise et formateur recueillies,
+    financeur relancé sans réponse. Les questionnaires à chaud (I30) restent ceux de la boucle principale."""
+    db.add_all([
+        t.SatisfactionSurvey(session_id=s1.id, audience="ENTREPRISE", sent_on=d(-34), answered_on=d(-28),
+                             score=Decimal("4.2"), comment="Agents opérationnels dès leur retour ; souhait d'une session "
+                             "intra-entreprise.", created_by=ACTOR),
+        t.SatisfactionSurvey(session_id=s1.id, audience="FORMATEUR", sent_on=d(-36), answered_on=d(-35),
+                             score=Decimal("4.5"), comment="Groupe homogène ; prévoir une demi-journée de plus sur le "
+                             "poste de sécurité.", created_by=ACTOR),
+        t.SatisfactionSurvey(session_id=s1.id, audience="FINANCEUR", sent_on=d(-30), created_by=ACTOR),
+    ])
+
+
+def _ressources(db: Session, d) -> None:  # noqa: ANN001
+    """Lieux, équipements, sous-traitants et partenaires. Codes en DEMO- : jamais en concurrence avec ceux d'un import.
+
+    Les noms de site et de salle sont ceux des sessions (le planning rapproche par le texte). Équipements : une
+    vérification échue, une proche, les autres à jour."""
+    site = t.Premises(code="DEMO-BOBIGNY", name="Centre de Bobigny", kind="SITE", address="10 rue de l'Exemple, 93000 Bobigny",
+                      accessibility="Entrée de plain-pied, place de stationnement réservée, ascenseur vers l'étage.",
+                      status="EN_SERVICE", checked_on=d(-90), created_by=ACTOR)
+    annexe = t.Premises(code="DEMO-MONTREUIL", name="Antenne de Montreuil", kind="SITE",
+                        address="3 allée de la Démonstration, 93100 Montreuil", status="A_VERIFIER",
+                        note="Locaux proposés par un partenaire : visite à organiser avant toute session.", created_by=ACTOR)
+    db.add_all([site, annexe])
+    db.flush()
+    rooms = {}
+    for code, name, kind, parent, floor, capacity, access in (
+        ("DEMO-BOBIGNY-S1", "Salle 1", "SALLE", site, "Rez-de-chaussée", 14, "Accès de plain-pied, table à hauteur réglable."),
+        ("DEMO-BOBIGNY-S2", "Salle 2", "SALLE", site, "1er étage", 10, "Ascenseur ; pas de boucle magnétique (à prévoir au besoin)."),
+        ("DEMO-BOBIGNY-PT", "Plateau technique", "PLATEAU_TECHNIQUE", site, "Rez-de-chaussée", 14,
+         "Accès par l'entrée logistique ; exercices adaptés avec la référente handicap."),
+        ("DEMO-BOBIGNY-STOCK", "Local matériel", "STOCKAGE", site, "Sous-sol", None, None),
+        ("DEMO-MONTREUIL-A", "Salle Atelier", "SALLE", annexe, "Rez-de-chaussée", 12, None),
+    ):
+        rooms[code] = t.Premises(code=code, name=name, kind=kind, parent_id=parent.id, floor=floor, capacity=capacity,
+                                 accessibility=access, status="EN_SERVICE" if parent is site else "A_VERIFIER",
+                                 checked_on=d(-90) if parent is site else None, created_by=ACTOR)
+    db.add_all(rooms.values())
+    db.flush()
+    for code, label, category, qty, room, status, last, nxt, note in (
+        ("DEMO-MANNEQUINS", "Mannequins de secourisme (adulte, enfant, nourrisson)", "SECOURISME", 6, "DEMO-BOBIGNY-STOCK",
+         "EN_SERVICE", -200, 165, None),
+        ("DEMO-DEFIBRILLATEURS", "Défibrillateurs de formation", "SECOURISME", 4, "DEMO-BOBIGNY-STOCK", "EN_SERVICE", -353, 12,
+         "Contrôle des électrodes et des batteries à planifier."),
+        ("DEMO-EXTINCTEURS", "Extincteurs d'exercice (eau pulvérisée et CO2)", "INCENDIE", 8, "DEMO-BOBIGNY-PT", "EN_SERVICE",
+         -380, -15, "Vérification dépassée : à faire avant la prochaine session SSIAP."),
+        ("DEMO-BAC-FEU", "Générateur de flammes au gaz pour exercices", "INCENDIE", 1, "DEMO-BOBIGNY-PT", "EN_SERVICE",
+         -60, 120, None),
+        ("DEMO-SSI", "Tableau de signalisation incendie pédagogique", "INCENDIE", 1, "DEMO-BOBIGNY-PT", "EN_SERVICE", -150, 215, None),
+        ("DEMO-FUMEE", "Générateur de fumée froide", "INCENDIE", 1, "DEMO-BOBIGNY-STOCK", "EN_MAINTENANCE", -400, None,
+         "En réparation chez le fournisseur."),
+        ("DEMO-VIDEOPROJECTEURS", "Vidéoprojecteurs", "INFORMATIQUE", 2, "DEMO-BOBIGNY-S1", "EN_SERVICE", None, None, None),
+    ):
+        db.add(t.Equipment(code=code, label=label, category=category, quantity=qty, premises_id=rooms[room].id, status=status,
+                           last_check_on=d(last) if last is not None else None, next_check_on=d(nxt) if nxt is not None else None,
+                           note=note, created_by=ACTOR))
+    # Sous-traitants : contrat signé et conformité vérifiée pour les deux (aucun trou I27 planté).
+    db.add_all([
+        t.Subcontractor(name="Formations Incendie Exemple", siret="00000000000027", qualiopi_certified=True,
+                        contract_signed_on=d(-200), last_review_on=d(-200), created_by=ACTOR),
+        t.Subcontractor(name="Atelier Secours Démo", siret="00000000000035", qualiopi_certified=False,
+                        contract_signed_on=d(-90), last_review_on=d(-85), created_by=ACTOR),
+        t.PartnerNetwork(kind="HANDICAP", name="Centre ressource formation et handicap (exemple)", last_contact_on=d(-25),
+                         created_by=ACTOR),
+        t.PartnerNetwork(kind="SOCIO_ECONOMIQUE", name="Groupement des employeurs de la sécurité (exemple)",
+                         last_contact_on=d(-35), created_by=ACTOR),
+        t.PartnerNetwork(kind="SOCIO_ECONOMIQUE", name="Club des entreprises de Bobigny (exemple)", last_contact_on=d(-120),
+                         created_by=ACTOR),
+    ])
+
+
+def _personnel(db: Session, d, team: dict) -> None:  # noqa: ANN001
+    """Contrats du personnel de la landing (fictifs) et une absence (Karim Benali, en formation) hors session. Les
+    formateurs n'ont pas de fiche RH : la confirmation de leurs sessions ne dépend pas du module RH."""
+    contracts = {"thomas-leroy": [("CDD", -700, -335, "TEMPS_PLEIN"), ("CDI", -334, None, "TEMPS_PLEIN")],
+                 "julie-marchand": [("CDD", -60, 120, "TEMPS_PARTIEL")]}
+    for key, member in team.items():
+        if not isinstance(member, StaffMember):
+            continue
+        member.contracts = [StaffContract(kind=k, start_date=d(start), end_date=d(end) if end is not None else None,
+                                          work_time=wt, created_by=ACTOR)
+                            for k, start, end, wt in contracts.get(key, [("CDI", -900, None, "TEMPS_PLEIN")])]
+        if key == "karim-benali":
+            member.absences = [StaffAbsence(start_date=d(20), end_date=d(21), kind="FORMATION", note="Formation",
+                                            created_by=ACTOR)]
+    db.flush()
+
+
+def _financements(db: Session, today: date, learners: dict[str, t.Learner], sessions: list[t.TrainingSession],
+                  company: t.Company) -> int:
+    """Dossiers de financement sur des inscriptions existantes, menés par le service (circuits et conditions réels).
+
+    Un dispositif désactivé pour l'organisme n'est pas créé : la démo ne change aucun réglage. Renvoie le nombre de
+    dossiers ouverts."""
+    from app.application.service.funding import service as funding
+    from app.application.service.funding.schemes import scheme
+
+    d = lambda days: today + timedelta(days=days)  # noqa: E731
+    ids = [s.id for s in sessions]
+    by_key = {key: db.scalar(select(t.Enrollment).where(t.Enrollment.session_id.in_(ids), t.Enrollment.learner_id == learner.id))
+              for key, learner in learners.items()}
+    plans = (
+        # OPCO accordé, réalisation constatée, facture à envoyer (échéance dépassée) : SSIAP1-2026-01.
+        ("s1", "OPCO", {"provider_name": "Opco Exemple", "amount_requested": Decimal("1200")},
+         [("deposer", {}, -47), ("accorder", {"external_ref": "OPCO-DEMO-0001", "amount_granted": "1200"}, -42),
+          ("constater_realisation", {}, -34)]),
+        # Entreprise : convention signée, session en cours (SST-2026-02).
+        ("s2", "ENTREPRISE", {"payer_name": company.name}, [("signer", {"amount_granted": "250"}, -11)]),
+        # CPF accepté, entrée à déclarer au démarrage (SSIAP1-2026-03).
+        ("s3", "CPF", {}, [("accepter", {"external_ref": "CPF-DEMO-0001", "amount_granted": "1200"}, -6)]),
+        # OPCO déposé, accord attendu (SST-2026-04).
+        ("s4", "OPCO", {"provider_name": "Opco Exemple", "amount_requested": Decimal("250")}, [("deposer", {}, -15)]),
+    )
+    opened = 0
+    for key, code, options, steps in plans:
+        if not is_enabled(db, scheme(code).feature):
+            continue
+        e = by_key[key]
+        e.funding = code
+        case = funding.open_case(db, e, None, None)
+        source = funding.add_source(db, case, code, None, **options)
+        for action, inputs, day in steps:
+            funding.apply(db, source, action, inputs, None, today=d(day))
+        opened += 1
+    db.flush()
+    return opened
+
+
+# Données d'exemple, dans l'ordre de suppression : ce qui est rattaché aux sessions, aux apprenants et aux
+# formateurs (inscriptions, émargements, preuves de parcours…) part en cascade. L'organisme reste toujours.
+_DEMO_TABLES = (
+    Preinscription, t.Complaint, t.WatchItem, t.PartnerNetwork, t.Subcontractor, t.Equipment, t.Premises, FundingCase,
+    t.TrainingSession, t.Learner, StaffMember, t.StaffDevelopmentAction, t.TrainerQualification, t.Trainer, t.Program,
+)
+
+
+def remove_demo(db: Session) -> dict[str, int]:
+    """Retire les données d'exemple (créées par « démo ») ; les données importées ou saisies restent.
+
+    Les résultats et constats qui portaient sur des sessions ou formations d'exemple partent avec elles,
+    et les preuves dont la source n'existe plus sont retirées. Réévaluer ensuite (`refresh_all`).
+    """
+    import app.types.registry  # noqa: F401 (toutes les tables connues, pour retrouver la source des preuves)
+    from app.types.qualiopi_capa import CapaAction
+    from app.types.qualiopi_evaluation import ControlResult, ControlResultHistory, Finding
+    from app.types.qualiopi_schedule import MilestoneStatus
+
+    set_actor(db, "cli")
+    removed: dict[str, int] = {}
+
+    def count(name: str, n: int) -> None:
+        if n:
+            removed[name] = removed.get(name, 0) + n
+
+    count("fiche_formation_demo", _clear_demo_program_values(db))
+
+    targets = [*db.scalars(select(t.TrainingSession.id).where(t.TrainingSession.created_by == ACTOR)),
+               *db.scalars(select(t.Program.id).where(t.Program.created_by == ACTOR))]
+    if targets:
+        # Échéancier : pas de clé étrangère vers la session, sans quoi la synthèse hebdo garderait leurs retards.
+        count("milestone_status", db.execute(delete(MilestoneStatus).where(MilestoneStatus.session_id.in_(targets))).rowcount)
+        findings = select(Finding.id).where(Finding.target_id.in_(targets) | Finding.session_id.in_(targets))
+        count("capa_action", db.execute(delete(CapaAction).where(CapaAction.finding_id.in_(findings))).rowcount)
+        count("finding", db.execute(delete(Finding).where(Finding.id.in_(findings))).rowcount)
+        for model in (ControlResult, ControlResultHistory):
+            count(model.__tablename__, db.execute(delete(model).where(model.target_id.in_(targets))).rowcount)
+        count("control_result", db.execute(delete(ControlResult).where(ControlResult.session_id.in_(targets))).rowcount)
+    # Factures d'exemple (séries DEMO-) : encaissements, avoirs, factures, puis l'entreprise cliente et les compteurs.
+    demo_invoices = select(Invoice.id).where(Invoice.created_by == ACTOR)
+    count("encaissement", db.execute(delete(Payment).where(Payment.invoice_id.in_(demo_invoices))).rowcount)
+    for kind in ("AVOIR", "FACTURE"):
+        count("facture", db.execute(delete(Invoice).where(Invoice.created_by == ACTOR, Invoice.kind == kind)).rowcount)
+    count("company", db.execute(delete(t.Company).where(t.Company.created_by == ACTOR)).rowcount)
+    db.execute(delete(Sequence).where(Sequence.name.like("DEMO-%")))
+    for model in _DEMO_TABLES:
+        count(model.__tablename__, db.execute(delete(model).where(model.created_by == ACTOR)).rowcount)
+    # Pièces d'exemple, sauf celles qu'un dossier EDOF a reprises depuis (elles restent).
+    from app.types.edof import Piece
+
+    count("document", db.execute(delete(t.Document).where(
+        t.Document.created_by == ACTOR, ~t.Document.id.in_(select(Piece.document_id).where(Piece.document_id.is_not(None)))
+    )).rowcount)
+    count("evidence", _drop_orphan_evidence(db))
+    db.flush()
+    return removed
+
+
+def _drop_orphan_evidence(db: Session) -> int:
+    """Preuves orphelines : leur ligne source vient d'être supprimée."""
+    import app.types.registry  # noqa: F401 (toutes les tables connues, pour retrouver la source des preuves)
+    from app.database.db import Base
+    from app.types.qualiopi_evidence import Evidence
+
+    n = 0
+    for source in db.scalars(select(Evidence.source_table).distinct()).all():
+        table = Base.metadata.tables.get(source)
+        if table is not None:
+            n += db.execute(delete(Evidence).where(
+                Evidence.source_table == source, ~Evidence.source_id.in_(select(table.c.id)))).rowcount
+    return n

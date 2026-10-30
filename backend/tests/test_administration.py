@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.events.models import OutboxEvent
+from app.types.event import OutboxEvent
 from tests.conftest import make_user
 
 
@@ -19,7 +19,7 @@ def test_profil_et_mot_de_passe(client, demo: Session) -> None:  # noqa: ANN001
     assert short.status_code == 422
     ok = client.post("/api/v1/auth/me/password", json={"actuel": "mot-de-passe-test", "nouveau": "nouveau-mot-de-passe"},
                      headers=h)
-    assert ok.status_code == 204
+    assert ok.status_code == 200 and ok.json()["access_token"]
     login = client.post("/api/v1/auth/login", json={"email": "profil@test.local", "password": "nouveau-mot-de-passe"})
     assert login.status_code == 200
 

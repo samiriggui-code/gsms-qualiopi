@@ -1,0 +1,128 @@
+// Version GSMS des pages du panneau Paramètres : mêmes mixins que les sections WeKnora
+// (settings-section.less, settings-table.less), plus l'empilement des lignes sous 720 px.
+@import (reference) '@/components/css/settings-section.less';
+@import (reference) '@/components/css/settings-table.less';
+
+.gsms-section() {
+  width: 100%;
+  min-width: 0;
+
+  .section-header {
+    .settings-section-header();
+  }
+
+  .section-header__top {
+    flex-wrap: wrap;
+  }
+
+  .settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .setting-row {
+    .setting-row();
+  }
+
+  .setting-info {
+    .setting-info();
+  }
+
+  .setting-control {
+    .setting-control();
+    flex-wrap: wrap;
+  }
+
+  .group-title {
+    margin: 28px 0 4px;
+    color: var(--td-text-color-primary);
+    font-size: var(--app-text-xl);
+    font-weight: 600;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  .group-desc {
+    margin: 0 0 8px;
+    color: var(--td-text-color-secondary);
+    font-size: var(--app-text-md);
+    line-height: 1.5;
+  }
+
+  .table-frame {
+    .settings-data-table();
+    margin-top: 12px;
+  }
+
+  .value-text {
+    color: var(--td-text-color-primary);
+    font-size: var(--app-text-base);
+    word-break: break-word;
+    text-align: right;
+  }
+
+  .muted {
+    color: var(--td-text-color-placeholder);
+  }
+
+  .meta {
+    margin-top: 6px;
+    color: var(--td-text-color-placeholder);
+    font-size: var(--app-text-sm);
+    line-height: 1.5;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .state-block {
+    padding: 32px 0;
+    text-align: center;
+    color: var(--td-text-color-secondary);
+    font-size: var(--app-text-md);
+  }
+
+  .alert-gap {
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 720px) {
+    .setting-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      padding: 16px 0;
+    }
+
+    .setting-info {
+      max-width: 100%;
+    }
+
+    .setting-control {
+      min-width: 0;
+      justify-content: flex-start;
+    }
+
+    .value-text {
+      text-align: left;
+    }
+
+    .section-header {
+      margin-bottom: 20px;
+    }
+  }
+}

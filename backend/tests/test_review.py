@@ -6,13 +6,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.core.journal import ChangeLog
-from app.qualiopi.capa import service as capa
-from app.qualiopi.evaluation.models import Finding
-from app.qualiopi.evaluation.service import indicator_readiness
-from app.qualiopi.review.models import IndicatorReview
-from app.qualiopi.review.service import record_review, review_state
+from app.application.service.qualiopi.capa import service as capa
+from app.application.service.qualiopi.evaluation.service import indicator_readiness
+from app.application.service.qualiopi.review.service import record_review, review_state
+from app.common.journal import ChangeLog
+from app.errors.errors import InvalidStateError
+from app.types.qualiopi_evaluation import Finding
+from app.types.qualiopi_review import IndicatorReview
 from tests.conftest import TODAY, make_user
 
 COMMENT = "Partenariats avec deux entreprises d'accueil vérifiés : conventions et comptes rendus de visite."

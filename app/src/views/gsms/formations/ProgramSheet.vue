@@ -1,0 +1,533 @@
+<template>
+  <GsmsRecordSheet :title="sheet?.program.title || t('gsms.formations.fiche')" icon="book" back="/platform/formations"
+    :image="sheet?.program.image_url"
+    :back-label="t('gsms.formations.titre')" :subtitle="sheet?.program.code || ''"
+    :ready="!!sheet" :loading="loading" :error="error" :tabs="tabs" :tab="tab" @update:tab="(v) => (tab = v)" @retry="load">
+    <template v-if="sheet" #status><GsmsStatusTag :code="sheet.version_state.state" /></template>
+    <template v-if="sheet" #before><GsmsRefusal v-if="actionError" :error="actionError" inline /></template>
+    <template v-if="sheet" #side>
+      <section class="side-section">
+        <h3 class="side-head"><FormationThumb :image="sheet.program.image_url" :size="40" />{{ t('gsms.formations.infos') }}</h3>
+        <dl>
+          <div><dt>{{ t('gsms.formations.colCode') }}</dt><dd>{{ sheet.program.code }}</dd></div>
+          <div><dt>{{ t('gsms.formations.colDuree') }}</dt><dd>{{ hours(sheet.program.duration_hours) }}</dd></div>
+          <div><dt>{{ t('gsms.formations.prix') }}</dt><dd>{{ euros(sheet.program.price_eur) }}</dd></div>
+          <div v-if="sheet.program.badge"><dt>{{ t('gsms.formations.champs.badge') }}</dt><dd><span class="badge">{{ sheet.program.badge }}</span></dd></div>
+          <div><dt>{{ t('gsms.formations.effectif') }}</dt><dd>{{ effectif }}</dd></div>
+          <div><dt>{{ t('gsms.formations.modalite') }}</dt><dd>{{ (sheet.program.delivery_mode && sheet.delivery_modes[sheet.program.delivery_mode]) || '—' }}</dd></div>
+          <div><dt>{{ t('gsms.formations.relueLe') }}</dt><dd>{{ fmtDate(sheet.program.public_info_reviewed_on) }}</dd></div>
+        </dl>
+      </section>
+      <section class="side-section">
+        <h3>{{ t('gsms.formations.etatFiche') }}</h3>
+        <p class="muted">{{ versionText }}</p>
+        <!-- Rubriques manquantes (liste de l'API), regroupées par volet ; un clic ouvre le volet -->
+        <p v-if="!sheet.missing.length" class="etat-ok"><t-icon name="check-circle" size="16px" />{{ t('gsms.formations.ficheComplete') }}</p>
+        <template v-else>
+          <p class="etat-manque"><t-icon name="error-circle" size="16px" />{{ t('gsms.formations.rubriquesManquantesN', { n: sheet.missing.length }, sheet.missing.length) }}</p>
+          <ul class="plain manque-volets">
+            <li v-for="g in missingByVolet" :key="g.volet">
+              <button type="button" class="link-btn" @click="tab = g.volet">{{ g.label }}</button>
+              <span class="muted"> : {{ g.fields.join(', ') }}</span>
+            </li>
+          </ul>
+        </template>
+        <p v-if="reviewNotes.length" class="etat-relire">
+          <button type="button" class="link-btn" @click="tab = 'relire'">{{ t('gsms.formations.pointsARelire', { n: reviewNotes.length }, reviewNotes.length) }}</button>
+        </p>
+        <div class="gates">
+          <GsmsActionGate :decision="sheet.capabilities.edit" :variant="sheet.missing.length ? 'base' : 'outline'" @run="editVisible = true">
+            {{ t('gsms.formations.completer') }}
+          </GsmsActionGate>
+          <GsmsActionGate :decision="sheet.capabilities.validate" :show-reason="!sheet.missing.length" :variant="sheet.missing.length ? 'outline' : 'base'"
+            :pending="busy === 'validate'" @run="validateVisible = true">
+            {{ t('gsms.formations.validerVersion') }}
+          </GsmsActionGate>
+          <p v-if="sheet.missing.length && !sheet.capabilities.validate?.allowed" class="muted">{{ t('gsms.formations.validerApres') }}</p>
+        </div>
+      </section>
+      <section v-if="sheet.dossier || canCreateDossier" class="side-section">
+        <h3>{{ t('gsms.edof.titre') }}</h3>
+        <router-link v-if="sheet.dossier" :to="`/platform/edof/dossiers/${sheet.dossier.id}`" class="link">
+          {{ t('gsms.edof.ouvrirDossier') }}<t-icon name="chevron-right" size="14px" />
+        </router-link>
+        <t-button v-else size="small" variant="outline" :loading="busy === 'dossier'" @click="createDossier">{{ t('gsms.edof.creerDossier') }}</t-button>
+      </section>
+    </template>
+
+    <template v-if="sheet">
+      <!-- Ce qui manque dans le volet affiché, d'après GET /fiches/{id} -->
+      <div v-if="missingIn(tab).length" class="manques" role="note">
+        <t-icon name="error-circle" size="16px" />
+        <span>{{ t('gsms.formations.aCompleterIci') }} {{ missingIn(tab).map((m) => m.label).join(', ') }}</span>
+        <button v-if="sheet.capabilities.edit?.allowed" type="button" class="link-btn" @click="editVisible = true">{{ t('gsms.formations.completer') }}</button>
+      </div>
+
+      <!-- Présentation, pédagogie, accès : rubriques rédigées de la fiche, chacune dans son volet -->
+      <div v-if="VOLETS[tab]" class="rubriques">
+        <section v-for="r in VOLETS[tab]" :key="r.field" class="panel rubrique" :class="{ 'rubrique--large': r.wide }">
+          <h3 class="title">{{ t(`gsms.formations.champs.${r.field}`) }}</h3>
+          <template v-if="r.pairs">
+            <dl v-if="sheet.program.access_conditions.length" class="kv conditions">
+              <div v-for="(c, i) in sheet.program.access_conditions" :key="i"><dt>{{ c.label }}</dt><dd>{{ c.value }}</dd></div>
+            </dl>
+            <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
+          </template>
+          <template v-else-if="r.list">
+            <ul v-if="listOf(r.field).length" class="plain bullets rubrique-text"><li v-for="(x, i) in listOf(r.field)" :key="i">{{ x }}</li></ul>
+            <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
+          </template>
+          <template v-else>
+            <p v-if="sheet.program[r.field]" class="rubrique-text pre">{{ sheet.program[r.field] }}</p>
+            <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
+          </template>
+        </section>
+        <p v-if="tab === 'acces'" class="muted rubrique--large">{{ t('gsms.formations.accesAide') }}</p>
+      </div>
+
+      <!-- Programme : un module par carte -->
+      <template v-else-if="tab === 'programme'">
+        <p v-if="!sheet.program.modules.length" class="panel muted">{{ t('gsms.formations.aucunModule') }}</p>
+        <ol v-else class="modules">
+          <li v-for="(m, i) in sheet.program.modules" :key="i" class="panel module">
+            <div class="module-head">
+              <span v-if="m.code" class="module-code">{{ m.code }}</span>
+              <span class="module-title">{{ m.title }}</span>
+              <span v-if="m.hours" class="muted">{{ hours(Number(m.hours)) }}</span>
+            </div>
+            <ul v-if="m.details?.length" class="plain bullets"><li v-for="(d, j) in m.details" :key="j">{{ d }}</li></ul>
+            <p v-else class="rubrique-empty">{{ t('gsms.formations.moduleSansDetail') }}</p>
+          </li>
+        </ol>
+      </template>
+
+      <!-- Points relevés à l'import : valeurs reprises ou rédigées à relire, écarts à arbitrer -->
+      <section v-else-if="tab === 'relire'" class="panel">
+        <p class="muted aide">{{ t('gsms.formations.aRelireAide') }}</p>
+        <p v-if="!notes.length" class="muted">{{ t('gsms.formations.aucunPointARelire') }}</p>
+        <div v-for="g in notes" :key="g.champ" class="note-groupe">
+          <h3 class="title">{{ g.label }}</h3>
+          <ul class="plain notes">
+            <li v-for="(n, i) in g.items" :key="i">{{ n.message }}<span v-if="n.source" class="muted note-source">{{ n.source }}</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Certification visée et vérifications attestées -->
+      <section v-else-if="tab === 'certification'" class="panel">
+        <div class="panel-bar">
+          <h3 class="title">{{ t('gsms.formations.certificationVisee') }}</h3>
+          <GsmsActionGate :decision="sheet.capabilities.edit" variant="outline" @run="certVisible = true">{{ t('gsms.commun.modifier') }}</GsmsActionGate>
+        </div>
+        <p v-if="!cert" class="muted">{{ t('gsms.formations.certificationAbsente') }}</p>
+        <template v-else>
+          <dl class="kv">
+            <div><dt>{{ t('gsms.formations.cert.basis') }}</dt><dd>{{ sheet.certification_bases[cert.basis] || cert.basis }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.code') }}</dt><dd>{{ cert.code || '—' }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.title') }}</dt><dd>{{ cert.title || '—' }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.certifier') }}</dt><dd>{{ cert.certifier || '—' }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.registration_end') }}</dt><dd>{{ fmtDate(cert.registration_end) }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.verifiee') }}</dt><dd>{{ cert.checked_on ? t('gsms.formations.leParPar', { le: fmtDate(cert.checked_on), par: cert.checked_by || '—' }) : t('gsms.formations.nonVerifiee') }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.habilitation') }}</dt><dd>{{ sheet.habilitations[cert.habilitation] || cert.habilitation }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.evaluator_name') }}</dt><dd>{{ cert.evaluator_name || '—' }}</dd></div>
+            <div><dt>{{ t('gsms.formations.cert.habilitationVerifiee') }}</dt><dd>{{ cert.habilitation_checked_on ? t('gsms.formations.leParPar', { le: fmtDate(cert.habilitation_checked_on), par: cert.habilitation_checked_by || '—' }) : t('gsms.formations.nonVerifiee') }}</dd></div>
+          </dl>
+          <p v-if="cert.source_url" class="muted source">{{ t('gsms.formations.cert.source_url') }} : {{ cert.source_url }}</p>
+          <h4 class="sous-titre">{{ t('gsms.formations.champs.certification_alignment') }}</h4>
+          <p v-if="sheet.program.certification_alignment" class="rubrique-text pre">{{ sheet.program.certification_alignment }}</p>
+          <p v-else class="rubrique-empty">{{ t('gsms.commun.nonRenseigne') }}</p>
+          <div class="gates row-gates">
+            <GsmsActionGate :decision="sheet.capabilities.verify" show-reason :pending="busy === 'certification'" @run="verify('certification')">
+              {{ t('gsms.formations.attesterCertification') }}
+            </GsmsActionGate>
+            <GsmsActionGate :decision="sheet.capabilities.verify" show-reason variant="outline" :pending="busy === 'habilitation'" @run="verify('habilitation')">
+              {{ t('gsms.formations.attesterHabilitation') }}
+            </GsmsActionGate>
+          </div>
+        </template>
+      </section>
+
+      <!-- Contenus : intervenants et ressources pédagogiques -->
+      <template v-else-if="tab === 'contenus'">
+        <section class="panel">
+          <h3 class="title">{{ t('gsms.formations.intervenants') }}</h3>
+          <p v-if="!sheet.trainers.length" class="muted">{{ t('gsms.formations.aucunIntervenant') }}</p>
+          <ul v-else class="rows">
+            <li v-for="tr in sheet.trainers" :key="tr.id" class="row">
+              <GsmsPersonAvatar :name="tr.name" :photo="tr.photo_url" />
+              <span class="row-main">{{ tr.name }}</span>
+              <span class="muted">{{ sheet.roles[tr.role] || tr.role }}<template v-if="tr.modules.length"> · {{ tr.modules.join(', ') }}</template></span>
+            </li>
+          </ul>
+        </section>
+        <section class="panel">
+          <h3 class="title">{{ t('gsms.formations.ressources') }}</h3>
+          <p v-if="!sheet.resources.length" class="muted">{{ t('gsms.formations.aucuneRessource') }}</p>
+          <ul v-else class="rows">
+            <li v-for="r in sheet.resources" :key="r.id" class="row">
+              <span class="row-main">{{ r.title }}</span>
+              <span class="muted">{{ [r.kind, r.module_code, r.origin].filter(Boolean).join(' · ') }}</span>
+              <GsmsStatusTag :code="r.status" />
+            </li>
+          </ul>
+        </section>
+      </template>
+
+      <!-- Versions validées : programme imprimable -->
+      <section v-else-if="tab === 'versions'" class="panel">
+        <p v-if="!sheet.versions.length" class="muted">{{ t('gsms.formations.aucuneVersion') }}</p>
+        <ul v-else class="rows">
+          <li v-for="v in sheet.versions" :key="v.id" class="row">
+            <span class="row-main">{{ t('gsms.formations.versionN', { n: v.version }) }}</span>
+            <span class="muted">{{ t('gsms.formations.leParPar', { le: fmtDateTime(v.validated_at), par: v.validated_by || '—' }) }}<template v-if="v.note"> · {{ v.note }}</template></span>
+            <t-button size="small" variant="text" theme="primary" :loading="busy === v.id" @click="download(v.id, v.version)">
+              <t-icon name="download" />{{ t('gsms.formations.programme') }}
+            </t-button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Suivi pédagogique des sessions de la formation -->
+      <section v-else class="panel">
+        <GsmsRefusal v-if="pedagogyError" :error="pedagogyError" inline />
+        <t-skeleton v-else-if="!pedagogy" animation="gradient" :row-col="[{ width: '100%' }, { width: '100%' }]" />
+        <template v-else>
+          <p v-if="!pedagogy.sessions.length" class="muted">{{ t('gsms.formations.aucuneSession') }}</p>
+          <ul v-else class="rows">
+            <li v-for="s in pedagogy.sessions" :key="s.session_id">
+              <router-link :to="`/platform/sessions/${s.session_id}`" class="row row--link">
+                <span class="row-main">{{ s.reference }}</span>
+                <span class="muted">{{ fmtDate(s.start_date) }} → {{ fmtDate(s.end_date) }}</span>
+                <span class="muted">{{ t('gsms.formations.suiviLigne', { n: s.learners, att: s.attendance.rate ?? '—', cert: s.certificates, ab: s.abandons }) }}</span>
+                <GsmsStatusTag :code="s.status" />
+              </router-link>
+            </li>
+          </ul>
+          <ul v-if="pedagogy.limits.length" class="plain limits"><li v-for="(l, i) in pedagogy.limits" :key="i"><t-icon name="info-circle" size="14px" /> {{ l }}</li></ul>
+        </template>
+      </section>
+    </template>
+  </GsmsRecordSheet>
+
+  <ActionDialog v-model:visible="validateVisible" :title="t('gsms.formations.validerVersion')" :confirm-label="t('gsms.formations.valider')"
+    danger :consequence="t('gsms.formations.validerAide')" :fields="[{ name: 'note', label: t('gsms.formations.noteVersion'), type: 'textarea' }]"
+    :run="(v) => validateProgramVersion(id, v.note)" @done="done" />
+  <ActionDialog v-if="sheet" v-model:visible="certVisible" :title="t('gsms.formations.certificationVisee')" :intro="t('gsms.formations.certAide')"
+    :fields="certFields" :run="(v) => putProgramCertification(id, v)" @done="done" />
+  <ActionDialog v-if="sheet" v-model:visible="editVisible" :title="t('gsms.formations.completer')" :intro="t('gsms.formations.completerAide')"
+    width="min(880px, calc(100vw - 32px))"
+    :fields="editFields" :run="saveProgram" @done="done" />
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { MessagePlugin } from 'tdesign-vue-next'
+import GsmsRecordSheet from '@/components/gsms/GsmsRecordSheet.vue'
+import GsmsRefusal from '@/components/gsms/GsmsRefusal.vue'
+import GsmsStatusTag from '@/components/gsms/GsmsStatusTag.vue'
+import GsmsActionGate from '@/components/gsms/GsmsActionGate.vue'
+import GsmsPersonAvatar from '@/components/gsms/GsmsPersonAvatar.vue'
+import ActionDialog, { type ActionField } from '@/components/gsms/ActionDialog.vue'
+import FormationThumb from './FormationThumb.vue'
+import {
+  attestProgramVerification, getProgramPedagogy, getProgramSheet, programmePath, putProgramCertification, updateProgram,
+  validateProgramVersion, type ProgramPedagogy, type ProgramSheet,
+} from '@/api/gsms/training'
+import { createEdofFormationDossier } from '@/api/gsms/edof'
+import { downloadFile } from '@/api/gsms/files'
+import { useGsmsAccessStore } from '@/stores/gsmsAccess'
+import { fmtDate, fmtDateTime } from '@/components/gsms/format'
+import { euros, hours } from './display'
+import { modulesToText, textToModules } from './moduleText'
+
+type ListField = 'objectives' | 'skills' | 'prerequisites' | 'outcomes'
+interface Rubrique { field: string, list?: boolean, pairs?: boolean, wide?: boolean }
+/** Rubriques rédigées, rangées par volet ; une rubrique `wide` prend toute la largeur. */
+const VOLETS: Record<string, Rubrique[]> = {
+  presentation: [
+    { field: 'content', wide: true },
+    { field: 'objectives', list: true },
+    { field: 'skills', list: true },
+    { field: 'audience' },
+    { field: 'prerequisites', list: true },
+    { field: 'outcomes', list: true },
+    { field: 'access_conditions', pairs: true },
+  ],
+  pedagogie: [{ field: 'teaching_methods' }, { field: 'evaluation_methods' }, { field: 'teaching_means', wide: true }],
+  acces: [{ field: 'access_delay' }, { field: 'accessibility_info' }],
+}
+/** Volet où compléter une rubrique signalée manquante par l'API ; à défaut, la présentation. */
+const VOLET_OF: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(VOLETS).flatMap(([v, rs]) => rs.map((r) => [r.field, v]))),
+  modules: 'programme', certification_alignment: 'certification',
+}
+const TABS = ['presentation', 'programme', 'pedagogie', 'acces', 'certification', 'contenus', 'relire', 'versions', 'sessions']
+
+const { t, te } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const access = useGsmsAccessStore()
+const id = computed(() => String(route.params.programId || ''))
+const sheet = ref<ProgramSheet | null>(null)
+const loading = ref(false)
+const error = ref<unknown>(null)
+const actionError = ref<unknown>(null)
+const busy = ref('')
+const tab = ref(TABS.includes(String(route.query.onglet)) ? String(route.query.onglet) : 'presentation')
+const pedagogy = ref<ProgramPedagogy | null>(null)
+const pedagogyError = ref<unknown>(null)
+const validateVisible = ref(false)
+const certVisible = ref(false)
+const editVisible = ref(false)
+
+const cert = computed(() => sheet.value?.certification ?? null)
+// Affichage du bouton seulement : l'API revérifie le droit et refuse un second dossier (409).
+const canCreateDossier = computed(() => access.hasFeature('edof') && access.can('edof.write'))
+const tabs = computed(() => [
+  { value: 'presentation', label: t('gsms.formations.ongletPresentation') },
+  { value: 'programme', label: t('gsms.formations.ongletProgramme'), count: sheet.value?.program.modules.length },
+  { value: 'pedagogie', label: t('gsms.formations.ongletPedagogie') },
+  { value: 'acces', label: t('gsms.formations.ongletAcces') },
+  { value: 'certification', label: t('gsms.formations.ongletCertification') },
+  { value: 'contenus', label: t('gsms.formations.ongletContenus'), count: (sheet.value?.trainers.length ?? 0) + (sheet.value?.resources.length ?? 0) },
+  { value: 'relire', label: t('gsms.formations.ongletARelire'), count: reviewNotes.value.length },
+  { value: 'versions', label: t('gsms.formations.ongletVersions'), count: sheet.value?.versions.length },
+  { value: 'sessions', label: t('gsms.formations.ongletSuivi') },
+])
+const voletOf = (field: string) => VOLET_OF[field] ?? 'presentation'
+const missingIn = (volet: string) => (sheet.value?.missing ?? []).filter((m) => voletOf(m.field) === volet)
+/** Rubriques manquantes regroupées par volet, dans l'ordre des volets. */
+const missingByVolet = computed(() => TABS
+  .map((volet) => ({ volet, label: tabs.value.find((x) => x.value === volet)?.label ?? volet, fields: missingIn(volet).map((m) => m.label) }))
+  .filter((g) => g.fields.length))
+const effectif = computed(() => {
+  const p = sheet.value?.program
+  if (!p?.trainees_min && !p?.trainees_max) return '—'
+  return t('gsms.formations.effectifValeur', { min: p.trainees_min ?? '—', max: p.trainees_max ?? '—' })
+})
+const listOf = (field: string) => (sheet.value?.program[field as ListField] as string[] | undefined) ?? []
+
+interface ReviewNote { champ?: string, message: string, source?: string }
+const reviewNotes = computed(() => (sheet.value?.program.review_notes as ReviewNote[] | undefined) ?? [])
+/** Notes regroupées par rubrique, dans l'ordre où elles apparaissent. */
+const notes = computed(() => {
+  const groups = new Map<string, ReviewNote[]>()
+  for (const n of reviewNotes.value) {
+    const key = n.champ || ''
+    groups.set(key, [...(groups.get(key) ?? []), n])
+  }
+  return [...groups].map(([champ, items]) => ({
+    champ,
+    label: champ && te(`gsms.formations.champs.${champ}`) ? t(`gsms.formations.champs.${champ}`) : t('gsms.formations.ficheEnGeneral'),
+    items,
+  }))
+})
+const versionText = computed(() => {
+  const v = sheet.value?.version_state
+  if (!v || v.version === null) return t('gsms.formations.jamaisValidee')
+  return t(v.state === 'VALIDEE' ? 'gsms.formations.versionAJour' : 'gsms.formations.versionModifiee', { n: v.version })
+})
+const options = (labels: Record<string, string>) => Object.entries(labels).map(([value, label]) => ({ value, label }))
+const certFields = computed<ActionField[]>(() => {
+  const c = cert.value
+  return [
+    { name: 'basis', label: t('gsms.formations.cert.basis'), type: 'select', options: options(sheet.value?.certification_bases ?? {}), initial: c?.basis },
+    { name: 'code', label: t('gsms.formations.cert.code'), initial: c?.code },
+    { name: 'title', label: t('gsms.formations.cert.title'), initial: c?.title },
+    { name: 'certifier', label: t('gsms.formations.cert.certifier'), initial: c?.certifier },
+    { name: 'registration_end', label: t('gsms.formations.cert.registration_end'), type: 'date', initial: c?.registration_end },
+    { name: 'source_url', label: t('gsms.formations.cert.source_url'), initial: c?.source_url },
+    { name: 'habilitation', label: t('gsms.formations.cert.habilitation'), type: 'select', options: options(sheet.value?.habilitations ?? {}), initial: c?.habilitation },
+    { name: 'evaluator_name', label: t('gsms.formations.cert.evaluator_name'), initial: c?.evaluator_name },
+  ]
+})
+const editFields = computed<ActionField[]>(() => {
+  const p = sheet.value?.program
+  const presentation = t('gsms.formations.ongletPresentation')
+  const programme = t('gsms.formations.ongletProgramme')
+  const pedagogie = t('gsms.formations.ongletPedagogie')
+  const acces = t('gsms.formations.ongletAcces')
+  const certification = t('gsms.formations.ongletCertification')
+  const num = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v))
+  const champ = (f: string) => t(`gsms.formations.champs.${f}`)
+  // Un champ par rubrique de la fiche, rangé dans la section du volet où elle s'affiche.
+  return [
+    { name: 'title', label: champ('title'), section: presentation, initial: p?.title, required: true, maxlength: 250 },
+    { name: 'delivery_mode', label: t('gsms.formations.modalite'), type: 'select', section: presentation, half: true,
+      options: options(sheet.value?.delivery_modes ?? {}), initial: p?.delivery_mode },
+    { name: 'duration_hours', label: t('gsms.formations.dureeHeures'), type: 'number', section: presentation, half: true, initial: num(p?.duration_hours) },
+    { name: 'price_eur', label: t('gsms.formations.prixEuros'), type: 'number', section: presentation, half: true, initial: num(p?.price_eur) },
+    { name: 'trainees_min', label: champ('trainees_min'), type: 'number', section: presentation, half: true, initial: p?.trainees_min ?? undefined },
+    { name: 'trainees_max', label: champ('trainees_max'), type: 'number', section: presentation, half: true, initial: p?.trainees_max ?? undefined },
+    { name: 'badge', label: champ('badge'), section: presentation, half: true, maxlength: 60, initial: p?.badge },
+    { name: 'public_info_reviewed_on', label: t('gsms.formations.relueLe'), type: 'date', section: presentation, half: true, initial: p?.public_info_reviewed_on },
+    { name: 'content', label: champ('content'), type: 'textarea', section: presentation, initial: p?.content },
+    { name: 'objectives', label: champ('objectivesUneParLigne'), type: 'textarea', section: presentation, initial: p?.objectives.join('\n') },
+    { name: 'skills', label: champ('skillsUneParLigne'), type: 'textarea', section: presentation, initial: p?.skills.join('\n') },
+    { name: 'audience', label: champ('audience'), type: 'textarea', section: presentation, initial: p?.audience },
+    { name: 'prerequisites', label: champ('prerequisitesUneParLigne'), type: 'textarea', section: presentation, initial: p?.prerequisites.join('\n') },
+    { name: 'access_conditions', label: champ('access_conditions'), type: 'textarea', section: presentation, help: t('gsms.formations.conditionsAide'),
+      initial: (p?.access_conditions ?? []).map((c) => `${c.label} : ${c.value}`).join('\n') },
+    { name: 'outcomes', label: champ('outcomesUneParLigne'), type: 'textarea', section: presentation, initial: p?.outcomes.join('\n') },
+    { name: 'modules', label: champ('modules'), type: 'textarea', section: programme, help: t('gsms.formations.modulesAide'),
+      initial: modulesToText(p?.modules ?? []) },
+    { name: 'teaching_methods', label: champ('teaching_methods'), type: 'textarea', section: pedagogie, initial: p?.teaching_methods },
+    { name: 'evaluation_methods', label: champ('evaluation_methods'), type: 'textarea', section: pedagogie, initial: p?.evaluation_methods },
+    { name: 'teaching_means', label: champ('teaching_means'), type: 'textarea', section: pedagogie, initial: p?.teaching_means },
+    { name: 'access_delay', label: champ('access_delay'), type: 'textarea', section: acces, maxlength: 200, initial: p?.access_delay },
+    { name: 'accessibility_info', label: champ('accessibility_info'), type: 'textarea', section: acces, initial: p?.accessibility_info },
+    { name: 'certification_alignment', label: champ('certification_alignment'), type: 'textarea', section: certification, initial: p?.certification_alignment },
+  ]
+})
+
+async function load() {
+  const pid = id.value
+  if (!pid) return
+  loading.value = true
+  error.value = null
+  try {
+    const res = await getProgramSheet(pid)
+    if (pid === id.value) sheet.value = res
+  } catch (e) {
+    if (pid === id.value) { error.value = e; sheet.value = null }
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadPedagogy() {
+  const pid = id.value
+  pedagogyError.value = null
+  try {
+    const res = await getProgramPedagogy(pid)
+    if (pid === id.value) pedagogy.value = res
+  } catch (e) { if (pid === id.value) pedagogyError.value = e }
+}
+
+watch(id, () => { actionError.value = null; pedagogy.value = null; load(); if (tab.value === 'sessions') loadPedagogy() }, { immediate: true })
+watch(tab, (v) => {
+  router.replace({ query: { ...route.query, onglet: v } })
+  if (v === 'sessions' && !pedagogy.value) loadPedagogy()
+})
+
+async function done() {
+  MessagePlugin.success(t('gsms.commun.misAJour'))
+  await load()
+}
+
+/** Objectifs, compétences et prérequis se saisissent un par ligne ; l'API attend des listes. */
+function saveProgram(values: Record<string, unknown>) {
+  const body = { ...values }
+  for (const key of ['objectives', 'skills', 'prerequisites', 'outcomes'] as const) {
+    if (key in body) body[key] = String(body[key] ?? '').split('\n').map((s) => s.trim()).filter(Boolean)
+  }
+  if ('modules' in body) body.modules = textToModules(String(body.modules ?? ''))
+  // « Libellé : valeur », une condition par ligne
+  if ('access_conditions' in body) {
+    body.access_conditions = String(body.access_conditions ?? '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+      const i = l.indexOf(':')
+      return i > 0 ? { label: l.slice(0, i).trim(), value: l.slice(i + 1).trim() } : { label: t('gsms.formations.condition'), value: l }
+    }).filter((c) => c.label && c.value)
+  }
+  return updateProgram(id.value, body)
+}
+
+async function verify(quoi: 'certification' | 'habilitation') {
+  busy.value = quoi
+  actionError.value = null
+  try {
+    await attestProgramVerification(id.value, quoi)
+    await done()
+  } catch (e) {
+    actionError.value = e
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function download(versionId: string, version: number) {
+  busy.value = versionId
+  actionError.value = null
+  try {
+    await downloadFile(programmePath(id.value, versionId), `programme-${sheet.value?.program.code ?? ''}-v${version}.html`)
+  } catch (e) {
+    actionError.value = e
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function createDossier() {
+  busy.value = 'dossier'
+  actionError.value = null
+  try {
+    const d = await createEdofFormationDossier(id.value)
+    router.push(`/platform/edof/dossiers/${d.id}`)
+  } catch (e) {
+    actionError.value = e
+  } finally {
+    busy.value = ''
+  }
+}
+</script>
+
+<style scoped lang="less">
+@import (reference) '@/components/gsms/gsms-list.less';
+.side-section { .gsms-side-section(); }
+.side-head { display: flex; align-items: center; gap: 10px; }
+.panel { .gsms-panel(); }
+.title { .gsms-panel-title(); }
+.panel-bar { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px; .title { margin: 0; } margin-bottom: 10px; }
+.muted { .gsms-muted(); margin: 0; }
+.kv { .gsms-kv(); }
+.pre { white-space: pre-line; }
+.rubriques {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  @media (max-width: 720px) { grid-template-columns: minmax(0, 1fr); }
+}
+.rubrique .title { margin-bottom: 8px; }
+.rubrique--large { grid-column: 1 / -1; }
+.conditions { margin: 0; }
+.badge { padding: 1px 8px; border-radius: var(--td-radius-small); background: var(--td-brand-color-light); color: var(--td-brand-color); font-size: var(--app-text-sm); font-weight: 600; }
+.manques {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 16px; padding: 10px 14px;
+  border: 1px solid var(--td-error-color-3); border-radius: var(--td-radius-medium); color: var(--td-text-color-primary);
+  font-size: var(--app-text-sm); .t-icon { color: var(--td-error-color); }
+}
+.etat-ok, .etat-manque { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; font-size: var(--app-text-sm); font-weight: 500; }
+.etat-ok { color: var(--td-success-color); }
+.etat-manque { color: var(--td-error-color); }
+.manque-volets { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 0; font-size: var(--app-text-sm); }
+.etat-relire { margin: 8px 0 0; font-size: var(--app-text-sm); }
+.modules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none;
+  @media (max-width: 720px) { grid-template-columns: minmax(0, 1fr); } }
+.module-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 8px; }
+.module-code { padding: 1px 8px; border-radius: var(--td-radius-small); background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-secondary); font-size: var(--app-text-sm); font-weight: 600; }
+.module .bullets { color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 22px; }
+.sous-titre { margin: 16px 0 6px; font-size: var(--app-text-md); font-weight: 600; color: var(--td-text-color-primary); }
+.aide { margin-bottom: 12px; }
+.note-groupe + .note-groupe { margin-top: 16px; }
+.notes { display: flex; flex-direction: column; gap: 8px; li { line-height: 22px; } }
+.note-source { display: block; font-size: var(--app-text-sm); }
+.rubrique-text { margin: 0; max-width: 70ch; color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 22px; overflow-wrap: break-word; }
+.rubrique-empty { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; color: var(--td-text-color-placeholder); font-size: var(--app-text-sm); }
+.link-btn { .gsms-link-button(); }
+.plain { .gsms-plain(); }
+.bullets { list-style: disc; padding-left: 18px; }
+.gates { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.row-gates { flex-direction: row; flex-wrap: wrap; }
+.source { margin-top: 10px; overflow-wrap: anywhere; }
+.link { display: inline-flex; align-items: center; gap: 4px; color: var(--td-brand-color); font-size: var(--app-text-sm); text-decoration: none; &:hover { text-decoration: underline; } }
+.module-title { font-weight: 600; font-size: var(--app-text-md); color: var(--td-text-color-primary); }
+.rows { .gsms-rows(); }
+.row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 10px 14px; color: inherit; text-decoration: none; }
+.row--link { &:hover { background: var(--td-bg-color-container-hover); } &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; } }
+.row-main { flex: 1 1 160px; min-width: 0; color: var(--td-text-color-primary); font-size: var(--app-text-md); font-weight: 500; overflow-wrap: anywhere; }
+.limits { margin-top: 10px; color: var(--td-text-color-secondary); }
+</style>

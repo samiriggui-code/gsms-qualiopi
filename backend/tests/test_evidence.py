@@ -6,10 +6,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.qualiopi.evidence.models import Evidence, EvidenceValidation
-from app.qualiopi.evidence.service import reconcile, validate
-from app.training import models as t
+from app.application.service.qualiopi.evidence.service import reconcile, validate
+from app.errors.errors import InvalidStateError
+from app.types import training as t
+from app.types.qualiopi_evidence import Evidence, EvidenceValidation
 from tests.conftest import TODAY, find_session
 
 

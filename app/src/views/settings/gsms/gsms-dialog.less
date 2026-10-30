@@ -1,0 +1,37 @@
+// Formulaires des boîtes de dialogue GSMS (champ = libellé au-dessus, pleine largeur).
+.gsms-dialog-form() {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .dialog-help {
+    margin: 0;
+    color: var(--td-text-color-secondary);
+    font-size: var(--app-text-md);
+    line-height: 1.5;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .field-label {
+    color: var(--td-text-color-primary);
+    font-size: var(--app-text-md);
+    font-weight: 500;
+  }
+
+  .field-hint {
+    color: var(--td-text-color-placeholder);
+    font-size: var(--app-text-sm);
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px 16px;
+  }
+}

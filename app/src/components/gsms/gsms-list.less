@@ -1,0 +1,211 @@
+// Styles partagés des pages métier GSMS : mêmes cartes, onglets et en-têtes que les listes WeKnora
+// (resource-card.less, artifact-filter-tabs.less). À importer en (reference) dans un style scoped.
+@import (reference) '@/components/css/resource-card.less';
+@import (reference) '@/components/css/artifact-filter-tabs.less';
+
+.gsms-tabs() {
+  .artifact-filter-tabs();
+  max-width: 100%;
+  button { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; white-space: nowrap; }
+  .tab-count { margin-left: 5px; font-size: var(--app-text-xs); font-variant-numeric: tabular-nums; }
+}
+
+// Cartes des listes : 270 px au moins, soit 4 colonnes de 1440 à 1600 px (titres lisibles sur deux lignes).
+.gsms-grid() {
+  .resource-card-grid();
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 12px;
+}
+
+// Relief doux commun aux cartes, panneaux et tableaux des pages GSMS (rayon large, ombre légère).
+.gsms-elevated() {
+  border-radius: var(--app-radius-lg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--td-text-color-primary) 5%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--td-text-color-primary) 14%, transparent);
+}
+
+.gsms-card() {
+  .resource-card();
+  .resource-card-quiet();
+  .gsms-elevated();
+  min-height: 0;
+  // Titre sur toute la largeur de la carte, étiquettes (statut) en dessous : le titre n'est plus coupé par elles.
+  .card-header { padding-right: 0; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .card-header-left { width: 100%; flex: none; }
+  // Titre sur deux lignes au plus (intitulés de formation longs), sans couper un mot ni une référence.
+  .card-title:not(:has(.card-title-text)) {
+    display: -webkit-box;
+    flex: none;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow: hidden;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    color: var(--td-text-color-secondary);
+    font-size: var(--app-text-sm);
+    line-height: 18px;
+    .t-icon { margin-right: 3px; vertical-align: -2px; }
+  }
+}
+
+.gsms-section-header() { .resource-section-header(); cursor: default; &:hover { color: var(--td-text-color-secondary); } }
+
+.gsms-panel() {
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--app-radius-md);
+  background: var(--td-bg-color-container);
+  padding: 16px 18px;
+  min-width: 0;
+  .gsms-elevated();
+}
+
+.gsms-panel-title() {
+  margin: 0 0 12px;
+  font-family: var(--app-font-family-display);
+  color: var(--td-text-color-primary);
+  font-size: var(--app-text-md);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.gsms-kv() {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 10px 16px;
+  margin: 0;
+  dt { color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); line-height: 16px; }
+  dd { margin: 2px 0 0; color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 20px; overflow-wrap: anywhere; }
+}
+
+.gsms-muted() { color: var(--td-text-color-secondary); font-size: var(--app-text-sm); line-height: 18px; }
+
+.gsms-search() {
+  width: 260px;
+  max-width: 100%;
+  margin-left: auto;
+  :deep(.t-input) { border-radius: var(--app-radius-sm); }
+  @media (max-width: 720px) { width: 100%; margin-left: 0; }
+}
+
+.gsms-chip() {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--app-radius-xs);
+  background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-secondary);
+  font-size: var(--app-text-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; // « ind. 12 » jamais coupé
+}
+
+.gsms-notice() {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--app-radius-sm);
+  background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-primary);
+  font-size: var(--app-text-sm);
+  line-height: 18px;
+  .t-icon { margin-top: 2px; color: var(--td-text-color-secondary); flex-shrink: 0; }
+}
+
+.gsms-plain() {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--app-text-sm);
+  line-height: 24px;
+  li { overflow-wrap: anywhere; }
+  a { color: var(--td-brand-color); }
+}
+
+.gsms-timeline() {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 0;
+    border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+    font-size: var(--app-text-sm);
+    overflow-wrap: anywhere;
+    &:first-child { border-top: 0; }
+  }
+  .tl-date { color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); }
+}
+
+.gsms-rows() {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--app-radius-md);
+  background: var(--td-bg-color-container);
+  overflow: hidden;
+  > li + li { border-top: 1px solid var(--td-component-stroke); }
+}
+
+.gsms-page-shell() {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+}
+
+.gsms-toolbar() {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+  padding-bottom: var(--app-space-3);
+  border-bottom: 1px solid var(--td-component-stroke);
+}
+
+.gsms-table() {
+  border: 1px solid var(--td-component-stroke);
+  .gsms-elevated();
+  overflow: hidden;
+  background: var(--td-bg-color-container);
+  :deep(thead th) { font-weight: 600; font-size: var(--app-text-sm); color: var(--td-text-color-secondary); }
+  :deep(tbody tr) { cursor: pointer; }
+  :deep(td) { font-size: var(--app-text-md); vertical-align: top; }
+}
+
+// Section clé/valeur d'une fiche
+.gsms-side-section() {
+  .gsms-panel();
+  h3 { .gsms-panel-title(); }
+  dl { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  dt { color: var(--td-text-color-placeholder); font-size: var(--app-text-xs); line-height: 16px; }
+  dd { margin: 2px 0 0; color: var(--td-text-color-primary); font-size: var(--app-text-md); line-height: 20px; overflow-wrap: anywhere; }
+}
+
+.gsms-link-button() {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--td-brand-color);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  cursor: pointer;
+  &:hover { text-decoration: underline; }
+  &:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; border-radius: var(--app-radius-xs); }
+  &.link-btn--danger { color: var(--td-error-color); }
+}

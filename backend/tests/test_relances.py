@@ -8,12 +8,12 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.platform.features import set_feature
-from app.relances import sender as sender_module
-from app.relances.models import Message
-from app.relances.planner import plan
-from app.relances.service import dispatch
-from app.training import models as t
+from app.application.service.platform.features import set_feature
+from app.application.service.relances import sender as sender_module
+from app.application.service.relances.planner import plan
+from app.application.service.relances.service import dispatch
+from app.types import training as t
+from app.types.relances import Message
 from tests.conftest import TODAY, find_session, make_user
 
 
@@ -102,13 +102,14 @@ def test_alertes_internes_de_l_echeancier_envoyees_sans_validation(demo: Session
 def test_formateur_sans_adresse_puis_evaluations_manquantes(demo: Session, outbox) -> None:  # noqa: ANN001
     _enable(demo)
     s = find_session(demo, "SST-2026-02")
+    s.trainer.email = None  # la démo donne une adresse fictive à ses formateurs : on la retire pour le cas étudié
     day = s.end_date + timedelta(days=1)
     plan(demo, day)
     demo.commit()
     [msg] = _messages(demo, "formateur.evaluations")
-    assert msg.status == "SANS_ADRESSE" and msg.recipient_name == "Julie Martin", "signalé, pas perdu"
+    assert msg.status == "SANS_ADRESSE" and msg.recipient_name == "Marc Perrin", "signalé, pas perdu"
 
-    s.trainer.email = "julie.martin@exemple.fr"
+    s.trainer.email = "marc.perrin@exemple.fr"
     demo.commit()
     plan(demo, day)
     demo.commit()
@@ -116,7 +117,7 @@ def test_formateur_sans_adresse_puis_evaluations_manquantes(demo: Session, outbo
     assert sent.status == "PREVU" and "Noah Clement" in sent.body_html
     dispatch(demo, day)
     demo.commit()
-    assert outbox.sent[-1]["to"] == "julie.martin@exemple.fr"
+    assert outbox.sent[-1]["to"] == "marc.perrin@exemple.fr"
 
 
 def test_synthese_hebdomadaire_le_lundi_seulement(demo: Session, outbox) -> None:  # noqa: ANN001
@@ -235,7 +236,7 @@ def test_expediteur_smtp_adresses_accentuees(monkeypatch) -> None:  # noqa: ANN0
     """Vrai code d'envoi, faux serveur : en-têtes, texte + HTML, SMTPUTF8 seulement quand il le faut."""
     import smtplib
 
-    from app.relances.sender import SmtpSender
+    from app.application.service.relances.sender import SmtpSender
 
     sent: list[tuple] = []
 
@@ -269,3 +270,32 @@ def test_expediteur_smtp_adresses_accentuees(monkeypatch) -> None:  # noqa: ANN0
     assert ascii_msg["To"] == "Paul Lambert <paul.lambert@acme.exemple>" and ascii_msg["Reply-To"] == "contact@formssi.fr"
     assert "éric.chevalier@acme.exemple" in str(utf8_msg["To"])
     assert [p.get_content_type() for p in ascii_msg.iter_parts()] == ["text/plain", "text/html"]
+
+
+def test_message_deja_pris_par_un_autre_envoi_non_renvoye(demo: Session, outbox) -> None:  # noqa: ANN001
+    """Worker et « planifier maintenant » en même temps : un message pris par l'un est sauté par l'autre."""
+    from sqlalchemy import text
+
+    from app.database import db as core_db
+
+    _enable(demo)
+    make_user(demo, "gestion")
+    plan(demo, TODAY)
+    demo.commit()
+    due = select(Message).where(Message.status == "PREVU", Message.due_on <= TODAY)
+    assert demo.scalars(due).first() is not None
+    other = core_db.session_factory()()
+    try:
+        held = list(other.scalars(due.with_for_update()))  # l'autre envoi a pris ces messages
+        demo.execute(text("SET LOCAL lock_timeout = '2s'"))  # sans verrou, l'écriture bute sur l'autre envoi
+        assert dispatch(demo, TODAY)["envoyes"] == 0, "les messages pris par l'autre envoi sont sautés"
+        assert outbox.sent == []
+    finally:
+        other.rollback()
+        other.close()
+    assert held
+    demo.rollback()
+    first = dispatch(demo, TODAY)
+    demo.commit()
+    assert first["envoyes"] == len(outbox.sent) >= 1
+    assert dispatch(demo, TODAY)["envoyes"] == 0

@@ -1,0 +1,40 @@
+# Vignette de chaque formation (formation.program.image_url), associée par le code du programme.
+# Fichiers servis par le back-office depuis app/public/media/formations/vignettes/ (visuels de GSMS School réduits à
+# 320 px, CDC §3 « Images reprises de GSMS School »). Plusieurs formations partagent le même visuel d'origine.
+# Appliqué par import-gsms-school, import-formssi et seed-demo, sur les seules formations sans image : une image
+# choisie à la main n'est jamais remplacée.
+dossier: media/formations/vignettes
+vignettes:
+  ARI: ari.jpg
+  CSSI: ari.jpg
+  ESI: ari.jpg
+  SSI: ari.jpg
+  ASC-CYNO: asc-cyno.jpg
+  ASRA-D: asra-d.jpg
+  BR: br.jpg
+  EXTINCTEUR: br.jpg
+  EPI: epi.jpg
+  BS-BE: epi.jpg
+  EVACUATION: evacuation.jpg
+  GUIDE-FILE: guide-file.jpg
+  H0B0: h0b0.jpg
+  MAC-APS: mac-aps.jpg
+  OVT: ovt.jpg
+  MAC-OVT: ovt.jpg
+  SSIAP1: ssiap1.jpg
+  SSIAP1-INI: ssiap1.jpg
+  SSIAP1-RAN: ssiap1.jpg
+  SSIAP1-MAC: ssiap1-mac.jpg
+  SSIAP2-INI: ssiap2-ini.jpg
+  SSIAP2-MAC: ssiap2-ini.jpg
+  SSIAP2-RAN: ssiap2-ini.jpg
+  SSIAP3-INI: ssiap3-ini.jpg
+  SSIAP3-MAC: ssiap3-ini.jpg
+  SSIAP3-RAN: ssiap3-ini.jpg
+  SST: sst.jpg
+  SST-INI: sst.jpg
+  SST-MAC: sst.jpg
+  SST-ENT: sst.jpg
+  MAC-SST: sst.jpg
+  STU: sst.jpg
+  TFP-APS: tfp-aps.jpg

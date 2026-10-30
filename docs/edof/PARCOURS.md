@@ -61,7 +61,7 @@ exigent la permission `edof.sensitive` (rôle Direction) pour être déposées, 
 
 ## 3. Première tranche réelle : TFP APS
 
-`python -m app.cli import-formssi` crée ou complète, sans rien écraser :
+`python -m app.cmd.cli import-formssi` crée ou complète, sans rien écraser :
 
 - l'établissement Form'SSI (identité relevée sur l'Annuaire des entreprises) et son dossier ; le NDA
   `11922308992`, la certification Qualiopi « Actions de formation » et le dernier BPF (exercice 2025)

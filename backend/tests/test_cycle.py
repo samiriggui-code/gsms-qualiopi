@@ -5,11 +5,11 @@ from datetime import timedelta
 import pytest
 from sqlalchemy.orm import Session
 
-from app.core.errors import InvalidStateError
-from app.qualiopi.audit.service import create_audit
-from app.qualiopi.cycle.service import ALL_TIME, create_cycle, resolve_period
-from app.qualiopi.evaluation.service import indicator_readiness
-from app.training import models as t
+from app.application.service.qualiopi.audit.service import create_audit
+from app.application.service.qualiopi.cycle.service import ALL_TIME, create_cycle, resolve_period
+from app.application.service.qualiopi.evaluation.service import indicator_readiness
+from app.errors.errors import InvalidStateError
+from app.types import training as t
 from tests.conftest import TODAY, find_session, make_user
 
 

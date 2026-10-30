@@ -8,13 +8,14 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import ConflictError
-from app.demo import PLANTED_GAPS, seed_demo
-from app.qualiopi.engine import refresh_all
-from app.qualiopi.evaluation.models import ControlResult, Finding
-from app.qualiopi.evaluation.service import indicator_readiness
-from app.qualiopi.evidence.models import Evidence
-from app.qualiopi.referential.importer import import_referential
+from app.application.service.demo import PLANTED_GAPS, complete_demo_trainer_emails, seed_demo
+from app.application.service.qualiopi.engine import refresh_all
+from app.application.service.qualiopi.evaluation.service import indicator_readiness
+from app.application.service.qualiopi.referential.importer import import_referential
+from app.errors.errors import ConflictError
+from app.types.qualiopi_evaluation import ControlResult, Finding
+from app.types.qualiopi_evidence import Evidence
+from app.types.qualiopi_schedule import MilestoneStatus
 from tests.conftest import TODAY, make_user
 from tests.conftest import find_session as _session
 from tests.conftest import target_names as _names
@@ -102,6 +103,44 @@ def test_preuve_tracable(demo: Session) -> None:
     assert {link.indicator_number for link in ev.links} == {21}
 
 
+def test_equipe_de_la_landing_reprise_a_l_identique(demo: Session) -> None:
+    from app.application.service.demo import equipe
+    from app.types import training as t
+    from app.types.hr import StaffMember
+
+    team = equipe()["equipe"]
+    assert len(team) == 15 and [p["photo"] for p in team] == list(range(6, 21)), "photos de la landing : 300-{6 + rang}"
+    trainers = {tr.full_name: tr for tr in demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo"))}
+    staff = {m.full_name: m for m in demo.scalars(select(StaffMember).where(StaffMember.created_by == "démo"))}
+    assert sorted(trainers) == sorted(f"{p['prenom']} {p['nom']}" for p in team if p["volet"] == "formateur")
+    assert sorted(staff) == sorted(f"{p['prenom']} {p['nom']}" for p in team if p["volet"] != "formateur")
+    assert "Karim Benali" in staff and "Karim Benali" not in trainers, "Karim Benali est RH sur la landing"
+    sandrine = trainers["Sandrine Moreau"]
+    assert (sandrine.photo_url, sandrine.site_title, sandrine.site_visible) == (
+        "media/avatars/300-10.png", "Sécurité Incendie & SSIAP", True)
+    assert sandrine.specialties == ["SSIAP 3", "Formateur Incendie certifié"] and sandrine.email == "sandrine.moreau@exemple.fr"
+    assert trainers["Jean-Claude Renard"].email == "jean-claude.renard@exemple.fr"
+    karim = staff["Karim Benali"]
+    assert (karim.service, karim.job_title, karim.photo_url) == (
+        "RH", "Responsable recrutement & sourcing formateurs", "media/avatars/300-18.png")
+    assert all(m.site_visible and m.site_bio for m in [*trainers.values(), *staff.values()])
+    refs = {s.reference: s.trainer.full_name for s in demo.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == "démo"))}
+    assert refs == {"SSIAP1-2026-01": "Sandrine Moreau", "SSIAP1-2026-03": "Sandrine Moreau", "SST-2026-02": "Marc Perrin",
+                    "SST-2026-04": "Marc Perrin", "SST-2026-05": "Marc Perrin", "MAC-SST-2026-01": "Nadia Khelifi"}
+
+
+def test_formateurs_de_demo_avec_adresse_fictive(demo: Session) -> None:
+    from app.types import training as t
+
+    marc, sandrine = (demo.scalar(select(t.Trainer).where(t.Trainer.last_name == n)) for n in ("Perrin", "Moreau"))
+    marc.email, sandrine.email = None, "sandrine@organisme.fr"
+    demo.add(t.Trainer(first_name="Réel", last_name="Formateur", created_by="admin"))
+    demo.flush()
+    assert complete_demo_trainer_emails(demo) == ["marc.perrin@exemple.fr"]
+    assert sandrine.email == "sandrine@organisme.fr", "une adresse saisie n'est jamais remplacée"
+    assert demo.scalar(select(t.Trainer.email).where(t.Trainer.last_name == "Formateur")) is None
+
+
 def test_demo_refusee_si_deja_installee(demo: Session) -> None:
     with pytest.raises(ConflictError):
         seed_demo(demo, today=TODAY)
@@ -109,8 +148,8 @@ def test_demo_refusee_si_deja_installee(demo: Session) -> None:
 
 def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
     """Base déjà remplie (organisme et formation importés) : les exemples s'y ajoutent, puis repartent seuls."""
-    from app.demo import remove_demo
-    from app.training import models as t
+    from app.application.service.demo import remove_demo
+    from app.types import training as t
     from tests.conftest import V9
 
     import_referential(db, V9)
@@ -124,20 +163,86 @@ def test_exemples_sur_un_organisme_existant_puis_retrait(db: Session) -> None:
     seed_demo(db, today=TODAY)
     refresh_all(db, trigger="test", today=TODAY)
     assert db.scalars(select(t.Organization.name)).all() == ["Organisme réel"]
-    assert db.scalar(select(func.count()).select_from(t.TrainingSession)) == 4
+    assert db.scalar(select(func.count()).select_from(t.TrainingSession)) == 6
 
     removed = remove_demo(db)
     refresh_all(db, trigger="test", today=TODAY)
     db.commit()
-    assert removed["session"] == 4 and removed["learner"] == 22
+    assert removed["session"] == 6 and removed["learner"] == 22
     for model in (t.TrainingSession, t.Learner, t.Trainer, t.Enrollment, t.Complaint):
         assert db.scalar(select(func.count()).select_from(model)) == 0, model
     assert db.scalars(select(t.Program.code)).all() == ["REEL"]
     assert db.scalars(select(t.Organization.name)).all() == ["Organisme réel"]
     assert db.scalar(select(func.count()).select_from(Evidence)) == before
     assert not db.scalar(select(func.count()).select_from(Finding).where(Finding.session_id.is_not(None)))
+    assert removed["milestone_status"] > 0
+    assert not db.scalar(select(func.count()).select_from(MilestoneStatus)), "pas d'échéance orpheline (synthèse hebdo)"
     # Réinstallables ensuite
     seed_demo(db, today=TODAY)
+
+
+def test_exemples_des_pages_ressources_rh_financement_puis_retrait(db: Session) -> None:
+    """Modules RH et financement actifs : lieux, équipements, sous-traitants, partenaires, personnel, dossiers de
+    financement et un conflit de salle à venir ; les trous plantés ne bougent pas ; `remove_demo` retire tout, et
+    rien de ce qui a été saisi à côté."""
+    from datetime import timedelta
+
+    from app.application.service.demo import remove_demo
+    from app.application.service.pilotage.planning import planning
+    from app.application.service.platform.features import set_feature
+    from app.types import training as t
+    from app.types.funding import FundingCase, FundingSource
+    from app.types.hr import StaffAbsence, StaffMember
+    from tests.conftest import V9
+
+    for code in ("hr", "funding", "funding.cpf", "funding.opco"):
+        set_feature(db, code, True)
+    import_referential(db, V9)
+    real_place = t.Premises(code="REEL-SALLE", name="Salle réelle", created_by="import")
+    real_staff = StaffMember(first_name="Réel", last_name="Salarié", created_by="admin")
+    real_sub = t.Subcontractor(name="Sous-traitant réel", qualiopi_certified=True, contract_signed_on=TODAY, created_by="admin")
+    db.add_all([real_place, real_staff, real_sub])
+    db.flush()
+    info = seed_demo(db, today=TODAY)
+    refresh_all(db, trigger="test", today=TODAY)
+    db.commit()
+
+    assert info["funding_cases"] == 4
+    names = _names(db)
+    found = {(r.control_key, names.get(r.target_id, "organisme"), r.status)
+             for r in db.scalars(select(ControlResult)) if r.status not in OK}
+    assert found == {(g.control, g.target, g.status) for g in PLANTED_GAPS}, "les exemples ajoutés ne plantent aucun trou"
+
+    demo = t.Premises.created_by == "démo"
+    assert db.scalar(select(func.count()).select_from(t.Premises).where(demo)) == 7
+    checks = {e.code: e.next_check_on for e in db.scalars(select(t.Equipment))}
+    assert checks["DEMO-EXTINCTEURS"] < TODAY, "une vérification échue"
+    assert TODAY <= checks["DEMO-DEFIBRILLATEURS"] <= TODAY + timedelta(days=30), "une vérification proche"
+    subs = {s.name: s.qualiopi_certified for s in db.scalars(select(t.Subcontractor).where(t.Subcontractor.created_by == "démo"))}
+    assert sorted(subs.values()) == [False, True]
+    assert {p.kind for p in db.scalars(select(t.PartnerNetwork))} == {"HANDICAP", "SOCIO_ECONOMIQUE"}
+    assert db.scalar(select(func.count()).select_from(StaffMember).where(StaffMember.created_by == "démo")) == 9
+    assert db.scalar(select(func.count()).select_from(StaffAbsence)) == 1
+    soon = db.scalars(select(t.TrainerQualification.label).where(
+        t.TrainerQualification.valid_until.between(TODAY, TODAY + timedelta(days=90)))).all()
+    assert soon == ["SSIAP 3"], "un titre à renouveler (Jean-Claude Renard)"
+    states = {(s.scheme, s.state) for s in db.scalars(select(FundingSource))}
+    assert states == {("OPCO", "REALISEE"), ("ENTREPRISE", "CONVENTION_SIGNEE"), ("CPF", "ACCEPTEE"), ("OPCO", "DEPOSEE")}
+
+    user, _ = make_user(db, "gestion")
+    plan = planning(db, user, TODAY, TODAY + timedelta(days=30))
+    assert [(c["type"], sorted(c["sessions"])) for c in plan["conflits"]] == [("SALLE", ["MAC-SST-2026-01", "SST-2026-05"])]
+
+    removed = remove_demo(db)
+    refresh_all(db, trigger="test", today=TODAY)
+    db.commit()
+    assert removed["funding_case"] == 4 and removed["staff_member"] == 9 and removed["premises"] == 7
+    for model in (t.Equipment, FundingCase, FundingSource, StaffAbsence, t.PartnerNetwork, t.SatisfactionSurvey,
+                  t.TrainerQualification, t.StaffDevelopmentAction):
+        assert db.scalar(select(func.count()).select_from(model)) == 0, model
+    assert db.scalars(select(t.Premises.code)).all() == ["REEL-SALLE"]
+    assert db.scalars(select(StaffMember.last_name)).all() == ["Salarié"]
+    assert db.scalars(select(t.Subcontractor.name)).all() == ["Sous-traitant réel"]
 
 
 def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN001
@@ -157,3 +262,122 @@ def test_dossier_de_session_par_api(demo: Session, client) -> None:  # noqa: ANN
     assert {f"I{f['indicator']:02d}" for f in body["findings"]} == {c.split(".")[0] for c in session_gaps}
     assert not any(f["title"].startswith("I") and " — " in f["title"][:6] for f in body["findings"]), "pas de code en titre"
     assert "seul l'organisme certificateur" in body["disclaimer"]
+
+
+def test_equipe_remplace_les_anciens_formateurs_de_la_demo(demo: Session) -> None:
+    """Base installée avant l'équipe de la landing : l'ancien trio et l'ancien personnel de démo sont remplacés,
+    les sessions de la démo changent de formateur, les trous plantés ne bougent pas, rien d'autre n'est touché."""
+    from app.application.service.demo import SESSION_TRAINERS, replace_demo_team
+    from app.types import training as t
+    from app.types.hr import StaffMember
+
+    # Ancienne démo simulée : l'équipe et ses titres retirés, l'ancien trio et l'ancien personnel remis.
+    team_ids = [tr.id for tr in demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo"))]
+    karim = t.Trainer(first_name="Karim", last_name="Benali", created_by="démo", photo_url="media/avatars/300-1.png")
+    julie = t.Trainer(first_name="Julie", last_name="Martin", created_by="démo")
+    demo.add_all([karim, julie])
+    demo.flush()
+    for s in demo.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == "démo")):
+        s.trainer_id = karim.id if s.reference.startswith("SSIAP") else julie.id
+    demo.query(t.TrainerQualification).filter(t.TrainerQualification.trainer_id.in_(team_ids)).delete()
+    demo.query(t.StaffDevelopmentAction).filter(t.StaffDevelopmentAction.trainer_id.in_(team_ids)).delete()
+    demo.query(StaffMember).delete()
+    demo.query(t.Trainer).filter(t.Trainer.id.in_(team_ids)).delete()
+    demo.add(t.TrainerQualification(trainer_id=julie.id, kind="FORMATEUR_SST", label="Formatrice SST", created_by="démo"))
+    demo.add(StaffMember(first_name="Karim", last_name="Benali", trainer_id=karim.id, created_by="démo"))
+    demo.add(StaffMember(first_name="Nadia", last_name="Roux", created_by="démo"))
+    real = t.Trainer(first_name="Réel", last_name="Formateur", created_by="admin")
+    demo.add(real)
+    demo.flush()
+
+    out = replace_demo_team(demo)
+    assert sorted(out["formateurs"]) == ["Julie Martin", "Karim Benali"] and sorted(out["personnel"]) == ["Karim Benali", "Nadia Roux"]
+    names = {tr.full_name for tr in demo.scalars(select(t.Trainer))}
+    assert "Julie Martin" not in names and "Karim Benali" not in names and "Réel Formateur" in names
+    refs = {s.reference: s.trainer.full_name for s in demo.scalars(select(t.TrainingSession).where(t.TrainingSession.created_by == "démo"))}
+    team = {p.id: p for p in demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo"))}
+    assert refs == {ref: next(f"{x.first_name} {x.last_name}" for x in team.values() if x.email.startswith(key.split("-")[0]))
+                    for ref, key in SESSION_TRAINERS.items()}
+    staff = {m.full_name: m for m in demo.scalars(select(StaffMember))}
+    assert len(staff) == 9 and staff["Karim Benali"].trainer_id is None and staff["Karim Benali"].service == "RH"
+    assert staff["Karim Benali"].absences and staff["Thomas Leroy"].contracts
+    refresh_all(demo, trigger="test", today=TODAY)
+    names = _names(demo)
+    found = {(r.control_key, names.get(r.target_id, "organisme"), r.status)
+             for r in demo.scalars(select(ControlResult)) if r.status not in OK}
+    assert found == {(g.control, g.target, g.status) for g in PLANTED_GAPS}, "les trous plantés ne bougent pas"
+    assert replace_demo_team(demo)["formateurs"] == [], "idempotent"
+
+
+def test_identites_et_telephones_fictifs_de_la_demo(demo: Session) -> None:
+    from app.application.service.demo import GENRES, complete_demo_identities
+    from app.types import training as t
+    from app.types.hr import StaffMember
+
+    learners = demo.scalars(select(t.Learner).where(t.Learner.created_by == "démo")).all()
+    today = TODAY
+    for p in learners:
+        assert p.civility == {"F": "MME", "H": "M"}[GENRES[p.first_name]], p.full_name
+        age = today.year - p.birth_date.year - ((today.month, today.day) < (p.birth_date.month, p.birth_date.day))
+        assert 18 <= age <= 56 and p.nationality and p.birth_country and p.current_situation
+        assert p.birth_department or p.birth_country != "France", "département pour une naissance en France"
+        assert p.postal_code[:2] in {"75", "77", "78", "91", "92", "93", "94", "95"} and p.city and p.address
+    phones = [x.phone for x in [*demo.scalars(select(t.Trainer).where(t.Trainer.created_by == "démo")),
+                                *demo.scalars(select(StaffMember).where(StaffMember.created_by == "démo"))]]
+    assert len(phones) == 15 and len(set(phones)) == 15 and all(x.startswith("06 00 00 00 ") for x in phones)
+    # Une valeur saisie n'est jamais remplacée, et la fonction est idempotente.
+    learners[0].city, learners[1].birth_date = "Ville saisie", None
+    demo.flush()
+    assert complete_demo_identities(demo) == 1 and learners[0].city == "Ville saisie" and learners[1].birth_date
+    assert complete_demo_identities(demo) == 0
+
+
+def test_fiches_formation_de_demo_completees_puis_videes(db: Session) -> None:
+    """Délai d'accès, accessibilité, tarifs : valeurs fictives notées « démo » sur les rubriques vides, retirées
+    par remove_demo ; une valeur saisie n'est jamais touchée, et le trou planté de la fiche SST reste."""
+    from app.application.service.demo import complete_demo_programs, remove_demo
+    from app.types import training as t
+    from tests.conftest import V9
+
+    import_referential(db, V9)
+    epi = t.Program(code="EPI", title="EPI importée", created_by="import")
+    ssi = t.Program(code="SSI", title="SSI importée", created_by="import", access_delay="Saisi par l'organisme")
+    db.add_all([epi, ssi])
+    db.flush()
+    seed_demo(db, today=TODAY)
+    assert epi.access_delay and epi.accessibility_info and epi.duration_hours == 4
+    assert {n["champ"] for n in epi.review_notes if n["source"] == "démo"} == {"access_delay", "accessibility_info",
+                                                                               "duration_hours"}
+    assert ssi.access_delay == "Saisi par l'organisme" and ssi.price_eur == 220
+    sst = db.scalar(select(t.Program).where(t.Program.code == "SST"))
+    assert sst.access_delay and sst.skills and not sst.accessibility_info, "trou planté I01 conservé"
+    assert db.scalar(select(func.count()).select_from(t.ProgramTrainer).where(t.ProgramTrainer.program_id == epi.id)) == 1
+    assert complete_demo_programs(db) == [], "idempotent"
+
+    remove_demo(db)
+    db.expire_all()
+    assert not db.scalar(select(func.count()).select_from(t.ProgramTrainer)), "affectations parties avec la démo"
+    assert epi.access_delay is None and epi.accessibility_info is None and epi.duration_hours is None
+    assert ssi.access_delay == "Saisi par l'organisme" and ssi.price_eur is None
+    assert not [n for p in (epi, ssi) for n in p.review_notes or [] if n.get("source") == "démo"]
+
+
+def test_formations_d_exemple_fusionnees_dans_le_catalogue(db: Session) -> None:
+    """Catalogue importé : pas de doublon SSIAP1 / SSIAP1-INI ; les sessions d'exemple passent à la fiche du catalogue
+    et repartent avec retirer-demo, la fiche reste."""
+    from app.application.service.demo import remove_demo
+    from app.application.service.training.import_school import import_gsms_school
+    from app.types import training as t
+    from tests.conftest import V9
+
+    import_referential(db, V9)
+    import_gsms_school(db)
+    seed_demo(db, today=TODAY)
+    codes = set(db.scalars(select(t.Program.code)))
+    assert not codes & {"SSIAP1", "SST", "MAC-SST"} and {"SSIAP1-INI", "SST-INI", "SST-MAC"} <= codes
+    ssiap = db.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI"))
+    assert db.scalar(select(func.count()).select_from(t.TrainingSession).where(t.TrainingSession.program_id == ssiap.id)) == 2
+    remove_demo(db)
+    db.flush()
+    assert db.scalar(select(t.Program).where(t.Program.code == "SSIAP1-INI")) is not None
+    assert not db.scalar(select(func.count()).select_from(t.TrainingSession))

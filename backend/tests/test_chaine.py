@@ -5,9 +5,9 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.qualiopi.engine import process_pending
-from app.qualiopi.evaluation.models import Finding
-from app.training import models as t
+from app.application.service.qualiopi.engine import process_pending
+from app.types import training as t
+from app.types.qualiopi_evaluation import Finding
 from tests.conftest import TODAY, make_user
 
 

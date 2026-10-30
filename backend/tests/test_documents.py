@@ -6,13 +6,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.demo import _grid_yes
-from app.documents import storage
-from app.documents.service import dossier_status, request_document, upload
-from app.qualiopi.engine import process_pending
-from app.qualiopi.evaluation.models import ControlResult
-from app.qualiopi.evidence.models import Evidence
-from app.training import models as t
+from app.application.service.demo import _grid_yes
+from app.application.service.documents import storage
+from app.application.service.documents.service import dossier_status, request_document, upload
+from app.application.service.qualiopi.engine import process_pending
+from app.types import training as t
+from app.types.qualiopi_evaluation import ControlResult
+from app.types.qualiopi_evidence import Evidence
 from tests.conftest import TODAY, make_user
 
 PDF = b"%PDF-1.4\n% compte rendu\n%%EOF\n"
@@ -88,11 +88,26 @@ def test_api_permissions_depot_et_telechargement(demo: Session, client) -> None:
 def test_fichier_altere_sur_disque_refuse() -> None:
     from pathlib import Path
 
-    from app.core.config import get_settings
-    from app.core.errors import DomainError
+    from app.config.config import get_settings
+    from app.errors.errors import DomainError
 
     stored = storage.store(PDF + b"integrite", "application/pdf")
     path = Path(get_settings().documents_dir) / stored.relative_path
     path.write_bytes(PDF + b"falsifie")
     with pytest.raises(DomainError, match="Intégrité"):
         storage.read(stored.relative_path, stored.sha256)
+
+
+@pytest.mark.parametrize(("entity", "permission"), [("EDITION", "documents.read"), ("FACTURE", "invoices.read")])
+def test_document_d_un_autre_module_garde_sa_permission(demo: Session, client, entity: str, permission: str) -> None:  # noqa: ANN001
+    stored = storage.store(PDF + entity.encode(), "application/pdf")
+    doc = t.Document(kind="DEVIS" if entity == "EDITION" else "FACTURE", title="Pièce", entity_type=entity, status="EMIS",
+                     mime_type="application/pdf", storage_path=stored.relative_path, sha256=stored.sha256)
+    demo.add(doc)
+    demo.commit()
+    _, assistant = make_user(demo, "assistant_qualite")  # quality.read, sans documents.read ni invoices.read
+    _, admin = make_user(demo, "admin")
+    r = client.get(f"/api/v1/documents/{doc.id}/contenu", headers=assistant)
+    assert r.status_code == 403 and permission in r.json()["detail"]
+    if entity == "EDITION":  # module Documents actif par défaut
+        assert client.get(f"/api/v1/documents/{doc.id}/contenu", headers=admin).status_code == 200

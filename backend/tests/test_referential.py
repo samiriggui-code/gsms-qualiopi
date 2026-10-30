@@ -4,13 +4,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session
 
-from app.core.errors import ConflictError
-from app.qualiopi.referential.importer import (
+from app.application.service.qualiopi.referential.importer import (
     ReferentialImportError,
     active_version,
     import_referential,
     load_referential,
 )
+from app.errors.errors import ConflictError
 
 V9 = Path(__file__).resolve().parents[1] / "referentials" / "qualiopi" / "v9"
 

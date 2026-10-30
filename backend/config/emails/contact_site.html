@@ -1,0 +1,9 @@
+{% extends "_base.html" %}{% import "_macros.html" as m %}
+{% block contenu %}
+<p>Bonjour,</p>
+<p>Un visiteur du site a envoyé ce message par le formulaire de contact.</p>
+{{ m.infos([("Nom", contact.nom), ("E-mail", contact.email), ("Objet", contact.objet)]) }}
+<p style="margin-bottom:4px;"><strong>Message</strong></p>
+<p style="margin-top:0;white-space:pre-wrap;">{{ contact.message }}</p>
+<p style="font-size:13px;color:#6b7280;">Pour répondre, écrivez à {{ contact.email }} (adresse saisie par le visiteur, non vérifiée).</p>
+{% endblock %}

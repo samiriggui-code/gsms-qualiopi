@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
 
-    from app.auth.models import User
+    from app.types.auth import User
 
 # Les dates « du jour » des tests et de la démo (date.today()) doivent tomber le même jour que celles de l'API,
 # qui raisonne dans le fuseau de l'organisme (Europe/Paris par défaut) : sinon, entre 22 h et minuit UTC,
@@ -38,8 +38,8 @@ time.tzset()
 os.environ.setdefault("JWT_SECRET", "secret-de-test-assez-long-pour-hs256-0123456789")
 os.environ.setdefault("DOCUMENTS_DIR", tempfile.mkdtemp(prefix="gsms-docs-"))
 
-from app.core import db as core_db  # noqa: E402
-from app.models import SCHEMAS  # noqa: E402
+from app.database import db as core_db  # noqa: E402
+from app.types.registry import SCHEMAS  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ADMIN_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/postgres")
@@ -47,7 +47,8 @@ ADMIN_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://postgres:p
 
 def alembic_config(url: str) -> Config:
     cfg = Config(str(BACKEND_DIR / "alembic.ini"))
-    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    cfg.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    cfg.set_main_option("version_locations", str(BACKEND_DIR / "migrations" / "versioned"))
     cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     return cfg
 
@@ -99,11 +100,19 @@ def db(database_url: str) -> Iterator[Session]:
 # ── API ──────────────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _limites() -> None:
+    """Compteurs de débit (en mémoire du processus) remis à zéro : chaque test part d'une adresse neuve."""
+    from app.common.limites import reset_all
+
+    reset_all()
+
+
 @pytest.fixture
 def client(db: Session) -> Iterator["TestClient"]:
     from fastapi.testclient import TestClient
 
-    from app.main import create_app
+    from app.cmd.server import create_app
 
     with TestClient(create_app()) as c:
         yield c
@@ -111,8 +120,8 @@ def client(db: Session) -> Iterator["TestClient"]:
 
 def make_user(db: Session, role: str, email: str | None = None) -> tuple["User", dict]:
     """Crée un utilisateur et renvoie les en-têtes d'authentification."""
-    from app.auth.models import User, UserRole
-    from app.auth.security import create_token, hash_password
+    from app.middleware.auth import create_token, hash_password
+    from app.types.auth import User, UserRole
 
     user = User(email=email or f"{role}@test.local", full_name=f"Test {role}", password_hash=hash_password("mot-de-passe-test"))
     user.role_links.append(UserRole(role=role))
@@ -130,9 +139,9 @@ TODAY = date.today()
 @pytest.fixture
 def demo(db: Session) -> Session:
     """Référentiel V9 actif + organisme de démo évalué (14 trous plantés)."""
-    from app.demo import seed_demo
-    from app.qualiopi.engine import refresh_all
-    from app.qualiopi.referential.importer import import_referential
+    from app.application.service.demo import seed_demo
+    from app.application.service.qualiopi.engine import refresh_all
+    from app.application.service.qualiopi.referential.importer import import_referential
 
     version = import_referential(db, V9)
     seed_demo(db, today=TODAY)
@@ -143,13 +152,13 @@ def demo(db: Session) -> Session:
 
 
 def find_session(db: Session, ref: str):  # noqa: ANN201
-    from app.training import models as t
+    from app.types import training as t
 
     return db.scalar(select(t.TrainingSession).where(t.TrainingSession.reference == ref))
 
 
 def target_names(db: Session) -> dict[str, str]:
-    from app.training import models as t
+    from app.types import training as t
 
     names = {s.id: s.reference for s in db.scalars(select(t.TrainingSession))}
     names |= {p.id: p.code for p in db.scalars(select(t.Program))}

@@ -5,11 +5,11 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.db import utcnow
-from app.events.models import OutboxEvent
-from app.platform.settings import ConfigurationService
-from app.training import models as t
-from app.training.policy import TrainingPolicy
+from app.application.access.training import TrainingPolicy
+from app.application.service.platform.settings import ConfigurationService
+from app.database.db import utcnow
+from app.types import training as t
+from app.types.event import OutboxEvent
 from tests.conftest import TODAY, find_session, make_user
 
 

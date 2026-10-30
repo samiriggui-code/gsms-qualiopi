@@ -3,6 +3,22 @@
 Dernière mise à jour : 05/10/2026 (parcours EDOF fusionné dans `main` ; données réelles de Form'SSI complétées, §5 ter).
 À lire en entier avant de toucher au code.
 
+> **26/10/2026 — Audit IA, un compte WeKnora par personne.** Rapport `docs/AUDIT-TECHNIQUE-IA.md`. `POST /ia/session` ouvre le compte WeKnora propre au compte GSMS (`<service>+u-<empreinte>@…`, contributeur), créé à sa première session par une invitation de l'espace révoquée aussitôt ; chacun ne voit que ses conversations (vérifié contre le moteur). Le moteur est en `registration_mode: invite_register` (`ia/config/config.yaml`) et `DISABLE_REGISTRATION` doit rester à `false`. Session refusée sans toutes les permissions du compte technique. Contrat `POST /api/v1/ia/analyses` (`gsms.ia.analyse-indicateur/1`) et traces `qualite.ia_analyse` (migration 0028). Comptes d'essai « Essai audit IA A/B » dans le WeKnora de dev (à supprimer).
+
+> **26/10/2026 — Moteur IA rapatrié dans le dépôt (`ia/moteur/`).** GSMS Qualiopi est une application indépendante : le moteur WeKnora adapté (Go, docreader, migrations, Dockerfiles ; base 0.8.3) vivait hors dépôt, dans `global-it-ss-template/backend`, non versionné. Il est copié dans `ia/moteur/` et `docker-compose.yml` construit `ia-app` et `ia-docreader` depuis là (`docker compose build ia-app ia-docreader`). Exclus de la copie : `.env`, `.test-password` (secrets) et les images du site de documentation (`website-docs/public`, `docs/images`), absentes du binaire. Les fausses clés présentes dans les tests WeKnora sont des exemples. Le template Global-IT-SS n'est plus une dépendance de construction.
+
+> **26/10/2026 — Formulaires = fiches (stagiaires, formateurs, personnel).** `ActionDialog` : groupes (`section`), demi-largeur, champs conditionnels (`show`), `required` calculé, `switch`, `photo` (`GsmsPhotoField` : téléversement `POST /medias/photos`, médiathèque `media/avatars/300-1..34`, retrait) et refus 422 aux libellés du formulaire ; stagiaire : création/modification complètes, onglet « Fiche » (`GsmsInfoPanel`) ; personnel : onglets par service (`/rh/personnel/services`), fiche `/platform/personnel/:staffId`, PATCH des seuls champs changés ; formateur : téléphone et présentation sur le site. Stagiaire de test « Essai TEST-FICHES » créé sur l'API de dev (à supprimer).
+
+> **26/10/2026 — Bilans et rapports refaits (synthèse de l'organisme).** `/platform/rapports` : chiffres clés et graphiques gouvernés par /bootstrap (préparation Qualiopi, moteur par critère → `indicateurs#crit-N`, inscriptions et étapes, résultats par formation en barres groupées + tableau, actions correctives, finances), bibliothèque de `GET /bilans` avec aperçu dans un panneau (`ReportPreview.vue`, fichiers via fetch + blob) ; « Analyser avec l'assistant » (`GsmsAskAssistant` + `askAssistant.ts`, droit `ia.use`) ouvre la conversation sur l'assistant préréglé (`gsmsAssistants.ts`), sinon l'agent intégré, et refuse lisiblement sans modèle de discussion ; `GsmsBarChart` `grouped`, séries à valeurs `null` (« non mesuré »).
+
+> **26/10/2026 — Présentation des listes, fiches et confirmations.** `GsmsListPage` : tri des lignes reçues (aucune route ne trie), colonnes visibles, densité et affichage liste/cartes mémorisés par page, export CSV des lignes affichées, cellules riches (`kind`), en-tête collant, état vide illustré ; `GsmsRecordSheet` (avatar/vignette, puces, résumé à droite ≥ 1280 px) ; `ActionDialog danger` + `confirmCritical()` (`GsmsCriticalHost` dans App.vue) pour toute opération irréversible : bandeau, ressaisie de la référence pour les plus graves, sons Web Audio désactivables (Profil) ; médiathèque `/app/media` via `components/gsms/media.ts` (photos de démo par table d'e-mails, drapeaux, icônes de fichiers, illustrations clair/sombre), `GsmsHelpFooter`, page 404 (`gsmsIntrouvable`).
+
+> **26/10/2026 — Graphiques des vues d'ensemble.** apexcharts 4.7.0 + vue3-apexcharts 1.8.0 (dernières versions MIT ; la 5+ exige une licence OEM payante pour un produit utilisé par des tiers), chargées à la demande ; composants `GsmsChartCard`, `GsmsDonut`, `GsmsBarChart`, `GsmsTrendChart` (+ `chartTheme.ts`, légende et tableau pour lecteurs d'écran), seulement des chiffres de l'API ; Pilotage refait (feuille de route en colonnes). Routes manquantes : série mensuelle des encaissements, responsable dans `/pilotage/feuille-de-route`.
+
+> **26/10/2026 — Front branché sur 5eb5d8a.** Profil = compte qualiopi (mot de passe → nouveau jeton gardé, « Se déconnecter partout ») ; accueil `/platform/accueil` → Pilotage ou 1re section ouverte par /bootstrap (logo idem) ; guides WeKnora coupés (`WEKNORA_GUIDES_ENABLED` dans `config/gitssFeatures.ts`) ; listes de codes via `GET /listes-de-valeurs` (store `gsmsValueLists`), filtres `entreprise`/`type`/`formateur`, `titre_id`, `/learners/{id}/inscriptions`, Paramètres › Échéancier et règles de financement lues par l'API.
+
+> **26/10/2026 — Front retiré.** le front Next.js/Metronic a été **retiré volontairement** (26/10/2026) : il sera refait en Vue 3 + TDesign, avec la coquille du back-office Global-IT-SS (kit dérivé de WeKnora : menu, panneau Paramètres). Le dépôt ne contient plus que le moteur Qualiopi et ses API ; l'inventaire des routes et des entités de paramétrage est dans [`docs/API.md`](docs/API.md). L'ancien front reste consultable dans l'historique git (commit `814e838`). Les mentions du front dans les §5 et suivants décrivent l'historique ; elles ne correspondent plus au contenu du dépôt.
+
 ## 1. Le produit
 
 - **GSMS** = « Global Security Management System » : suite d'applications éditée par **Global-IT-SS**,
@@ -33,22 +49,19 @@ Dernière mise à jour : 05/10/2026 (parcours EDOF fusionné dans `main` ; donn�
 - **Backend** : FastAPI, SQLAlchemy 2, Alembic (migrations `0001` → `0017`), PostgreSQL 16,
   Pydantic 2, Jinja2.
   - Schémas : `iam`, `config`, `formation`, `qualite`, `rh`, `financement`, `communication`, `edof`.
-  - Un worker (`app/worker.py`) lit l'outbox des événements, réévalue le moteur, planifie et envoie les
+  - Un worker (`app/cmd/worker.py`) lit l'outbox des événements, réévalue le moteur, planifie et envoie les
     relances.
-- **Front** : Next.js 16 (App Router, `proxy.ts` et non `middleware.ts`, `params` asynchrones),
-  Tailwind 4 avec tokens CSS, Radix, TanStack Query.
-  - BFF : `/api/auth/login` pose le cookie httpOnly `gsms_session`.
-  - `/api/gsms/[...path]` relaie les appels avec le jeton.
-  - `/api/public/[...path]` relaie sans session, pour les liens signés uniquement.
-  - Lire `frontend/AGENTS.md` : cette version de Next diffère de ce que tu connais.
+- **Front** : retiré (voir l'encadré en tête). L'ancien front Next.js passait par un BFF (cookie httpOnly
+  `gsms_session`, relais `/api/backend/…` et `/api/public/…`) ; le nouveau devra fournir l'équivalent ou
+  appeler l'API directement (CORS_ORIGINS). Routes : `docs/API.md`.
 - **Motifs du moteur, à réutiliser partout** :
   - `Decision` / `PolicyDenied` (409 `{error, detail, details}`), capacités par objet ;
-  - réglages datés (`ConfigurationService`, registre dans `app/platform/settings.py`) ;
-  - fonctionnalités activables (`app/platform/features.py`) ;
-  - catalogue de permissions (`app/auth/permissions.py`) ;
+  - réglages datés (`ConfigurationService`, registre dans `app/application/service/platform/settings.py`) ;
+  - fonctionnalités activables (`app/application/service/platform/features.py`) ;
+  - catalogue de permissions (`app/router/rbac.py`) ;
   - événements outbox (`publish`), journal des modifications, références `next_reference(db, prefix)`.
 
-Détail des modules : `README.md`. Détail du front : `frontend/README.md`.
+Détail des modules : `README.md`. Routes et paramétrage : `docs/API.md`.
 
 ## 4. Démarrer et vérifier
 
@@ -57,15 +70,12 @@ Détail des modules : `README.md`. Détail du front : `frontend/README.md`.
 cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt
 export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/gsms
 export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
-alembic upgrade head && python -m app.cli seed-demo
+alembic upgrade head && python -m app.cmd.cli seed-demo
 # seed-demo marche aussi sur une base déjà importée (Form'SSI, GSMS School) : les exemples (sessions,
 # apprenants, formateurs, réclamations… créés par « démo ») rejoignent l'organisme existant sans le modifier.
-# python -m app.cli retirer-demo les retire tous avant la mise en service réelle.
-uvicorn app.main:app --reload          # :8000, doc sur /docs
-python -m app.worker                   # second terminal
-
-# Front
-cd frontend && npm install && GSMS_API_URL=http://127.0.0.1:8000 npm run dev   # :3000
+# python -m app.cmd.cli retirer-demo les retire tous avant la mise en service réelle.
+uvicorn app.cmd.server:app --reload          # :8000, doc sur /docs
+python -m app.cmd.worker                   # second terminal
 ```
 
 E-mails en local : Mailpit (`docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit`,
@@ -76,11 +86,9 @@ VPS : un vrai SMTP (`SMTP_*` dans `.env`).
 
 ```bash
 cd backend && ruff check . && python -m pytest && alembic check        # 182 tests au 02/10
-cd frontend && npm run typecheck && npm run lint && npm run format:check && npm run build
-npm run test:e2e     # 18 passés, 4 ignorés (écritures sur mobile) ; captures dans e2e-results/captures/
 ```
 
-Comptes de la base e2e (mot de passe `demo-gsms-2026`) :
+Comptes de démonstration (mot de passe `demo-gsms-2026`) :
 
 - `direction@demo.fr`
 - `gestion@demo.fr`
@@ -143,7 +151,7 @@ réintroduire.
   (entreprises, apprenants, formateurs, qualifications, développement, sous-traitants, partenaires,
   veille, réclamations, satisfaction, programmes) appellent des routes absentes (404) : à rebrancher sur
   `/formations`, `/formateurs`, `/stagiaires`, `/rh/*`, `/qualiopi/*`, ou à ajouter côté API.
-  **Fait le 30/09** : l'API CRUD de `main` est réintégrée (`app/core/crud.py`, `app/training/resources.py`,
+  **Fait le 30/09** : l'API CRUD de `main` est réintégrée (`app/handler/crud.py`, `app/handler/training_resources.py`,
   droits actuels : `sessions.write`, `trainers.write`, `quality.write`) ainsi que
   `/referentials/active/indicators[/{n}]`. Les 43 pages du menu n'ont plus aucun appel en erreur.
 - Pages et composants Metronic à récupérer : `C:/laragon/www/gsms-school/apps/lms-crm` (171 pages, dont
@@ -165,11 +173,11 @@ Documentation : `docs/edof/PARCOURS.md` (parcours, contrôles, informations à o
     à des `formation.document` (une pièce commune n'est jamais copiée), compléments de la CDC,
     accompagnement de la CDC ;
   - référentiel des pièces `config/edof/referencement.yaml` (conditions, ancienneté, SIRET, pièces
-    sensibles) ; contrôles `app/edof/checks.py` avec niveau et cible ;
+    sensibles) ; contrôles `app/application/service/edof/checks.py` avec niveau et cible ;
   - cycle **déclaratif** : aucune API de dépôt EDOF n'existe, GSMS ne transmet rien ;
   - permissions `edof.read|write|validate|sensitive`, `programs.validate` ; fonctionnalité `edof`
     (active par défaut) ; les événements `edof.*` ne relancent pas le moteur Qualiopi ;
-  - `python -m app.cli import-formssi` : identité de Form'SSI et formation TFP APS, sans rien écraser.
+  - `python -m app.cmd.cli import-formssi` : identité de Form'SSI et formation TFP APS, sans rien écraser.
 - **Front** : `/formation/edof` (établissement) et `/formation/edof/[programId]` (onglets Contrôles,
   Programme, Contenus, Certification, Documents et aperçu, Transmission, Suivi pédagogique) ;
   composants `components/edof/`, requêtes `lib/gsms/edof.ts`.
@@ -188,7 +196,7 @@ Documentation : `docs/edof/PARCOURS.md` (parcours, contrôles, informations à o
 
 La rubrique Qualiopi du menu n'a plus de page « À construire ».
 
-- **API** `app/qualiopi/ecrans.py` (lectures prêtes à afficher, décisions motivées) :
+- **API** `app/handler/qualiopi_ecrans.py` (lectures prêtes à afficher, décisions motivées) :
   `GET /qualiopi/preuves[/{id}]`, `GET /qualiopi/evaluations`, `/qualiopi/evaluations/resultats`,
   `/qualiopi/constats`, et les audits internes `GET|POST /qualiopi/audits`, `/audits/echantillon`,
   `/audits/comparaison`, `GET /audits/{id}`, `POST /audits/{id}/indicateurs/{n}`, `POST /audits/{id}/cloture`.
@@ -205,7 +213,7 @@ La rubrique Qualiopi du menu n'a plus de page « À construire ».
 
 La rubrique « Offre de formation » n'a plus de page « À construire ».
 
-- **Import** `python -m app.cli import-gsms-school` (`app/training/import_school.py`) lit
+- **Import** `python -m app.cmd.cli import-gsms-school` (`app/application/service/training/import_school.py`) lit
   `config/catalogue/gsms-school.yaml`, produit par lecture du dépôt gsms-school-aps (fiches vitrine, catalogue,
   sites et salles, inventaire). Il crée 29 formations (TFP APS reste à `import-formssi` ; « Commission de
   sécurité » et « Formation intra-entreprise » écartées : conseil et sur-mesure), 10 lieux et 43 équipements.
@@ -214,13 +222,14 @@ La rubrique « Offre de formation » n'a plus de page « À construire ».
   vérifier). **Jamais repris** : les taux écrits en dur (87 à 100 %), les notes et avis, le texte « SI.Groupe »
   d'un autre organisme, les fournisseurs et factures fictifs de l'inventaire, les sessions de démonstration.
   Lieux et équipements arrivent « à vérifier sur place ».
+- **Compléments de la landing (26/10/2026)** : section `complements_landing` du YAML, relevée dans `landing/content/fiches.json` (intitulés des modules des 6 recyclages/RAN SSIAP, répartition théorie/pratique d'OVT et ASC-CYNO, 23 écarts de répartition à arbitrer), appliquée aux seules rubriques vides avec une note « à relire » ; textes de remplissage écartés (`FILLER` dans `import_school.py`) ; photos et vignettes en base (migrations 0024 `photo_url`/`image_url`, chemins `media/…` validés par `app/common/media.py` ; 0025 `site_visible`/`site_title`/`site_bio` et `service` du personnel), vignettes `config/catalogue/vignettes.yaml`, équipe de la landing (`config/organisme/equipe.yaml`, 6 formateurs et 9 personnes, photos 300-6…20 identiques à la landing) reprise par `seed-demo` (base déjà installée : `equipe-demo`) ; 0026 identité du stagiaire (détail seulement, masquée au journal) et téléphone du personnel, 0027 téléphone du formateur ; `PATCH /rh/personnel/{id}` ; photos téléversées `POST /medias/photos` (métadonnées retirées, `app/common/images.py`), lues sans compte sous /app/media/photos/ ; identités et téléphones fictifs de la démo (`complete_demo`). Base de dev en 0027, démo à jour.
 - **Tables** (migration 0018) : `formation.premises` (site, salle, plateau technique, stockage) et
   `formation.equipment` (article, quantité, lieu, vérifications) ; `program.results_basis` garde la période et
   les effectifs d'un taux publié. `satisfaction_rate` est une part de répondants satisfaits, en %.
-- **API** `app/training/offre.py` : `GET /formation/resultats?mois=` (réussite à l'examen, abandons,
+- **API** `app/handler/training_offre.py` : `GET /formation/resultats?mois=` (réussite à l'examen, abandons,
   satisfaction à chaud mesurés par formation, écarts avec les taux publiés), `POST
   /formation/resultats/{id}/publication` (refus motivé `NOTHING_MEASURED`), `GET /formation/ressources`.
-  CRUD `premises` et `equipment` (`app/training/resources.py`). Tests : `tests/test_offre_formation.py`.
+  CRUD `premises` et `equipment` (`app/handler/training_resources.py`). Tests : `tests/test_offre_formation.py`.
 - **Front** : `/formation/resultats`, `/formation/ressources` (même formulaire que l'onglet Contenus de la fiche,
   `components/edof/resource-fields.ts`), `/formation/locaux`, `/formation/moyens`.
 - Pas encore fait : affecter un lieu et du matériel à une session (la session garde ses champs texte), débouchés
@@ -289,7 +298,7 @@ Module local, sans service externe ni lien avec GSMS-Security ou un moteur de pr
   Chaque validation archive une version HTML figée dans `formation.document` (empreinte SHA-256, la précédente
   passe « remplacée »). Les événements `edition.*` n'entrent pas dans le moteur Qualiopi.
 - Rendu A4 : `config/documents_pro/` (imprimé ou enregistré en PDF par le navigateur). Les helpers communs avec
-  le carnet d'audit sont dans `app/core/rendu_a4.py` ; le carnet n'a pas changé (sortie identique octet pour octet).
+  le carnet d'audit sont dans `app/common/rendu_a4.py` ; le carnet n'a pas changé (sortie identique octet pour octet).
 - Front : section **Documents** (accueil, liste, fiche) sur les modèles de page ; droits `documents.read`,
   `documents.write`, `documents.validate`.
 
@@ -338,7 +347,7 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 
 ## 5 duodecies. Fiche formation reliée au moteur (13/10/2026)
 
-- API `GET /api/v1/qualiopi/formations/{id}` (`app/qualiopi/ecrans.py`, lecture qualité) : par indicateur, l'état
+- API `GET /api/v1/qualiopi/formations/{id}` (`app/handler/qualiopi_ecrans.py`, lecture qualité) : par indicateur, l'état
   calculé (`readiness_of`) sur les contrôles de la formation et de ses sessions, le détail de chaque contrôle,
   les preuves rattachées à la formation ou à ses sessions, les écarts ouverts. Les éléments de l'organisme
   restent dans le carnet. Test : `test_vue_qualiopi_d_une_formation`.
@@ -358,43 +367,125 @@ Niveau 1 de la navigation (accueil global → section → accueil de module → 
 - Restent sans page de section : Pilotage (le tableau de bord en tient lieu), Clients & financement et
   Parcours apprenant (la plupart de leurs modules sont encore à construire), Administration.
 
-## 6. Prochaine étape : front avec Metronic
+## 5 quattuordecies. Assistant IA relié au moteur Qualiopi (26/10/2026)
 
-Le propriétaire a une licence Metronic et l'utilise dans GSMS-School-Aps (demo1). Pour GSMS Qualiopi,
-deux démos ont été proposées :
+Serveur MCP en lecture seule `POST /api/v1/mcp` (14 outils : état des indicateurs, fiche indicateur, preuves, écarts,
+échéances, actions correctives, synthèse de session, fiche formation, sessions, planning, audits, veille, réclamations), déclaré automatiquement dans l'espace WeKnora à l'ouverture de session
+IA ; compte technique `assistant_ia` (`quality.read` et `sessions.read`, lecture seule) ; base « Référentiel Qualiopi » par
+`python -m app.cmd.cli ia-preparer` (65 textes officiels déposés, indexation en attente d'un modèle d'embedding dans le
+moteur IA). Détail : `docs/API.md`, section « Moteur IA et serveur MCP ».
+Durcissement (audit de sécurité) : `POST /ia/session` exige la permission `ia.use` ; le navigateur reçoit un compte
+WeKnora **contributeur** distinct (le compte de service propriétaire reste côté serveur) et **aucun jeton de
+renouvellement** (le front rappelle `/ia/session`, qui revérifie le compte GSMS) ; inscription WeKnora fermée
+(`DISABLE_REGISTRATION=true`, voir « Première installation » dans `docs/API.md`). Point ouvert : régler les modèles du
+moteur IA demande le compte de service, faute d'écran d'administration côté GSMS.
 
-- **Demo 4** : rail d'icônes et menu contextuel par module ;
-- **Demo 6** : barre latérale moderne avec recherche et favoris.
+**Actions de l'assistant (27/10/2026)** : le serveur MCP a aussi 19 outils d'action (`ACTION_TOOLS` dans
+`backend/app/handler/mcp_outils.py` : créer une session, changer son statut, inscrire, étape de parcours, réévaluer
+Qualiopi, ouvrir/juger/clore un audit, ouvrir/faire avancer une action corrective, valider une preuve, revue d'indicateur,
+dossier et source de financement, facture en brouillon, traiter/convertir une préinscription, lancer les relances, valider
+un message). Chacun appelle la route POST existante (même permission, même modèle, mêmes politiques) ; droits croisés
+personne ∩ compte technique jusque dans les politiques ; journal « Nom <e-mail> via l'assistant IA » ; refus motivé sans
+rien enregistrer. `ensure_mcp_service` pose « approbation toujours requise » sur chacun dans WeKnora. Le rôle
+`assistant_ia` reçoit les seules écritures nécessaires. Tests : `backend/tests/test_mcp_actions.py`. `docs/API.md` reste à
+compléter (fichier modifié par une autre session au moment du chantier).
 
-Demo1 reste possible. Le choix final revient au propriétaire.
+## 5 quindecies. Préinscriptions du site, backend (26/10/2026, chantier C9)
 
-**Où mettre la démo** :
+Le formulaire de la landing poste vers `POST /api/v1/public/preinscriptions` (au lieu de `/api/preinscriptions`, absent) ;
+table `formation.preinscription` (migration `0021`), traitement `/api/v1/preinscriptions` (liste, détail, statut, conversion
+en stagiaire inscrit par `training.service.enroll`), permissions `leads.read` / `leads.write` (gestion ; `leads.read` seul pour
+financement, pas pour le rôle « lecture »), 4 demandes d'exemple dans `seed-demo`. Page 4 du back-office : à faire. Détail : `docs/API.md`,
+section « Préinscriptions ».
 
-- en local dans `research/` à la racine de ce dépôt. Ce dossier est **ignoré par git** (`.gitignore`) :
-  il ne sera jamais publié ;
-- ou dans le dépôt privé `samiriggui-code/metronic`.
+## 5 sexdecies. Audit CodeRabbit du backend (26/10/2026)
 
-**Avant d'intégrer du code Metronic dans `frontend/`**, il faut soit rendre `gsms-qualiopi` privé, soit
-garder le front Metronic dans un dépôt privé. À trancher avec le propriétaire avant le premier commit
-qui contient du Metronic.
+Envoi des relances verrouillé (`skip_locked`, pas de double envoi), titres et
+actions de développement des formateurs réévalués à l'événement (`payload.trainer_ids`, aussi depuis la fiche RH), pièce
+retirée de `config/dossiers` ignorée par le moteur, chaînes CSS des documents A4 échappées (`<`, `>`, `&`), six mois
+calendaires exacts dans la synthèse des devis, échéances des sessions d'exemple supprimées avec elles.
 
-**Méthode recommandée**
+## 5 septdecies. Patrons de page, menu par sections et pages Qualiopi (26/10/2026, chantier C1)
 
-1. Lire la démo dans `research/` et relever sa structure : layout, sidebar, header, tokens, composants.
-2. Garder tel quel tout ce qui fait marcher l'application :
-   - BFF et cookie ;
-   - `src/lib/api.ts`, `types.ts`, `labels.ts` ;
-   - les requêtes TanStack (`features/*/queries.ts`) ;
-   - `ActionGate` ;
-   - les états renvoyés par l'API ;
-   - les tests e2e.
+- Composants partagés `app/src/components/gsms/` : `GsmsPageHeader`, `GsmsSectionLanding` (niveau 1), `GsmsListPage`
+  (niveau 2 : tableau ≥ 768 px, cartes sur téléphone, pagination), `GsmsRecordSheet` (niveau 3), `GsmsKpiRow`,
+  `GsmsModuleCard`, `GsmsAlertList`, `GsmsActionGate`, `GsmsRefusal`, `GsmsStatusTag`, `GsmsStepMark`, `GsmsPersonAvatar`,
+  plus `GsmsFilterTabs`, `GsmsRowActions`, `ActionDialog` (saisies `a_saisir`), `GridPoints`, `AttendanceSheetView`,
+  `useApiSource`, `format.ts` (libellés `gsms.etats.*`, refus 403/409 lisibles).
+- Menu par sections (`config/gsmsMenu.ts`) : les 42 pages du CDC y sont prévues ; une entrée n'apparaît que si sa route
+  existe et que `GET /bootstrap` l'ouvre. Sur téléphone (< 768 px) le menu devient un tiroir (barre du haut).
+- Pages : Pilotage (vue d'ensemble = tableau de bord), Qualiopi (vue d'ensemble), indicateurs et fiche, carnet d'audit
+  (version imprimable téléchargée, jamais injectée), preuves et fiche (validation), constats et actions, audits et fiche,
+  réclamations, veille, dossier de l'organisme, journal ; commencées pour C4 : sessions, fiche session (inscriptions,
+  cycle de vie, parcours, émargement, activité), parcours d'une inscription, émargement. Textes `gsms.<domaine>.…`.
 
-   **Seule la couche visuelle change** : AppShell, composants `ui/`, tokens.
-3. Brancher la couleur de l'organisme (`general.brand_color`, via `/bootstrap`) sur la couleur
-   principale de Metronic.
-4. Construire la navigation depuis `/bootstrap` (modules actifs et permissions), jamais en dur.
-5. Refaire passer `npm run test:e2e` (ordinateur et mobile, axe-core, débordement) et relire les
-   captures.
+## 5 octodecies. Planning, évaluations des acquis, aide au BPF, backend (26/10/2026, chantier C11 et page 14)
+
+Sans migration : `GET /planning` (créneaux, 93 jours au plus, portée formateur, conflits formateur / salle signalés sans
+blocage), `GET /evaluations-acquis` (composé des registres du parcours), `GET /bilans` (inventaire des rapports) et
+`GET /bilans/bpf?exercice=` (**aide** au BPF, cadres marqués calculé / indicatif / partiel / non calculable ; sources
+`docs/bilans/SOURCES.md`). Tests `tests/test_pilotage.py`. Back-office (pages 2, 3, 14, 15) :
+`planning` (semaine en grille CSS, liste ; jour par jour sur téléphone ; conflits de l'API, sans bibliothèque de calendrier),
+`rapports` (inventaire `GET /bilans`, carnet téléchargé en fichier) et `rapports/bpf` (cadres et avertissement de l'API),
+`evaluations` (`GET /evaluations-acquis`, actions gouvernées) et `satisfaction` (`/surveys`). Manque côté API : filtres et
+`capabilities` sur `/surveys`. Reste : un écran pour `GET /formation/resultats`.
+
+## 5 novodecies. Facturation, backend (26/10/2026, chantier C10)
+
+Factures, avoirs et encaissements (`app/handler/invoicing.py`, `/api/v1/factures`, `/api/v1/encaissements`, schéma
+`facturation`, migration 0022), module `invoicing` **désactivé par défaut** ; droits `invoices.read`, `invoices.write`,
+`invoices.issue`, `payments.write`. Numéro attribué à l'émission (`FA-AAAA-NNNN`, avoirs `AV-AAAA-NNNN`, sans trou),
+pièce figée (SHA-256 + déclencheur PostgreSQL), correction par avoir plafonné au restant, montants en centimes.
+Sources réglementaires et part « choix de GSMS » : `docs/facturation/SOURCES.md`. Démo : séries `DEMO-FA`/`DEMO-AV`
+retirées par `retirer-demo`. Reste : pages 19 et 20 du front, relances de paiement, facture électronique.
+Front (C8 + C10, 26/10) : `views/gsms/finances/` (vue d'ensemble, dossiers de financement et fiche, factures et avoirs et fiche, encaissements), `api/gsms/invoicing.ts` ; vérifications et capacités de l'API affichées telles quelles, aperçu A4 téléchargé ; modules `funding` et `invoicing` activés dans la base de dev. Reste : relances de paiement, facture électronique (aucune route).
+
+## 5 vicies. Durcissement des routes publiques (26/10/2026, audit de sécurité)
+
+Limites de débit en mémoire (`app/common/limites.py`, mono-instance, 429 en français) sur la connexion (adresse et e-mail),
+`/public/*`, l'émargement et les préinscriptions ; empreinte bcrypt factice pour un e-mail inconnu ; liens de documents datés
+(60 jours, clé dérivée, anciens liens lus 60 jours après l'émission du document) ; `/openapi.json` fermé en production ;
+verrou `FOR UPDATE` sur la réponse à un questionnaire ; fastapi 0.141.1 + starlette 1.7.0 figée ; Caddy plafonne le corps
+à 20 Mo. Détail : `docs/API.md` §1.
+
+## 5 vicies. Offre de formation et apprenants (26/10/2026, chantier C5)
+
+Back-office : vue d'ensemble École (`/platform/ecole`), catalogue (`formations`), fiche formation (programme, certification et
+vérifications, contenus, versions et programme imprimable, suivi pédagogique ; boutons selon `capabilities`), référencement CPF
+(`edof`, dossier `edof/dossiers/:id` : anomalies, pièces, instruction, cycle de vie), stagiaires et fiche (parcours, documents,
+financement si le module est actif), registres du parcours (`parcours/:vue`). Manque côté API : la liste des inscriptions d'un
+stagiaire (la fiche les relève dans `GET /sessions/{id}`), le dépôt de pièce EDOF et la gestion des intervenants et ressources
+ne sont pas encore à l'écran.
+
+**Commercial (26/10/2026, C7 + page 4 de C9)** : `views/gsms/commercial/` — demandes (`demandes`, filtre et compteurs de l'API, fiche avec déclarations horodatées, prise en charge, refus motivé, conversion avec `sessions_proposees`, réservé à `leads.*`), devis (`devis`, création, lignes, titre et validité, circuit selon `capabilities`, aperçu A4 téléchargé, versions), entreprises (`entreprises`, CRUD, fiche avec stagiaires et devis) ; modules ajoutés à la vue d'ensemble École. Manque côté API : filtres par entreprise (`/learners`, `/editions`), devis dans `seed-demo`, édition des sections d'un devis à l'écran.
+
+**Jetons et lectures manquantes (26/10/2026, backend)** : version de jeton par compte (`iam.user.token_version`, migration 0023, `ver` + `iat` dans le JWT, 401 « Session révoquée ») incrémentée au changement de mot de passe (qui rend un jeton neuf), à la désactivation et par `POST /auth/me/deconnexion-partout` ; pas au changement de rôles (droits relus à chaque requête) ; jeton `mcp` inchangé. Lectures ajoutées : `GET /learners/{id}/inscriptions`, filtres `entreprise` (`/learners`, `/editions`), `type` (`/editions`), `formateur` (`/sessions`, `/trainer-qualifications`, `/staff-development`), `titre_id` dans `/rh/echeances`, `GET /listes-de-valeurs`, `GET /qualiopi/circuit`, `GET /financement/regles`. Tests `test_revocation_jetons.py`, `test_routes_lecture.py` ; écrans pas encore branchés.
+
+**Communication (26/10/2026, C12)** : `views/gsms/communication/` — vue d'ensemble (`communication` : compteurs, à valider et échecs, état de l'envoi, moteur pour les indicateurs des règles), messages et relances (`messages` : onglets par statut avec les compteurs de l'API, fiche en tiroir avec texte brut et aperçu HTML téléchargé, valider, rejeter/annuler avec motif, renvoyer, planifier maintenant ; module désactivé → refus lisible ; rappel « délais par défaut, pas des obligations »), documents (`documents` : documents stockés rattachés aux preuves via `GET /qualiopi/preuves`, filtres type et sujet, téléchargement fetch + blob). Manque côté API : liste transverse `GET /documents` (documents hors preuve), `capabilities` par message (les boutons suivent le statut, l'API reste juge), fichiers absents pour deux justificatifs de la démo (404).
+
+**Démo complétée (26/10/2026, C13)** : `seed-demo` ajoute la formation MAC-SST (vignette : celle du SST, `thumbnail.ts`), 7 lieux et salles en `DEMO-` (capacité, accessibilité, une antenne « à vérifier »), 7 équipements (une vérification échue, une dans 12 jours), 2 sous-traitants (un certifié, un vérifié non certifié), partenaires handicap et socio-économiques, 4 fiches RH (contrats, une absence ; Julie Martin, intervenante extérieure, sans fiche), titres (H0B0 de Karim Benali à renouveler dans 45 jours), actions de développement, enquêtes entreprise, formateur et financeur, 4 dossiers de financement (OPCO, entreprise, CPF, créés seulement si le dispositif est actif) et deux sessions à venir dans la même salle (SST-2026-05, MAC-SST-2026-01 : un conflit au planning). Trous plantés inchangés ; `retirer-demo` retire tout (`test_demo.py`). `funding.apply` accepte un acteur système (`None`).
+
+**Sécurité front et publication (26/10/2026, C17)** : dépendances de `app/` figées et corrigées (dompurify 3.4.17, axios 1.20.0, mermaid 11.17.2, katex 0.18.10, vue 3.5.43, vite 7.3.7 ; webpack et less-loader retirés ; `npm audit` à zéro) ; production sur une seule origine par le service `web` (`deploy/web.Dockerfile`, Caddy : `/` landing, `/app/` back-office, `/api/` API, `/ia/` moteur IA ; `/api/v1/mcp` et l'embed WeKnora non publiés), CSP stricte sur `/app/` (scripts en ligne déplacés dans `app/public/boot.js`), restes nginx de WeKnora supprimés. Détail : `deploy/README.md`.
+
+**Pages publiques par lien signé et contact (26/10/2026)** : `/q/{jeton}`, `/espace/{jeton}`, `/emarger` vivent dans `app/` (`views/gsms/public/`, routes `requiresAuth: false` sans coque, base `/` du routeur quand l'adresse est à la racine) ; Caddy réécrit ces chemins vers `/app/index.html` (`@pages_publiques`), Vite fait de même en dev et réécrit `/api/public/documents/` vers `/api/v1/…`. Émargement : jeton du lien personnel gardé dans le stockage local de l'appareil puis retiré de l'adresse, signature au clic quand le code de salle est là. Formulaire de contact de la landing → `POST /api/v1/public/contact` (e-mail interne du journal des communications aux comptes `leads.read`, limite 5/10 min, `test_contact.py`). L'API Docker de dev doit être reconstruite pour servir `/public/contact`.
+
+**Recette visuelle (26/10/2026)** : photos et vignettes lues dans l'API partout (`media.ts` `mediaSrc`, table de démo et `thumbnail.ts` supprimées), fond du thème dès le premier rendu (`boot.js` lit `WeKnora_<id>_theme` comme `preferenceStorage`), cartes 270 px avec statut sous le titre, rubriques de la fiche formation sur deux colonnes, aide à 40 px du contenu, modules du tableau de bord sans trou, couleur `general.brand_color` appliquée (`brandColor.ts`, nuances claires et sombres, boutons assombris jusqu'au contraste AA ; la valeur par défaut #0369a1 n'est pas un choix : `/bootstrap` ne distingue pas défaut et saisie).
+
+## 6. Prochaine étape : nouveau front (Vue 3 + TDesign)
+
+L'ancien front Metronic a été retiré le 26/10/2026 : le propriétaire le jugeait brouillon. Le nouveau
+sera fait en **Vue 3 + TDesign**, avec la même coquille et la même ergonomie que le back-office
+Global-IT-SS (kit dérivé de WeKnora : menu latéral, panneau Paramètres).
+
+Points de départ :
+
+- `docs/API.md` : routes HTTP par module (méthode, chemin, droits) et entités de paramétrage à
+  regrouper dans le panneau Paramètres ;
+- navigation construite depuis `GET /api/v1/bootstrap` (modules actifs, permissions), jamais en dur ;
+- le front n'affiche que les décisions de l'API (capacités, refus motivés `Decision`) ;
+- pages publiques par lien signé à refaire (questionnaires, espace du stagiaire), adresse du front dans
+  `PUBLIC_URL` ;
+- en production, le service `web` (`deploy/`) publie la landing, le back-office, l'API et le moteur IA.
 
 ## 7. Reste à faire (ordre proposé)
 
@@ -416,5 +507,5 @@ qui contient du Metronic.
 - Toute nouvelle table passe par une migration Alembic autogénérée puis relue ; `alembic check` doit
   rester propre.
 - Tout nouveau comportement métier vient avec son test pytest sur un vrai PostgreSQL.
-- Tout nouvel écran vient avec son test Playwright (ordinateur et mobile) et une capture relue.
+- Tout nouvel écran (nouveau front) vient avec son test de bout en bout (ordinateur et mobile) et une capture relue.
 - Les réglages et modèles de texte vont dans `config/` (YAML, Jinja), pas en dur dans le code.

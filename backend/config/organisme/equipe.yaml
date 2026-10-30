@@ -1,0 +1,244 @@
+# Équipe présentée sur la landing (landing/content/school.ts, cartes « trainers », texte français) et reprise dans le
+# back-office : les 6 formateurs deviennent des formateurs (formation.trainer), les 9 autres du personnel
+# (rh.staff_member, volet direction, pedagogique ou rh). Relevé du 26/10/2026. Personnes FICTIVES de démonstration :
+# créées par seed-demo (acteur « démo »), retirées par retirer-demo ; l'équipe réelle sera saisie par l'organisme.
+#
+# Photo : numéro de media/avatars/300-<n>.png, IDENTIQUE à la landing (landing/app/widgets.tsx, `trainerPhoto` :
+# 300-{6 + rang dans la liste aplatie des volets}), à la demande du propriétaire. Selon le classement ci-dessous, six
+# portraits ne correspondent pas au genre du prénom (Claire Dumont 6, Julien Roche 7, Nora Lefèvre 8, Nadia Khelifi
+# 12, Jean-Claude Renard 13, Émilie Bernard 17) : à corriger ici et sur la landing en même temps, si on le décide.
+# Les certifications de la landing deviennent des spécialités du formateur, pas des titres : un texte de vitrine ne
+# prouve aucun titre (les titres se saisissent avec leur justificatif).
+#
+# Classement des 34 images (regardées une par une) : genre F/H, age adulte, jeune (jeune adulte) ou enfant ;
+# meme_que : même personne qu'une autre image (jamais utilisées toutes les deux).
+avatars:
+  1: {genre: F, age: jeune}
+  2: {genre: H, age: adulte}
+  3: {genre: H, age: adulte, meme_que: 16}
+  4: {genre: H, age: adulte}
+  5: {genre: F, age: adulte}
+  6: {genre: H, age: adulte}
+  7: {genre: F, age: adulte}
+  8: {genre: H, age: adulte, meme_que: 14}
+  9: {genre: H, age: adulte}
+  10: {genre: F, age: adulte}
+  11: {genre: H, age: adulte}
+  12: {genre: H, age: adulte}
+  13: {genre: F, age: adulte}
+  14: {genre: H, age: adulte, meme_que: 8}
+  15: {genre: F, age: adulte}
+  16: {genre: H, age: adulte, meme_que: 3}
+  17: {genre: H, age: adulte}
+  18: {genre: H, age: enfant}
+  19: {genre: F, age: enfant}
+  20: {genre: H, age: adulte}
+  21: {genre: F, age: adulte}
+  22: {genre: H, age: adulte}
+  23: {genre: F, age: adulte}
+  24: {genre: H, age: adulte}
+  25: {genre: H, age: adulte}
+  26: {genre: H, age: adulte}
+  27: {genre: H, age: adulte}
+  28: {genre: H, age: adulte}
+  29: {genre: H, age: adulte}
+  30: {genre: H, age: adulte}
+  31: {genre: H, age: jeune}
+  32: {genre: H, age: adulte}
+  33: {genre: H, age: adulte}
+  34: {genre: F, age: adulte}
+# Photos des stagiaires de démo, dans l'ordre d'attribution : hors de la plage de l'équipe (300-6 à 300-20), adultes
+# ou jeunes adultes du genre du prénom, jamais une image d'enfant ni le double d'une photo de l'équipe (3 = 16). Trop
+# peu de portraits de femmes : chaque photo de femme sert au plus à deux stagiaires, les suivantes gardent leurs initiales.
+stagiaires:
+  F: [21, 23, 34, 5, 1]
+  H: [22, 30, 25, 33, 29, 26, 28, 2, 4, 32, 27, 31]
+partage_max: {F: 2, H: 1}
+equipe:
+- id: dir-direction
+  volet: direction
+  prenom: Claire
+  nom: Dumont
+  genre: F
+  photo: 6
+  fonction: Directrice de l'organisme
+  certifications:
+  - Pilotage qualité
+  - Référente Qualiopi
+  bio: Pilote la stratégie de l'organisme et la démarche qualité, en lien avec les financeurs, les entreprises et les partenaires.
+- id: dir-adjoint
+  volet: direction
+  prenom: Julien
+  nom: Roche
+  genre: H
+  photo: 7
+  fonction: Directeur adjoint
+  certifications:
+  - Coordination des parcours
+  - Relations entreprises
+  bio: Coordination stratégique des parcours et pilotage qualité — interface avec les financeurs et partenaires.
+- id: dir-raf
+  volet: direction
+  prenom: Nora
+  nom: Lefèvre
+  genre: F
+  photo: 8
+  fonction: Responsable administrative et financière
+  certifications:
+  - Gestion administrative
+  - Financements
+  bio: Support à la direction sur la conformité réglementaire, le suivi des dossiers et l'organisation des sessions.
+- id: laurent-dubois
+  volet: formateur
+  prenom: Laurent
+  nom: Dubois
+  genre: H
+  photo: 9
+  fonction: Sécurité Privée & Sûreté
+  certifications:
+  - CQP APS
+  - BP ARS
+  - Qualification RP
+  bio: Ancien gendarme reconverti, 18 ans d'expérience en sécurité privée. Formateur TFP APS et BP ARS, il prépare les futurs
+    agents aux réalités du terrain avec rigueur et professionnalisme.
+- id: sandrine-moreau
+  volet: formateur
+  prenom: Sandrine
+  nom: Moreau
+  genre: F
+  photo: 10
+  fonction: Sécurité Incendie & SSIAP
+  certifications:
+  - SSIAP 3
+  - Formateur Incendie certifié
+  bio: Sapeur-pompier pendant 15 ans, certifiée SSIAP 3. Elle forme les agents à la prévention incendie, l'évacuation du public
+    et la gestion des alarmes en ERP et IGH.
+- id: marc-perrin
+  volet: formateur
+  prenom: Marc
+  nom: Perrin
+  genre: H
+  photo: 11
+  fonction: SST & Premiers Secours
+  certifications:
+  - Formateur SST INRS
+  - PSE2
+  - Infirmier SP
+  bio: Infirmier sapeur-pompier et formateur SST certifié par le réseau INRS. Il forme salariés et agents de sécurité aux
+    gestes de premiers secours et à l'utilisation du DAE.
+- id: nadia-khelifi
+  volet: formateur
+  prenom: Nadia
+  nom: Khelifi
+  genre: F
+  photo: 12
+  fonction: Prévention & Risques Professionnels
+  certifications:
+  - Ingénieur Prévention
+  - IPRP
+  - CSE
+  bio: Ingénieure en prévention des risques professionnels. Elle accompagne les entreprises sur les RPS, l'ergonomie et les
+    démarches de bien-être au travail conformément au Code du travail.
+- id: jean-claude-renard
+  volet: formateur
+  prenom: Jean-Claude
+  nom: Renard
+  genre: H
+  photo: 13
+  fonction: SSIAP & Sécurité des ERP/IGH
+  certifications:
+  - SSIAP 3
+  - Chef de sécurité
+  - CFSI
+  bio: Ancien chef de sécurité d'un groupe hospitalier, titulaire SSIAP 3 et CFSI. Il forme les agents à la surveillance,
+    la ronde incendie et la mise en sécurité du public en ERP.
+- id: olivier-gauthier
+  volet: formateur
+  prenom: Olivier
+  nom: Gauthier
+  genre: H
+  photo: 14
+  fonction: Protection Rapprochée & Événementiel
+  certifications:
+  - Close Protection
+  - SSIAP 2
+  - CQP APS
+  bio: Expert en protection rapprochée formé au close protection. Il enseigne les techniques de sécurisation de VIP, la gestion
+    de foules et la filtration événementielle.
+- id: claire-fontaine
+  volet: pedagogique
+  prenom: Claire
+  nom: Fontaine
+  genre: F
+  photo: 15
+  fonction: Coordination pédagogique nationale
+  certifications:
+  - Master DID
+  - Certification Qualiopi
+  - 12 ans d'expérience
+  bio: Pilote la cohérence des parcours, valide les contenus avec les référents métiers et assure le suivi Qualiopi des actions
+    de formation.
+- id: thomas-leroy
+  volet: pedagogique
+  prenom: Thomas
+  nom: Leroy
+  genre: H
+  photo: 16
+  fonction: Ingénieur pédagogique & multimédia
+  certifications:
+  - Scénarisation e-learning
+  - LMS
+  - Accessibilité RGAA
+  bio: Conçoit les modules digitaux, les évaluations et les supports blended learning pour harmoniser l'expérience sur tous
+    les territoires.
+- id: emilie-bernard
+  volet: pedagogique
+  prenom: Émilie
+  nom: Bernard
+  genre: F
+  photo: 17
+  fonction: Responsable suivi qualité & certification
+  certifications:
+  - Auditrice Qualiopi
+  - Référent handicap
+  - DOC sécurité
+  bio: Anime les bilans pédagogiques, les enquêtes fin de formation et prépare les dossiers pour les financements et audits
+    externes.
+- id: karim-benali
+  volet: rh
+  prenom: Karim
+  nom: Benali
+  genre: H
+  photo: 18
+  fonction: Responsable recrutement & sourcing formateurs
+  certifications:
+  - RH
+  - GPEC
+  - Réseaux métiers sécurité
+  bio: Identifie les experts terrain, conduit les entretiens et assure l'intégration des nouveaux formateurs dans les standards
+    qualité.
+- id: julie-marchand
+  volet: rh
+  prenom: Julie
+  nom: Marchand
+  genre: F
+  photo: 19
+  fonction: Chargée relations entreprises & conventions
+  certifications:
+  - Droit du travail
+  - OPCO
+  - Financement formation
+  bio: Accompagne les clients sur les conventions, les dossiers administratifs et le pilotage des demandes de financement.
+- id: philippe-garnier
+  volet: rh
+  prenom: Philippe
+  nom: Garnier
+  genre: H
+  photo: 20
+  fonction: Manager RH formation & personnel encadrant
+  certifications:
+  - Paie
+  - SST
+  - DUERP
+  - Relations sociales
+  bio: Supervise la gestion des temps, la conformité réglementaire et le bien-être des équipes pédagogiques et supports.

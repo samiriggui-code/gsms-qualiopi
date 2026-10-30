@@ -1,15 +1,154 @@
-# HTTPS automatique (Let's Encrypt) pour le nom de domaine de l'instance.
-{$DOMAIN} {
-	encode zstd gzip
+# Publication de GSMS Qualiopi sur UNE seule origine (image deploy/web.Dockerfile, service « web ») :
+#   /          site public (landing, export statique de Next.js)
+#   /app/      back-office (Vue 3 + TDesign, build Vite avec base /app/)
+#   /api/      API GSMS (FastAPI, service api:8000) ; /api/v1/mcp n'est jamais publié
+#   /ia/       moteur IA (WeKnora, service ia-app:8080), préfixe /ia retiré, flux SSE et WebSocket compris
+#
+# SITE_ADDRESS : le nom de domaine (Caddy obtient le certificat HTTPS) ou « :80 » derrière un Traefik qui
+# termine le HTTPS (deploy/docker-compose.traefik*.yml). API_UPSTREAM et IA_UPSTREAM ne servent qu'aux essais
+# locaux (valeurs par défaut : les services du docker-compose.yml).
+{
+	admin off
+	# Adresse réelle du client pour les limites de débit de l'API (backend/app/common/limites.py, qui lit la
+	# dernière adresse de X-Forwarded-For) : derrière Traefik (adresse privée), on lit X-Forwarded-For de droite à
+	# gauche en sautant les relais privés ; un client public direct ne peut pas imposer son adresse.
+	servers {
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
+	}
+}
 
+(securite_commune) {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
 		-Server
 	}
+}
 
-	# Tout passe par le front : l'API n'est jamais exposée directement.
-	reverse_proxy web:3000
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	import securite_commune
+
+	# Les blocs « handle » sont exclusifs et pris dans l'ordre d'écriture (matchers nommés seulement) :
+	# les refus d'abord, puis l'API, le moteur IA, le back-office, et la landing pour tout le reste.
+
+	# ── Refus ─────────────────────────────────────────────────────────────────────────────────────────────
+	# Serveur MCP de l'API, réservé au moteur IA sur le réseau interne (http://api:8000/api/v1/mcp) ;
+	# appels internes du moteur IA (le nginx de WeKnora les fermait aussi) ; canal d'intégration WeKnora
+	# (chat dans un site tiers) : non utilisé par GSMS, donc non publié (il exigerait d'être intégrable
+	# dans d'autres sites, avec une politique par canal).
+	@ferme path /api/v1/mcp /api/v1/mcp/* /ia/mcp /ia/mcp/* /ia/api/v1/local-browser/internal /app/embed /app/embed/* /app/embed.html /app/weknora-widget.js
+	handle @ferme {
+		respond 404
+	}
+
+	# ── Photos téléversées (médiathèque) ────────────────────────────────────────────────────────────────────
+	# Chemins « media/photos/<nom> » des fiches, servis sous /app/ : relayés vers la lecture publique de l'API
+	# (app/handler/medias.py), sans compte. Rien d'autre sous /app/media/ ne va à l'API.
+	@photos path_regexp photo ^/app/media/photos/([0-9a-f]{32}\.(jpg|png|webp))$
+	handle @photos {
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		rewrite * /api/v1/medias/photos/{re.photo.1}
+		reverse_proxy {$API_UPSTREAM:api:8000} {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	# ── API GSMS ──────────────────────────────────────────────────────────────────────────────────────────
+	# Réponses JSON ou documents HTML générés (styles en ligne) : aucun script autorisé.
+	@api path /api/* /health
+	handle @api {
+		header Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		# Corps plafonné avant l'API (pièces jointes : 15 Mo au plus côté API, storage.MAX_BYTES).
+		request_body {
+			max_size 20MB
+		}
+		# Liens de documents déjà envoyés par e-mail : /api/public/documents/{jeton}, sans v1 (docs/API.md §4).
+		uri replace /api/public/documents/ /api/v1/public/documents/ 1
+		reverse_proxy {$API_UPSTREAM:api:8000} {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	# ── Moteur IA (écrans WeKnora du back-office), préfixe /ia retiré ─────────────────────────────────────
+	@ia path /ia/*
+	handle @ia {
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		# Documents des bases de connaissances : 50 Mo (MAX_FILE_SIZE_MB, app/public/config.js).
+		request_body {
+			max_size 50MB
+		}
+		uri strip_prefix /ia
+		# flush_interval -1 : réponses SSE (chat) transmises au fil de l'eau ; WebSocket relayé tel quel.
+		reverse_proxy {$IA_UPSTREAM:ia-app:8080} {
+			header_up X-Forwarded-For {client_ip}
+			flush_interval -1
+		}
+	}
+
+	# ── Pages publiques par lien signé ────────────────────────────────────────────────────────────────────
+	# /q/{jeton} (questionnaire), /espace/{jeton} (espace du stagiaire), /emarger?code=…&jeton=… : adresses
+	# envoyées par e-mail ou imprimées en QR code, à la racine du domaine. Elles sont servies par le back-office
+	# (routes publiques sans compte, src/router/index.ts) : réécrites vers sa page, donc traitées par @app
+	# ci-dessous, avec sa CSP. « rewrite » passe avant les blocs « handle » ; l'adresse du navigateur ne change pas.
+	@pages_publiques path_regexp ^/(q/[^/]+|espace/[^/]+|emarger)/?$
+	rewrite @pages_publiques /app/index.html
+
+	# ── Back-office ───────────────────────────────────────────────────────────────────────────────────────
+	@app_racine path /app
+	handle @app_racine {
+		redir * /app/ 308
+	}
+
+	@app path /app/*
+	handle @app {
+		root * /srv
+		# CSP stricte : aucun script en ligne (app/index.html charge boot.js et config.js), aucun eval ;
+		# 'wasm-unsafe-eval' : décodeurs WebAssembly de pdf.js (aperçu des PDF).
+		# style-src 'unsafe-inline' : TDesign, Vue (attributs style) et mermaid posent des styles à l'exécution.
+		# blob: : aperçus de documents (PDF, HTML, images) ouverts depuis un Blob, worker de pdf.js.
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		@immuable path /app/assets/*
+		header @immuable Cache-Control "public, max-age=31536000, immutable"
+		@page not path /app/assets/*
+		header @page Cache-Control "no-cache"
+		# Repli sur la page de l'application pour les routes seulement : un fichier manquant sous
+		# /app/assets/ répond 404 (sinon index.html serait mis en cache « immuable » un an).
+		@route_app {
+			not path /app/assets/*
+			file {
+				try_files {path} /app/index.html
+			}
+		}
+		rewrite @route_app {file_match.relative}
+		file_server
+	}
+
+	# ── Site public (landing) ─────────────────────────────────────────────────────────────────────────────
+	handle {
+		root * /srv/landing
+		# Next.js (export statique) écrit ses données de page en scripts en ligne : 'unsafe-inline' est
+		# nécessaire ici, mais seulement ici (pas sur /app/). Vidéos YouTube (sans cookie) et images Unsplash
+		# du contenu de la landing.
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.unsplash.com; font-src 'self' data:; connect-src 'self'; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		@immuable path /_next/static/*
+		header @immuable Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} {path}/index.html {path}.html
+		file_server
+	}
+
+	# Page 404 de la landing pour les adresses inconnues du site public.
+	handle_errors 404 {
+		@landing not path /app/* /api/* /ia/*
+		handle @landing {
+			root * /srv/landing
+			rewrite * /404.html
+			file_server
+		}
+	}
 }

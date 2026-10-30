@@ -1,0 +1,222 @@
+"""facturation : factures, avoirs, encaissements (C10)
+
+Tables du schéma `facturation`, contraintes de montants et déclencheurs d'intégrité : une pièce émise (facture ou
+avoir) ne se modifie plus et ne se supprime pas (CGI, art. 289, I-5 : on la rectifie par un avoir) ; ses lignes
+non plus ; un encaissement ne s'efface pas, il s'annule. Seules les données d'exemple (numéro « DEMO-… ») peuvent
+être retirées par `retirer-demo`.
+
+Revision ID: 0022
+Revises: 0021
+Create Date: 2026-10-26 04:06:09.123721
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+revision: str = '0022'
+down_revision: Union[str, None] = '0021'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+INTEGRITY = """
+CREATE FUNCTION facturation.piece_figee() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.status <> 'BROUILLON' AND OLD.number NOT LIKE 'DEMO-%' THEN
+      RAISE EXCEPTION 'Pièce % émise : suppression interdite (la corriger par un avoir)', OLD.number
+        USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF OLD.status <> 'BROUILLON' AND (
+       NEW.status = 'BROUILLON'
+    OR (NEW.kind, NEW.number, NEW.title, NEW.client_kind, NEW.company_id, NEW.learner_id, NEW.funding_source_id,
+        NEW.quote_id, NEW.client_name, NEW.client_address, NEW.client_postal_code, NEW.client_city, NEW.client_siret,
+        NEW.purchase_order, NEW.service_from, NEW.service_to, NEW.issued_on, NEW.fiscal_year, NEW.due_on,
+        NEW.issued_at, NEW.issued_by, NEW.credited_invoice_id, NEW.reason, NEW.total_ht_cents, NEW.total_vat_cents,
+        NEW.total_ttc_cents, NEW.vat_breakdown::text, NEW.document_id)
+       IS DISTINCT FROM
+       (OLD.kind, OLD.number, OLD.title, OLD.client_kind, OLD.company_id, OLD.learner_id, OLD.funding_source_id,
+        OLD.quote_id, OLD.client_name, OLD.client_address, OLD.client_postal_code, OLD.client_city, OLD.client_siret,
+        OLD.purchase_order, OLD.service_from, OLD.service_to, OLD.issued_on, OLD.fiscal_year, OLD.due_on,
+        OLD.issued_at, OLD.issued_by, OLD.credited_invoice_id, OLD.reason, OLD.total_ht_cents, OLD.total_vat_cents,
+        OLD.total_ttc_cents, OLD.vat_breakdown::text, OLD.document_id)) THEN
+    RAISE EXCEPTION 'Pièce % émise : contenu figé (la corriger par un avoir)', OLD.number
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE FUNCTION facturation.ligne_figee() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE parent RECORD;
+BEGIN
+  SELECT status, number INTO parent FROM facturation.facture
+   WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.invoice_id ELSE NEW.invoice_id END;
+  IF FOUND AND parent.status <> 'BROUILLON' AND coalesce(parent.number, '') NOT LIKE 'DEMO-%' THEN
+    RAISE EXCEPTION 'Pièce % émise : lignes figées', parent.number USING ERRCODE = 'check_violation';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END $$;
+
+CREATE FUNCTION facturation.encaissement_trace() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF NOT EXISTS (SELECT 1 FROM facturation.facture f WHERE f.id = OLD.invoice_id AND f.number LIKE 'DEMO-%') THEN
+      RAISE EXCEPTION 'Encaissement : suppression interdite (l''annuler avec un motif)' USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF (NEW.invoice_id, NEW.amount_cents, NEW.received_on, NEW.mode, NEW.reference)
+     IS DISTINCT FROM (OLD.invoice_id, OLD.amount_cents, OLD.received_on, OLD.mode, OLD.reference)
+     OR (OLD.cancelled_at IS NOT NULL AND NEW.cancelled_at IS DISTINCT FROM OLD.cancelled_at) THEN
+    RAISE EXCEPTION 'Encaissement enregistré : seule son annulation est possible' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER piece_figee BEFORE UPDATE OR DELETE ON facturation.facture
+  FOR EACH ROW EXECUTE FUNCTION facturation.piece_figee();
+CREATE TRIGGER ligne_figee BEFORE INSERT OR UPDATE OR DELETE ON facturation.facture_ligne
+  FOR EACH ROW EXECUTE FUNCTION facturation.ligne_figee();
+CREATE TRIGGER encaissement_trace BEFORE UPDATE OR DELETE ON facturation.encaissement
+  FOR EACH ROW EXECUTE FUNCTION facturation.encaissement_trace();
+
+ALTER TABLE facturation.facture
+  ADD CONSTRAINT ck_facture_montants CHECK (total_ht_cents >= 0 AND total_vat_cents >= 0
+    AND total_ttc_cents = total_ht_cents + total_vat_cents),
+  ADD CONSTRAINT ck_facture_kind CHECK (kind IN ('FACTURE', 'AVOIR')),
+  ADD CONSTRAINT ck_facture_numero CHECK (status = 'BROUILLON' OR number IS NOT NULL);
+ALTER TABLE facturation.facture_ligne
+  ADD CONSTRAINT ck_facture_ligne_montants CHECK (unit_price_cents >= 0 AND amount_ht_cents >= 0 AND quantity > 0);
+ALTER TABLE facturation.encaissement ADD CONSTRAINT ck_encaissement_montant CHECK (amount_cents > 0);
+"""
+
+
+def upgrade() -> None:
+    op.execute('CREATE SCHEMA IF NOT EXISTS "facturation"')
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('facture',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('kind', sa.String(length=10), nullable=False),
+    sa.Column('number', sa.String(length=40), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('title', sa.String(length=250), nullable=False),
+    sa.Column('client_kind', sa.String(length=12), nullable=False),
+    sa.Column('company_id', sa.String(length=36), nullable=True),
+    sa.Column('learner_id', sa.String(length=36), nullable=True),
+    sa.Column('funding_source_id', sa.String(length=36), nullable=True),
+    sa.Column('quote_id', sa.String(length=36), nullable=True),
+    sa.Column('client_name', sa.String(length=200), nullable=False),
+    sa.Column('client_address', sa.String(length=300), nullable=True),
+    sa.Column('client_postal_code', sa.String(length=10), nullable=True),
+    sa.Column('client_city', sa.String(length=120), nullable=True),
+    sa.Column('client_siret', sa.String(length=20), nullable=True),
+    sa.Column('purchase_order', sa.String(length=80), nullable=True),
+    sa.Column('service_from', sa.Date(), nullable=True),
+    sa.Column('service_to', sa.Date(), nullable=True),
+    sa.Column('issued_on', sa.Date(), nullable=True),
+    sa.Column('fiscal_year', sa.Integer(), nullable=True),
+    sa.Column('due_on', sa.Date(), nullable=True),
+    sa.Column('issued_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('issued_by', sa.String(length=200), nullable=True),
+    sa.Column('author_id', sa.String(length=36), nullable=True),
+    sa.Column('note', sa.Text(), nullable=True),
+    sa.Column('credited_invoice_id', sa.String(length=36), nullable=True),
+    sa.Column('reason', sa.Text(), nullable=True),
+    sa.Column('total_ht_cents', sa.BigInteger(), nullable=False),
+    sa.Column('total_vat_cents', sa.BigInteger(), nullable=False),
+    sa.Column('total_ttc_cents', sa.BigInteger(), nullable=False),
+    sa.Column('vat_breakdown', sa.JSON(), server_default='[]', nullable=False),
+    sa.Column('document_id', sa.String(length=36), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_by', sa.String(length=200), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['company_id'], ['formation.company.id'], name=op.f('fk_facture_company_id_company'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['credited_invoice_id'], ['facturation.facture.id'], name=op.f('fk_facture_credited_invoice_id_facture'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['document_id'], ['formation.document.id'], name=op.f('fk_facture_document_id_document'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['funding_source_id'], ['financement.funding_source.id'], name=op.f('fk_facture_funding_source_id_funding_source'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['learner_id'], ['formation.learner.id'], name=op.f('fk_facture_learner_id_learner'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['quote_id'], ['edition.projet.id'], name=op.f('fk_facture_quote_id_projet'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_facture')),
+    sa.UniqueConstraint('number', name=op.f('uq_facture_number')),
+    schema='facturation'
+    )
+    op.create_index(op.f('ix_facturation_facture_company_id'), 'facture', ['company_id'], unique=False, schema='facturation')
+    op.create_index(op.f('ix_facturation_facture_credited_invoice_id'), 'facture', ['credited_invoice_id'], unique=False, schema='facturation')
+    op.create_index(op.f('ix_facturation_facture_funding_source_id'), 'facture', ['funding_source_id'], unique=False, schema='facturation')
+    op.create_index(op.f('ix_facturation_facture_learner_id'), 'facture', ['learner_id'], unique=False, schema='facturation')
+    op.create_index(op.f('ix_facturation_facture_status'), 'facture', ['status'], unique=False, schema='facturation')
+    op.create_table('encaissement',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('invoice_id', sa.String(length=36), nullable=False),
+    sa.Column('amount_cents', sa.BigInteger(), nullable=False),
+    sa.Column('received_on', sa.Date(), nullable=False),
+    sa.Column('mode', sa.String(length=20), nullable=False),
+    sa.Column('reference', sa.String(length=120), nullable=True),
+    sa.Column('note', sa.Text(), nullable=True),
+    sa.Column('cancelled_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('cancelled_by', sa.String(length=200), nullable=True),
+    sa.Column('cancel_reason', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_by', sa.String(length=200), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['invoice_id'], ['facturation.facture.id'], name=op.f('fk_encaissement_invoice_id_facture'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_encaissement')),
+    schema='facturation'
+    )
+    op.create_index(op.f('ix_facturation_encaissement_invoice_id'), 'encaissement', ['invoice_id'], unique=False, schema='facturation')
+    op.create_table('facture_ligne',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('invoice_id', sa.String(length=36), nullable=False),
+    sa.Column('position', sa.Integer(), nullable=False),
+    sa.Column('label', sa.String(length=300), nullable=False),
+    sa.Column('detail', sa.Text(), nullable=True),
+    sa.Column('quantity', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('unit', sa.String(length=20), nullable=False),
+    sa.Column('unit_price_cents', sa.BigInteger(), nullable=False),
+    sa.Column('discount_pct', sa.Numeric(precision=5, scale=2), nullable=False),
+    sa.Column('vat_rate', sa.Numeric(precision=5, scale=2), nullable=True),
+    sa.Column('amount_ht_cents', sa.BigInteger(), nullable=False),
+    sa.Column('program_id', sa.String(length=36), nullable=True),
+    sa.Column('session_id', sa.String(length=36), nullable=True),
+    sa.Column('enrollment_id', sa.String(length=36), nullable=True),
+    sa.Column('credited_line_id', sa.String(length=36), nullable=True),
+    sa.ForeignKeyConstraint(['credited_line_id'], ['facturation.facture_ligne.id'], name=op.f('fk_facture_ligne_credited_line_id_facture_ligne'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['enrollment_id'], ['formation.enrollment.id'], name=op.f('fk_facture_ligne_enrollment_id_enrollment'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['invoice_id'], ['facturation.facture.id'], name=op.f('fk_facture_ligne_invoice_id_facture'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['program_id'], ['formation.program.id'], name=op.f('fk_facture_ligne_program_id_program'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['session_id'], ['formation.session.id'], name=op.f('fk_facture_ligne_session_id_session'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_facture_ligne')),
+    schema='facturation'
+    )
+    op.create_index(op.f('ix_facturation_facture_ligne_credited_line_id'), 'facture_ligne', ['credited_line_id'], unique=False, schema='facturation')
+    op.create_index(op.f('ix_facturation_facture_ligne_enrollment_id'), 'facture_ligne', ['enrollment_id'], unique=False, schema='facturation')
+    op.create_index(op.f('ix_facturation_facture_ligne_invoice_id'), 'facture_ligne', ['invoice_id'], unique=False, schema='facturation')
+    # ### end Alembic commands ###
+    op.execute(INTEGRITY)
+
+
+def downgrade() -> None:
+    for trigger, table in (("encaissement_trace", "encaissement"), ("ligne_figee", "facture_ligne"),
+                           ("piece_figee", "facture")):
+        op.execute(f"DROP TRIGGER IF EXISTS {trigger} ON facturation.{table}")
+        op.execute(f"DROP FUNCTION IF EXISTS facturation.{trigger}()")
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_facturation_facture_ligne_invoice_id'), table_name='facture_ligne', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_ligne_enrollment_id'), table_name='facture_ligne', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_ligne_credited_line_id'), table_name='facture_ligne', schema='facturation')
+    op.drop_table('facture_ligne', schema='facturation')
+    op.drop_index(op.f('ix_facturation_encaissement_invoice_id'), table_name='encaissement', schema='facturation')
+    op.drop_table('encaissement', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_status'), table_name='facture', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_learner_id'), table_name='facture', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_funding_source_id'), table_name='facture', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_credited_invoice_id'), table_name='facture', schema='facturation')
+    op.drop_index(op.f('ix_facturation_facture_company_id'), table_name='facture', schema='facturation')
+    op.drop_table('facture', schema='facturation')
+    # ### end Alembic commands ###
+    op.execute('DROP SCHEMA IF EXISTS "facturation"')

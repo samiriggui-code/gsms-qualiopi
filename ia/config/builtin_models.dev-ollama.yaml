@@ -1,0 +1,18 @@
+# Modèles du moteur IA pour le POSTE DE DÉVELOPPEMENT seulement (docker-compose.dev.yml) : l'Ollama local
+# (conteneur gitss-ollama, réseau gitss_WeKnora-network), sans clé ni envoi de données à l'extérieur.
+# Petits modèles : de quoi vérifier le circuit de bout en bout, pas la qualité des réponses.
+# Relu à chaque démarrage du moteur (BUILTIN_MODELS_CONFIG) ; une entrée retirée du fichier est retirée du moteur.
+builtin_models:
+  - id: gsms-dev-chat
+    type: KnowledgeQA
+    source: local
+    is_default: true
+    name: qwen2.5:3b
+  - id: gsms-dev-embedding
+    type: Embedding
+    source: local
+    is_default: true
+    name: bge-m3:latest
+    parameters:
+      embedding_parameters:
+        dimension: 1024

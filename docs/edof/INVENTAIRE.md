@@ -18,7 +18,7 @@ réelles**, **démonstration**, **incomplet**.
 | Rendu Jinja figé + SHA-256 (convocation, attestation) | Opérationnel | Même principe pour le programme rédigé depuis une version validée |
 | `Decision` / `PolicyDenied`, `ActionGate`, permissions, fonctionnalités | Opérationnel | Cycle du dossier gouverné par l'API ; nouvelles permissions `edof.*`, `programs.validate`, fonctionnalité `edof` |
 | Organisme : `Organization` (nom, SIRET, NDA, catégories) | Données de **démonstration** seulement (`seed-demo`) | Complété par le profil `edof.establishment` ; données réelles importées par `import-formssi` |
-| Front : pages Programmes, Formateurs, Qualifications, Sessions | Opérationnel (Metronic CRM) | Repris tels quels ; nouvelles pages `/formation/edof` |
+| Front (retiré le 26/10/2026, à refaire) : pages Programmes, Formateurs, Qualifications, Sessions | Opérationnel (Metronic CRM) | Repris tels quels ; nouvelles pages `/formation/edof` |
 | Tests Playwright du front | **Absents de `main`** (scripts `typecheck` et `test:e2e` cités dans CLAUDE.md, mais supprimés lors du passage à Metronic) | Vérification faite par script Playwright hors dépôt (voir HANDOFF) |
 | ESLint | **Cassé sur `main`** : la surcharge `ajv >=8.18` et `minimatch ^10` de `package.json` est incompatible avec `@eslint/eslintrc` | Contournement local seulement ; à corriger dans `package.json` |
 | Vitrine publique de Form'SSI | **N'existe pas** | L'aperçu public est présenté comme un aperçu, rien n'est publié |

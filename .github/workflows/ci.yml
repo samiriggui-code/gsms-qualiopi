@@ -50,27 +50,6 @@ jobs:
       - name: Tests
         run: python -m pytest
 
-  frontend:
-    name: Front — types et build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Dépendances
-        run: npm ci
-      - name: Types
-        run: npx tsc --noEmit
-      - name: Build
-        run: npm run build
-      # Les tests de bout en bout (Playwright) de l'ancien front sont à réécrire pour le front Metronic.
-
   docker:
     name: Images Docker
     runs-on: ubuntu-latest
@@ -78,11 +57,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: API et worker
         run: docker build -t gsms-backend:ci backend
-      - name: Front
-        run: docker build -t gsms-frontend:ci frontend
+      - name: Site, back-office et reverse proxy (service web)
+        run: |
+          docker build -f deploy/web.Dockerfile -t gsms-web:ci .
+          docker run --rm -e SITE_ADDRESS=ci.exemple.fr gsms-web:ci caddy validate --config /etc/caddy/Caddyfile
+          docker run --rm -e SITE_ADDRESS=:80 gsms-web:ci caddy validate --config /etc/caddy/Caddyfile
       - name: Configuration serveur
         run: |
-          export DOMAIN=ci.exemple.fr POSTGRES_PASSWORD=x JWT_SECRET=x TRAEFIK_NETWORK=proxy TRAEFIK_ENTRYPOINT=websecure TRAEFIK_CERTRESOLVER=letsencrypt
+          # Secrets factices : compose exige POSTGRES/JWT + mots de passe Redis/Neo4j du moteur IA.
+          export DOMAIN=ci.exemple.fr POSTGRES_PASSWORD=x JWT_SECRET=x \
+            IA_REDIS_PASSWORD=x IA_NEO4J_PASSWORD=x \
+            TRAEFIK_NETWORK=proxy TRAEFIK_ENTRYPOINT=websecure TRAEFIK_CERTRESOLVER=letsencrypt
+          # Les services ia-* référencent ia/.env ; un fichier vide suffit pour valider la composition.
+          touch ia/.env
           docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml -f deploy/docker-compose.caddy.yml config -q
           docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml -f deploy/docker-compose.traefik.yml config -q
           docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml -f deploy/docker-compose.traefik-host.yml config -q

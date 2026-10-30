@@ -1,0 +1,14 @@
+# Ollama local (facultatif) : modèles d'IA sur la machine, sans clé API.
+# Lancer avec : docker compose --profile ollama up -d
+services:
+  ollama:
+    image: ollama/ollama:0.12.6
+    container_name: gitss-ollama
+    profiles: ["ollama"]
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - WeKnora-network
+    restart: "no"
+volumes:
+  ollama-models:

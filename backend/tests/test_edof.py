@@ -6,12 +6,12 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.auth.models import User
-from app.edof import checks, fiche, service
-from app.edof import models as m
-from app.edof.formssi import import_formssi
-from app.platform.decisions import PolicyDenied
-from app.training import models as t
+from app.application.service.edof import checks, fiche, service
+from app.application.service.edof.formssi import import_formssi
+from app.application.service.platform.decisions import PolicyDenied
+from app.types import edof as m
+from app.types import training as t
+from app.types.auth import User
 from tests.conftest import make_user
 
 PDF = b"%PDF-1.4\n% piece\n%%EOF\n"

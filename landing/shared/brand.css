@@ -1,0 +1,78 @@
+/* Shared by the product homepage and VitePress documentation. */
+/* Les variables de la landing (--wk-*) sont branchées sur les jetons du thème (theme/tokens.css). */
+@import "../../theme/tokens.css";
+:root {
+  color-scheme: light;
+  --wk-ink: var(--gitss-foreground);
+  --wk-ink-deep: #04060c;
+  --wk-ink-soft: #2c3850;
+  --wk-ink-mute: var(--gitss-muted-foreground);
+  --wk-gold: var(--gitss-primary);
+  --wk-gold-light: var(--gitss-mid);
+  --wk-paper: var(--gitss-background);
+  --wk-paper-2: var(--gitss-muted);
+  --wk-paper-3: var(--gitss-secondary);
+  --wk-rule: rgba(10, 15, 28, .12);
+  --wk-rule-soft: rgba(10, 15, 28, .07);
+  --wk-surface: var(--gitss-card);
+  --wk-header: rgba(246, 248, 252, .94);
+  --wk-button-hover: var(--gitss-primary-hover);
+  --wk-accent-text: var(--gitss-accent-text);
+  --wk-accent-border: #c9d8ff;
+  --wk-logo-ground: #fff;
+  --wk-font-sans: var(--gitss-font-sans);
+  --wk-font-serif: var(--gitss-font-display);
+  --wk-font-mono: var(--gitss-font-mono);
+}
+html.dark {
+  color-scheme: dark;
+  --wk-ink: var(--gitss-foreground);
+  --wk-ink-soft: #c3cce0;
+  --wk-ink-mute: var(--gitss-muted-foreground);
+  --wk-gold: #4dd8ff;
+  --wk-gold-light: var(--gitss-cyan);
+  --wk-paper: var(--gitss-background);
+  --wk-paper-2: var(--gitss-card);
+  --wk-paper-3: var(--gitss-muted);
+  --wk-rule: rgba(255, 255, 255, .12);
+  --wk-rule-soft: rgba(255, 255, 255, .07);
+  --wk-surface: var(--gitss-card);
+  --wk-header: rgba(4, 6, 12, .92);
+  --wk-button-hover: #c3d0e2;
+  --wk-accent-text: var(--gitss-accent-text);
+  --wk-accent-border: rgba(77, 216, 255, .35);
+  --wk-logo-ground: #fff;
+}
+/* Palette GSMS (couleurs du logo) : violet profond #290075, cyan #00ABFF, magenta #B521BA, fond nuit #050515. */
+:root {
+  --gsms-violet: #290075; --gsms-cyan: #00abff; --gsms-magenta: #b521ba; --gsms-night: #050515;
+  --gsms-gradient: linear-gradient(90deg, #290075, #00abff 55%, #b521ba);
+  --wk-gold: #5a2be0;
+  --wk-gold-light: #7a55f0;
+  --wk-paper: #f8f7fc;
+  --wk-paper-2: #f1eefb;
+  --wk-button-hover: #4520b8;
+  --wk-accent-text: #5a2be0;
+  --wk-accent-border: #d4c6ff;
+  --wk-header: rgba(248, 247, 252, .94);
+}
+html.dark {
+  --wk-gold: #00abff;
+  --wk-gold-light: #38c6ff;
+  --wk-paper: #050515;
+  --wk-paper-2: #0c0a24;
+  --wk-paper-3: #14103a;
+  --wk-surface: #0e0b28;
+  --wk-header: rgba(5, 5, 21, .92);
+  --wk-button-hover: #38c6ff;
+  --wk-accent-text: #9b7df5;
+  --wk-accent-border: rgba(155, 125, 245, .35);
+}
+/* Logo GSMS : version claire et version sombre, une seule affichée selon le thème. */
+.wk-logo { display: inline-flex; align-items: center; flex-shrink: 0; vertical-align: middle; }
+.wk-logo img { display: block; width: auto; height: 44px; }
+footer .wk-logo img { height: 64px; }
+.wk-logo .wk-logo-dark { display: none; }
+html.dark .wk-logo .wk-logo-light { display: none; }
+html.dark .wk-logo .wk-logo-dark { display: block; }
+@media (max-width: 480px) { .wk-brand .wk-logo img { height: 36px; } }

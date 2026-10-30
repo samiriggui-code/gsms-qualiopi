@@ -1,0 +1,13 @@
+# Contexte de deploy/web.Dockerfile (racine du dépôt) : seulement ce que la construction utilise.
+*
+!app
+!landing
+!theme
+!deploy/Caddyfile
+**/node_modules
+**/.env
+**/.env.*
+app/dist
+landing/.next
+landing/out
+landing/AGENTS.md

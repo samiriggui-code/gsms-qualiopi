@@ -3,8 +3,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.qualiopi.evaluation.models import Finding
-from app.qualiopi.evidence.models import Evidence
+from app.types.qualiopi_evaluation import Finding
+from app.types.qualiopi_evidence import Evidence
 from tests.conftest import TODAY, make_user
 
 API = "/api/v1/qualiopi"
@@ -113,7 +113,7 @@ def test_audit_interne_de_bout_en_bout(client, demo: Session) -> None:  # noqa: 
 
 
 def test_vue_qualiopi_d_une_formation(client, demo: Session) -> None:  # noqa: ANN001
-    from app.training import models as t
+    from app.types import training as t
 
     _, h = make_user(demo, "qualite")
     session = demo.scalar(select(t.TrainingSession).where(t.TrainingSession.reference == "SST-2026-02"))
