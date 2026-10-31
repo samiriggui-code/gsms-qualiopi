@@ -9,6 +9,8 @@
                                                    et personnel de démo remplacés par l'équipe (photos corrigées)
   python -m app.cmd.cli completer-demo                 démo installée : remplit délai d'accès, accessibilité, tarifs…
                                                    des fiches formation (valeurs fictives, notées « démo »)
+  python -m app.cmd.cli importer-pedagogie tfp-aps pedagogie/tfp-aps
+                                                   dossier pédagogique en ressources de la formation (brouillons)
   python -m app.cmd.cli import-formssi                 données réelles de Form'SSI (établissement, TFP APS) pour EDOF
   python -m app.cmd.cli import-gsms-school             offre reprise de GSMS School (29 formations, lieux, équipements)
   python -m app.cmd.cli ia-preparer [--renouveler-jeton]
@@ -102,6 +104,19 @@ def complete_demo_cli() -> None:
           "résultats de contrôle.")
 
 
+def import_pedagogy(slug: str, folder: str) -> None:
+    from pathlib import Path
+
+    from app.application.service.training.pedagogie import import_pedagogie
+
+    with session_factory()() as db:
+        set_actor(db, "cli")
+        out = import_pedagogie(db, slug, Path(folder))
+        db.commit()
+    print(f"{out['formation']} : {len(out['crees'])} contenu(s) créé(s), {len(out['mis_a_jour'])} mis à jour, "
+          f"{out['inchanges']} inchangé(s).")
+
+
 def team_demo() -> None:
     from app.application.service.demo import replace_demo_team
 
@@ -187,6 +202,9 @@ def main() -> None:
     sub.add_parser("retirer-demo")
     sub.add_parser("equipe-demo")
     sub.add_parser("completer-demo")
+    ped = sub.add_parser("importer-pedagogie")
+    ped.add_argument("formation", help="identifiant catalogue de la formation (ex. tfp-aps)")
+    ped.add_argument("dossier", help="dossier pédagogique (ex. pedagogie/tfp-aps)")
     sub.add_parser("import-formssi")
     sub.add_parser("import-gsms-school")
     ia = sub.add_parser("ia-preparer")
@@ -208,6 +226,8 @@ def main() -> None:
         team_demo()
     elif args.cmd == "completer-demo":
         complete_demo_cli()
+    elif args.cmd == "importer-pedagogie":
+        import_pedagogy(args.formation, args.dossier)
     elif args.cmd == "ia-preparer":
         ia_prepare(args.renouveler_jeton)
 

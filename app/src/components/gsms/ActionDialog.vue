@@ -1,6 +1,6 @@
 <template>
   <t-dialog :visible="visible" :close-on-overlay-click="!submitting && !danger" :close-on-esc-keydown="!submitting"
-    :width="fullScreen ? undefined : width" :mode="fullScreen ? 'full-screen' : 'modal'" placement="center" attach="body" destroy-on-close
+    :width="fullScreen ? undefined : dialogWidth" :mode="fullScreen ? 'full-screen' : 'modal'" placement="center" attach="body" destroy-on-close
     :dialog-class-name="`gsms-action-dialog${danger ? ' gsms-action-dialog--danger' : ''}`" @close="close">
     <template #header>
       <div class="ad-head">
@@ -24,10 +24,10 @@
           <div class="ad-grid">
             <template v-for="f in g.fields" :key="f.name">
               <t-form-item v-if="shown(f)" :label="f.label" :name="f.name" :required-mark="isRequired(f)" :help="f.help"
-                :class="{ 'ad-half': f.half, 'ad-full': !f.half }">
+                :class="{ 'ad-half': f.half, 'ad-quarter': f.quarter, 'ad-full': !f.half && !f.quarter }">
                 <t-date-picker v-if="f.type === 'date'" v-model="values[f.name]" value-type="YYYY-MM-DD" format="DD/MM/YYYY"
                   :placeholder="f.placeholder || t('gsms.commun.formatDate')" clearable style="width: 100%" />
-                <t-textarea v-else-if="f.type === 'textarea'" v-model="values[f.name]" :maxlength="f.maxlength" :placeholder="f.placeholder ?? ''" :autosize="{ minRows: 3, maxRows: 8 }" />
+                <t-textarea v-else-if="f.type === 'textarea'" v-model="values[f.name]" :maxlength="f.maxlength" :placeholder="f.placeholder ?? ''" :autosize="{ minRows: 2, maxRows: 10 }" />
                 <t-input-number v-else-if="f.type === 'number'" v-model="values[f.name]" theme="normal" style="width: 100%" />
                 <t-select v-else-if="f.type === 'select'" v-model="values[f.name]" :options="f.options" clearable
                   :placeholder="f.placeholder || t('gsms.commun.choisir')" />
@@ -35,7 +35,9 @@
                   <t-radio v-for="o in f.options" :key="String(o.value)" :value="o.value">{{ o.label }}</t-radio>
                 </t-radio-group>
                 <t-switch v-else-if="f.type === 'switch'" v-model="values[f.name]" />
-                <GsmsPhotoField v-else-if="f.type === 'photo'" v-model="values[f.name]" :name="photoName(f)"
+                <t-checkbox-group v-else-if="f.type === 'checkboxes'" v-model="values[f.name]" class="action-dialog__radios"
+                  :options="f.options as any" />
+                <GsmsPhotoField v-else-if="f.type === 'photo'" v-model="values[f.name]" :name="photoName(f)" :library="f.library" :square="f.square"
                   @busy="(b: boolean) => (photoBusy[f.name] = b)" />
                 <t-input v-else v-model="values[f.name]" :maxlength="f.maxlength" :placeholder="f.placeholder ?? ''"
                   :type="f.inputType" :autocomplete="f.autocomplete" />
@@ -87,7 +89,7 @@ export interface ActionField {
   name: string
   label?: string
   /** `photo` : GsmsPhotoField (chemin de la médiathèque) ; `switch` : booléen. */
-  type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio' | 'switch' | 'photo'
+  type?: 'text' | 'textarea' | 'date' | 'number' | 'select' | 'radio' | 'switch' | 'photo' | 'checkboxes'
   options?: { label: string; value: string | number | boolean }[]
   initial?: unknown
   /**
@@ -99,6 +101,8 @@ export interface ActionField {
   section?: string
   /** Demi-largeur à partir de 600 px (deux champs par ligne). */
   half?: boolean
+  /** Quart de largeur dans un formulaire large (quatre petits champs par ligne : durée, tarif, date…). */
+  quarter?: boolean
   help?: string
   placeholder?: string
   maxlength?: number
@@ -108,6 +112,9 @@ export interface ActionField {
   show?: (values: Record<string, any>) => boolean
   /** Champ photo : noms des champs qui donnent les initiales de l'aperçu (ex. prénom et nom). */
   avatarFrom?: string[]
+  /** Champ photo : choix de la médiathèque et aperçu carré (vignette, logo). */
+  library?: readonly string[]
+  square?: boolean
 }
 
 const props = withDefaults(defineProps<{
@@ -125,7 +132,7 @@ const props = withDefaults(defineProps<{
   width?: string
   run: (values: Record<string, any>) => Promise<unknown>
 }>(), { fields: () => [], confirmLabel: '', intro: '', danger: false, consequence: '', confirmText: '', icon: '',
-  width: 'min(560px, calc(100vw - 32px))' })
+  width: '' })
 const emit = defineEmits<{ 'update:visible': [boolean]; done: [unknown] }>()
 const { t } = useI18n()
 
@@ -148,6 +155,9 @@ const groups = computed(() => {
   }
   return out
 })
+// Formulaire à sections : large (sections en ligne, titre à gauche) ; sinon étroit. Une largeur donnée l'emporte.
+const dialogWidth = computed(() => props.width
+  || (grouped.value ? 'min(1080px, calc(100vw - 32px))' : 'min(560px, calc(100vw - 32px))'))
 const shown = (f: ActionField) => !f.show || f.show(values)
 const isRequired = (f: ActionField) => shown(f) && (typeof f.required === 'function' ? f.required(values) : !!f.required)
 const photoName = (f: ActionField) => (f.avatarFrom ?? []).map((n) => values[n]).filter(Boolean).join(' ') || null
@@ -195,7 +205,8 @@ watch(() => props.visible, (v) => {
   for (const k of Object.keys(values)) delete values[k]
   for (const k of Object.keys(photoBusy)) delete photoBusy[k]
   for (const f of normalizedFields.value) {
-    values[f.name] = f.initial ?? (f.type === 'number' ? undefined : f.type === 'switch' ? false : f.type === 'photo' ? null : '')
+    values[f.name] = f.initial ?? (f.type === 'number' ? undefined : f.type === 'switch' ? false : f.type === 'photo' ? null
+      : f.type === 'checkboxes' ? [] : '')
   }
   if (props.danger) playSound('warning')
 }, { immediate: true })
@@ -302,6 +313,27 @@ async function submit() {
 .ad-grid { clear: both; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 14px; }
 @media (min-width: 600px) {
   .ad-fields--grouped .ad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ad-fields--grouped .ad-full { grid-column: 1 / -1; }
+}
+// Formulaire à sections, en largeur : chaque section sur une ligne, titre dans une colonne à gauche, champs à droite.
+.ad-fields--grouped {
+  container-type: inline-size;
+  padding: 0;
+  border: 0;
+  background: none;
+  .ad-group + .ad-group { margin-top: 0; padding-top: 20px; }
+  .ad-group { padding-bottom: 8px; }
+}
+@container (min-width: 760px) {
+  .ad-fields--grouped .ad-group { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: 28px; }
+  // Titre collé en haut pendant le défilement : on sait toujours dans quelle section on saisit.
+  .ad-fields--grouped .ad-group__title {
+    grid-column: 1; align-self: start; position: sticky; top: 0; width: auto; margin: 0; padding-top: 2px;
+    color: var(--td-text-color-primary);
+  }
+  .ad-fields--grouped .ad-grid { grid-column: 2; clear: none; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ad-fields--grouped .ad-quarter { grid-column: span 1; }
+  .ad-fields--grouped .ad-half { grid-column: span 2; }
   .ad-fields--grouped .ad-full { grid-column: 1 / -1; }
 }
 .action-dialog__radios { display: flex; flex-wrap: wrap; gap: 8px 16px; }

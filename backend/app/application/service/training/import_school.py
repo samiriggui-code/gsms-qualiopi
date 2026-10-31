@@ -127,7 +127,7 @@ def import_gsms_school(db: Session, actor: str = "import GSMS School") -> dict:
         created.append(p.code)
 
     for code in [*complete_from_landing(db, data, report), *complete_from_drafts(db, report),
-                 *complete_certifications(db, report)]:
+                 *complete_certifications(db, report), *complete_funding(db, report)]:
         if code not in completed and code not in created:
             completed.append(code)
     for code in complete_program_images(db, [f["code"] for f in data["formations"]]):
@@ -256,5 +256,27 @@ def complete_certifications(db: Session, report: list[str]) -> list[str]:
             f" : {c['note']}" if c.get("note") else "."), "source": data["source"]}]
         touched.append(p.code)
         report.append(f"Formation {p.code} : certification {c.get('code') or c['basis']} renseignée")
+    db.flush()
+    return touched
+
+
+def complete_funding(db: Session, report: list[str]) -> list[str]:
+    """Financements de la landing posés sur une fiche qui n'en a pas ; le CPF seulement avec une certification RNCP
+    ou RS (sinon la fiche annoncerait une éligibilité fausse)."""
+    channels = yaml.safe_load(CERTIFICATIONS.read_text(encoding="utf-8")).get("financements_landing") or []
+    touched: list[str] = []
+    for p in db.scalars(select(t.Program).where(t.Program.catalog_slug.is_not(None))):
+        if p.funding_channels:
+            continue
+        cert = db.scalar(select(t.ProgramCertification).where(t.ProgramCertification.program_id == p.id))
+        certifying = cert is not None and cert.basis in ("RNCP", "RS")
+        p.funding_channels = [c for c in channels if c != "CPF" or certifying]
+        message = "Financements repris de la landing (identiques pour toutes les formations), à relire"
+        if "CPF" in channels and not certifying:
+            message += " ; CPF non repris : formation sans certification RNCP ou RS"
+        p.review_notes = [*(p.review_notes or []), {"champ": "funding_channels", "message": message + ".",
+                                                    "source": "Landing Form'SSI (landing/content/fiches.json)"}]
+        touched.append(p.code)
+        report.append(f"Formation {p.code} : financements {', '.join(p.funding_channels)}")
     db.flush()
     return touched

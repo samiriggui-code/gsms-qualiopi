@@ -146,3 +146,22 @@ def test_reglementation_cnaps_et_incendie() -> None:
     assert agents["Préparation d'audit"]["knowledge_bases"] == ["kb-ref", "kb-docs", "kb-cnaps", "kb-feu"]
     assert "Réglementation sécurité privée et incendie" not in {
         a["name"] for a in definitions("kb-ref", "mcp", "modele")}, "sans base CNAPS ni incendie, pas d'assistant vide"
+
+
+def test_textes_cnaps_et_incendie_livres() -> None:
+    from app.application.service.ia.espace import CNAPS, INCENDIE, referential_sources
+
+    for ref, attendu in ((CNAPS, "déontologie"), (INCENDIE, "2 mai 2005")):
+        sources = referential_sources(ref)
+        assert len(sources) >= 10 and all(content.startswith("---\ntitre:") for _, content in sources), ref.name
+        assert any(attendu in title for title, _ in sources), ref.name
+
+
+def test_agents_integres_recoivent_un_modele_de_conversation(engine: FakeAgents) -> None:
+    engine.agents += [{"id": "builtin-quick-answer", "name": "Réponse rapide", "config": {"agent_mode": "quick-answer"}},
+                      {"id": "builtin-data-analyst", "name": "Analyste", "config": {"model_id": "choisi"}}]
+    report = assistants.ensure_assistants("jeton-weknora")
+    assert report.ok, report.problems
+    quick, analyst = engine.agents[0], engine.agents[1]
+    assert quick["config"] == {"agent_mode": "quick-answer", "model_id": "llm-b"}, "modèle par défaut, réglages gardés"
+    assert analyst["config"]["model_id"] == "choisi", "un modèle déjà choisi n'est pas touché"

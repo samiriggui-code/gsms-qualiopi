@@ -42,6 +42,7 @@ services:
       WEKNORA_URL: ${WEKNORA_URL:-http://ia-app:8080}
       WEKNORA_SERVICE_EMAIL: ${WEKNORA_SERVICE_EMAIL:-}
       WEKNORA_SERVICE_PASSWORD: ${WEKNORA_SERVICE_PASSWORD:-}
+      WEKNORA_SUMMARY_MODEL_ID: ${WEKNORA_SUMMARY_MODEL_ID:-}
     volumes:
       - gsms-documents:/app/var/documents
     ports:

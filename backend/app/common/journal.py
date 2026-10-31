@@ -23,6 +23,18 @@ IGNORED_FIELDS = {"created_at", "updated_at", "created_by"}
 # Secrets et données personnelles d'identité (stagiaire, préinscription) : la modification est tracée, pas la valeur.
 MASKED_FIELDS = {"password_hash", "birth_date", "birth_city", "birth_department", "birth_country", "nationality", "address",
                  "postal_code"}
+# Données personnelles masquées en plus, selon la table : identité et coordonnées du stagiaire (LEARNER_PERSONAL_FIELDS),
+# coordonnées du personnel. Le journal garde la trace du changement, jamais la valeur.
+MASKED_BY_TABLE = {
+    "formation.learner": {"civility", "usage_name", "birth_date", "birth_city", "birth_department", "birth_country",
+                          "nationality", "address", "postal_code", "city", "current_situation"},
+    "rh.staff_member": {"email", "phone"},
+}
+
+
+def _masked(obj: object) -> set[str]:
+    table = inspect(obj).mapper.persist_selectable
+    return MASKED_FIELDS | MASKED_BY_TABLE.get(f"{table.schema}.{table.name}", set())
 # Tables écrites par des humains en dehors du schéma `formation` (le moteur a son propre historique).
 JOURNALED_OUTSIDE_FORMATION = {"iam.user", "iam.user_role", "iam.role", "config.feature_state", "config.setting_value", "rh.staff_member", "financement.funding_case", "financement.funding_source", "rh.staff_contract", "rh.staff_absence", "qualite.capa_action", "qualite.audit", "qualite.audit_item", "qualite.indicator_review", "qualite.certification_cycle", "facturation.facture", "facturation.facture_ligne", "facturation.encaissement"}
 NOT_JOURNALED = {"formation.outbox_event", "formation.change_log"}
@@ -71,6 +83,7 @@ def _json(value: object) -> object:
 
 def _snapshot(obj: object) -> dict:
     state = inspect(obj)
+    masked = _masked(obj)
     out = {}
     for attr in state.mapper.column_attrs:
         key = attr.key
@@ -79,12 +92,13 @@ def _snapshot(obj: object) -> dict:
         value = getattr(obj, key)
         if value is None:
             continue
-        out[key] = [None, "***" if key in MASKED_FIELDS else _json(value)]
+        out[key] = [None, "***" if key in masked else _json(value)]
     return out
 
 
 def _diff(obj: object) -> dict:
     state = inspect(obj)
+    masked = _masked(obj)
     out = {}
     for attr in state.mapper.column_attrs:
         key = attr.key
@@ -97,7 +111,7 @@ def _diff(obj: object) -> dict:
         after = hist.added[0] if hist.added else None
         if before == after:
             continue
-        if key in MASKED_FIELDS:
+        if key in masked:
             out[key] = ["***", "***"]
         else:
             out[key] = [_json(before), _json(after)]

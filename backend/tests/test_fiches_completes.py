@@ -115,7 +115,7 @@ def test_identite_du_stagiaire_dans_le_detail_seulement(client, db: Session) -> 
     logs = db.scalars(select(ChangeLog.changes).where(ChangeLog.table_name == "formation.learner")).all()
     text = str(logs)
     assert "1990-04-12" not in text and "3 rue des Lilas" not in text and "69003" not in text, "identité masquée au journal"
-    assert "Villeurbanne" in text and "***" in text
+    assert "Villeurbanne" not in text and "***" in text, "ville et nom d'usage masqués aussi"
 
 
 def test_fiche_du_personnel_detail_et_modification(client, db: Session) -> None:  # noqa: ANN001

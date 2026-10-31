@@ -207,7 +207,21 @@ class Program(TimestampMixin, Base):
     trainees_max: Mapped[int | None] = mapped_column(Integer)
     access_conditions: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     badge: Mapped[str | None] = mapped_column(String(60))
+    funding_channels: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")  # FUNDING_CHANNELS
 
+
+# Financements présentés sur la fiche, avec le logo de la médiathèque (media/formations). Le CPF n'est cohérent
+# qu'avec une certification RNCP ou RS : l'API le signale sur la fiche (fiche.funding_view), sans le retirer.
+FUNDING_CHANNELS = {
+    "CPF": {"label": "Mon Compte Formation (CPF)", "detail": "Droits acquis sur le compte personnel de formation",
+            "logo": "media/formations/compte-formation.jpg"},
+    "FRANCE_TRAVAIL": {"label": "France Travail", "detail": "Aide individuelle à la formation (AIF), sous conditions",
+                       "logo": "media/formations/logo-france-travail_0.jpg-1-500x313.png"},
+    "ENTREPRISE": {"label": "Entreprise et OPCO", "detail": "Plan de développement des compétences, prise en charge OPCO",
+                   "logo": "media/formations/opco.png"},
+    "PERSONNEL": {"label": "Financement personnel", "detail": "Paiement par le stagiaire, échelonnement possible",
+                  "logo": None},
+}
 
 TRACKS = {"SURETE": "Sûreté", "INCENDIE": "Incendie", "HABILITATION": "Habilitation électrique",
           "SST": "Secourisme (SST)", "ENTREPRISE": "Formations en entreprise", "AUTRES": "Autres"}
@@ -303,6 +317,11 @@ class ProgramResource(TimestampMixin, Base):
     rights_note: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="BROUILLON")
     note: Mapped[str | None] = mapped_column(Text)
+    # Fichier du contenu dans le stockage de GSMS (empreinte vérifiée à la lecture) ; vide pour une ressource déclarée.
+    file_name: Mapped[str | None] = mapped_column(String(250))
+    mime_type: Mapped[str | None] = mapped_column(String(80))
+    storage_path: Mapped[str | None] = mapped_column(String(400))
+    sha256: Mapped[str | None] = mapped_column(String(64))
 
 
 class ProgramVersion(TimestampMixin, Base):

@@ -55,6 +55,7 @@ def get_fiche(program_id: str, db: DB, user: ProgramReader) -> dict:
         "program": {c.key: getattr(p, c.key) for c in t.Program.__table__.columns},
         "certification": _cert_dict(fiche.certification_of(db, p.id)),
         "certification_bases": t.CERTIFICATION_BASES, "habilitations": t.HABILITATIONS,
+        "funding": fiche.funding_view(db, p), "funding_channels": t.FUNDING_CHANNELS,
         "delivery_modes": fiche.DELIVERY_LABELS, "roles": fiche.ROLE_LABELS,
         "trainers": [{"id": pt.id, "trainer_id": tr.id, "name": tr.full_name, "photo_url": tr.photo_url, "role": pt.role,
                       "modules": pt.modules, "qualifications": [
@@ -230,6 +231,17 @@ def update_resource(program_id: str, resource_id: str, body: ResourceIn, db: DB,
         setattr(r, key, value)
     db.commit()
     return {"id": r.id}
+
+
+@router.get("/fiches/{program_id}/ressources/{resource_id}/fichier")
+def resource_file(program_id: str, resource_id: str, db: DB, _: ProgramReader) -> Response:
+    """Fichier du contenu, relu avec son empreinte ; une ressource déclarée sans fichier n'en a pas."""
+    r = db.get(t.ProgramResource, resource_id)
+    if r is None or r.program_id != program_id or not r.storage_path:
+        raise NotFoundError("Fichier du contenu introuvable")
+    content = storage.read(r.storage_path, r.sha256)
+    return Response(content, media_type=f"{r.mime_type}; charset=utf-8" if r.mime_type else None,
+                    headers={"Content-Disposition": content_disposition(r.file_name or "contenu", inline=True)})
 
 
 @router.delete("/fiches/{program_id}/ressources/{resource_id}", status_code=204)
