@@ -61,14 +61,14 @@ APP_ENV=production
 POSTGRES_PASSWORD=$(secret)
 JWT_SECRET=$(secret)
 # Envoi des e-mails (relances, désactivées par défaut) : SMTP Hostinger. Renseigner la boîte et son mot de passe.
-# 587 + SMTP_STARTTLS=true, ou 465 + SMTP_SSL=true.
+# Port 587 avec SMTP_STARTTLS à true, ou port 465 avec SMTP_SSL à true.
 SMTP_HOST=smtp.hostinger.com
 SMTP_PORT=465
 SMTP_USER=
 SMTP_PASSWORD=
 SMTP_STARTTLS=false
 SMTP_SSL=true
-# Adresse d'expédition = la boîte Hostinger (SMTP_USER).
+# Adresse d'expédition : la boîte Hostinger (SMTP_USER).
 SMTP_FROM=
 ENV
   echo ".env créé (secrets générés, lisible par vous seul)."
