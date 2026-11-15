@@ -500,6 +500,11 @@ Points de départ :
 4. Écran chaîne Qualiopi (critères, indicateur, actions correctives ; l'API existe).
 5. **Landing de Form'SSI** : c'est la vitrine de l'école avec son catalogue de formations, alimentée
    par les programmes. **Pas** une page qui vend le logiciel.
+6. **Audit d'écart « préparation habilitation / agrément »** (ajouté le 15/11/2026) : comparer le moteur
+   et le site au guide [`docs/habilitation/GUIDE-PREPARATION.md`](docs/habilitation/GUIDE-PREPARATION.md)
+   (habilitation RNCP/RS, agrément titre pro DREETS, première session, CPF/EDOF). Remplir sa grille §11
+   (couvert / partiel / absent, avec module, route ou fichier), puis proposer les manques **sans les coder**.
+   Vérifier à la source officielle les points marqués « à vérifier » avant d'en faire une règle.
 
 ## 8. Conventions de travail
 
